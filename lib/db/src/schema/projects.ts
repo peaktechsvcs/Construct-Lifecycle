@@ -1,18 +1,21 @@
 import { createInsertSchema } from "drizzle-zod";
 import {
   date,
+  index,
   integer,
   numeric,
   pgTable,
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
+import { tenantsTable } from "./tenants";
 
 export const projectsTable = pgTable("projects", {
   id: serial("id").primaryKey(),
-  projectNumber: text("project_number").notNull().unique(),
+  projectNumber: text("project_number").notNull(),
   customerName: text("customer_name").notNull(),
   projectName: text("project_name").notNull(),
   address: text("address"),
@@ -28,8 +31,8 @@ export const projectsTable = pgTable("projects", {
     .notNull()
     .default("0"),
   contractDetails: text("contract_details"),
-  contractStart: date("contract_start"),
-  contractEnd: date("contract_end"),
+  contractStart: date("contract_start", { mode: "string" }),
+  contractEnd: date("contract_end", { mode: "string" }),
   deliveryPercent: integer("delivery_percent").notNull().default(0),
   requirementsSummary: text("requirements_summary"),
   billingStatus: text("billing_status").notNull().default("not_started"),
@@ -42,40 +45,46 @@ export const projectsTable = pgTable("projects", {
   billingDetails: text("billing_details"),
   closeoutStatus: text("closeout_status").notNull().default("not_started"),
   closeoutDetails: text("closeout_details"),
-  nextFollowUp: date("next_follow_up"),
+  nextFollowUp: date("next_follow_up", { mode: "string" }),
+  tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (table) => [
+  index("projects_tenant_id_idx").on(table.tenantId),
+  uniqueIndex("projects_tenant_project_number_idx").on(table.tenantId, table.projectNumber),
+]);
 
 export const activityTable = pgTable("project_activity", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id")
     .notNull()
     .references(() => projectsTable.id, { onDelete: "cascade" }),
+  tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id, { onDelete: "cascade" }),
   action: text("action").notNull(),
   description: text("description").notNull(),
   actor: text("actor"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (table) => [index("activity_tenant_id_idx").on(table.tenantId)]);
 
 export const followUpsTable = pgTable("follow_ups", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id")
     .notNull()
     .references(() => projectsTable.id, { onDelete: "cascade" }),
-  dueDate: date("due_date").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id, { onDelete: "cascade" }),
+  dueDate: date("due_date", { mode: "string" }).notNull(),
   status: text("status").notNull().default("open"),
   note: text("note").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (table) => [index("follow_ups_tenant_id_idx").on(table.tenantId)]);
 
 export const insertProjectSchema = createInsertSchema(projectsTable).omit({
   id: true,

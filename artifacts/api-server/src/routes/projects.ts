@@ -15,6 +15,8 @@ import {
   UpdateProjectBody,
   UpdateProjectParams,
 } from "@workspace/api-zod";
+import type { TenantRequest } from "../middlewares/tenantContext";
+import { requireRole } from "../middlewares/rbac";
 
 const router: IRouter = Router();
 
@@ -44,31 +46,32 @@ const addActivity = async (
   projectId: number,
   action: string,
   description: string,
+  tenantId: number,
 ) => {
   await db.insert(activityTable).values({
     projectId,
+    tenantId,
     action,
     description,
     actor: "You",
   });
 };
 
-router.get("/projects", async (req, res) => {
+router.get("/projects", async (req: TenantRequest, res) => {
   const parsed = ListProjectsQueryParams.safeParse({
     search: req.query.search,
     stage: req.query.stage,
   });
   const filters = parsed.success ? parsed.data : {};
-  const conditions = [];
+  const conditions = [eq(projectsTable.tenantId, req.tenantId!)];
 
   if (filters.search) {
-    conditions.push(
-      or(
+    const searchCondition = or(
         ilike(projectsTable.customerName, `%${filters.search}%`),
         ilike(projectsTable.projectName, `%${filters.search}%`),
         ilike(projectsTable.projectNumber, `%${filters.search}%`),
-      ),
-    );
+      );
+    if (searchCondition) conditions.push(searchCondition);
   }
   if (filters.stage) {
     conditions.push(eq(projectsTable.stage, filters.stage));
@@ -82,7 +85,7 @@ router.get("/projects", async (req, res) => {
   res.json(rows.map(toProject));
 });
 
-router.post("/projects", async (req, res) => {
+router.post("/projects", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
   const parsed = CreateProjectBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid project details", details: parsed.error.issues });
@@ -97,6 +100,7 @@ router.post("/projects", async (req, res) => {
     .insert(projectsTable)
     .values({
       ...parsed.data,
+      tenantId: req.tenantId!,
       projectNumber,
       productCategories: parsed.data.productCategories ?? [],
       contractValue: String(parsed.data.contractValue ?? 0),
@@ -107,16 +111,16 @@ router.post("/projects", async (req, res) => {
       nextFollowUp: toDateString(parsed.data.nextFollowUp),
     })
     .returning();
-  await addActivity(row.id, "Project created", `New project opened for ${row.customerName}`);
+  await addActivity(row.id, "Project created", `New project opened for ${row.customerName}`, req.tenantId!);
   res.status(201).json(toProject(row));
 });
 
-router.get("/projects/:projectId", async (req, res) => {
+router.get("/projects/:projectId", async (req: TenantRequest, res) => {
   const projectId = Number(req.params.projectId);
   const [row] = await db
     .select()
     .from(projectsTable)
-    .where(eq(projectsTable.id, projectId));
+    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.tenantId, req.tenantId!)));
   if (!row) {
     res.status(404).json({ error: "Project not found" });
     return;
@@ -124,7 +128,7 @@ router.get("/projects/:projectId", async (req, res) => {
   res.json(toProject(row));
 });
 
-router.patch("/projects/:projectId", async (req, res) => {
+router.patch("/projects/:projectId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
   const params = UpdateProjectParams.safeParse(req.params);
   const parsed = UpdateProjectBody.safeParse(req.body);
   if (!params.success || !parsed.success) {
@@ -149,22 +153,22 @@ router.patch("/projects/:projectId", async (req, res) => {
   const [row] = await db
     .update(projectsTable)
     .set(updateData)
-    .where(eq(projectsTable.id, params.data.projectId))
+    .where(and(eq(projectsTable.id, params.data.projectId), eq(projectsTable.tenantId, req.tenantId!)))
     .returning();
   if (!row) {
     res.status(404).json({ error: "Project not found" });
     return;
   }
   const changedStage = parsed.data.stage ? ` Stage moved to ${parsed.data.stage}.` : "";
-  await addActivity(row.id, "Project updated", `Project details were updated.${changedStage}`);
+  await addActivity(row.id, "Project updated", `Project details were updated.${changedStage}`, req.tenantId!);
   res.json(toProject(row));
 });
 
-router.delete("/projects/:projectId", async (req, res) => {
+router.delete("/projects/:projectId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
   const projectId = Number(req.params.projectId);
   const [row] = await db
     .delete(projectsTable)
-    .where(eq(projectsTable.id, projectId))
+    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.tenantId, req.tenantId!)))
     .returning({ id: projectsTable.id });
   if (!row) {
     res.status(404).json({ error: "Project not found" });
@@ -173,8 +177,11 @@ router.delete("/projects/:projectId", async (req, res) => {
   res.status(204).send();
 });
 
-router.get("/projects/:projectId/activity", async (req, res) => {
+router.get("/projects/:projectId/activity", async (req: TenantRequest, res) => {
   const projectId = Number(req.params.projectId);
+  const [project] = await db.select({ id: projectsTable.id }).from(projectsTable)
+    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.tenantId, req.tenantId!)));
+  if (!project) { res.status(404).json({ error: "Project not found" }); return; }
   const rows = await db
     .select({
       id: activityTable.id,
@@ -187,12 +194,12 @@ router.get("/projects/:projectId/activity", async (req, res) => {
     })
     .from(activityTable)
     .leftJoin(projectsTable, eq(activityTable.projectId, projectsTable.id))
-    .where(eq(activityTable.projectId, projectId))
+    .where(and(eq(activityTable.projectId, projectId), eq(activityTable.tenantId, req.tenantId!)))
     .orderBy(desc(activityTable.createdAt));
   res.json(rows);
 });
 
-router.get("/follow-ups", async (_req, res) => {
+router.get("/follow-ups", async (req: TenantRequest, res) => {
   const rows = await db
     .select({
       id: followUpsTable.id,
@@ -206,11 +213,12 @@ router.get("/follow-ups", async (_req, res) => {
     })
     .from(followUpsTable)
     .innerJoin(projectsTable, eq(followUpsTable.projectId, projectsTable.id))
+    .where(eq(followUpsTable.tenantId, req.tenantId!))
     .orderBy(followUpsTable.dueDate);
   res.json(rows);
 });
 
-router.post("/follow-ups", async (req, res) => {
+router.post("/follow-ups", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
   const parsed = CreateFollowUpBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid follow-up details" });
@@ -219,7 +227,7 @@ router.post("/follow-ups", async (req, res) => {
   const [project] = await db
     .select({ customerName: projectsTable.customerName, projectName: projectsTable.projectName })
     .from(projectsTable)
-    .where(eq(projectsTable.id, parsed.data.projectId));
+    .where(and(eq(projectsTable.id, parsed.data.projectId), eq(projectsTable.tenantId, req.tenantId!)));
   if (!project) {
     res.status(404).json({ error: "Project not found" });
     return;
@@ -229,10 +237,11 @@ router.post("/follow-ups", async (req, res) => {
     .insert(followUpsTable)
     .values({
       ...parsed.data,
+      tenantId: req.tenantId!,
       dueDate: parsed.data.dueDate.toISOString().slice(0, 10),
     })
     .returning();
-  await addActivity(row.projectId, "Follow-up scheduled", `Follow-up scheduled for ${row.dueDate}.`);
+  await addActivity(row.projectId, "Follow-up scheduled", `Follow-up scheduled for ${row.dueDate}.`, req.tenantId!);
   res.status(201).json({
     ...row,
     customerName: project.customerName,
@@ -240,7 +249,7 @@ router.post("/follow-ups", async (req, res) => {
   });
 });
 
-router.patch("/follow-ups/:followUpId", async (req, res) => {
+router.patch("/follow-ups/:followUpId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
   const params = UpdateFollowUpParams.safeParse(req.params);
   const parsed = UpdateFollowUpBody.safeParse(req.body);
   if (!params.success || !parsed.success) {
@@ -253,7 +262,7 @@ router.patch("/follow-ups/:followUpId", async (req, res) => {
       ...parsed.data,
       dueDate: toDateString(parsed.data.dueDate),
     })
-    .where(eq(followUpsTable.id, params.data.followUpId))
+    .where(and(eq(followUpsTable.id, params.data.followUpId), eq(followUpsTable.tenantId, req.tenantId!)))
     .returning();
   if (!row) {
     res.status(404).json({ error: "Follow-up not found" });
@@ -262,7 +271,7 @@ router.patch("/follow-ups/:followUpId", async (req, res) => {
   const [project] = await db
     .select({ customerName: projectsTable.customerName, projectName: projectsTable.projectName })
     .from(projectsTable)
-    .where(eq(projectsTable.id, row.projectId));
+    .where(and(eq(projectsTable.id, row.projectId), eq(projectsTable.tenantId, req.tenantId!)));
   res.json({
     ...row,
     customerName: project?.customerName ?? "Unknown customer",
@@ -270,10 +279,10 @@ router.patch("/follow-ups/:followUpId", async (req, res) => {
   });
 });
 
-router.get("/dashboard/summary", async (_req, res) => {
+router.get("/dashboard/summary", async (req: TenantRequest, res) => {
   const [projects, followUps] = await Promise.all([
-    db.select().from(projectsTable),
-    db.select({ status: followUpsTable.status }).from(followUpsTable),
+    db.select().from(projectsTable).where(eq(projectsTable.tenantId, req.tenantId!)),
+    db.select({ status: followUpsTable.status }).from(followUpsTable).where(eq(followUpsTable.tenantId, req.tenantId!)),
   ]);
   const stageCounts = projectStages.map((stage) => {
     const matching = projects.filter((project) => project.stage === stage);
@@ -298,7 +307,7 @@ router.get("/dashboard/summary", async (_req, res) => {
   });
 });
 
-router.get("/dashboard/activity", async (_req, res) => {
+router.get("/dashboard/activity", async (req: TenantRequest, res) => {
   const rows = await db
     .select({
       id: activityTable.id,
@@ -311,6 +320,7 @@ router.get("/dashboard/activity", async (_req, res) => {
     })
     .from(activityTable)
     .leftJoin(projectsTable, eq(activityTable.projectId, projectsTable.id))
+    .where(eq(activityTable.tenantId, req.tenantId!))
     .orderBy(desc(activityTable.createdAt))
     .limit(12);
   res.json(rows);

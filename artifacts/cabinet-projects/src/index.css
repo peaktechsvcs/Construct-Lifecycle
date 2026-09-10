@@ -1,6 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap');
+@layer theme, base, clerk, components, utilities;
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import '@clerk/themes/shadcn.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -28,62 +30,72 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-status-neutral: hsl(var(--status-neutral));
+  --color-status-warning: hsl(var(--status-warning));
+  --color-status-info: hsl(var(--status-info));
+  --color-status-success: hsl(var(--status-success));
+  --color-status-danger: hsl(var(--status-danger));
 }
 
 :root {
-  --background: 39 33% 94%;
-  --foreground: 204 26% 16%;
-  --border: 38 23% 84%;
-  --input: 38 23% 80%;
-  --ring: 189 60% 34%;
-  --card: 42 38% 98%;
-  --card-foreground: 204 26% 16%;
-  --primary: 188 61% 29%;
-  --primary-foreground: 42 38% 98%;
-  --secondary: 36 28% 89%;
-  --secondary-foreground: 204 26% 20%;
-  --muted: 39 24% 90%;
-  --muted-foreground: 204 12% 47%;
-  --accent: 17 70% 53%;
-  --accent-foreground: 42 38% 98%;
-  --destructive: 3 61% 46%;
-  --destructive-foreground: 42 38% 98%;
-  --sidebar: 202 31% 18%;
-  --sidebar-foreground: 40 26% 91%;
-  --sidebar-border: 202 23% 27%;
-  --sidebar-accent: 188 46% 28%;
-  --chart-1: 188 61% 29%;
-  --chart-2: 17 70% 53%;
-  --chart-3: 36 57% 56%;
-  --chart-4: 204 28% 43%;
-  --chart-5: 145 31% 40%;
-  --radius: 0.8rem;
-  --app-font-sans: 'Space Grotesk', sans-serif;
+  --background: 0 0% 98%;
+  --foreground: 222 47% 11%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 221 83% 53%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --primary: 221 83% 53%; /* Construct LC Vivid Blue */
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --sidebar: 222 47% 11%; /* Construct LC Navy */
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-border: 217 33% 17%;
+  --sidebar-accent: 217 33% 17%;
+  --status-neutral: 215 16% 47%;
+  --status-warning: 38 92% 50%;
+  --status-info: 200 98% 39%;
+  --status-success: 142 71% 45%;
+  --status-danger: 0 84% 60%;
+  --radius: 0.5rem;
+  --app-font-sans: 'Inter', sans-serif;
   --app-font-mono: 'DM Mono', monospace;
 }
 
 .dark {
-  --background: 204 25% 11%;
-  --foreground: 40 26% 91%;
-  --border: 204 19% 24%;
-  --input: 204 19% 27%;
-  --ring: 188 61% 48%;
-  --card: 204 23% 15%;
-  --card-foreground: 40 26% 91%;
-  --primary: 188 61% 48%;
-  --primary-foreground: 204 25% 11%;
-  --secondary: 204 19% 23%;
-  --secondary-foreground: 40 26% 91%;
-  --muted: 204 19% 19%;
-  --muted-foreground: 204 12% 66%;
-  --accent: 17 70% 58%;
-  --accent-foreground: 204 25% 11%;
-  --destructive: 3 61% 56%;
-  --destructive-foreground: 40 26% 91%;
-  --sidebar: 204 32% 9%;
-  --sidebar-foreground: 40 26% 91%;
-  --sidebar-border: 204 22% 20%;
-  --sidebar-accent: 188 46% 22%;
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 224 76% 48%;
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --sidebar: 222 47% 11%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-border: 217 33% 17%;
+  --sidebar-accent: 217 33% 17%;
+  --status-neutral: 215 20% 65%;
+  --status-warning: 38 92% 50%;
+  --status-info: 200 98% 39%;
+  --status-success: 142 71% 45%;
+  --status-danger: 0 84% 60%;
 }
 
 @layer base {

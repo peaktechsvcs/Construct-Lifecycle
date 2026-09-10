@@ -224,6 +224,59 @@ export interface DashboardSummary {
   stageCounts: DashboardSummaryStageCountsItem[];
 }
 
+export type TenantRole = typeof TenantRole[keyof typeof TenantRole];
+
+
+export const TenantRole = {
+  owner: 'owner',
+  admin: 'admin',
+  member: 'member',
+  viewer: 'viewer',
+} as const;
+
+export interface Tenant {
+  id: number;
+  name: string;
+  slug: string;
+  role: TenantRole;
+}
+
+export interface TenantContext {
+  activeTenant: Tenant;
+  memberships: Tenant[];
+}
+
+export interface SwitchTenantInput {
+  /** @minimum 1 */
+  tenantId: number;
+}
+
+export interface BrandingInput {
+  /** @nullable */
+  logoUrl?: string | null;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  backgroundColor?: string;
+  foregroundColor?: string;
+  [key: string]: unknown;
+ }
+
+export type BrandingVersionData = { [key: string]: unknown };
+
+export interface BrandingVersion {
+  id: number;
+  tenantId: number;
+  version: number;
+  data: BrandingVersionData;
+  publishedAt: string;
+}
+
+export interface BrandingContext {
+  draft: BrandingInput;
+  published: BrandingVersion[];
+}
+
 export type ListProjectsParams = {
 search?: string;
 stage?: ProjectStage;

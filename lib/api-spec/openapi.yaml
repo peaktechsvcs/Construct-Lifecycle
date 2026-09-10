@@ -16,6 +16,10 @@ tags:
     description: Dashboard summaries
   - name: follow-ups
     description: Future work follow-ups
+  - name: tenants
+    description: Tenant context and membership operations
+  - name: branding
+    description: Tenant branding drafts and published versions
 paths:
   /healthz:
     get:
@@ -207,6 +211,108 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Activity"
+  /tenant/context:
+    get:
+      operationId: getTenantContext
+      tags: [tenants]
+      summary: Get the active tenant context
+      responses:
+        "200":
+          description: Active tenant and memberships
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantContext"
+    post:
+      operationId: switchTenant
+      tags: [tenants]
+      summary: Switch the active tenant after membership validation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SwitchTenantInput"
+      responses:
+        "200":
+          description: Updated tenant context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantContext"
+        "403": { description: User is not a member of the tenant }
+  /tenant/branding:
+    get:
+      operationId: getBranding
+      tags: [branding]
+      summary: Get branding context and current draft
+      responses:
+        "200":
+          description: Branding context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandingContext"
+    put:
+      operationId: saveBrandingDraft
+      tags: [branding]
+      summary: Save a branding draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandingInput"
+      responses:
+        "200":
+          description: Saved draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandingContext"
+  /tenant/branding/publish:
+    post:
+      operationId: publishBranding
+      tags: [branding]
+      summary: Publish the draft after WCAG AA contrast validation
+      responses:
+        "200":
+          description: Published branding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandingVersion"
+        "422": { description: Branding fails WCAG AA contrast validation }
+  /tenant/branding/rollback/{version}:
+    post:
+      operationId: rollbackBranding
+      tags: [branding]
+      summary: Roll back to an immutable published version
+      parameters:
+        - in: path
+          name: version
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Rolled-back draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandingContext"
+        "404": { description: Version not found }
+  /tenant/branding/reset:
+    post:
+      operationId: resetBranding
+      tags: [branding]
+      summary: Reset branding draft to Construct LC defaults
+      responses:
+        "200":
+          description: Reset draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandingContext"
 components:
   parameters:
     ProjectId:
@@ -406,4 +512,52 @@ components:
               stage: { $ref: "#/components/schemas/ProjectStage" }
               count: { type: integer }
               value: { type: number }
+    Tenant:
+      type: object
+      required: [id, name, slug, role]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        role: { type: string, enum: [owner, admin, member, viewer] }
+    TenantContext:
+      type: object
+      required: [activeTenant, memberships]
+      properties:
+        activeTenant: { $ref: "#/components/schemas/Tenant" }
+        memberships:
+          type: array
+          items: { $ref: "#/components/schemas/Tenant" }
+    SwitchTenantInput:
+      type: object
+      required: [tenantId]
+      properties:
+        tenantId: { type: integer, minimum: 1 }
+    BrandingInput:
+      type: object
+      additionalProperties: true
+      properties:
+        logoUrl: { type: [string, "null"] }
+        primaryColor: { type: string }
+        secondaryColor: { type: string }
+        accentColor: { type: string }
+        backgroundColor: { type: string }
+        foregroundColor: { type: string }
+    BrandingVersion:
+      type: object
+      required: [id, tenantId, version, data, publishedAt]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        version: { type: integer }
+        data: { type: object, additionalProperties: true }
+        publishedAt: { type: string, format: date-time }
+    BrandingContext:
+      type: object
+      required: [draft, published]
+      properties:
+        draft: { $ref: "#/components/schemas/BrandingInput" }
+        published:
+          type: array
+          items: { $ref: "#/components/schemas/BrandingVersion" }
 

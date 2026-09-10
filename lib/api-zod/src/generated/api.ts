@@ -386,3 +386,164 @@ export const ListRecentActivityResponseItem = zod.object({
 export const ListRecentActivityResponse = zod.array(ListRecentActivityResponseItem)
 
 
+/**
+ * @summary Get the active tenant context
+ */
+export const GetTenantContextResponse = zod.object({
+  "activeTenant": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+}),
+  "memberships": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+}))
+})
+
+
+/**
+ * @summary Switch the active tenant after membership validation
+ */
+
+
+
+export const SwitchTenantBody = zod.object({
+  "tenantId": zod.number().int().min(1)
+})
+
+export const SwitchTenantResponse = zod.object({
+  "activeTenant": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+}),
+  "memberships": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+}))
+})
+
+
+/**
+ * @summary Get branding context and current draft
+ */
+export const GetBrandingResponse = zod.object({
+  "draft": zod.object({
+  "logoUrl": zod.string().nullish(),
+  "primaryColor": zod.string().optional(),
+  "secondaryColor": zod.string().optional(),
+  "accentColor": zod.string().optional(),
+  "backgroundColor": zod.string().optional(),
+  "foregroundColor": zod.string().optional()
+}),
+  "published": zod.array(zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "version": zod.number().int(),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "publishedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Save a branding draft
+ */
+export const SaveBrandingDraftBody = zod.object({
+  "logoUrl": zod.string().nullish(),
+  "primaryColor": zod.string().optional(),
+  "secondaryColor": zod.string().optional(),
+  "accentColor": zod.string().optional(),
+  "backgroundColor": zod.string().optional(),
+  "foregroundColor": zod.string().optional()
+})
+
+export const SaveBrandingDraftResponse = zod.object({
+  "draft": zod.object({
+  "logoUrl": zod.string().nullish(),
+  "primaryColor": zod.string().optional(),
+  "secondaryColor": zod.string().optional(),
+  "accentColor": zod.string().optional(),
+  "backgroundColor": zod.string().optional(),
+  "foregroundColor": zod.string().optional()
+}),
+  "published": zod.array(zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "version": zod.number().int(),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "publishedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Publish the draft after WCAG AA contrast validation
+ */
+export const PublishBrandingResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "version": zod.number().int(),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "publishedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Roll back to an immutable published version
+ */
+
+
+
+export const RollbackBrandingParams = zod.object({
+  "version": zod.coerce.number().int().min(1)
+})
+
+export const RollbackBrandingResponse = zod.object({
+  "draft": zod.object({
+  "logoUrl": zod.string().nullish(),
+  "primaryColor": zod.string().optional(),
+  "secondaryColor": zod.string().optional(),
+  "accentColor": zod.string().optional(),
+  "backgroundColor": zod.string().optional(),
+  "foregroundColor": zod.string().optional()
+}),
+  "published": zod.array(zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "version": zod.number().int(),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "publishedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Reset branding draft to Construct LC defaults
+ */
+export const ResetBrandingResponse = zod.object({
+  "draft": zod.object({
+  "logoUrl": zod.string().nullish(),
+  "primaryColor": zod.string().optional(),
+  "secondaryColor": zod.string().optional(),
+  "accentColor": zod.string().optional(),
+  "backgroundColor": zod.string().optional(),
+  "foregroundColor": zod.string().optional()
+}),
+  "published": zod.array(zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "version": zod.number().int(),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "publishedAt": zod.coerce.date()
+}))
+})
+
+

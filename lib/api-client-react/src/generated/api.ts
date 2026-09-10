@@ -21,6 +21,9 @@ import type {
 
 import type {
   Activity,
+  BrandingContext,
+  BrandingInput,
+  BrandingVersion,
   DashboardSummary,
   FollowUp,
   FollowUpInput,
@@ -29,7 +32,9 @@ import type {
   ListProjectsParams,
   Project,
   ProjectInput,
-  ProjectUpdate
+  ProjectUpdate,
+  SwitchTenantInput,
+  TenantContext
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -962,4 +967,513 @@ export function useListRecentActivity<TData = Awaited<ReturnType<typeof listRece
 
 
 
+
+export const getGetTenantContextUrl = () => {
+
+
+
+
+  return `/api/tenant/context`
+}
+
+/**
+ * @summary Get the active tenant context
+ */
+export const getTenantContext = async ( options?: Parameters<typeof customFetch>[1]): Promise<TenantContext> => {
+
+  return customFetch<TenantContext>(getGetTenantContextUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTenantContextQueryKey = () => {
+    return [
+    `/api/tenant/context`
+    ] as const;
+    }
+
+
+export const getGetTenantContextQueryOptions = <TData = Awaited<ReturnType<typeof getTenantContext>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTenantContext>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTenantContextQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTenantContext>>> = ({ signal }) => getTenantContext({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTenantContext>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTenantContextQueryResult = NonNullable<Awaited<ReturnType<typeof getTenantContext>>>
+export type GetTenantContextQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the active tenant context
+ */
+
+export function useGetTenantContext<TData = Awaited<ReturnType<typeof getTenantContext>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTenantContext>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTenantContextQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSwitchTenantUrl = () => {
+
+
+
+
+  return `/api/tenant/context`
+}
+
+/**
+ * @summary Switch the active tenant after membership validation
+ */
+export const switchTenant = async (switchTenantInput: SwitchTenantInput, options?: Parameters<typeof customFetch>[1]): Promise<TenantContext> => {
+
+  return customFetch<TenantContext>(getSwitchTenantUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(switchTenantInput)
+  }
+);}
+
+
+
+
+
+export const getSwitchTenantMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof switchTenant>>, TError,{data: BodyType<SwitchTenantInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof switchTenant>>, TError,{data: BodyType<SwitchTenantInput>}, TContext> => {
+
+const mutationKey = ['switchTenant'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof switchTenant>>, {data: BodyType<SwitchTenantInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  switchTenant(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SwitchTenantMutationResult = NonNullable<Awaited<ReturnType<typeof switchTenant>>>
+    export type SwitchTenantMutationBody = BodyType<SwitchTenantInput>
+    export type SwitchTenantMutationError = ErrorType<void>
+
+    /**
+ * @summary Switch the active tenant after membership validation
+ */
+export const useSwitchTenant = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof switchTenant>>, TError,{data: BodyType<SwitchTenantInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof switchTenant>>,
+        TError,
+        {data: BodyType<SwitchTenantInput>},
+        TContext
+      > => {
+      return useMutation(getSwitchTenantMutationOptions(options));
+    }
+
+export const getGetBrandingUrl = () => {
+
+
+
+
+  return `/api/tenant/branding`
+}
+
+/**
+ * @summary Get branding context and current draft
+ */
+export const getBranding = async ( options?: Parameters<typeof customFetch>[1]): Promise<BrandingContext> => {
+
+  return customFetch<BrandingContext>(getGetBrandingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBrandingQueryKey = () => {
+    return [
+    `/api/tenant/branding`
+    ] as const;
+    }
+
+
+export const getGetBrandingQueryOptions = <TData = Awaited<ReturnType<typeof getBranding>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBrandingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBranding>>> = ({ signal }) => getBranding({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBrandingQueryResult = NonNullable<Awaited<ReturnType<typeof getBranding>>>
+export type GetBrandingQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get branding context and current draft
+ */
+
+export function useGetBranding<TData = Awaited<ReturnType<typeof getBranding>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBrandingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveBrandingDraftUrl = () => {
+
+
+
+
+  return `/api/tenant/branding`
+}
+
+/**
+ * @summary Save a branding draft
+ */
+export const saveBrandingDraft = async (brandingInput: BrandingInput, options?: Parameters<typeof customFetch>[1]): Promise<BrandingContext> => {
+
+  return customFetch<BrandingContext>(getSaveBrandingDraftUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(brandingInput)
+  }
+);}
+
+
+
+
+
+export const getSaveBrandingDraftMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveBrandingDraft>>, TError,{data: BodyType<BrandingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveBrandingDraft>>, TError,{data: BodyType<BrandingInput>}, TContext> => {
+
+const mutationKey = ['saveBrandingDraft'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveBrandingDraft>>, {data: BodyType<BrandingInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveBrandingDraft(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveBrandingDraftMutationResult = NonNullable<Awaited<ReturnType<typeof saveBrandingDraft>>>
+    export type SaveBrandingDraftMutationBody = BodyType<BrandingInput>
+    export type SaveBrandingDraftMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save a branding draft
+ */
+export const useSaveBrandingDraft = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveBrandingDraft>>, TError,{data: BodyType<BrandingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveBrandingDraft>>,
+        TError,
+        {data: BodyType<BrandingInput>},
+        TContext
+      > => {
+      return useMutation(getSaveBrandingDraftMutationOptions(options));
+    }
+
+export const getPublishBrandingUrl = () => {
+
+
+
+
+  return `/api/tenant/branding/publish`
+}
+
+/**
+ * @summary Publish the draft after WCAG AA contrast validation
+ */
+export const publishBranding = async ( options?: Parameters<typeof customFetch>[1]): Promise<BrandingVersion> => {
+
+  return customFetch<BrandingVersion>(getPublishBrandingUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPublishBrandingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishBranding>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof publishBranding>>, TError,void, TContext> => {
+
+const mutationKey = ['publishBranding'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof publishBranding>>, void> = () => {
+
+
+          return  publishBranding(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PublishBrandingMutationResult = NonNullable<Awaited<ReturnType<typeof publishBranding>>>
+
+    export type PublishBrandingMutationError = ErrorType<void>
+
+    /**
+ * @summary Publish the draft after WCAG AA contrast validation
+ */
+export const usePublishBranding = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishBranding>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof publishBranding>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPublishBrandingMutationOptions(options));
+    }
+
+export const getRollbackBrandingUrl = (version: number,) => {
+
+
+
+
+  return `/api/tenant/branding/rollback/${version}`
+}
+
+/**
+ * @summary Roll back to an immutable published version
+ */
+export const rollbackBranding = async (version: number, options?: Parameters<typeof customFetch>[1]): Promise<BrandingContext> => {
+
+  return customFetch<BrandingContext>(getRollbackBrandingUrl(version),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRollbackBrandingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rollbackBranding>>, TError,{version: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rollbackBranding>>, TError,{version: number}, TContext> => {
+
+const mutationKey = ['rollbackBranding'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rollbackBranding>>, {version: number}> = (props) => {
+          const {version} = props ?? {};
+
+          return  rollbackBranding(version,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RollbackBrandingMutationResult = NonNullable<Awaited<ReturnType<typeof rollbackBranding>>>
+
+    export type RollbackBrandingMutationError = ErrorType<void>
+
+    /**
+ * @summary Roll back to an immutable published version
+ */
+export const useRollbackBranding = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rollbackBranding>>, TError,{version: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rollbackBranding>>,
+        TError,
+        {version: number},
+        TContext
+      > => {
+      return useMutation(getRollbackBrandingMutationOptions(options));
+    }
+
+export const getResetBrandingUrl = () => {
+
+
+
+
+  return `/api/tenant/branding/reset`
+}
+
+/**
+ * @summary Reset branding draft to Construct LC defaults
+ */
+export const resetBranding = async ( options?: Parameters<typeof customFetch>[1]): Promise<BrandingContext> => {
+
+  return customFetch<BrandingContext>(getResetBrandingUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResetBrandingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetBranding>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetBranding>>, TError,void, TContext> => {
+
+const mutationKey = ['resetBranding'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetBranding>>, void> = () => {
+
+
+          return  resetBranding(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetBrandingMutationResult = NonNullable<Awaited<ReturnType<typeof resetBranding>>>
+
+    export type ResetBrandingMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Reset branding draft to Construct LC defaults
+ */
+export const useResetBranding = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetBranding>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetBranding>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getResetBrandingMutationOptions(options));
+    }
 
