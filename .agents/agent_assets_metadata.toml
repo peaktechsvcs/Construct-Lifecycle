@@ -1,0 +1,10 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "-sV1JTaLGHPtjGJ8HOTYR"
+uri = "file://artifacts/cabinet-projects-story/public/construct-lc-background.mp3"
+type = "audio"
+title = "Construct LC operations background"
+description = "Generated music: Original instrumental background music for a 24-second vertical enterprise construction-operations product walkthrough. Professional, modern, industrial, reliable, and restrained. St…"
+logical_id = "ad21edd8-b880-4cb3-93c1-e72064ca3f35"

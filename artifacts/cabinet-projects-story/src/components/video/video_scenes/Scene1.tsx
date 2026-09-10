@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { SceneLayout } from '@/lib/video';
+import { SceneLayout, SafeFrame, VideoText, MediaFrame } from '@/lib/video';
 
 const materials = [
   { label: 'cabinetry', color: '#062B55', rotate: -8 },
@@ -11,7 +11,7 @@ const materials = [
 
 export function Scene1() {
   return (
-    <div className="scene-safe">
+    <SafeFrame>
       <motion.div className="scene-ambient" animate={{ rotate: [0, 8, -4, 0], scale: [1, 1.04, .97, 1] }} transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }} />
       <SceneLayout layout="stack" style={{ justifyContent: 'flex-start' }}>
         <motion.div className="scene-index" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .55, delay: .2 }}>
@@ -21,12 +21,16 @@ export function Scene1() {
           <motion.p className="scene-kicker" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, delay: .35 }}>
             Construct LC · opportunities
           </motion.p>
-          <motion.h1 className="scene-title" initial={{ opacity: 0, y: 30, scale: .94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: .85, delay: .48, ease: [0.16, 1, .3, 1] }}>
-            Start with<br /><em>the maybe.</em>
-          </motion.h1>
-          <motion.p className="scene-copy" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .7, delay: 1.05 }}>
-            One opportunity. Every material, note, and next step in the same working ledger.
-          </motion.p>
+          <motion.div initial={{ opacity: 0, y: 30, scale: .94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: .85, delay: .48, ease: [0.16, 1, .3, 1] }}>
+            <VideoText as="h1" scale="display" className="scene-title">
+              Start with<br /><em>the maybe.</em>
+            </VideoText>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .7, delay: 1.05 }}>
+            <VideoText as="p" scale="body" className="scene-copy">
+              One opportunity. Every material, note, and next step in the same working ledger.
+            </VideoText>
+          </motion.div>
         </div>
         <motion.div
           className="paper-card"
@@ -36,15 +40,20 @@ export function Scene1() {
           transition={{ duration: 1.05, delay: 1.55, ease: [0.16, 1, .3, 1] }}
         >
           <div className="mono" style={{ color: 'var(--color-text-secondary)', fontSize: '1.25vmin', letterSpacing: '.14em', textTransform: 'uppercase' }}>new opportunity · 042</div>
-          <motion.img
-            alt=""
-            className="asset-photo"
-            src={`${import.meta.env.BASE_URL}material-board.jpg`}
-            style={{ height: '10vmin', objectPosition: 'center 60%', position: 'absolute', right: '3.2vmin', top: '2.7vmin', width: '13vmin' }}
+          <motion.div
+            style={{ height: '10vmin', position: 'absolute', right: '3.2vmin', top: '2.7vmin', width: '13vmin' }}
             initial={{ opacity: 0, scale: .9, rotate: 4 }}
             animate={{ opacity: 1, scale: 1, rotate: 3 }}
             transition={{ duration: .7, delay: 1.35, ease: [0.16, 1, .3, 1] }}
-          />
+          >
+            <MediaFrame className="asset-photo">
+              <img
+                alt=""
+                src={`${import.meta.env.BASE_URL}material-board.jpg`}
+                style={{ objectPosition: 'center 60%' }}
+              />
+            </MediaFrame>
+          </motion.div>
           <div className="mini-rule" style={{ margin: '2.3vmin 0' }} />
           <div style={{ display: 'grid', gap: '1.35vmin', gridTemplateColumns: 'repeat(5, 1fr)' }}>
             {materials.map((material, index) => (
@@ -60,6 +69,6 @@ export function Scene1() {
           </div>
         </motion.div>
       </SceneLayout>
-    </div>
+    </SafeFrame>
   );
 }

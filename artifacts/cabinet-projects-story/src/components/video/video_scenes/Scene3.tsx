@@ -1,16 +1,20 @@
 import { motion } from 'framer-motion';
-import { SceneLayout } from '@/lib/video';
+import { SceneLayout, SafeFrame, VideoText, MediaFrame } from '@/lib/video';
 
 export function Scene3() {
   return (
-    <div className="scene-safe">
+    <SafeFrame>
       <motion.div className="scene-ambient" style={{ borderColor: 'rgba(57,168,240,.3)', left: '-24vmin', right: 'auto', top: '18vmin' }} animate={{ rotate: [-4, 7, -4], scale: [.94, 1.03, .94] }} transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }} />
       <SceneLayout layout="stack" style={{ justifyContent: 'flex-start' }}>
         <motion.div className="scene-index" initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .5, delay: .15 }}>03 / handoff</motion.div>
         <div style={{ marginTop: '8.5vmin' }}>
           <motion.p className="scene-kicker" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45, delay: .25 }}>Construct LC · contracts + deliveries</motion.p>
-          <motion.h1 className="scene-title" initial={{ opacity: 0, y: 28, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: .82, delay: .4, ease: [0.16, 1, .3, 1] }}>From <em>yes</em><br />to on-site.</motion.h1>
-          <motion.p className="scene-copy" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: .84 }}>Contract, delivery, and the next handoff share one source of truth.</motion.p>
+          <motion.div initial={{ opacity: 0, y: 28, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: .82, delay: .4, ease: [0.16, 1, .3, 1] }}>
+            <VideoText as="h1" scale="display" className="scene-title">From <em>yes</em><br />to on-site.</VideoText>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: .84 }}>
+            <VideoText as="p" scale="body" className="scene-copy">Contract, delivery, and the next handoff share one source of truth.</VideoText>
+          </motion.div>
         </div>
         <motion.div className="paper-card" style={{ bottom: '7.6vmin', padding: '3.5vmin 3.3vmin', position: 'absolute', right: '7vmin', width: '60vmin' }} initial={{ opacity: 0, y: 34, rotate: 2 }} animate={{ opacity: 1, y: [34, 0, -3, 0], rotate: [2, -.5, .2, 0] }} transition={{ duration: 1.05, delay: 1.25, ease: [0.16, 1, .3, 1] }}>
           <div style={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between' }}>
@@ -18,15 +22,20 @@ export function Scene3() {
             <span style={{ color: 'var(--color-success)', fontFamily: 'var(--font-mono)', fontSize: '1.1vmin', letterSpacing: '.12em', textTransform: 'uppercase' }}>contracted</span>
           </div>
           <motion.div className="mini-rule" style={{ margin: '2.4vmin 0 2.7vmin' }} initial={{ scaleX: 0, transformOrigin: 'left' }} animate={{ scaleX: 1 }} transition={{ duration: .9, delay: 1.55 }} />
-          <motion.img
-            alt=""
-            className="asset-photo"
-            src={`${import.meta.env.BASE_URL}delivery-stack.jpg`}
-            style={{ height: '10vmin', marginBottom: '2.5vmin', objectPosition: 'center 45%', width: '100%' }}
+          <motion.div
+            style={{ height: '10vmin', marginBottom: '2.5vmin', width: '100%' }}
             initial={{ opacity: 0, scale: .96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: .8, delay: 1.45, ease: [0.16, 1, .3, 1] }}
-          />
+          >
+            <MediaFrame className="asset-photo">
+              <img
+                alt=""
+                src={`${import.meta.env.BASE_URL}delivery-stack.jpg`}
+                style={{ objectPosition: 'center 45%' }}
+              />
+            </MediaFrame>
+          </motion.div>
           <div style={{ display: 'grid', gap: '2.5vmin', gridTemplateColumns: 'repeat(3, 1fr)' }}>
             {[
               ['contract', 'signed', '✓'],
@@ -45,6 +54,6 @@ export function Scene3() {
           </div>
         </motion.div>
       </SceneLayout>
-    </div>
+    </SafeFrame>
   );
 }

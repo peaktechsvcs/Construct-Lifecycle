@@ -220,14 +220,6 @@ body {
   width: 100%;
 }
 
-.scene-safe {
-  box-sizing: border-box;
-  height: 100%;
-  padding: 16vmin 10vmin 12vmin 14vmin;
-  position: relative;
-  width: 100%;
-}
-
 .scene-kicker {
   color: var(--color-primary);
   font-family: var(--font-mono);
@@ -240,10 +232,8 @@ body {
 .scene-title {
   color: var(--color-bg-dark);
   font-family: var(--font-display);
-  font-size: clamp(4rem, 11.8vmin, 12rem);
   font-weight: 600;
   letter-spacing: -.075em;
-  line-height: .88;
   margin: 0;
   max-width: 74vmin;
 }
@@ -255,8 +245,6 @@ body {
 
 .scene-copy {
   color: var(--color-text-secondary);
-  font-size: clamp(1rem, 2.45vmin, 2.3rem);
-  line-height: 1.28;
   margin: 3.3vmin 0 0;
   max-width: 52vmin;
 }
@@ -292,7 +280,6 @@ body {
 .asset-photo {
   border: 1px solid var(--color-bg-muted);
   box-shadow: 0 .8vmin 2vmin rgba(6, 43, 85, .08);
-  object-fit: cover;
 }
 
 .mini-rule {

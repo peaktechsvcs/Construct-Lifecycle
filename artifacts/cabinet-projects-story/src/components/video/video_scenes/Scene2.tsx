@@ -1,16 +1,20 @@
 import { motion } from 'framer-motion';
-import { SceneLayout } from '@/lib/video';
+import { SceneLayout, SafeFrame, VideoText } from '@/lib/video';
 
 export function Scene2() {
   return (
-    <div className="scene-safe">
+    <SafeFrame>
       <motion.div className="scene-ambient" style={{ borderRadius: '2vmin', height: '46vmin', right: '-16vmin', top: '21vmin', width: '46vmin' }} animate={{ rotate: [8, 15, 4, 8], y: [0, 2, -3, 0] }} transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }} />
       <SceneLayout layout="stack" style={{ justifyContent: 'flex-start' }}>
         <motion.div className="scene-index" initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .5, delay: .16 }}>02 / proposal</motion.div>
         <div style={{ marginTop: '8.5vmin' }}>
           <motion.p className="scene-kicker" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45, delay: .28 }}>Construct LC · bids</motion.p>
-          <motion.h1 className="scene-title" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .78, delay: .42, ease: [0.16, 1, .3, 1] }}>Scope it.<br /><em>Show it.</em></motion.h1>
-          <motion.p className="scene-copy" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: .84 }}>Turn the brief into a proposal your customer can say yes to.</motion.p>
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .78, delay: .42, ease: [0.16, 1, .3, 1] }}>
+            <VideoText as="h1" scale="display" className="scene-title">Scope it.<br /><em>Show it.</em></VideoText>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: .84 }}>
+            <VideoText as="p" scale="body" className="scene-copy">Turn the brief into a proposal your customer can say yes to.</VideoText>
+          </motion.div>
         </div>
         <motion.div className="paper-card" style={{ bottom: '8.5vmin', left: '14vmin', padding: '3.6vmin 3.3vmin 3.1vmin', position: 'absolute', width: '61vmin' }} initial={{ opacity: 0, x: -30, rotate: -3 }} animate={{ opacity: 1, x: 0, rotate: [-3, .7, 0] }} transition={{ duration: .95, delay: 1.25, ease: [0.16, 1, .3, 1] }}>
           <div style={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between' }}>
@@ -33,6 +37,6 @@ export function Scene2() {
           </div>
         </motion.div>
       </SceneLayout>
-    </div>
+    </SafeFrame>
   );
 }
