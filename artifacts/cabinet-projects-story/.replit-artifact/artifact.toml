@@ -1,0 +1,29 @@
+kind = "video"
+previewPath = "/cabinet-projects-story/"
+title = "Cabinet Projects — Product Walkthrough"
+description = "A short vertical animated product walkthrough showing how Cabinet Projects tracks jobs from proposal through contract, delivery, billing, closeout, and future-work follow-up."
+version = "1.0.0"
+id = "artifacts/cabinet-projects-story"
+router = "path"
+videoAspectRatio = "9:16"
+
+[[services]]
+name = "web"
+paths = [ "/cabinet-projects-story/" ]
+localPort = 24200
+
+[services.development]
+run = "pnpm --filter @workspace/cabinet-projects-story run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/cabinet-projects-story", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/cabinet-projects-story/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24200"
+BASE_PATH = "/cabinet-projects-story/"
