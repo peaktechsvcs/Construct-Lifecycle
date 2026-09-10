@@ -17,6 +17,7 @@ export const ProjectStage = {
   proposal: 'proposal',
   awarded: 'awarded',
   contracted: 'contracted',
+  pre_construction: 'pre_construction',
   in_progress: 'in_progress',
   billing: 'billing',
   closeout: 'closeout',
@@ -229,6 +230,108 @@ export interface DashboardSummary {
   stageCounts: DashboardSummaryStageCountsItem[];
 }
 
+export type DashboardDrilldownType = typeof DashboardDrilldownType[keyof typeof DashboardDrilldownType];
+
+
+export const DashboardDrilldownType = {
+  'active-projects': 'active-projects',
+  'pipeline-value': 'pipeline-value',
+  'received-to-date': 'received-to-date',
+  'open-follow-ups': 'open-follow-ups',
+  stage: 'stage',
+  'needs-attention': 'needs-attention',
+} as const;
+
+export type DashboardDrilldownSort = typeof DashboardDrilldownSort[keyof typeof DashboardDrilldownSort];
+
+
+export const DashboardDrilldownSort = {
+  value_desc: 'value_desc',
+  value_asc: 'value_asc',
+  updated_desc: 'updated_desc',
+  due_priority: 'due_priority',
+} as const;
+
+export interface DashboardDrilldownProject {
+  id: number;
+  projectNumber: string;
+  customerName: string;
+  projectName: string;
+  /** @nullable */
+  owner?: string | null;
+  stage: ProjectStage;
+  contractValue: number;
+  receivedAmount: number;
+  deliveryPercent?: number;
+  /** @nullable */
+  contractStart?: string | null;
+  /** @nullable */
+  contractEnd?: string | null;
+  /** @nullable */
+  nextFollowUp?: string | null;
+  updatedAt: string;
+  /** @nullable */
+  nextAction?: string | null;
+}
+
+export type DashboardDrilldownFollowUpStatus = typeof DashboardDrilldownFollowUpStatus[keyof typeof DashboardDrilldownFollowUpStatus];
+
+
+export const DashboardDrilldownFollowUpStatus = {
+  open: 'open',
+  completed: 'completed',
+} as const;
+
+export type DashboardDrilldownFollowUpPriority = typeof DashboardDrilldownFollowUpPriority[keyof typeof DashboardDrilldownFollowUpPriority];
+
+
+export const DashboardDrilldownFollowUpPriority = {
+  overdue: 'overdue',
+  due_today: 'due_today',
+  upcoming: 'upcoming',
+} as const;
+
+export interface DashboardDrilldownFollowUp {
+  id: number;
+  projectId: number;
+  customerName: string;
+  projectName: string;
+  /** @nullable */
+  owner?: string | null;
+  dueDate: string;
+  status: DashboardDrilldownFollowUpStatus;
+  note: string;
+  priority?: DashboardDrilldownFollowUpPriority;
+}
+
+export type DashboardDrilldownAttentionSeverity = typeof DashboardDrilldownAttentionSeverity[keyof typeof DashboardDrilldownAttentionSeverity];
+
+
+export const DashboardDrilldownAttentionSeverity = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+} as const;
+
+export interface DashboardDrilldownAttention {
+  project: DashboardDrilldownProject;
+  reasons: string[];
+  severity: DashboardDrilldownAttentionSeverity;
+  /** @minimum 0 */
+  ageDays: number;
+  recommendedAction: string;
+}
+
+export interface DashboardDrilldownResponse {
+  title: string;
+  type: DashboardDrilldownType;
+  count: number;
+  total: number;
+  projects?: DashboardDrilldownProject[];
+  followups?: DashboardDrilldownFollowUp[];
+  attention?: DashboardDrilldownAttention[];
+}
+
 export type TenantRole = typeof TenantRole[keyof typeof TenantRole];
 
 
@@ -380,5 +483,12 @@ export interface BrandingContext {
 export type ListProjectsParams = {
 search?: string;
 stage?: ProjectStage;
+};
+
+export type GetDashboardDrilldownParams = {
+type: DashboardDrilldownType;
+stage?: ProjectStage;
+search?: string;
+sort?: DashboardDrilldownSort;
 };
 

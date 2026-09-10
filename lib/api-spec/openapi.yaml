@@ -213,6 +213,36 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Activity"
+  /dashboard/drilldown:
+    get:
+      operationId: getDashboardDrilldown
+      tags: [dashboard]
+      summary: Inspect records contributing to a dashboard metric
+      parameters:
+        - in: query
+          name: type
+          required: true
+          schema:
+            $ref: "#/components/schemas/DashboardDrilldownType"
+        - in: query
+          name: stage
+          schema:
+            $ref: "#/components/schemas/ProjectStage"
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: sort
+          schema:
+            $ref: "#/components/schemas/DashboardDrilldownSort"
+      responses:
+        "200":
+          description: Dashboard supporting records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardDrilldownResponse"
+        "400": { description: Invalid drilldown discriminator or stage }
   /tenant/context:
     get:
       operationId: getTenantContext
@@ -386,6 +416,7 @@ components:
         - proposal
         - awarded
         - contracted
+        - pre_construction
         - in_progress
         - billing
         - closeout
@@ -560,6 +591,71 @@ components:
               stage: { $ref: "#/components/schemas/ProjectStage" }
               count: { type: integer }
               value: { type: number }
+    DashboardDrilldownType:
+      type: string
+      enum: [active-projects, pipeline-value, received-to-date, open-follow-ups, stage, needs-attention]
+    DashboardDrilldownSort:
+      type: string
+      enum: [value_desc, value_asc, updated_desc, due_priority]
+    DashboardDrilldownProject:
+      type: object
+      required: [id, projectNumber, customerName, projectName, stage, contractValue, receivedAmount, updatedAt]
+      properties:
+        id: { type: integer }
+        projectNumber: { type: string }
+        customerName: { type: string }
+        projectName: { type: string }
+        owner: { type: ["string", "null"] }
+        stage: { $ref: "#/components/schemas/ProjectStage" }
+        contractValue: { type: number }
+        receivedAmount: { type: number }
+        deliveryPercent: { type: integer }
+        contractStart: { type: ["string", "null"], format: date }
+        contractEnd: { type: ["string", "null"], format: date }
+        nextFollowUp: { type: ["string", "null"], format: date }
+        updatedAt: { type: string, format: date-time }
+        nextAction: { type: ["string", "null"] }
+    DashboardDrilldownFollowUp:
+      type: object
+      required: [id, projectId, customerName, projectName, dueDate, status, note]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        customerName: { type: string }
+        projectName: { type: string }
+        owner: { type: ["string", "null"] }
+        dueDate: { type: string, format: date }
+        status: { type: string, enum: [open, completed] }
+        note: { type: string }
+        priority: { type: string, enum: [overdue, due_today, upcoming] }
+    DashboardDrilldownAttention:
+      type: object
+      required: [project, reasons, severity, ageDays, recommendedAction]
+      properties:
+        project: { $ref: "#/components/schemas/DashboardDrilldownProject" }
+        reasons:
+          type: array
+          items: { type: string }
+        severity: { type: string, enum: [high, medium, low] }
+        ageDays: { type: integer, minimum: 0 }
+        recommendedAction: { type: string }
+    DashboardDrilldownResponse:
+      type: object
+      required: [title, type, count, total]
+      properties:
+        title: { type: string }
+        type: { $ref: "#/components/schemas/DashboardDrilldownType" }
+        count: { type: integer }
+        total: { type: number }
+        projects:
+          type: array
+          items: { $ref: "#/components/schemas/DashboardDrilldownProject" }
+        followups:
+          type: array
+          items: { $ref: "#/components/schemas/DashboardDrilldownFollowUp" }
+        attention:
+          type: array
+          items: { $ref: "#/components/schemas/DashboardDrilldownAttention" }
     Tenant:
       type: object
       required: [id, name, slug, role]

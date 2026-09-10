@@ -14,6 +14,7 @@ export const ProjectStage = {
   proposal: 'proposal',
   awarded: 'awarded',
   contracted: 'contracted',
+  pre_construction: 'pre_construction',
   in_progress: 'in_progress',
   billing: 'billing',
   closeout: 'closeout',

@@ -24,11 +24,13 @@ import type {
   BrandingContext,
   BrandingInput,
   BrandingVersion,
+  DashboardDrilldownResponse,
   DashboardSummary,
   Environment,
   FollowUp,
   FollowUpInput,
   FollowUpUpdate,
+  GetDashboardDrilldownParams,
   HealthStatus,
   ListProjectsParams,
   PlatformRelease,
@@ -959,6 +961,90 @@ export function useListRecentActivity<TData = Awaited<ReturnType<typeof listRece
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListRecentActivityQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDashboardDrilldownUrl = (params: GetDashboardDrilldownParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/dashboard/drilldown?${stringifiedParams}` : `/api/dashboard/drilldown`
+}
+
+/**
+ * @summary Inspect records contributing to a dashboard metric
+ */
+export const getDashboardDrilldown = async (params: GetDashboardDrilldownParams, options?: Parameters<typeof customFetch>[1]): Promise<DashboardDrilldownResponse> => {
+
+  return customFetch<DashboardDrilldownResponse>(getGetDashboardDrilldownUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDashboardDrilldownQueryKey = (params?: GetDashboardDrilldownParams,) => {
+    return [
+    `/api/dashboard/drilldown`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetDashboardDrilldownQueryOptions = <TData = Awaited<ReturnType<typeof getDashboardDrilldown>>, TError = ErrorType<void>>(params: GetDashboardDrilldownParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardDrilldown>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDashboardDrilldownQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDashboardDrilldown>>> = ({ signal }) => getDashboardDrilldown(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDashboardDrilldown>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDashboardDrilldownQueryResult = NonNullable<Awaited<ReturnType<typeof getDashboardDrilldown>>>
+export type GetDashboardDrilldownQueryError = ErrorType<void>
+
+
+/**
+ * @summary Inspect records contributing to a dashboard metric
+ */
+
+export function useGetDashboardDrilldown<TData = Awaited<ReturnType<typeof getDashboardDrilldown>>, TError = ErrorType<void>>(
+ params: GetDashboardDrilldownParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardDrilldown>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDashboardDrilldownQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -1,0 +1,384 @@
+============================================================
+DASHBOARD DRILLDOWN & EXPLORATION REQUIREMENTS
+============================================================
+
+All Construct LC dashboard summaries must be designed as drillable data views.
+
+This applies to:
+
+- KPI cards
+- Counts
+- Dollar totals
+- Charts
+- Chart segments
+- Stage distribution
+- Status widgets
+- Exceptions
+- Follow-up queues
+- Financial summaries
+- Operational summaries
+
+Whenever a summarized value is calculated from underlying records, the user should be able to click the summary and inspect the records that produced it.
+
+Do not create decorative dashboard widgets that cannot be investigated.
+
+============================================================
+DRILLDOWN INTERACTION MODEL
+============================================================
+
+Use this consistent hierarchy:
+
+DASHBOARD
+    ↓
+FILTERED DRILLDOWN
+    ↓
+INDIVIDUAL RECORD
+    ↓
+BACK TO PREVIOUS DRILLDOWN
+    ↓
+BACK TO DASHBOARD
+
+Preserve:
+
+- Filter state
+- Sort order
+- Scroll position
+- Search criteria
+- Selected chart segment
+- Pagination where applicable
+
+Browser Back and application Back actions should behave predictably.
+
+Avoid stacking multiple nested modal windows.
+
+Preferred desktop behavior:
+
+Dashboard widget
+→ large detail drawer / expandable panel
+
+Then:
+
+[ View All ]
+
+→ full filtered page when the dataset requires more space.
+
+Clicking an individual project should open the normal project detail experience.
+
+When returning, restore the prior filtered list.
+
+On smaller screens, a drilldown may use a full-screen detail view rather than a drawer.
+
+============================================================
+ACTIVE PROJECTS
+============================================================
+
+Clicking:
+
+Active Projects
+3
+
+must show the 3 projects that comprise the count.
+
+Include:
+
+- Project
+- Customer
+- Project value
+- Current lifecycle stage
+- Owner
+- Start date
+- Target completion
+- Progress
+- Next action
+- Attention/status indicator
+
+Allow:
+
+- Sorting
+- Filtering
+- Searching
+- Opening individual project
+
+The displayed total must reconcile exactly to the dashboard KPI.
+
+============================================================
+PIPELINE VALUE
+============================================================
+
+Clicking Pipeline Value must show the projects/opportunities that make up the displayed amount.
+
+Default sort:
+
+Highest Value → Lowest Value
+
+Include:
+
+- Opportunity/project
+- Customer
+- Current stage
+- Proposal/bid value
+- Expected award date
+- Probability if supported
+- Weighted value if supported
+- Owner
+- Last activity
+- Next action
+
+Show a total at the bottom/top that reconciles exactly with the dashboard Pipeline Value.
+
+Do not include contracted/live work unless the defined KPI explicitly includes it.
+
+============================================================
+RECEIVED TO DATE
+============================================================
+
+Clicking Received to Date must display the transactions that make up the amount.
+
+RECEIVED section:
+
+- Received date
+- Project
+- Customer
+- Invoice/reference
+- Payment/reference number where known
+- Payment method where known
+- Amount received
+
+Default sort:
+
+Most Recent → Oldest
+
+Show:
+
+Total Received
+
+and reconcile it exactly to the dashboard KPI.
+
+Also include a separate:
+
+EXPECTED / UPCOMING PAYMENTS
+
+section where known.
+
+Include:
+
+- Expected date
+- Project
+- Customer
+- Invoice/milestone
+- Expected amount
+- Status
+- Confidence if supported
+
+Never mix expected payments into the Received total.
+
+============================================================
+OPEN FOLLOW-UPS
+============================================================
+
+Clicking Open Follow-ups must display the records comprising the count.
+
+Prioritize:
+
+1. Overdue
+2. Due Today
+3. Upcoming
+
+Include:
+
+- Follow-up
+- Project
+- Customer
+- Owner
+- Due date
+- Priority
+- Status
+- Next action
+
+Allow the user to open the associated project.
+
+============================================================
+STAGE DISTRIBUTION
+============================================================
+
+Every stage in Stage Distribution must be clickable.
+
+Clicking either:
+
+- chart segment
+- bar
+- count
+- legend item
+
+should open all projects currently assigned to that lifecycle stage.
+
+The list must reconcile exactly to the displayed stage count.
+
+============================================================
+PROJECT LIFECYCLE UPDATE
+============================================================
+
+Add:
+
+PRE-CONSTRUCTION
+
+between:
+
+CONTRACTED
+
+and:
+
+IN PROGRESS
+
+The primary lifecycle should become:
+
+Lead
+→ Proposal
+→ Awarded
+→ Contracted
+→ Pre-Construction
+→ In Progress
+→ Billing
+→ Closeout
+
+Pre-Construction means:
+
+The project has been awarded/contracted, but normal project execution has not yet begun.
+
+This phase may contain secondary statuses such as:
+
+- Awaiting Start Date
+- Scheduled
+- Submittals / Approvals
+- Selections Pending
+- Procurement Planning
+- Material Release Pending
+- Ready to Start
+
+Do not create all of these as primary lifecycle stages.
+
+Use Pre-Construction as the primary stage and secondary status/reason fields for additional detail.
+
+============================================================
+PROJECTS NEEDING A LOOK
+============================================================
+
+Clicking Projects Needing a Look must explain WHY every project appears.
+
+Examples:
+
+- Overdue follow-up
+- No activity for X days
+- Delivery at risk
+- Missing expected date
+- Payment overdue
+- Margin concern
+- Pending approval
+- Required action overdue
+
+Include:
+
+Project
+Customer
+Issue
+Severity
+Age
+Owner
+Recommended / next action
+
+Clicking the project opens the project detail.
+
+============================================================
+FINANCIAL DRILLDOWN
+============================================================
+
+All financial summaries must reconcile to transaction-level or project-level supporting data.
+
+Examples:
+
+Contract Value
+→ contracts/projects contributing to total
+
+Approved Changes
+→ approved change orders
+
+Invoiced
+→ invoices
+
+Received
+→ payments
+
+Committed Cost
+→ purchase orders/commitments
+
+Actual Cost
+→ posted/recognized costs
+
+Projected Margin
+→ projects and underlying calculation
+
+The user should always be able to answer:
+
+"What records make up this number?"
+
+============================================================
+DRILLDOWN FILTER PERSISTENCE
+============================================================
+
+Drilldown routes should use persistent URL/query state where practical.
+
+Example concept:
+
+/projects?stage=in-progress
+
+/dashboard/drilldown/active-projects
+
+/financial/payments?status=received
+
+This should allow:
+
+- Browser navigation
+- Bookmarking where appropriate
+- Returning to the same view
+- Deep linking where authorized
+
+Do not place all drilldown state only in temporary frontend memory.
+
+============================================================
+ENVIRONMENT AND CUSTOMER SECURITY
+============================================================
+
+Every drilldown must respect:
+
+customer_id
+environment_id
+user permissions
+
+A dashboard number and its drilldown must query exactly the same authorized dataset.
+
+Never allow a drilldown to expose:
+
+- Another customer's data
+- Another environment's data
+- Data the user lacks permission to view
+
+This applies to Production and D/T/D environments.
+
+============================================================
+DESIGN PRINCIPLE
+============================================================
+
+Construct LC dashboards are not static reporting screens.
+
+They are navigation and investigation surfaces.
+
+Every meaningful summarized metric should enable the user to move:
+
+SUMMARY
+→ SUPPORTING RECORDS
+→ INDIVIDUAL RECORD
+→ ACTION
+
+The goal is for a user to never look at a number and have to ask:
+
+"Where did that number come from?"

@@ -12,6 +12,7 @@ import { Shell } from '@/components/shell';
 import NotFound from '@/pages/not-found';
 import { LandingPage } from '@/pages/landing';
 import { Dashboard } from '@/pages/dashboard';
+import { DashboardDrilldown } from '@/pages/dashboard-drilldown';
 import { Projects } from '@/pages/projects';
 import { ProjectDetail } from '@/pages/project-detail';
 import { FollowUps } from '@/pages/follow-ups';
@@ -152,21 +153,34 @@ function ClerkQueryClientCacheInvalidator() {
 
 function AppRouter() {
   const [location] = useLocation();
-  
+
   return (
     <ErrorBoundary resetKey={location}>
       <Switch>
         <Route path="/" component={HomeRedirect} />
         <Route path="/sign-in/*?" component={SignInPage} />
         <Route path="/sign-up/*?" component={SignUpPage} />
-        
+
         {/* Protected Routes inside Shell */}
-        <Route path="/overview"><Shell><ProtectedRoute component={Dashboard} /></Shell></Route>
-        <Route path="/projects"><Shell><ProtectedRoute component={Projects} /></Shell></Route>
-        <Route path="/projects/:id"><Shell><ProtectedRoute component={ProjectDetail} /></Shell></Route>
-        <Route path="/follow-ups"><Shell><ProtectedRoute component={FollowUps} /></Shell></Route>
-        <Route path="/administration/organization/branding"><Shell><ProtectedRoute component={BrandingAdmin} /></Shell></Route>
-        
+        <Route path="/overview">
+          <Shell><ProtectedRoute component={Dashboard} /></Shell>
+        </Route>
+        <Route path="/dashboard/drilldown/:type">
+          <Shell><ProtectedRoute component={DashboardDrilldown} /></Shell>
+        </Route>
+        <Route path="/projects">
+          <Shell><ProtectedRoute component={Projects} /></Shell>
+        </Route>
+        <Route path="/projects/:id">
+          <Shell><ProtectedRoute component={ProjectDetail} /></Shell>
+        </Route>
+        <Route path="/follow-ups">
+          <Shell><ProtectedRoute component={FollowUps} /></Shell>
+        </Route>
+        <Route path="/administration/organization/branding">
+          <Shell><ProtectedRoute component={BrandingAdmin} /></Shell>
+        </Route>
+
         <Route component={NotFound} />
       </Switch>
     </ErrorBoundary>

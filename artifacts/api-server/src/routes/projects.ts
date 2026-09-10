@@ -14,6 +14,7 @@ import {
   UpdateFollowUpParams,
   UpdateProjectBody,
   UpdateProjectParams,
+  GetDashboardDrilldownQueryParams,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
@@ -25,6 +26,7 @@ const projectStages = [
   "proposal",
   "awarded",
   "contracted",
+  "pre_construction",
   "in_progress",
   "billing",
   "closeout",
@@ -41,6 +43,19 @@ const toProject = (row: typeof projectsTable.$inferSelect) => ({
 
 const toDateString = (value: Date | undefined) =>
   value ? value.toISOString().slice(0, 10) : undefined;
+
+const ACTIVE_STAGES = ["awarded", "contracted", "pre_construction", "in_progress", "billing", "closeout"] as const;
+const PIPELINE_STAGES = ["lead", "proposal"] as const;
+const dateToday = () => new Date().toISOString().slice(0, 10);
+const daysSince = (date: Date) => Math.max(0, Math.floor((Date.now() - date.getTime()) / 86400000));
+const projectContribution = (project: typeof projectsTable.$inferSelect) => ({
+  id: project.id, projectNumber: project.projectNumber, customerName: project.customerName,
+  projectName: project.projectName, owner: project.owner, stage: project.stage,
+  contractValue: Number(project.contractValue), receivedAmount: Number(project.receivedAmount),
+  deliveryPercent: project.deliveryPercent, contractStart: project.contractStart,
+  contractEnd: project.contractEnd, nextFollowUp: project.nextFollowUp,
+  updatedAt: project.updatedAt, nextAction: project.nextFollowUp ? "Complete scheduled follow-up" : null,
+});
 
 const addActivity = async (
   projectId: number,
@@ -196,7 +211,7 @@ router.get("/projects/:projectId/activity", async (req: TenantRequest, res) => {
       createdAt: activityTable.createdAt,
     })
     .from(activityTable)
-    .leftJoin(projectsTable, eq(activityTable.projectId, projectsTable.id))
+    .leftJoin(projectsTable, and(eq(activityTable.projectId, projectsTable.id), eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)))
     .where(and(eq(activityTable.projectId, projectId), eq(activityTable.tenantId, req.tenantId!), eq(activityTable.environmentId, req.environmentId!)))
     .orderBy(desc(activityTable.createdAt));
   res.json(rows);
@@ -215,7 +230,7 @@ router.get("/follow-ups", async (req: TenantRequest, res) => {
       createdAt: followUpsTable.createdAt,
     })
     .from(followUpsTable)
-    .innerJoin(projectsTable, eq(followUpsTable.projectId, projectsTable.id))
+    .innerJoin(projectsTable, and(eq(followUpsTable.projectId, projectsTable.id), eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)))
     .where(and(eq(followUpsTable.tenantId, req.tenantId!), eq(followUpsTable.environmentId, req.environmentId!)))
     .orderBy(followUpsTable.dueDate);
   res.json(rows);
@@ -283,6 +298,73 @@ router.patch("/follow-ups/:followUpId", requireRole("owner", "admin", "member"),
   });
 });
 
+router.get("/dashboard/drilldown", async (req: TenantRequest, res) => {
+  const parsed = GetDashboardDrilldownQueryParams.safeParse({
+    type: req.query.type, stage: req.query.stage, search: req.query.search, sort: req.query.sort,
+  });
+  if (!parsed.success || (parsed.data.type === "stage" && !parsed.data.stage)) {
+    res.status(400).json({ error: "type is required and stage is required for stage drilldown" });
+    return;
+  }
+  const { type, stage, search } = parsed.data;
+  const conditions = [eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)];
+  if (search) conditions.push(or(
+    ilike(projectsTable.customerName, `%${search}%`),
+    ilike(projectsTable.projectName, `%${search}%`),
+    ilike(projectsTable.projectNumber, `%${search}%`),
+  )!);
+  const projects = await db.select().from(projectsTable).where(and(...conditions));
+  const today = dateToday();
+  const matches = type === "active-projects"
+    ? projects.filter((p) => ACTIVE_STAGES.includes(p.stage as typeof ACTIVE_STAGES[number]))
+    : type === "pipeline-value"
+      ? projects.filter((p) => PIPELINE_STAGES.includes(p.stage as typeof PIPELINE_STAGES[number]))
+      : type === "stage"
+        ? projects.filter((p) => p.stage === stage)
+        : [];
+  if (type === "open-follow-ups") {
+    const rows = await db.select({
+      id: followUpsTable.id, projectId: followUpsTable.projectId, customerName: projectsTable.customerName,
+      projectName: projectsTable.projectName, owner: projectsTable.owner, dueDate: followUpsTable.dueDate,
+      status: followUpsTable.status, note: followUpsTable.note,
+    }).from(followUpsTable).innerJoin(projectsTable, and(
+      eq(followUpsTable.projectId, projectsTable.id),
+      eq(followUpsTable.tenantId, req.tenantId!), eq(followUpsTable.environmentId, req.environmentId!),
+      eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!),
+    )).where(and(eq(followUpsTable.tenantId, req.tenantId!), eq(followUpsTable.environmentId, req.environmentId!), eq(followUpsTable.status, "open")))
+      .orderBy(followUpsTable.dueDate);
+    const followups = rows.filter((r) => !search || `${r.customerName} ${r.projectName} ${r.note}`.toLowerCase().includes(search.toLowerCase()))
+      .sort((a, b) => (a.dueDate < today ? 0 : a.dueDate === today ? 1 : 2) - (b.dueDate < today ? 0 : b.dueDate === today ? 1 : 2) || a.dueDate.localeCompare(b.dueDate))
+      .map((r) => ({ ...r, priority: r.dueDate < today ? "overdue" : r.dueDate === today ? "due_today" : "upcoming" }));
+    res.json({ title: "Open Follow-ups", type, count: followups.length, total: followups.length, followups });
+    return;
+  }
+  if (type === "received-to-date") {
+    const received = projects.filter((p) => Number(p.receivedAmount) !== 0).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).map(projectContribution);
+    res.json({ title: "Received to Date", type, count: received.length, total: received.reduce((sum, p) => sum + p.receivedAmount, 0), projects: received });
+    return;
+  }
+  if (type === "needs-attention") {
+    const activity = await db.select({ projectId: activityTable.projectId, createdAt: activityTable.createdAt }).from(activityTable)
+      .where(and(eq(activityTable.tenantId, req.tenantId!), eq(activityTable.environmentId, req.environmentId!)));
+    const latest = new Map<number, Date>();
+    for (const item of activity) if (!latest.has(item.projectId)) latest.set(item.projectId, item.createdAt);
+    const attention = projects.map((p) => {
+      const reasons: string[] = [];
+      if (p.nextFollowUp && p.nextFollowUp < today) reasons.push("nextFollowUp overdue");
+      if (ACTIVE_STAGES.includes(p.stage as typeof ACTIVE_STAGES[number]) && !p.contractEnd) reasons.push("missing target completion for active work");
+      const last = latest.get(p.id) ?? p.updatedAt;
+      if (daysSince(last) > 30) reasons.push("no activity for more than 30 days");
+      return { project: projectContribution(p), reasons, severity: reasons.some((r) => r.includes("overdue")) ? "high" : reasons.length > 1 ? "medium" : "low", ageDays: daysSince(last), recommendedAction: reasons.some((r) => r.includes("overdue")) ? "Review and complete the overdue action" : "Review project status and schedule next action" };
+    }).filter((r) => r.reasons.length > 0 && (!search || `${r.project.customerName} ${r.project.projectName}`.toLowerCase().includes(search.toLowerCase())));
+    res.json({ title: "Projects Needing Attention", type, count: attention.length, total: attention.length, attention });
+    return;
+  }
+  const ordered = [...matches].sort((a, b) => Number(b.contractValue) - Number(a.contractValue));
+  const projected = ordered.map(projectContribution);
+  res.json({ title: type === "active-projects" ? "Active Projects" : type === "pipeline-value" ? "Pipeline Value" : `Stage: ${stage}`, type, count: projected.length, total: projected.reduce((sum, p) => sum + p.contractValue, 0), projects: projected });
+});
+
 router.get("/dashboard/summary", async (req: TenantRequest, res) => {
   const [projects, followUps] = await Promise.all([
     db.select().from(projectsTable).where(and(eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!))),
@@ -297,12 +379,12 @@ router.get("/dashboard/summary", async (req: TenantRequest, res) => {
     };
   });
   res.json({
-    activeProjects: projects.filter((project) => project.stage !== "lost" && project.stage !== "closeout").length,
+    activeProjects: projects.filter((project) => ACTIVE_STAGES.includes(project.stage as typeof ACTIVE_STAGES[number])).length,
     pipelineValue: projects
-      .filter((project) => project.stage !== "lost")
+      .filter((project) => PIPELINE_STAGES.includes(project.stage as typeof PIPELINE_STAGES[number]))
       .reduce((sum, project) => sum + Number(project.contractValue), 0),
     awardedValue: projects
-      .filter((project) => ["awarded", "contracted", "in_progress", "billing", "closeout"].includes(project.stage))
+      .filter((project) => ACTIVE_STAGES.includes(project.stage as typeof ACTIVE_STAGES[number]))
       .reduce((sum, project) => sum + Number(project.contractValue), 0),
     invoicedValue: projects.reduce((sum, project) => sum + Number(project.invoicedAmount), 0),
     receivedValue: projects.reduce((sum, project) => sum + Number(project.receivedAmount), 0),
