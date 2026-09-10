@@ -1,0 +1,1 @@
+- [Date boundary normalization](date-boundary.md) — convert generated OpenAPI date inputs to YYYY-MM-DD before Drizzle date writes.

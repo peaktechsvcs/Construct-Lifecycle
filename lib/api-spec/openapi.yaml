@@ -10,6 +10,12 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: projects
+    description: Project lifecycle operations
+  - name: dashboard
+    description: Dashboard summaries
+  - name: follow-ups
+    description: Future work follow-ups
 paths:
   /healthz:
     get:
@@ -24,7 +30,197 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: stage
+          schema:
+            $ref: "#/components/schemas/ProjectStage"
+      responses:
+        "200":
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+  /projects/{projectId}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Project not found
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "204":
+          description: Project deleted
+  /projects/{projectId}/activity:
+    get:
+      operationId: listProjectActivity
+      tags: [projects]
+      summary: List project activity
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Activity"
+  /follow-ups:
+    get:
+      operationId: listFollowUps
+      tags: [follow-ups]
+      summary: List future work follow-ups
+      responses:
+        "200":
+          description: Follow-ups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FollowUp"
+    post:
+      operationId: createFollowUp
+      tags: [follow-ups]
+      summary: Create a follow-up
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FollowUpInput"
+      responses:
+        "201":
+          description: Follow-up created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowUp"
+  /follow-ups/{followUpId}:
+    patch:
+      operationId: updateFollowUp
+      tags: [follow-ups]
+      summary: Update a follow-up
+      parameters:
+        - $ref: "#/components/parameters/FollowUpId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FollowUpUpdate"
+      responses:
+        "200":
+          description: Follow-up updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowUp"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /dashboard/activity:
+    get:
+      operationId: listRecentActivity
+      tags: [dashboard]
+      summary: List recent activity
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Activity"
 components:
+  parameters:
+    ProjectId:
+      in: path
+      name: projectId
+      required: true
+      schema:
+        type: integer
+    FollowUpId:
+      in: path
+      name: followUpId
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +229,181 @@ components:
           type: string
       required:
         - status
+    ProjectStage:
+      type: string
+      enum:
+        - lead
+        - proposal
+        - awarded
+        - contracted
+        - in_progress
+        - billing
+        - closeout
+        - follow_up
+        - lost
+    ProposalStatus:
+      type: string
+      enum: [not_started, drafting, submitted, revised, accepted]
+    BidOutcome:
+      type: string
+      enum: [pending, won, lost, no_bid]
+    ContractStatus:
+      type: string
+      enum: [none, requested, active, complete]
+    BillingStatus:
+      type: string
+      enum: [not_started, deposit_pending, invoicing, partially_paid, paid]
+    CloseoutStatus:
+      type: string
+      enum: [not_started, punch_list, customer_review, complete]
+    Project:
+      type: object
+      required:
+        - id
+        - projectNumber
+        - customerName
+        - projectName
+        - category
+        - stage
+        - proposalStatus
+        - bidOutcome
+        - contractStatus
+        - contractValue
+        - deliveryPercent
+        - billingStatus
+        - invoicedAmount
+        - receivedAmount
+        - closeoutStatus
+        - createdAt
+        - updatedAt
+      properties:
+        id: { type: integer }
+        projectNumber: { type: string }
+        customerName: { type: string }
+        projectName: { type: string }
+        address: { type: ["string", "null"] }
+        category: { type: string }
+        productCategories:
+          type: array
+          items: { type: string }
+        owner: { type: ["string", "null"] }
+        stage: { $ref: "#/components/schemas/ProjectStage" }
+        proposalStatus: { $ref: "#/components/schemas/ProposalStatus" }
+        proposalDetails: { type: ["string", "null"] }
+        bidOutcome: { $ref: "#/components/schemas/BidOutcome" }
+        contractStatus: { $ref: "#/components/schemas/ContractStatus" }
+        contractValue: { type: number }
+        contractDetails: { type: ["string", "null"] }
+        contractStart: { type: ["string", "null"], format: date }
+        contractEnd: { type: ["string", "null"], format: date }
+        deliveryPercent: { type: integer, minimum: 0, maximum: 100 }
+        requirementsSummary: { type: ["string", "null"] }
+        billingStatus: { $ref: "#/components/schemas/BillingStatus" }
+        invoicedAmount: { type: number }
+        receivedAmount: { type: number }
+        billingDetails: { type: ["string", "null"] }
+        closeoutStatus: { $ref: "#/components/schemas/CloseoutStatus" }
+        closeoutDetails: { type: ["string", "null"] }
+        nextFollowUp: { type: ["string", "null"], format: date }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectInput:
+      type: object
+      required: [customerName, projectName, category]
+      properties:
+        customerName: { type: string, minLength: 1 }
+        projectName: { type: string, minLength: 1 }
+        address: { type: string }
+        category: { type: string }
+        productCategories:
+          type: array
+          items: { type: string }
+        owner: { type: string }
+        stage: { $ref: "#/components/schemas/ProjectStage" }
+        proposalStatus: { $ref: "#/components/schemas/ProposalStatus" }
+        proposalDetails: { type: string }
+        bidOutcome: { $ref: "#/components/schemas/BidOutcome" }
+        contractStatus: { $ref: "#/components/schemas/ContractStatus" }
+        contractValue: { type: number }
+        contractDetails: { type: string }
+        contractStart: { type: string, format: date }
+        contractEnd: { type: string, format: date }
+        deliveryPercent: { type: integer, minimum: 0, maximum: 100 }
+        requirementsSummary: { type: string }
+        billingStatus: { $ref: "#/components/schemas/BillingStatus" }
+        invoicedAmount: { type: number }
+        receivedAmount: { type: number }
+        billingDetails: { type: string }
+        closeoutStatus: { $ref: "#/components/schemas/CloseoutStatus" }
+        closeoutDetails: { type: string }
+        nextFollowUp: { type: string, format: date }
+    ProjectUpdate:
+      allOf:
+        - $ref: "#/components/schemas/ProjectInput"
+    Activity:
+      type: object
+      required: [id, projectId, action, description, createdAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        projectName: { type: ["string", "null"] }
+        action: { type: string }
+        description: { type: string }
+        actor: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+    FollowUp:
+      type: object
+      required: [id, projectId, customerName, projectName, dueDate, status, note]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        customerName: { type: string }
+        projectName: { type: string }
+        dueDate: { type: string, format: date }
+        status:
+          type: string
+          enum: [open, completed]
+        note: { type: string }
+        createdAt: { type: string, format: date-time }
+    FollowUpInput:
+      type: object
+      required: [projectId, dueDate, note]
+      properties:
+        projectId: { type: integer }
+        dueDate: { type: string, format: date }
+        note: { type: string, minLength: 1 }
+    FollowUpUpdate:
+      type: object
+      properties:
+        dueDate: { type: string, format: date }
+        note: { type: string }
+        status:
+          type: string
+          enum: [open, completed]
+    DashboardSummary:
+      type: object
+      required:
+        - activeProjects
+        - pipelineValue
+        - awardedValue
+        - receivedValue
+        - invoicedValue
+        - openFollowUps
+        - stageCounts
+      properties:
+        activeProjects: { type: integer }
+        pipelineValue: { type: number }
+        awardedValue: { type: number }
+        invoicedValue: { type: number }
+        receivedValue: { type: number }
+        openFollowUps: { type: integer }
+        stageCounts:
+          type: array
+          items:
+            type: object
+            required: [stage, count, value]
+            properties:
+              stage: { $ref: "#/components/schemas/ProjectStage" }
+              count: { type: integer }
+              value: { type: number }
 

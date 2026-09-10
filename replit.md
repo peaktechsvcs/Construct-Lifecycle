@@ -1,6 +1,6 @@
-# [Project name]
+# Cabinet Projects
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Cabinet Projects is a responsive operations workspace for tracking cabinet, countertop, flooring, lighting, and hardware jobs from opportunity through collected cash and future-work follow-up.
 
 ## Run & Operate
 
@@ -22,23 +22,33 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/cabinet-projects` — responsive React/Vite application
+- `artifacts/api-server/src/routes/projects.ts` — project, activity, follow-up, and dashboard routes
+- `lib/api-spec/openapi.yaml` — API source of truth
+- `lib/db/src/schema/projects.ts` — PostgreSQL schema for projects, activity, and follow-ups
+- `scripts/src/seed-projects.ts` — development seed data
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The lifecycle is represented as a single project stage plus structured fields for proposal, bid, contract, delivery, billing, closeout, and follow-up so each job has one operational home.
+- Dashboard totals and activity are computed from the same project records used by the project book and detail workspace.
+- The app uses the shared API server and PostgreSQL database; the generated OpenAPI client is the frontend data access layer.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Overview dashboard with stage distribution, pipeline and cash totals, recent activity, and upcoming follow-ups.
+- Searchable project book with create, edit, and delete flows.
+- Project detail workspace with lifecycle rail, proposal/bid, contract and delivery, billing, closeout, activity, and follow-up scheduling.
+- Follow-up queue with open/completed states and overdue treatment.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+No additional preferences recorded.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Run `pnpm --filter @workspace/api-spec run codegen` after changing the OpenAPI contract.
+- Development data can be reseeded with `pnpm --filter @workspace/scripts run seed-projects`; the seed is no-op when projects already exist.
 
 ## Pointers
 
