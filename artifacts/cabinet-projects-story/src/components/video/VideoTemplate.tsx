@@ -38,13 +38,15 @@ export default function VideoTemplate() {
       <SafeFrame>
         <header className="story-header">
           <div className="story-brand">
-            <span className="brand-mark">CP</span>
+            <span className="brand-mark">
+              <img alt="Construct Lifecycle" src={`${import.meta.env.BASE_URL}Construct_Lifecycle_icon.png`} />
+            </span>
             <div>
-              <div className="brand-name">Cabinet Projects</div>
-              <div className="brand-kicker">material-ledger operations</div>
+              <div className="brand-name">Construct LC</div>
+              <div className="brand-kicker">construction lifecycle platform</div>
             </div>
           </div>
-          <div className="scene-label">Northline Supply · 2024</div>
+          <div className="scene-label">Construct Lifecycle™</div>
         </header>
 
         <div className="persistent-rail" aria-hidden="true">
@@ -65,8 +67,8 @@ export default function VideoTemplate() {
         <motion.div
           aria-hidden="true"
           style={{
-            background: 'rgba(23, 107, 105, .09)',
-            border: '1px solid rgba(23, 107, 105, .2)',
+            background: 'rgba(20, 121, 201, .06)',
+            border: '1px solid rgba(20, 121, 201, .2)',
             borderRadius: '50%',
             height: '42vmin',
             left: '14vmin',

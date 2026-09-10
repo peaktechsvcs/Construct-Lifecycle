@@ -4,11 +4,11 @@ import { SceneLayout } from '@/lib/video';
 export function Scene3() {
   return (
     <div className="scene-safe">
-      <motion.div className="scene-ambient" style={{ borderColor: 'rgba(201,107,74,.22)', left: '-24vmin', right: 'auto', top: '18vmin' }} animate={{ rotate: [-4, 7, -4], scale: [.94, 1.03, .94] }} transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.div className="scene-ambient" style={{ borderColor: 'rgba(57,168,240,.3)', left: '-24vmin', right: 'auto', top: '18vmin' }} animate={{ rotate: [-4, 7, -4], scale: [.94, 1.03, .94] }} transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }} />
       <SceneLayout layout="stack" style={{ justifyContent: 'flex-start' }}>
         <motion.div className="scene-index" initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .5, delay: .15 }}>03 / handoff</motion.div>
         <div style={{ marginTop: '8.5vmin' }}>
-          <motion.p className="scene-kicker" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45, delay: .25 }}>A signed job keeps moving</motion.p>
+          <motion.p className="scene-kicker" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45, delay: .25 }}>Construct LC · contracts + deliveries</motion.p>
           <motion.h1 className="scene-title" initial={{ opacity: 0, y: 28, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: .82, delay: .4, ease: [0.16, 1, .3, 1] }}>From <em>yes</em><br />to on-site.</motion.h1>
           <motion.p className="scene-copy" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: .84 }}>Contract, delivery, and the next handoff share one source of truth.</motion.p>
         </div>
@@ -39,9 +39,9 @@ export function Scene3() {
               </motion.div>
             ))}
           </div>
-          <div style={{ borderTop: '1px solid rgba(23,45,50,.12)', marginTop: '3vmin', paddingTop: '2.4vmin' }}>
+          <div style={{ borderTop: '1px solid rgba(6,43,85,.12)', marginTop: '3vmin', paddingTop: '2.4vmin' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="mono" style={{ color: 'var(--color-text-secondary)', fontSize: '1.1vmin', letterSpacing: '.12em' }}>delivery readiness</span><span className="mono" style={{ color: 'var(--color-primary)', fontSize: '1.1vmin' }}>72 / 100</span></div>
-            <div style={{ background: 'rgba(23,45,50,.1)', height: '.8vmin', marginTop: '1.25vmin', overflow: 'hidden' }}><motion.div style={{ background: 'var(--color-primary)', height: '100%', transformOrigin: 'left', width: '72%' }} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 1.05, delay: 1.85, ease: [0.16, 1, .3, 1] }} /></div>
+            <div style={{ background: 'rgba(6,43,85,.1)', height: '.8vmin', marginTop: '1.25vmin', overflow: 'hidden' }}><motion.div style={{ background: 'var(--color-primary)', height: '100%', transformOrigin: 'left', width: '72%' }} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 1.05, delay: 1.85, ease: [0.16, 1, .3, 1] }} /></div>
           </div>
         </motion.div>
       </SceneLayout>

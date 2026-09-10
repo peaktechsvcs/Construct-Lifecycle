@@ -1,0 +1,940 @@
+You are working on the existing Construct Lifecycle application at constructlifecycle.com.
+
+Your task is to UPDATE AND EXTEND THE EXISTING APPLICATION — NOT redesign it from scratch.
+
+The existing first-version application is the visual and UX source of truth. Preserve its current look, feel, information hierarchy, layout patterns, navigation style, component styling, project lifecycle concept, and overall operational experience while expanding the application into a true multi-tenant SaaS platform.
+
+I am also providing the document:
+
+"Construct LC Tenant Branding & Theming Guide v1.0"
+
+Treat that document as a product architecture and UX requirement document.
+
+I am also providing screenshots of the existing application. Treat those screenshots as the visual source of truth for the current product.
+
+==================================================
+1. PRIMARY OBJECTIVE
+==================================================
+
+Transform the current application from a single-organization project management application into the foundation of:
+
+CONSTRUCT LC
+The Construction Lifecycle Platform
+
+The application must support multiple independent tenant organizations while preserving the existing application's visual language.
+
+The fundamental product concept remains:
+
+PROJECT LIFECYCLE
+
+Lead
+→ Proposal
+→ Awarded
+→ Contracted
+→ In Progress
+→ Billing
+→ Closeout
+
+The project remains the central business object.
+
+Do NOT replace this concept with a generic CRM pipeline or generic project-management architecture.
+
+==================================================
+2. CRITICAL RULE: DO NOT REDESIGN THE EXISTING UI
+==================================================
+
+Before changing code:
+
+1. Inspect the entire existing codebase.
+2. Identify the current frontend framework and component architecture.
+3. Identify the current backend architecture.
+4. Identify the current database and schema.
+5. Identify authentication, authorization, routing, and state management.
+6. Identify reusable UI components.
+7. Identify current project lifecycle logic.
+8. Identify how sample/demo data is currently stored.
+9. Identify existing hard-coded colors, styles, and tenant-specific assumptions.
+10. Identify any current APIs and external integrations.
+
+Do not replace the existing application architecture simply because another framework or architecture would be preferable.
+
+Extend the existing architecture wherever practical.
+
+Do not perform a wholesale rewrite unless technically necessary.
+
+The current UI should continue to feel like the same product.
+
+Preserve:
+
+- Existing left navigation
+- Existing top header
+- Existing page widths
+- Existing spacing
+- Existing card design
+- Existing typography hierarchy
+- Existing status pills
+- Existing lifecycle visualization
+- Existing project book
+- Existing follow-up experience
+- Existing dashboard structure
+- Existing project detail structure
+- Existing visual density
+- Existing rounded-card treatment
+- Existing restrained use of color
+- Existing whitespace
+- Existing interaction patterns
+
+The goal is:
+
+SAME PRODUCT EXPERIENCE
++
+MORE CAPABILITY
++
+MULTI-TENANCY
++
+TENANT BRANDING
+
+==================================================
+3. BRANDING / THEMING ARCHITECTURE
+==================================================
+
+Implement a proper tenant-aware design-token architecture.
+
+There must be THREE conceptual layers:
+
+Layer 1:
+CONSTRUCT LC DESIGN SYSTEM
+
+Defines:
+
+- Layout
+- Components
+- Typography
+- Spacing
+- Borders
+- Radii
+- Interaction behavior
+- Accessibility
+- Information hierarchy
+- Lifecycle patterns
+
+Layer 2:
+CONSTRUCT LC DEFAULT THEME
+
+This is the default Construct Lifecycle brand.
+
+Layer 3:
+TENANT THEME
+
+Tenant-specific branding overrides approved design tokens.
+
+Tenant branding must NOT modify:
+
+- Application structure
+- Navigation architecture
+- Business logic
+- Project lifecycle
+- Status meanings
+- Security model
+- Permissions
+- Accessibility requirements
+
+A tenant is customizing the visual identity of the application, not creating a different application.
+
+==================================================
+4. CONSTRUCT LC DEFAULT BRAND THEME
+==================================================
+
+Implement the Construct Lifecycle branding guide as the default theme.
+
+Default colors:
+
+Primary / Construct Navy:
+#062B55
+
+Primary Blue:
+#1479C9
+
+Light Blue:
+#39A8F0
+
+Structural Gray:
+#6B7075
+
+Warm Background:
+#F3F5F7
+
+Border Gray:
+#D9DEE3
+
+White:
+#FFFFFF
+
+Success:
+#18864B
+
+Warning:
+#C98200
+
+Error:
+#C93C3C
+
+Info:
+#1479C9
+
+Typography:
+
+Inter
+
+Weights:
+
+400
+500
+600
+700
+
+Maintain the existing application's restrained visual style.
+
+Do not simply replace every existing color with blue.
+
+Map existing UI colors into semantic design tokens so the visual hierarchy remains coherent.
+
+==================================================
+5. SEMANTIC DESIGN TOKENS
+==================================================
+
+Create semantic theme tokens rather than hard-coding colors inside individual components.
+
+At minimum support:
+
+brand.primary
+brand.secondary
+brand.accent
+
+surface.page
+surface.card
+surface.muted
+
+border.default
+border.subtle
+
+text.primary
+text.secondary
+text.muted
+text.inverse
+
+status.success
+status.warning
+status.error
+status.info
+
+action.primary
+action.primaryHover
+action.secondary
+
+focus.ring
+
+lifecycle.complete
+lifecycle.current
+lifecycle.future
+
+Components must consume semantic tokens.
+
+Do NOT create tenant-specific CSS inside individual components.
+
+A component should not contain logic such as:
+
+if tenant == "companyA"
+
+Instead:
+
+component → semantic token → tenant theme
+
+==================================================
+6. MULTI-TENANCY
+==================================================
+
+Implement real multi-tenancy.
+
+A tenant represents an independent organization using Construct LC.
+
+Every tenant must have isolated:
+
+- Users
+- Projects
+- Customers
+- Vendors
+- Products
+- Follow-ups
+- Tasks
+- Documents
+- Financial records
+- Procurement records
+- Deliveries
+- Change orders
+- Activities
+- Branding/theme configuration
+- Organization settings
+
+Tenant A must never be able to access Tenant B's data.
+
+This is a SECURITY REQUIREMENT.
+
+Do not rely solely on frontend filtering.
+
+Tenant isolation must be enforced server-side and at the database/data-access layer.
+
+==================================================
+7. TENANT DATA MODEL
+==================================================
+
+Create or adapt the data model to support:
+
+Tenant / Organization
+
+Suggested fields:
+
+id
+name
+slug
+status
+created_at
+updated_at
+
+Tenant Branding / Theme
+
+tenant_id
+logo
+light_logo
+favicon
+primary_color
+secondary_color
+accent_color
+background_color
+surface_color
+theme_status
+theme_version
+created_at
+updated_at
+updated_by
+
+Users must be associated with one or more tenants as appropriate for the architecture.
+
+If the existing application assumes a single organization, refactor that assumption.
+
+Do not simply add tenant_id to one table and call the application multi-tenant.
+
+Trace all organization-owned entities and make them tenant-scoped.
+
+==================================================
+8. AUTHENTICATION AND TENANT CONTEXT
+==================================================
+
+When a user signs in:
+
+1. Authenticate the user.
+2. Determine their authorized tenant(s).
+3. Establish the active tenant context.
+4. Load that tenant's configuration.
+5. Load that tenant's branding theme.
+6. Load tenant-scoped application data.
+
+The active tenant must be available to the backend for every protected request.
+
+Never trust a tenant ID supplied directly by the client without validating that the authenticated user has access to that tenant.
+
+==================================================
+9. TENANT SWITCHING
+==================================================
+
+Architect the system to support users belonging to multiple tenants.
+
+If a user belongs to more than one tenant, provide an appropriate tenant/workspace selector.
+
+The active tenant should be visible somewhere in the existing header/breadcrumb area without disrupting the current design.
+
+Example:
+
+Construct LC / Acme Cabinetry / Projects
+
+or:
+
+Acme Cabinetry
+Projects
+
+Do not introduce a large new navigation system merely to support tenant switching.
+
+For users belonging to only one tenant, the tenant-selection experience should remain unobtrusive.
+
+==================================================
+10. TENANT ADMINISTRATION
+==================================================
+
+Add:
+
+Administration → Organization → Branding
+
+using the existing application's design language.
+
+The branding page should support:
+
+BRAND IDENTITY
+
+- Company Name
+- Short Name
+- Primary Logo
+- Light Logo
+- Favicon
+
+BRAND COLORS
+
+- Primary Color
+- Secondary Color
+- Accent Color
+- Optional Background Color
+- Optional Surface Color
+
+Provide a live preview.
+
+The preview should use actual Construct LC components, including:
+
+- Navigation
+- Dashboard card
+- Button
+- Lifecycle
+- Status pill
+- Project card
+- Table
+- Progress indicator
+
+The administrator should be able to:
+
+Save Draft
+Publish
+Reset to Construct LC Default
+
+Theme changes should not become active until published.
+
+==================================================
+11. ACCESSIBILITY GUARDRAILS
+==================================================
+
+Do not allow tenant branding to destroy accessibility.
+
+Before a theme can be published:
+
+- Validate required foreground/background contrast.
+- Validate buttons.
+- Validate links.
+- Validate status indicators.
+- Validate focus indicators.
+- Validate important UI states.
+
+Target WCAG 2.2 AA.
+
+If a selected color combination fails accessibility:
+
+- Show the administrator the problem.
+- Explain which combination failed.
+- Provide a suggested corrected value where practical.
+- Prevent publishing of configurations that create unacceptable accessibility failures.
+
+Do not rely exclusively on color to communicate status.
+
+==================================================
+12. THEME VERSIONING
+==================================================
+
+Implement basic theme versioning.
+
+A theme should have:
+
+Draft
+Published
+Previous Published Version
+
+Allow:
+
+Save Draft
+Publish
+Rollback
+Reset to Default
+
+Record:
+
+- User
+- Date/time
+- Previous value
+- New value
+
+Theme changes must be tenant-specific.
+
+==================================================
+13. WHITE-LABEL READINESS
+==================================================
+
+Do not implement full white-labeling unless it is already easy to do.
+
+However, design the architecture so it can support it later.
+
+Potential future capabilities:
+
+- Custom tenant product name
+- Custom domain
+- Branded login page
+- Branded emails
+- Branded notifications
+- Tenant favicon
+- Expanded tenant visual identity
+
+Do not hard-code "Construct LC" throughout the application in a way that makes future white-labeling impossible.
+
+However, Construct LC should remain the default platform identity.
+
+==================================================
+14. EXISTING PROJECT LIFECYCLE
+==================================================
+
+Preserve and strengthen the existing lifecycle:
+
+Lead
+Proposal
+Awarded
+Contracted
+In Progress
+Billing
+Closeout
+
+The existing lifecycle visualization is a signature component.
+
+Do not replace it.
+
+Improve its architecture so lifecycle state is data-driven rather than hard-coded.
+
+Each project should have:
+
+current_stage
+stage_history
+stage_entered_at
+next_action
+stage_status
+
+Eventually each stage can contain required activities, dependencies, and completion criteria.
+
+Do not implement unnecessary complexity if it is not required for this phase.
+
+==================================================
+15. PROJECT AS THE CENTRAL OBJECT
+==================================================
+
+The project should remain the central operational object.
+
+The long-term relationship should be:
+
+Customer
+↓
+Opportunity
+↓
+Proposal / Estimate
+↓
+Award
+↓
+Contract
+↓
+Project
+↓
+Products
+↓
+Procurement
+↓
+Purchase Orders
+↓
+Deliveries
+↓
+Billing
+↓
+Closeout
+
+Project data should eventually support:
+
+- Scope
+- Products
+- Selections
+- Procurement
+- Orders
+- Deliveries
+- Receiving
+- Financials
+- Change Orders
+- Documents
+- Tasks
+- Communications
+- Closeout
+- Activity history
+
+Do not implement every capability immediately unless it already exists.
+
+Build the underlying architecture so these capabilities can be added cleanly.
+
+==================================================
+16. CURRENT APPLICATION FUNCTIONALITY
+==================================================
+
+Do not remove or regress existing functionality.
+
+The existing application currently includes concepts such as:
+
+- Overview dashboard
+- Projects
+- Follow-ups
+- Project book
+- Project lifecycle
+- Proposal & bid
+- Contract & delivery
+- Billing & collection
+- Closeout
+- Project activity
+
+Preserve these.
+
+Existing demo/sample records should continue to render correctly after the multi-tenant migration.
+
+Create a default development/demo tenant and associate existing sample data with it.
+
+==================================================
+17. FUTURE PRODUCT AREAS
+==================================================
+
+Architect the application to support these future areas:
+
+COMMERCIAL
+
+- Opportunities
+- Bids
+- Estimates
+- Proposals
+- Awards
+- Contracts
+
+PROJECT OPERATIONS
+
+- Products
+- Selections
+- Procurement
+- Purchase Orders
+- Deliveries
+- Receiving
+- Installation
+
+FINANCIAL
+
+- Contract Value
+- Approved Changes
+- Current Contract
+- Committed Cost
+- Actual Cost
+- Projected Cost
+- Billing
+- Payments
+- Gross Profit
+- Margin
+
+CHANGE MANAGEMENT
+
+Draft
+→ Submitted
+→ Customer Review
+→ Approved / Rejected
+→ Contract Updated
+→ Procurement Updated
+→ Financially Applied
+
+CLOSEOUT
+
+- Open Items
+- Punch List
+- Documentation
+- Final Billing
+- Completion
+
+Do not build fake functionality simply to populate screens.
+
+Build real data structures and workflows where functionality is implemented.
+
+==================================================
+18. BUSINESS CENTRAL / INTEGRATION READINESS
+==================================================
+
+The product is intended to work alongside ERP and specialized construction systems.
+
+Do NOT make Construct LC dependent on replacing an ERP.
+
+The intended architecture is:
+
+Construct LC
+= operational construction lifecycle layer
+
+Business Central
+= ERP / financial system of record
+
+PIM
+= product information system
+
+Takeoff / Estimating systems
+= specialized systems
+
+Construct LC should eventually integrate with:
+
+Dynamics 365 Business Central
+PIM platforms
+Takeoff/estimating systems
+CRM
+Accounting
+Ecommerce
+Automation/middleware
+
+Design APIs and domain models so integrations can be added later.
+
+Do not hard-code Business Central into the core project model.
+
+==================================================
+19. CURRENT UI DESIGN REQUIREMENTS
+==================================================
+
+The application should continue to visually resemble the supplied screenshots.
+
+Important characteristics:
+
+- Warm neutral background
+- White/cream cards
+- Subtle borders
+- Minimal shadows
+- Dark typography
+- Restrained accent colors
+- Small uppercase section labels
+- Moderate rounded corners
+- Compact status pills
+- Simple line icons
+- Generous whitespace
+- Desktop-first layout
+- Responsive behavior
+- Strong visual hierarchy
+- Operational rather than decorative
+
+Do not introduce:
+
+- Gradients
+- Excessive glassmorphism
+- Excessive shadows
+- Giant KPI cards
+- Excessive charting
+- Generic SaaS dashboard patterns
+- Excessively rounded interfaces
+- Dark mode as a required feature
+- A completely new navigation paradigm
+
+==================================================
+20. DATABASE MIGRATION
+==================================================
+
+Before modifying the database:
+
+1. Inspect the current schema.
+2. Identify all organization-owned records.
+3. Create a migration strategy.
+4. Create a default tenant.
+5. Associate existing data with the default tenant.
+6. Add appropriate tenant relationships.
+7. Add indexes for tenant-scoped queries.
+8. Update all backend queries.
+9. Test cross-tenant isolation.
+
+Do not destroy existing development data.
+
+Do not create a migration that requires manually recreating all sample projects.
+
+==================================================
+21. SECURITY REQUIREMENTS
+==================================================
+
+Treat multi-tenancy as a security boundary.
+
+Test:
+
+- Tenant A cannot read Tenant B projects.
+- Tenant A cannot modify Tenant B projects.
+- Tenant A cannot retrieve Tenant B documents.
+- Tenant A cannot access Tenant B branding.
+- Tenant A cannot manipulate Tenant B IDs through API requests.
+- Tenant A cannot access Tenant B records through search.
+- Tenant A cannot access Tenant B records through exports.
+- Tenant A cannot access Tenant B records through direct URLs.
+
+Check authorization at the backend/data layer.
+
+Do not rely on hidden frontend navigation as a security control.
+
+==================================================
+22. IMPLEMENTATION APPROACH
+==================================================
+
+Work in phases.
+
+PHASE 1
+Audit existing application.
+
+Provide a concise technical assessment before making major changes:
+
+- Current stack
+- Current database
+- Current authentication
+- Current project model
+- Current lifecycle implementation
+- Current UI component architecture
+- Current hard-coded branding
+- Current single-tenant assumptions
+- Recommended migration approach
+
+Then proceed with implementation.
+
+PHASE 2
+Implement design tokens and Construct LC default theme.
+
+PHASE 3
+Implement tenant model and tenant isolation.
+
+PHASE 4
+Migrate existing sample data into a default tenant.
+
+PHASE 5
+Implement tenant-aware authentication/context.
+
+PHASE 6
+Implement tenant branding administration.
+
+PHASE 7
+Implement theme preview, accessibility validation, publishing, and rollback.
+
+PHASE 8
+Regression test all existing functionality.
+
+Do not move to a later phase if an earlier phase introduces unresolved architectural problems.
+
+==================================================
+23. DO NOT OVERBUILD
+==================================================
+
+This is important.
+
+Do not build a huge enterprise platform in this change.
+
+The immediate goal is:
+
+EXISTING APP
++
+CONSTRUCT LC BRAND THEME
++
+MULTI-TENANCY
++
+TENANT BRANDING
++
+FOUNDATION FOR FUTURE LIFECYCLE FEATURES
+
+Do not create unnecessary modules simply because they appear in the long-term roadmap.
+
+Do not fabricate integrations.
+
+Do not fabricate financial calculations.
+
+Do not create placeholder functionality that looks functional but is not backed by real data.
+
+==================================================
+24. TESTING REQUIREMENTS
+==================================================
+
+Before declaring the work complete, test:
+
+FUNCTIONALITY
+
+- Existing dashboard works.
+- Existing project book works.
+- Existing follow-ups work.
+- Existing project pages work.
+- Lifecycle visualization works.
+- Existing project data remains intact.
+
+MULTI-TENANCY
+
+- Create Tenant A.
+- Create Tenant B.
+- Create users for each.
+- Create projects for each.
+- Verify isolation.
+- Verify API isolation.
+- Verify search isolation.
+- Verify branding isolation.
+
+BRANDING
+
+- Apply Construct LC default theme.
+- Create a tenant with a different primary color.
+- Verify tenant branding applies throughout the application.
+- Verify Tenant A's theme does not affect Tenant B.
+- Verify reset to default.
+- Verify draft/publish behavior.
+- Verify rollback.
+
+ACCESSIBILITY
+
+- Test primary actions.
+- Test links.
+- Test status states.
+- Test focus states.
+- Test readable text.
+- Test color contrast.
+
+RESPONSIVENESS
+
+- Desktop
+- Tablet
+- Mobile
+
+==================================================
+25. DEFINITION OF DONE
+==================================================
+
+The implementation is complete only when:
+
+1. The existing application still looks and behaves like the first-version product.
+2. Construct LC branding is implemented as the default theme.
+3. Colors are driven by semantic design tokens.
+4. Multiple tenants can exist independently.
+5. Tenant data is securely isolated.
+6. Existing sample data has been migrated into a default tenant.
+7. Users have an active tenant context.
+8. Tenant administrators can configure branding.
+9. Branding changes have a live preview.
+10. Accessibility validation occurs before publishing.
+11. Themes support draft/publish/reset/rollback.
+12. Existing functionality has no regressions.
+13. The architecture supports future expansion into the complete construction lifecycle platform.
+
+==================================================
+26. FINAL PRODUCT PRINCIPLE
+==================================================
+
+The result should feel like:
+
+"Construct LC, customized for my company."
+
+It should NOT feel like:
+
+"A completely different application built by my company."
+
+The Construct LC experience is the product.
+
+Tenant branding is the tenant's identity layered onto that experience.
+
+Preserve the product's identity while making the platform adaptable to every construction organization that uses it.
+
+Start by inspecting the existing codebase and provide the implementation assessment described above. Then proceed with the implementation.

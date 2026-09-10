@@ -1,23 +1,23 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 :root {
-  --color-primary: #176b69;
-  --color-secondary: #d5c8b7;
-  --color-accent: #c96b4a;
-  --color-bg-light: #eee5d7;
-  --color-bg-dark: #172d32;
-  --color-bg-muted: #dfd1bf;
-  --color-text-primary: #172d32;
-  --color-text-secondary: #52625f;
-  --color-text-muted: #8d9189;
-  --color-text-inverse: #f4eadb;
-  --color-success: #6b8262;
-  --color-warning: #d4a65a;
-  --color-error: #a94f42;
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-body: 'Space Grotesk', sans-serif;
-  --font-mono: 'DM Mono', monospace;
+  --color-primary: #1479C9;
+  --color-secondary: #6B7075;
+  --color-accent: #39A8F0;
+  --color-bg-light: #F3F5F7;
+  --color-bg-dark: #062B55;
+  --color-bg-muted: #D9DEE3;
+  --color-text-primary: #062B55;
+  --color-text-secondary: #6B7075;
+  --color-text-muted: #6B7075;
+  --color-text-inverse: #FFFFFF;
+  --color-success: #18864B;
+  --color-warning: #C98200;
+  --color-error: #C93C3C;
+  --font-display: 'Inter', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'Inter', sans-serif;
 }
 
 @theme inline {
@@ -45,7 +45,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
   overflow: hidden;
-  background: var(--color-bg-dark);
+  background: var(--color-bg-light);
 }
 
 .video-media-frame {
@@ -85,55 +85,31 @@ body {
   object-position: left;
 }
 
-@keyframes material-drift {
-  0% { transform: translate3d(-1.5%, -1%, 0) rotate(-1deg); }
-  50% { transform: translate3d(1.5%, 1%, 0) rotate(1deg); }
-  100% { transform: translate3d(-1.5%, -1%, 0) rotate(-1deg); }
-}
-
-@keyframes grain-shift {
-  0%, 100% { transform: translate3d(0, 0, 0); opacity: .14; }
-  50% { transform: translate3d(1.2%, -1%, 0); opacity: .19; }
-}
-
-@keyframes scan-line {
-  0% { transform: translateY(-120%); opacity: 0; }
-  15%, 80% { opacity: .16; }
-  100% { transform: translateY(520%); opacity: 0; }
-}
-
 .story-root {
-  background:
-    radial-gradient(circle at 92% 6%, rgba(201, 107, 74, .16), transparent 27%),
-    radial-gradient(circle at 9% 82%, rgba(23, 107, 105, .15), transparent 33%),
-    linear-gradient(145deg, #f2e9dc 0%, #e6dac9 52%, #d8cab8 100%);
+  background: var(--color-bg-light);
   color: var(--color-text-primary);
   isolation: isolate;
 }
 
 .story-root::before {
-  background-image:
-    linear-gradient(rgba(23, 45, 50, .045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(23, 45, 50, .045) 1px, transparent 1px);
-  background-size: 28px 28px;
+  border: 1px solid rgba(6, 43, 85, .08);
   content: '';
-  inset: 0;
-  opacity: .32;
+  inset: 2.2vmin;
   pointer-events: none;
   position: absolute;
   z-index: -1;
 }
 
 .story-root::after {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.28'/%3E%3C/svg%3E");
+  border-left: 1px solid rgba(20, 121, 201, .18);
   content: '';
-  inset: -10%;
-  mix-blend-mode: multiply;
-  opacity: .18;
+  height: 55%;
+  left: 10vmin;
+  opacity: .8;
   pointer-events: none;
   position: absolute;
+  top: 23vmin;
   z-index: 8;
-  animation: grain-shift 8s ease-in-out infinite;
 }
 
 .story-header {
@@ -155,16 +131,17 @@ body {
 
 .brand-mark {
   align-items: center;
-  background: var(--color-bg-dark);
-  border-radius: .85vmin;
-  color: var(--color-text-inverse);
   display: flex;
-  font-family: var(--font-mono);
-  font-size: 1.45vmin;
-  height: 4.3vmin;
+  height: 5.2vmin;
   justify-content: center;
-  letter-spacing: -.05em;
-  width: 4.3vmin;
+  width: 5.2vmin;
+}
+
+.brand-mark img {
+  display: block;
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
 }
 
 .brand-name,
@@ -183,7 +160,7 @@ body {
 .brand-name {
   color: var(--color-bg-dark);
   font-size: 1.65vmin;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: .02em;
 }
 
@@ -213,7 +190,7 @@ body {
 }
 
 .persistent-rail::before {
-  background: rgba(23, 45, 50, .14);
+  background: rgba(6, 43, 85, .16);
   content: '';
   height: 100%;
   left: .56vmin;
@@ -223,7 +200,7 @@ body {
 
 .rail-dot {
   background: var(--color-bg-light);
-  border: 1px solid rgba(23, 45, 50, .3);
+  border: 1px solid rgba(6, 43, 85, .3);
   border-radius: 50%;
   height: 1.35vmin;
   position: relative;
@@ -231,9 +208,9 @@ body {
 }
 
 .rail-dot[data-active='true'] {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 .55vmin rgba(201, 107, 74, .13);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 .55vmin rgba(20, 121, 201, .13);
 }
 
 .scene-wrap {
@@ -252,7 +229,7 @@ body {
 }
 
 .scene-kicker {
-  color: var(--color-accent);
+  color: var(--color-primary);
   font-family: var(--font-mono);
   font-size: 1.22vmin;
   letter-spacing: .19em;
@@ -303,9 +280,9 @@ body {
 }
 
 .paper-card {
-  background: rgba(250, 244, 235, .78);
-  border: 1px solid rgba(23, 45, 50, .14);
-  box-shadow: 1.2vmin 1.2vmin 0 rgba(23, 45, 50, .08), 0 1.8vmin 4vmin rgba(83, 66, 42, .13);
+  background: var(--color-text-inverse);
+  border: 1px solid var(--color-bg-muted);
+  box-shadow: 0 .8vmin 2vmin rgba(6, 43, 85, .08);
 }
 
 .mono {
@@ -313,8 +290,8 @@ body {
 }
 
 .asset-photo {
-  border: 1px solid rgba(23, 45, 50, .16);
-  box-shadow: 1.4vmin 1.4vmin 0 rgba(23, 45, 50, .10), 0 2vmin 5vmin rgba(83, 66, 42, .16);
+  border: 1px solid var(--color-bg-muted);
+  box-shadow: 0 .8vmin 2vmin rgba(6, 43, 85, .08);
   object-fit: cover;
 }
 
@@ -325,8 +302,7 @@ body {
 }
 
 .scene-ambient {
-  animation: material-drift 12s ease-in-out infinite;
-  border: 1px solid rgba(23, 45, 50, .12);
+  border: 1px solid rgba(20, 121, 201, .22);
   border-radius: 50%;
   height: 52vmin;
   opacity: .45;
@@ -334,4 +310,11 @@ body {
   right: -19vmin;
   top: 18vmin;
   width: 52vmin;
+}
+
+.formal-logo {
+  display: block;
+  height: auto;
+  object-fit: contain;
+  width: 24vmin;
 }

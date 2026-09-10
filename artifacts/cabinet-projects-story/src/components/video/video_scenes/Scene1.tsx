@@ -2,11 +2,11 @@ import { motion } from 'framer-motion';
 import { SceneLayout } from '@/lib/video';
 
 const materials = [
-  { label: 'cabinetry', color: '#8f674b', rotate: -8 },
-  { label: 'surfaces', color: '#b9ae9b', rotate: 3 },
-  { label: 'flooring', color: '#b4875c', rotate: 9 },
-  { label: 'lighting', color: '#d4a65a', rotate: -3 },
-  { label: 'hardware', color: '#5f6b62', rotate: 7 },
+  { label: 'cabinetry', color: '#062B55', rotate: -8 },
+  { label: 'surfaces', color: '#D9DEE3', rotate: 3 },
+  { label: 'flooring', color: '#6B7075', rotate: 9 },
+  { label: 'lighting', color: '#39A8F0', rotate: -3 },
+  { label: 'hardware', color: '#1479C9', rotate: 7 },
 ];
 
 export function Scene1() {
@@ -19,7 +19,7 @@ export function Scene1() {
         </motion.div>
         <div style={{ marginTop: '9vmin', position: 'relative' }}>
           <motion.p className="scene-kicker" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, delay: .35 }}>
-            The work begins in fragments
+            Construct LC · opportunities
           </motion.p>
           <motion.h1 className="scene-title" initial={{ opacity: 0, y: 30, scale: .94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: .85, delay: .48, ease: [0.16, 1, .3, 1] }}>
             Start with<br /><em>the maybe.</em>
@@ -49,7 +49,7 @@ export function Scene1() {
           <div style={{ display: 'grid', gap: '1.35vmin', gridTemplateColumns: 'repeat(5, 1fr)' }}>
             {materials.map((material, index) => (
               <motion.div key={material.label} style={{ textAlign: 'center' }} initial={{ opacity: 0, y: 18, rotate: material.rotate }} animate={{ opacity: 1, y: [18, 0, -2, 0], rotate: [material.rotate, 0, material.rotate / 2, 0] }} transition={{ duration: .65, delay: 1.75 + index * .12, ease: [0.16, 1, .3, 1] }}>
-                <div style={{ background: material.color, border: '1px solid rgba(23,45,50,.16)', height: '7.5vmin', marginBottom: '.9vmin', width: '100%' }} />
+                <div style={{ background: material.color, border: '1px solid rgba(6,43,85,.16)', height: '7.5vmin', marginBottom: '.9vmin', width: '100%' }} />
                 <div className="mono" style={{ color: 'var(--color-text-secondary)', fontSize: '.95vmin', letterSpacing: '.04em' }}>{material.label}</div>
               </motion.div>
             ))}
