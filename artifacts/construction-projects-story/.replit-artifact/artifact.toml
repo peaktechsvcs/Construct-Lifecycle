@@ -1,29 +1,29 @@
 kind = "video"
-previewPath = "/cabinet-projects-story/"
+previewPath = "/construction-projects-story/"
 title = "Construct Lifecycle — Product Walkthrough"
 description = "A 9:16 animated Construct LC product walkthrough showing the connected construction lifecycle from opportunity and bid through contract, delivery, billing, closeout, and follow-up."
 version = "1.0.0"
-id = "artifacts/cabinet-projects-story"
+id = "artifacts/construction-projects-story"
 router = "path"
 videoAspectRatio = "9:16"
 
 [[services]]
 name = "web"
-paths = [ "/cabinet-projects-story/" ]
-localPort = 24200
+paths = [ "/construction-projects-story/" ]
+localPort = 20634
 
 [services.development]
-run = "pnpm --filter @workspace/cabinet-projects-story run dev"
+run = "pnpm --filter @workspace/construction-projects-story run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/cabinet-projects-story", "run", "build" ]
+build = [ "pnpm", "--filter", "@workspace/construction-projects-story", "run", "build" ]
 serve = "static"
-publicDir = "artifacts/cabinet-projects-story/dist/public"
+publicDir = "artifacts/construction-projects-story/dist/public"
 
 [[services.production.rewrites]]
 from = "/*"
 to = "/index.html"
 
 [services.env]
-PORT = "24200"
-BASE_PATH = "/cabinet-projects-story/"
+PORT = "20634"
+BASE_PATH = "/construction-projects-story/"
