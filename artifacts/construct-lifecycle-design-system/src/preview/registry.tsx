@@ -10,6 +10,10 @@ const BadgeDemo = lazyPage(() => import("./demos/badge").then(({ BadgeDemo }) =>
 const ModalDemo = lazyPage(() => import("./demos/modal").then(({ ModalDemo }) => ModalDemo))
 const LoadingPanelDemo = lazyPage(() => import("./demos/loading-panel").then(({ LoadingPanelDemo }) => LoadingPanelDemo))
 const EmptyStateDemo = lazyPage(() => import("./demos/empty-state").then(({ EmptyStateDemo }) => EmptyStateDemo))
+const ErrorPanelDemo = lazyPage(() => import("./demos/error-panel").then(({ ErrorPanelDemo }) => ErrorPanelDemo))
+const StatCardDemo = lazyPage(() => import("./demos/stat-card").then(({ StatCardDemo }) => StatCardDemo))
+const PageTitleDemo = lazyPage(() => import("./demos/page-title").then(({ PageTitleDemo }) => PageTitleDemo))
+const ActivityListDemo = lazyPage(() => import("./demos/activity-list").then(({ ActivityListDemo }) => ActivityListDemo))
 
 export type PreviewEntry = { id: string; name: string; description: string; Page: ComponentType }
 export type NavGroup = { name: string; entries: PreviewEntry[] }
@@ -32,8 +36,9 @@ export const NAV_GROUPS: NavGroup[] = [
   { name: "Layout", entries: [{ id: "spacing-radius", name: "Spacing and radius", description: "Compact 4px rhythm and 8px corner foundation.", Page: LayoutPage }] },
   { name: "Actions", entries: [{ id: "button", name: "Button", description: "Primary, outline, ghost, danger, sizes, and states.", Page: ButtonDemo }] },
   { name: "Overlays", entries: [{ id: "modal", name: "Modal", description: "Responsive bottom-sheet and desktop dialog.", Page: ModalDemo }] },
-  { name: "Data display", entries: [{ id: "badge", name: "Badge", description: "Compact operational and lifecycle status labels.", Page: BadgeDemo }, { id: "empty-state", name: "Empty state", description: "Guidance and action for zero-data views.", Page: EmptyStateDemo }] },
-  { name: "Feedback", entries: [{ id: "loading-panel", name: "Loading panel", description: "Card-shaped skeleton treatment for data views.", Page: LoadingPanelDemo }] },
+  { name: "Structure", entries: [{ id: "page-title", name: "Page title", description: "Responsive hierarchy with eyebrow, description, and action.", Page: PageTitleDemo }] },
+  { name: "Data display", entries: [{ id: "badge", name: "Badge", description: "Compact operational and lifecycle status labels.", Page: BadgeDemo }, { id: "stat-card", name: "Stat card", description: "Operational metric summary with context and icon.", Page: StatCardDemo }, { id: "activity-list", name: "Activity list", description: "Chronological operational updates and empty fallback.", Page: ActivityListDemo }, { id: "empty-state", name: "Empty state", description: "Guidance and action for zero-data views.", Page: EmptyStateDemo }] },
+  { name: "Feedback", entries: [{ id: "loading-panel", name: "Loading panel", description: "Card-shaped skeleton treatment for data views.", Page: LoadingPanelDemo }, { id: "error-panel", name: "Error panel", description: "Inline request failure and recovery action.", Page: ErrorPanelDemo }] },
 ]
 
 export const ALL_ENTRIES = [OVERVIEW_ENTRY, ...NAV_GROUPS.flatMap((group) => group.entries)]

@@ -1,1 +1,2 @@
 - [Date boundary normalization](date-boundary.md) — convert generated OpenAPI date inputs to YYYY-MM-DD before Drizzle date writes.
+- [Construct Lifecycle design direction](construct-lifecycle-design-direction.md) — approved compact operational UI with vivid blue, navy, amber, Inter, and DM Mono.

@@ -18,13 +18,14 @@ export function OverviewPage() {
   return (
     <div className="space-y-5">
       <section className="rounded-xl border bg-card p-6">
+        <img src={`${import.meta.env.BASE_URL}logo-full.png`} alt="Construct Lifecycle" className="mb-6 h-12 w-auto object-contain object-left dark:brightness-0 dark:invert" />
         <p className="font-mono text-[10px] uppercase tracking-[.18em] text-primary">Construct Lifecycle</p>
         <h2 className="mt-2 text-3xl font-bold tracking-[-.04em]">Operational clarity from bid to closeout.</h2>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">A compact, project-centered system for construction suppliers and their teams.</p>
         <div className="mt-5 grid grid-cols-3 gap-3">{CORE_SWATCHES.map((item) => <Swatch key={item.name} {...item} />)}</div>
       </section>
       <section className="rounded-xl border bg-card p-6">
-        <p className="font-mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Pilot components</p>
+        <p className="font-mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Core components</p>
         <div className="mt-4 flex flex-wrap gap-2"><Button>Primary action</Button><Button variant="outline">Outline</Button><Button variant="ghost">Ghost</Button><Button variant="destructive">Danger</Button></div>
         <div className="mt-4 flex flex-wrap gap-2"><Badge>Lead</Badge><Badge variant="warning">Proposal</Badge><Badge variant="info">Contracted</Badge><Badge variant="success">Closeout</Badge><Badge variant="danger">Overdue</Badge></div>
         <div className="mt-5 grid gap-4 lg:grid-cols-2"><LoadingPanel /><EmptyState icon={FolderOpen} title="No projects yet" text="Create the first project to start tracking its lifecycle." action={<Button>Create project</Button>} /></div>

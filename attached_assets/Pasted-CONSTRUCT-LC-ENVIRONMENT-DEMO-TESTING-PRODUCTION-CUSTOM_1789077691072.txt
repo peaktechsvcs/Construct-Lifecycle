@@ -1,0 +1,1250 @@
+CONSTRUCT LC — ENVIRONMENT, DEMO/TESTING, PRODUCTION & CUSTOMER BRANDING IMPLEMENTATION
+
+You are working on the existing Construct Lifecycle application.
+
+This is an existing application with a functioning first-version UI and project lifecycle experience. Do NOT rebuild the application from scratch.
+
+The goal of this task is to establish a proper DEMO/TESTING environment and a clean PRODUCTION environment while preserving the existing application's functionality and visual design.
+
+This task also extends the previously defined multi-tenant architecture and customer branding capability.
+
+============================================================
+1. OBJECTIVES
+============================================================
+
+Implement the following:
+
+A. Convert the current populated production environment into the primary DEMO / TESTING environment.
+
+B. Preserve the current demo/test data so the application can be used to:
+   - Demonstrate Construct LC to prospective customers.
+   - Demonstrate new features to existing customers.
+   - Test new application versions.
+   - Test database migrations.
+   - Test workflows.
+   - Test integrations.
+   - Validate UI changes.
+   - Perform QA before production deployment.
+
+C. Establish a separate CLEAN PRODUCTION environment.
+
+D. The clean production environment must contain:
+   - No demo projects.
+   - No sample customers.
+   - No test transactions.
+   - No fake financial records.
+   - No demo follow-ups.
+   - No test activities.
+   - No demonstration users except required platform administration/bootstrap accounts.
+
+E. Production must be ready for onboarding the first real customer/tenant.
+
+F. Implement ConstructLifecycle platform-level administration that controls whether CUSTOMER BRANDING is enabled for each customer.
+
+G. On the ConstructLifecycle/platform administration side, call this capability:
+
+   Customer Branding
+
+H. On the customer-facing side, use:
+
+   Customer Branding
+
+Do NOT expose the technical term "Tenant Branding" to normal customers.
+
+The underlying architecture may continue to use "tenant" terminology internally where appropriate.
+
+============================================================
+2. CRITICAL SAFETY REQUIREMENT
+============================================================
+
+DO NOT delete or overwrite the current production database until a safe migration/copy strategy has been established.
+
+The current production application contains valuable demo/test data and must be preserved.
+
+Before making environment changes:
+
+1. Inspect the current deployment.
+2. Inspect the current database.
+3. Determine how environment variables and secrets are configured.
+4. Determine how the current deployment connects to the database.
+5. Determine whether the current production database can be cloned/exported.
+6. Establish a backup.
+7. Verify the backup.
+8. Create the DEMO/TESTING environment from the current application/database state.
+9. Only after the demo environment has been verified should the clean production environment be established.
+
+If the current Replit deployment architecture does not support the desired separation exactly as described, do not improvise a destructive solution.
+
+Instead, document the limitation and implement the safest equivalent architecture.
+
+============================================================
+3. TARGET ENVIRONMENT ARCHITECTURE
+============================================================
+
+Establish three logical environments:
+
+ENVIRONMENT 1:
+DEMO / TESTING
+
+Purpose:
+- Product demonstrations
+- Feature demonstrations
+- QA
+- Development testing
+- Workflow testing
+- Integration testing
+- Customer previews
+
+ENVIRONMENT 2:
+PRODUCTION
+
+Purpose:
+- Real customer use
+- Real customer data
+- Real transactions
+- Customer onboarding
+
+ENVIRONMENT 3:
+DEVELOPMENT
+
+If the current architecture already has a development environment, preserve it.
+
+If practical, structure the overall lifecycle as:
+
+DEVELOPMENT
+    ↓
+DEMO / TESTING
+    ↓
+PRODUCTION
+
+Do not allow experimental development changes to automatically affect production.
+
+============================================================
+4. DEMO / TESTING ENVIRONMENT
+============================================================
+
+The current populated application should become the canonical DEMO / TESTING environment.
+
+Preserve its current:
+
+- Projects
+- Customers
+- Users
+- Follow-ups
+- Lifecycle examples
+- Financial examples
+- Activities
+- Project statuses
+- Demonstration scenarios
+
+The demo environment should be intentionally populated with realistic fictional/sample data.
+
+It should be safe to modify.
+
+It should be safe to reset.
+
+It should never be treated as a source of real customer data.
+
+Clearly identify the environment internally as:
+
+DEMO / TESTING
+
+However, do not make the interface visually ugly or intrusive.
+
+A small environment indicator is acceptable.
+
+For example:
+
+DEMO
+
+or
+
+DEMO / TESTING
+
+in the existing header/profile/environment area.
+
+Do not add a giant banner that disrupts the existing UI.
+
+============================================================
+5. DEMO DATA
+============================================================
+
+Review the existing sample data and organize it so it supports realistic demonstrations.
+
+The demo environment should eventually be able to demonstrate:
+
+- Lead
+- Proposal
+- Awarded
+- Contracted
+- In Progress
+- Billing
+- Closeout
+
+Include examples across multiple lifecycle stages.
+
+Demonstration data should show:
+
+- Different customers
+- Different project types
+- Different project values
+- Product mixes
+- Follow-ups
+- Delivery progress
+- Billing
+- Payments
+- Closeout
+- Project activity
+
+Do not fabricate functionality that the current application does not support.
+
+Use the existing functionality and data model.
+
+============================================================
+6. DEMO RESET CAPABILITY
+============================================================
+
+Architect the demo environment so it can eventually be reset to a known demonstration state.
+
+Preferred capability:
+
+ConstructLifecycle Admin
+→ Demo Environment
+→ Reset Demo Data
+
+The reset process should restore the approved demo dataset.
+
+This does NOT need to be fully implemented if the current architecture makes it inappropriate for this release, but the data architecture should support it.
+
+IMPORTANT:
+
+A demo reset must never affect production.
+
+============================================================
+7. CLEAN PRODUCTION ENVIRONMENT
+============================================================
+
+Create a separate production environment.
+
+Production must start clean.
+
+It should contain:
+
+- Platform configuration
+- Required system tables
+- Required ConstructLifecycle administration
+- Required roles/permissions
+- Required system settings
+- No demo business data
+
+There should be no:
+
+- Demo projects
+- Sample customers
+- Sample vendors
+- Fake invoices
+- Fake payments
+- Fake financial transactions
+- Fake follow-ups
+- Fake activities
+- Demo business records
+
+Production should be ready for:
+
+NEW CUSTOMER / TENANT ONBOARDING
+
+============================================================
+8. PRODUCTION BOOTSTRAP
+============================================================
+
+Production should have a secure initial ConstructLifecycle platform administrator/bootstrap process.
+
+The platform administrator should be able to:
+
+- Create customers
+- Manage customers
+- Activate/deactivate customers
+- Manage customer users
+- Manage customer access
+- Enable/disable Customer Branding
+- Manage platform settings
+- View environment information
+- Manage platform-level configuration
+
+Do NOT create fake customers simply to make the production dashboard look populated.
+
+A new production installation should be intentionally empty.
+
+============================================================
+9. CUSTOMER / TENANT MODEL
+============================================================
+
+Use the multi-tenant architecture defined in the previous requirements.
+
+A CUSTOMER is an organization using Construct LC.
+
+Internally, the implementation may continue to use:
+
+tenant
+tenant_id
+tenant configuration
+tenant theme
+
+However, customer-facing terminology should use:
+
+CUSTOMER
+
+Examples:
+
+Customer
+Customer Users
+Customer Settings
+Customer Branding
+
+Do not expose:
+
+Tenant Branding
+
+to ordinary customer users.
+
+============================================================
+10. CUSTOMER BRANDING MASTER CONTROL
+============================================================
+
+ConstructLifecycle platform administrators must have a per-customer control:
+
+Customer Branding
+
+This must be a toggle.
+
+Example:
+
+CUSTOMER:
+Acme Cabinetry
+
+Customer Branding
+[ ON ]
+
+or:
+
+Customer Branding
+[ OFF ]
+
+This setting must be controlled from the ConstructLifecycle platform administration side.
+
+The platform administrator determines whether a customer is allowed to use customer-specific branding.
+
+============================================================
+11. CUSTOMER BRANDING BEHAVIOR
+============================================================
+
+When Customer Branding is OFF:
+
+The customer uses the standard Construct LC branding/theme.
+
+Customer users should NOT be presented with controls to customize the application branding.
+
+The customer should see:
+
+Construct LC default branding.
+
+When Customer Branding is ON:
+
+The customer receives access to:
+
+Customer Branding
+
+where authorized customer administrators can configure:
+
+- Company Name
+- Short Name
+- Logo
+- Light Logo
+- Favicon
+- Primary Color
+- Secondary Color
+- Accent Color
+- Approved background/surface colors where supported
+
+The customer cannot modify:
+
+- Application structure
+- Navigation architecture
+- Project lifecycle
+- Status meanings
+- Security model
+- Permissions
+- Core components
+- Accessibility requirements
+
+============================================================
+12. PLATFORM ADMINISTRATION
+============================================================
+
+Create or extend the ConstructLifecycle platform administration experience.
+
+The platform administrator should be able to see a customer list such as:
+
+CUSTOMERS
+
+Customer
+Status
+Users
+Projects
+Customer Branding
+Created
+Actions
+
+Example:
+
+Acme Cabinetry
+Active
+8 users
+24 projects
+Branding: ON
+
+Northstar Builders
+Active
+14 users
+52 projects
+Branding: OFF
+
+The Customer Branding toggle must be available here.
+
+The setting must be stored against the customer/tenant.
+
+============================================================
+13. CUSTOMER ADMINISTRATION
+============================================================
+
+When Customer Branding is enabled for a customer:
+
+Customer administrators should see:
+
+Administration
+→ Organization
+→ Customer Branding
+
+Use the existing application's design language.
+
+Do not create a completely new settings UI.
+
+The page should contain:
+
+CUSTOMER BRANDING
+
+Brand Identity
+
+Company Name
+Short Name
+Logo
+Light Logo
+Favicon
+
+Brand Colors
+
+Primary
+Secondary
+Accent
+Background
+Surface
+
+Preview
+
+Save Draft
+Publish
+Reset to Construct LC Default
+
+============================================================
+14. CUSTOMER BRANDING SECURITY
+============================================================
+
+This is a platform-level authorization requirement.
+
+A customer must NEVER be able to enable Customer Branding for itself if the ConstructLifecycle platform administrator has disabled it.
+
+The effective logic should be:
+
+Platform Branding Permission
++
+Customer Branding Configuration
+=
+Effective Customer Branding
+
+If the platform setting is OFF:
+
+Customer branding is unavailable regardless of the customer's saved configuration.
+
+If the platform setting is ON:
+
+The customer administrator may configure customer branding.
+
+Do not implement this as frontend-only logic.
+
+Enforce it server-side.
+
+============================================================
+15. BRANDING TOKEN ARCHITECTURE
+============================================================
+
+Use the previously defined semantic design-token architecture.
+
+Do not hard-code customer colors into individual components.
+
+Required conceptual layers:
+
+CONSTRUCT LC DESIGN SYSTEM
+        ↓
+CONSTRUCT LC DEFAULT THEME
+        ↓
+CUSTOMER THEME
+
+Customer theme overrides approved semantic tokens.
+
+Use tokens such as:
+
+brand.primary
+brand.secondary
+brand.accent
+
+surface.page
+surface.card
+surface.muted
+
+border.default
+border.subtle
+
+text.primary
+text.secondary
+text.muted
+text.inverse
+
+status.success
+status.warning
+status.error
+status.info
+
+action.primary
+action.primaryHover
+action.secondary
+
+focus.ring
+
+lifecycle.complete
+lifecycle.current
+lifecycle.future
+
+============================================================
+16. CONSTRUCT LC DEFAULT THEME
+============================================================
+
+The default Construct LC theme should use the approved Construct Lifecycle branding:
+
+Primary / Construct Navy:
+#062B55
+
+Primary Blue:
+#1479C9
+
+Light Blue:
+#39A8F0
+
+Structural Gray:
+#6B7075
+
+Warm Background:
+#F3F5F7
+
+Border Gray:
+#D9DEE3
+
+White:
+#FFFFFF
+
+Success:
+#18864B
+
+Warning:
+#C98200
+
+Error:
+#C93C3C
+
+Info:
+#1479C9
+
+Typography:
+
+Inter
+
+Weights:
+
+400
+500
+600
+700
+
+Maintain the existing first-version visual language.
+
+============================================================
+17. DO NOT CHANGE THE EXISTING UX LANGUAGE
+============================================================
+
+The environment work must not become an excuse to redesign the application.
+
+Preserve:
+
+- Existing left navigation
+- Existing header
+- Existing dashboard structure
+- Existing project book
+- Existing follow-up page
+- Existing project detail page
+- Existing lifecycle bar
+- Existing cards
+- Existing status pills
+- Existing typography hierarchy
+- Existing spacing
+- Existing visual density
+- Existing rounded-card treatment
+- Existing operational tone
+
+The current application should continue to feel like the same product.
+
+============================================================
+18. DEPLOYMENT WORKFLOW
+============================================================
+
+Establish a safe deployment workflow.
+
+Desired lifecycle:
+
+DEVELOPMENT
+↓
+TEST
+↓
+DEMO / TESTING
+↓
+PRODUCTION
+
+A new version should NOT automatically overwrite production.
+
+The preferred workflow should be:
+
+1. Developer makes changes.
+2. Run automated tests.
+3. Deploy/test in development.
+4. Validate functionality.
+5. Deploy candidate version to DEMO / TESTING.
+6. Demonstrate or QA the candidate.
+7. Approve release.
+8. Deploy the approved version to PRODUCTION.
+9. Verify production health.
+
+If Replit's native deployment model differs, implement the closest safe equivalent using separate environments/deployments and environment-specific configuration.
+
+============================================================
+19. DATABASE ENVIRONMENT SEPARATION
+============================================================
+
+DEMO / TESTING and PRODUCTION must use separate databases or completely isolated database instances.
+
+Do NOT use:
+
+DEMO → same production database
+
+Do NOT allow demo resets, migrations, test scripts, or seed scripts to touch production.
+
+Environment-specific database configuration must come from environment variables/secrets.
+
+For example conceptually:
+
+DATABASE_URL_DEMO
+DATABASE_URL_PRODUCTION
+
+or separate deployment-specific DATABASE_URL values.
+
+Never hard-code credentials.
+
+============================================================
+20. ENVIRONMENT CONFIGURATION
+============================================================
+
+Review all current environment variables and secrets.
+
+Classify them as:
+
+- Development
+- Demo/Test
+- Production
+- Shared platform configuration
+
+Anything environment-specific must be isolated.
+
+Examples include:
+
+- Database connection
+- API keys
+- OAuth credentials
+- Email services
+- Storage
+- External integrations
+- Webhooks
+- Payment services
+- ERP connections
+
+Do not allow demo/test integrations to accidentally operate against production systems.
+
+============================================================
+21. EXTERNAL INTEGRATIONS
+============================================================
+
+If integrations exist or are partially implemented:
+
+DEMO / TESTING should use:
+
+- Sandbox/test credentials where available
+- Test endpoints
+- Mock integrations where appropriate
+
+PRODUCTION should use:
+
+- Production credentials
+- Production endpoints
+
+Do not allow demo/test actions to create real financial or customer transactions in production systems.
+
+============================================================
+22. EMAIL / NOTIFICATION SAFETY
+============================================================
+
+If the application sends emails:
+
+DEMO / TESTING should not accidentally send operational emails to real customers.
+
+Implement an appropriate demo/test email strategy.
+
+Possible approach:
+
+- Redirect demo emails to configured test addresses.
+- Clearly mark demo emails.
+- Disable external email delivery in demo unless explicitly enabled.
+
+Production should use normal customer communication settings.
+
+============================================================
+23. ENVIRONMENT IDENTIFICATION
+============================================================
+
+The application should internally know:
+
+development
+demo
+production
+
+Use an environment configuration variable.
+
+For example conceptually:
+
+APP_ENV=development
+APP_ENV=demo
+APP_ENV=production
+
+Do not rely on the database name or URL to determine environment.
+
+Expose the current environment to platform administrators.
+
+A small "DEMO" indicator can be shown to demo users.
+
+Production should NOT show a distracting environment banner.
+
+============================================================
+24. DATA SAFETY RULES
+============================================================
+
+Implement protections such as:
+
+- Demo reset scripts cannot execute in production.
+- Seed/demo data scripts cannot execute in production.
+- Production database deletion/reset operations require explicit safeguards.
+- Production environment should reject demo-only operations.
+- Environment-specific administrative functions must be server-side protected.
+
+If practical, require an explicit environment confirmation before destructive demo operations.
+
+============================================================
+25. DEMO CUSTOMER / DEMO USER ACCESS
+============================================================
+
+The demo environment should support a clean demonstration account.
+
+Create or preserve appropriate demo users based on the existing application's current structure.
+
+Do not create these demo users in the clean production environment unless they are required as platform administrators.
+
+The demo environment should be easy to hand to a prospective customer for a guided demonstration.
+
+============================================================
+26. PRODUCTION ONBOARDING EXPERIENCE
+============================================================
+
+A new production installation should begin with:
+
+ConstructLifecycle
+
+Platform Administration
+
+Customers
+No customers yet.
+
+The platform administrator should be able to:
+
+Create Customer
+
+Then enter:
+
+Company Name
+Customer Identifier / Slug
+Primary Administrator
+Contact Information
+Customer Branding Enabled / Disabled
+
+The platform administrator should then be able to create the customer and its first administrator.
+
+Do not create projects automatically.
+
+============================================================
+27. CUSTOMER CREATION
+============================================================
+
+Create a proper customer onboarding workflow.
+
+Example:
+
+NEW CUSTOMER
+
+Company Name
+Customer Slug
+Primary Contact
+Primary Administrator
+Branding Permission
+
+Customer Branding
+[ ON / OFF ]
+
+Create Customer
+
+After creation:
+
+Customer
+→ Customer Administrator
+→ Customer Branding
+→ Users
+→ Projects
+
+The customer begins with zero projects.
+
+============================================================
+28. DEMO VS PRODUCTION DATA RULE
+============================================================
+
+DEMO / TESTING:
+
+Populated intentionally.
+
+PRODUCTION:
+
+Empty intentionally.
+
+Never use the production database as the source of demo records after this architecture is established.
+
+If sample data is needed for development, it belongs in:
+
+DEVELOPMENT or DEMO / TESTING.
+
+============================================================
+29. MIGRATION PLAN
+============================================================
+
+Before executing the migration, produce a concise migration plan showing:
+
+CURRENT STATE
+
+Current deployment
+Current database
+Current users
+Current data
+Current environment variables
+
+TARGET STATE
+
+Demo deployment
+Demo database
+Production deployment
+Production database
+
+MIGRATION STEPS
+
+1. Backup current database.
+2. Verify backup.
+3. Clone/copy current application/data to DEMO.
+4. Verify demo environment.
+5. Create clean production database.
+6. Apply schema migrations.
+7. Create required system/platform configuration.
+8. Create secure platform administrator.
+9. Verify production has zero demo/business records.
+10. Test customer creation.
+11. Test customer isolation.
+12. Test customer branding.
+13. Test deployment workflow.
+
+Do not execute destructive steps before verification.
+
+============================================================
+30. TESTING REQUIREMENTS
+============================================================
+
+TEST 1 — DEMO DATA
+
+Verify all current demo projects remain available.
+
+TEST 2 — DEMO MODIFICATION
+
+Modify a demo project.
+
+Verify production is unaffected.
+
+TEST 3 — PRODUCTION CLEANLINESS
+
+Verify production contains no demo/test business records.
+
+TEST 4 — CUSTOMER CREATION
+
+Create a test customer in production.
+
+Verify the customer starts with zero projects.
+
+TEST 5 — CUSTOMER ISOLATION
+
+Create:
+
+Customer A
+Customer B
+
+Verify:
+
+A cannot see B.
+B cannot see A.
+
+Test through:
+
+- UI
+- API
+- Search
+- Direct URLs
+- Database/data access layer
+
+TEST 6 — BRANDING OFF
+
+Create Customer A.
+
+Set:
+
+Customer Branding = OFF
+
+Verify Customer A uses Construct LC default branding.
+
+Verify Customer A cannot access customer branding controls.
+
+TEST 7 — BRANDING ON
+
+Set:
+
+Customer Branding = ON
+
+Verify Customer A can access:
+
+Administration
+→ Organization
+→ Customer Branding
+
+TEST 8 — CUSTOMER BRANDING
+
+Change Customer A's primary color.
+
+Publish.
+
+Verify the application uses Customer A's branding.
+
+TEST 9 — CUSTOMER BRANDING ISOLATION
+
+Create Customer B.
+
+Set Customer B to a different branding configuration.
+
+Verify:
+
+A has A branding.
+B has B branding.
+
+TEST 10 — PLATFORM DISABLE
+
+Turn Customer Branding OFF from ConstructLifecycle platform administration.
+
+Verify Customer A immediately falls back to Construct LC default branding or otherwise loses access according to the defined implementation.
+
+TEST 11 — DATA ISOLATION
+
+Verify customer branding data cannot be accessed across customers.
+
+TEST 12 — DEMO RESET
+
+If implemented:
+
+Reset Demo.
+
+Verify demo data returns to the approved demonstration state.
+
+Verify production is untouched.
+
+============================================================
+31. BACKUP / RECOVERY
+============================================================
+
+Document:
+
+- How demo database is backed up.
+- How production database is backed up.
+- How production is restored.
+- How demo can be reset.
+- How application versions are rolled back.
+
+Do not claim production is ready until recovery procedures have been tested to the extent supported by the environment.
+
+============================================================
+32. ADMIN TERMINOLOGY
+============================================================
+
+CONSTRUCTLIFECYCLE PLATFORM ADMIN:
+
+Use:
+
+Customer
+Customers
+Customer Branding
+Customer Users
+Customer Settings
+
+CUSTOMER ADMIN:
+
+Use:
+
+Organization
+Customer Branding
+Users
+Projects
+Settings
+
+INTERNAL TECHNICAL CODE:
+
+It is acceptable to use:
+
+tenant
+tenant_id
+tenant_theme
+tenant_branding
+
+Do not unnecessarily rename database concepts solely to change terminology.
+
+============================================================
+33. PRODUCT BRANDING
+============================================================
+
+The platform should be presented as:
+
+CONSTRUCT LC
+
+The Construction Lifecycle Platform
+
+Construct Lifecycle is the platform/vendor identity.
+
+A customer can apply its own branding when Customer Branding is enabled.
+
+The resulting experience should feel like:
+
+"Construct LC for [Customer Name]"
+
+rather than a completely separate application.
+
+============================================================
+34. DO NOT OVERBUILD
+============================================================
+
+This task is about:
+
+- Environment separation
+- Demo/testing
+- Clean production
+- Deployment safety
+- Multi-tenancy
+- Customer branding controls
+
+Do not attempt to build the entire future Construct LC platform during this task.
+
+Do not add unnecessary ERP functionality.
+
+Do not create fake integrations.
+
+Do not create placeholder financial functionality.
+
+Do not redesign the existing application.
+
+============================================================
+35. IMPLEMENTATION ORDER
+============================================================
+
+Follow this order:
+
+PHASE 1
+Audit current architecture.
+
+PHASE 2
+Back up current production data.
+
+PHASE 3
+Establish DEMO / TESTING environment using the current populated application/data.
+
+PHASE 4
+Verify DEMO / TESTING.
+
+PHASE 5
+Create clean PRODUCTION environment/database.
+
+PHASE 6
+Implement/verify multi-tenant architecture.
+
+PHASE 7
+Implement platform-level Customer Branding toggle.
+
+PHASE 8
+Implement customer-facing Customer Branding settings when enabled.
+
+PHASE 9
+Implement semantic theme tokens and Construct LC default theme.
+
+PHASE 10
+Implement deployment separation and release workflow.
+
+PHASE 11
+Perform security and regression testing.
+
+PHASE 12
+Document the resulting architecture.
+
+============================================================
+36. FINAL DELIVERABLE
+============================================================
+
+At completion, provide a concise implementation report containing:
+
+1. Current architecture discovered.
+2. Environment architecture implemented.
+3. Demo environment URL/deployment identification.
+4. Production environment URL/deployment identification.
+5. Database separation implemented.
+6. Multi-tenancy implementation.
+7. Customer Branding implementation.
+8. Platform administrator controls.
+9. Customer administrator controls.
+10. Theme/token implementation.
+11. Security controls.
+12. Backup/recovery approach.
+13. Deployment/release workflow.
+14. Tests performed and results.
+15. Known limitations.
+16. Recommended next steps.
+
+============================================================
+37. DEFINITION OF DONE
+============================================================
+
+The work is complete only when:
+
+[ ] Current populated application is safely available as DEMO / TESTING.
+
+[ ] Demo data is preserved.
+
+[ ] Demo environment can be used for prospective customer demonstrations.
+
+[ ] Demo environment can be used for testing new application versions.
+
+[ ] Demo environment is isolated from production.
+
+[ ] Clean production environment exists separately.
+
+[ ] Production contains no demo/test business data.
+
+[ ] Production can create its first real customer.
+
+[ ] Multiple customers can exist independently.
+
+[ ] Customer data is securely isolated.
+
+[ ] Customer Branding is controlled by ConstructLifecycle platform administration.
+
+[ ] Customer Branding can be ON or OFF per customer.
+
+[ ] When OFF, the customer uses Construct LC default branding.
+
+[ ] When ON, authorized customer administrators can customize branding.
+
+[ ] Customer-facing terminology says "Customer Branding," not "Tenant Branding."
+
+[ ] Customer themes cannot affect other customers.
+
+[ ] Construct LC default branding is implemented using semantic design tokens.
+
+[ ] Existing UI/UX has not been unnecessarily redesigned.
+
+[ ] Demo/test deployments cannot accidentally modify production.
+
+[ ] Production deployment does not automatically receive untested changes.
+
+[ ] A controlled DEMO → PRODUCTION release process exists.
+
+[ ] Security, data isolation, branding isolation, and regression tests pass.
+
+============================================================
+FINAL INSTRUCTION
+============================================================
+
+START BY INSPECTING THE EXISTING APPLICATION AND ITS CURRENT DEPLOYMENT/DATABASE ARCHITECTURE.
+
+DO NOT MAKE DESTRUCTIVE CHANGES.
+
+First report the current architecture and proposed migration path.
+
+Then implement the environment separation and multi-tenant/customer-branding architecture described above.
+
+Preserve the existing application's UI and UX.
+
+The final result should establish Construct LC as a real SaaS product foundation:
+
+DEVELOPMENT
+    ↓
+DEMO / TESTING
+    ↓
+PRODUCTION
+
+with:
+
+CONSTRUCT LC DEFAULT BRANDING
++
+OPTIONAL CUSTOMER BRANDING
++
+SECURE CUSTOMER DATA ISOLATION
++
+SAFE VERSION DEPLOYMENT
++
+CLEAN CUSTOMER-READY PRODUCTION
