@@ -32,6 +32,7 @@ export const listProjectsResponseDeliveryPercentMax = 100;
 
 export const ListProjectsResponseItem = zod.object({
   "id": zod.number().int(),
+  "environmentId": zod.number().int().optional(),
   "projectNumber": zod.string(),
   "customerName": zod.string(),
   "projectName": zod.string(),
@@ -68,12 +69,14 @@ export const ListProjectsResponse = zod.array(ListProjectsResponseItem)
  */
 
 
+
 export const createProjectBodyDeliveryPercentMin = 0;
 export const createProjectBodyDeliveryPercentMax = 100;
 
 
 
 export const CreateProjectBody = zod.object({
+  "environmentId": zod.number().int().min(1).optional(),
   "customerName": zod.string().min(1),
   "projectName": zod.string().min(1),
   "address": zod.string().optional(),
@@ -107,6 +110,7 @@ export const createProjectResponseDeliveryPercentMax = 100;
 
 export const CreateProjectResponse = zod.object({
   "id": zod.number().int(),
+  "environmentId": zod.number().int().optional(),
   "projectNumber": zod.string(),
   "customerName": zod.string(),
   "projectName": zod.string(),
@@ -151,6 +155,7 @@ export const getProjectResponseDeliveryPercentMax = 100;
 
 export const GetProjectResponse = zod.object({
   "id": zod.number().int(),
+  "environmentId": zod.number().int().optional(),
   "projectNumber": zod.string(),
   "customerName": zod.string(),
   "projectName": zod.string(),
@@ -190,12 +195,14 @@ export const UpdateProjectParams = zod.object({
 
 
 
+
 export const updateProjectBodyOneDeliveryPercentMin = 0;
 export const updateProjectBodyOneDeliveryPercentMax = 100;
 
 
 
 export const UpdateProjectBody = zod.object({
+  "environmentId": zod.number().int().min(1).optional(),
   "customerName": zod.string().min(1),
   "projectName": zod.string().min(1),
   "address": zod.string().optional(),
@@ -229,6 +236,7 @@ export const updateProjectResponseDeliveryPercentMax = 100;
 
 export const UpdateProjectResponse = zod.object({
   "id": zod.number().int(),
+  "environmentId": zod.number().int().optional(),
   "projectNumber": zod.string(),
   "customerName": zod.string(),
   "projectName": zod.string(),
@@ -278,6 +286,7 @@ export const ListProjectActivityParams = zod.object({
 
 export const ListProjectActivityResponseItem = zod.object({
   "id": zod.number().int(),
+  "environmentId": zod.number().int().optional(),
   "projectId": zod.number().int(),
   "projectName": zod.string().nullish(),
   "action": zod.string(),
@@ -293,6 +302,7 @@ export const ListProjectActivityResponse = zod.array(ListProjectActivityResponse
  */
 export const ListFollowUpsResponseItem = zod.object({
   "id": zod.number().int(),
+  "environmentId": zod.number().int().optional(),
   "projectId": zod.number().int(),
   "customerName": zod.string(),
   "projectName": zod.string(),
@@ -318,6 +328,7 @@ export const CreateFollowUpBody = zod.object({
 
 export const CreateFollowUpResponse = zod.object({
   "id": zod.number().int(),
+  "environmentId": zod.number().int().optional(),
   "projectId": zod.number().int(),
   "customerName": zod.string(),
   "projectName": zod.string(),
@@ -343,6 +354,7 @@ export const UpdateFollowUpBody = zod.object({
 
 export const UpdateFollowUpResponse = zod.object({
   "id": zod.number().int(),
+  "environmentId": zod.number().int().optional(),
   "projectId": zod.number().int(),
   "customerName": zod.string(),
   "projectName": zod.string(),
@@ -376,6 +388,7 @@ export const GetDashboardSummaryResponse = zod.object({
  */
 export const ListRecentActivityResponseItem = zod.object({
   "id": zod.number().int(),
+  "environmentId": zod.number().int().optional(),
   "projectId": zod.number().int(),
   "projectName": zod.string().nullish(),
   "action": zod.string(),
@@ -401,7 +414,28 @@ export const GetTenantContextResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
-}))
+})),
+  "activeEnvironment": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "kind": zod.enum(['production', 'dtd']),
+  "status": zod.enum(['active', 'suspended', 'provisioning', 'archived']),
+  "provisioningStatus": zod.string().nullish(),
+  "provisionedAt": zod.coerce.date().nullish()
+}),
+  "environments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "kind": zod.enum(['production', 'dtd']),
+  "status": zod.enum(['active', 'suspended', 'provisioning', 'archived']),
+  "provisioningStatus": zod.string().nullish(),
+  "provisionedAt": zod.coerce.date().nullish()
+})),
+  "environmentLabel": zod.enum(['development', 'demo', 'production'])
 })
 
 
@@ -427,8 +461,111 @@ export const SwitchTenantResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
-}))
+})),
+  "activeEnvironment": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "kind": zod.enum(['production', 'dtd']),
+  "status": zod.enum(['active', 'suspended', 'provisioning', 'archived']),
+  "provisioningStatus": zod.string().nullish(),
+  "provisionedAt": zod.coerce.date().nullish()
+}),
+  "environments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "kind": zod.enum(['production', 'dtd']),
+  "status": zod.enum(['active', 'suspended', 'provisioning', 'archived']),
+  "provisioningStatus": zod.string().nullish(),
+  "provisionedAt": zod.coerce.date().nullish()
+})),
+  "environmentLabel": zod.enum(['development', 'demo', 'production'])
 })
+
+
+/**
+ * @summary List environments authorized for the active customer
+ */
+export const ListEnvironmentsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "kind": zod.enum(['production', 'dtd']),
+  "status": zod.enum(['active', 'suspended', 'provisioning', 'archived']),
+  "provisioningStatus": zod.string().nullish(),
+  "provisionedAt": zod.coerce.date().nullish()
+})
+export const ListEnvironmentsResponse = zod.array(ListEnvironmentsResponseItem)
+
+
+/**
+ * @summary Switch the active customer environment
+ */
+
+
+
+export const SwitchEnvironmentBody = zod.object({
+  "environmentId": zod.number().int().min(1)
+})
+
+export const SwitchEnvironmentResponse = zod.object({
+  "activeTenant": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+}),
+  "memberships": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+})),
+  "activeEnvironment": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "kind": zod.enum(['production', 'dtd']),
+  "status": zod.enum(['active', 'suspended', 'provisioning', 'archived']),
+  "provisioningStatus": zod.string().nullish(),
+  "provisionedAt": zod.coerce.date().nullish()
+}),
+  "environments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "kind": zod.enum(['production', 'dtd']),
+  "status": zod.enum(['active', 'suspended', 'provisioning', 'archived']),
+  "provisioningStatus": zod.string().nullish(),
+  "provisionedAt": zod.coerce.date().nullish()
+})),
+  "environmentLabel": zod.enum(['development', 'demo', 'production'])
+})
+
+
+/**
+ * @summary List platform releases and environment assignments
+ */
+export const ListPlatformReleasesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "releaseType": zod.enum(['security', 'platform', 'feature']),
+  "status": zod.enum(['draft', 'released', 'deprecated']),
+  "version": zod.string(),
+  "notes": zod.string().nullish(),
+  "assignments": zod.array(zod.object({
+  "environmentId": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected', 'mandatory']),
+  "approvedAt": zod.coerce.date().nullish()
+})).optional()
+})
+export const ListPlatformReleasesResponse = zod.array(ListPlatformReleasesResponseItem)
 
 
 /**
@@ -446,6 +583,7 @@ export const GetBrandingResponse = zod.object({
   "published": zod.array(zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
   "version": zod.number().int(),
   "data": zod.record(zod.string(), zod.unknown()),
   "publishedAt": zod.coerce.date()
@@ -477,6 +615,7 @@ export const SaveBrandingDraftResponse = zod.object({
   "published": zod.array(zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
   "version": zod.number().int(),
   "data": zod.record(zod.string(), zod.unknown()),
   "publishedAt": zod.coerce.date()
@@ -490,6 +629,7 @@ export const SaveBrandingDraftResponse = zod.object({
 export const PublishBrandingResponse = zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
   "version": zod.number().int(),
   "data": zod.record(zod.string(), zod.unknown()),
   "publishedAt": zod.coerce.date()
@@ -518,6 +658,7 @@ export const RollbackBrandingResponse = zod.object({
   "published": zod.array(zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
   "version": zod.number().int(),
   "data": zod.record(zod.string(), zod.unknown()),
   "publishedAt": zod.coerce.date()
@@ -540,6 +681,7 @@ export const ResetBrandingResponse = zod.object({
   "published": zod.array(zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
   "version": zod.number().int(),
   "data": zod.record(zod.string(), zod.unknown()),
   "publishedAt": zod.coerce.date()

@@ -10,6 +10,7 @@ import type { BrandingVersionData } from './brandingVersionData';
 export interface BrandingVersion {
   id: number;
   tenantId: number;
+  environmentId: number;
   version: number;
   data: BrandingVersionData;
   publishedAt: Date;

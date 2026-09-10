@@ -86,7 +86,7 @@ export function BrandingAdmin() {
     }
   };
 
-  if (brandingQuery.isLoading) return <><PageTitle eyebrow="Organization" title="Tenant Branding" description="Customize Construct LC to match your organization's identity." /><LoadingPanel lines={6} /></>;
+  if (brandingQuery.isLoading) return <><PageTitle eyebrow="Organization" title="Customer Branding" description="Customize Construct LC to match your organization's visual identity." /><LoadingPanel lines={6} /></>;
   if (brandingQuery.isError) return <ErrorPanel onRetry={() => brandingQuery.refetch()} />;
 
   const publishedVersions = brandingQuery.data?.published || [];
@@ -102,7 +102,7 @@ export function BrandingAdmin() {
 
   return (
     <div className="animate-rise">
-      <PageTitle eyebrow="Organization" title="Tenant Branding" description="Customize Construct LC to match your organization's identity." action={
+      <PageTitle eyebrow="Organization" title="Customer Branding" description="Customize Construct LC to match your organization's visual identity." action={
         <div className="flex items-center gap-3">
           <Button variant="ghost" onClick={handleReset} disabled={reset.isPending}><RotateCcw size={15} /> Reset Draft</Button>
           <Button onClick={handlePublish} disabled={publish.isPending}><Check size={15} /> Publish Branding</Button>

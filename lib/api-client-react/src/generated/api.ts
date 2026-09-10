@@ -25,14 +25,17 @@ import type {
   BrandingInput,
   BrandingVersion,
   DashboardSummary,
+  Environment,
   FollowUp,
   FollowUpInput,
   FollowUpUpdate,
   HealthStatus,
   ListProjectsParams,
+  PlatformRelease,
   Project,
   ProjectInput,
   ProjectUpdate,
+  SwitchEnvironmentInput,
   SwitchTenantInput,
   TenantContext
 } from './api.schemas';
@@ -1115,6 +1118,231 @@ export const useSwitchTenant = <TError = ErrorType<void>,
       > => {
       return useMutation(getSwitchTenantMutationOptions(options));
     }
+
+export const getListEnvironmentsUrl = () => {
+
+
+
+
+  return `/api/tenant/environments`
+}
+
+/**
+ * @summary List environments authorized for the active customer
+ */
+export const listEnvironments = async ( options?: Parameters<typeof customFetch>[1]): Promise<Environment[]> => {
+
+  return customFetch<Environment[]>(getListEnvironmentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEnvironmentsQueryKey = () => {
+    return [
+    `/api/tenant/environments`
+    ] as const;
+    }
+
+
+export const getListEnvironmentsQueryOptions = <TData = Awaited<ReturnType<typeof listEnvironments>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEnvironments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEnvironmentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEnvironments>>> = ({ signal }) => listEnvironments({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEnvironments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEnvironmentsQueryResult = NonNullable<Awaited<ReturnType<typeof listEnvironments>>>
+export type ListEnvironmentsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List environments authorized for the active customer
+ */
+
+export function useListEnvironments<TData = Awaited<ReturnType<typeof listEnvironments>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEnvironments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEnvironmentsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSwitchEnvironmentUrl = () => {
+
+
+
+
+  return `/api/tenant/environments`
+}
+
+/**
+ * @summary Switch the active customer environment
+ */
+export const switchEnvironment = async (switchEnvironmentInput: SwitchEnvironmentInput, options?: Parameters<typeof customFetch>[1]): Promise<TenantContext> => {
+
+  return customFetch<TenantContext>(getSwitchEnvironmentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(switchEnvironmentInput)
+  }
+);}
+
+
+
+
+
+export const getSwitchEnvironmentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof switchEnvironment>>, TError,{data: BodyType<SwitchEnvironmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof switchEnvironment>>, TError,{data: BodyType<SwitchEnvironmentInput>}, TContext> => {
+
+const mutationKey = ['switchEnvironment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof switchEnvironment>>, {data: BodyType<SwitchEnvironmentInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  switchEnvironment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SwitchEnvironmentMutationResult = NonNullable<Awaited<ReturnType<typeof switchEnvironment>>>
+    export type SwitchEnvironmentMutationBody = BodyType<SwitchEnvironmentInput>
+    export type SwitchEnvironmentMutationError = ErrorType<void>
+
+    /**
+ * @summary Switch the active customer environment
+ */
+export const useSwitchEnvironment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof switchEnvironment>>, TError,{data: BodyType<SwitchEnvironmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof switchEnvironment>>,
+        TError,
+        {data: BodyType<SwitchEnvironmentInput>},
+        TContext
+      > => {
+      return useMutation(getSwitchEnvironmentMutationOptions(options));
+    }
+
+export const getListPlatformReleasesUrl = () => {
+
+
+
+
+  return `/api/platform/releases`
+}
+
+/**
+ * @summary List platform releases and environment assignments
+ */
+export const listPlatformReleases = async ( options?: Parameters<typeof customFetch>[1]): Promise<PlatformRelease[]> => {
+
+  return customFetch<PlatformRelease[]>(getListPlatformReleasesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlatformReleasesQueryKey = () => {
+    return [
+    `/api/platform/releases`
+    ] as const;
+    }
+
+
+export const getListPlatformReleasesQueryOptions = <TData = Awaited<ReturnType<typeof listPlatformReleases>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformReleases>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlatformReleasesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlatformReleases>>> = ({ signal }) => listPlatformReleases({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlatformReleases>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlatformReleasesQueryResult = NonNullable<Awaited<ReturnType<typeof listPlatformReleases>>>
+export type ListPlatformReleasesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List platform releases and environment assignments
+ */
+
+export function useListPlatformReleases<TData = Awaited<ReturnType<typeof listPlatformReleases>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformReleases>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlatformReleasesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetBrandingUrl = () => {
 

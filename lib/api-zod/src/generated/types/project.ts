@@ -14,6 +14,7 @@ import type { ProposalStatus } from './proposalStatus';
 
 export interface Project {
   id: number;
+  environmentId?: number;
   projectNumber: string;
   customerName: string;
   projectName: string;

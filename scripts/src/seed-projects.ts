@@ -1,20 +1,34 @@
-import { db, activityTable, followUpsTable, projectsTable, tenantsTable } from "@workspace/db";
+import { db, activityTable, environmentsTable, followUpsTable, projectsTable, tenantsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
 const seed = async () => {
+  const appEnv = process.env.APP_ENV ?? "development";
+  if (appEnv === "production") {
+    throw new Error("seed-projects refuses to run when APP_ENV=production");
+  }
   const [tenant] = await db
     .insert(tenantsTable)
     .values({ name: "Construct LC Demo", slug: "construct-lc-demo" })
     .onConflictDoUpdate({ target: tenantsTable.slug, set: { name: "Construct LC Demo" } })
     .returning();
   const tenantId = tenant.id;
+  for (const environment of [
+    { name: "Production", slug: "production", kind: "production" },
+    { name: "Development / Test / Demo", slug: "dtd", kind: "dtd" },
+  ]) {
+    await db.insert(environmentsTable).values({ tenantId, ...environment, status: "active" })
+      .onConflictDoNothing();
+  }
+  const [demoEnvironment] = await db.select().from(environmentsTable)
+    .where(sql`tenant_id = ${tenantId} AND slug = 'dtd'`);
+  const environmentId = demoEnvironment.id;
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(projectsTable);
   if (Number(count) > 0) {
-    await db.update(projectsTable).set({ tenantId }).where(sql`tenant_id IS NULL`);
-    await db.update(activityTable).set({ tenantId }).where(sql`tenant_id IS NULL`);
-    await db.update(followUpsTable).set({ tenantId }).where(sql`tenant_id IS NULL`);
+    await db.update(projectsTable).set({ tenantId, environmentId }).where(sql`tenant_id IS NULL OR environment_id IS NULL`);
+    await db.update(activityTable).set({ tenantId, environmentId }).where(sql`tenant_id IS NULL OR environment_id IS NULL`);
+    await db.update(followUpsTable).set({ tenantId, environmentId }).where(sql`tenant_id IS NULL OR environment_id IS NULL`);
     return;
   }
 
@@ -22,7 +36,7 @@ const seed = async () => {
     .insert(projectsTable)
     .values([
       {
-        tenantId,
+         tenantId, environmentId,
         projectNumber: "CP-2026-001",
         customerName: "Northline Builders",
         projectName: "Cedar Ridge Clubhouse",
@@ -49,7 +63,7 @@ const seed = async () => {
         nextFollowUp: "2026-09-14",
       },
       {
-        tenantId,
+         tenantId, environmentId,
         projectNumber: "CP-2026-002",
         customerName: "Alpine Residential",
         projectName: "Morrison Kitchen + Main Floor",
@@ -72,7 +86,7 @@ const seed = async () => {
         nextFollowUp: "2026-09-11",
       },
       {
-        tenantId,
+         tenantId, environmentId,
         projectNumber: "CP-2026-003",
         customerName: "West & Pine Design",
         projectName: "Baker Row Townhomes",
@@ -95,7 +109,7 @@ const seed = async () => {
         nextFollowUp: "2026-09-15",
       },
       {
-        tenantId,
+         tenantId, environmentId,
         projectNumber: "CP-2026-004",
         customerName: "Juniper & Stone",
         projectName: "Lone Tree Primary Suite",
@@ -128,28 +142,28 @@ const seed = async () => {
   await db.insert(activityTable).values([
     {
       projectId: projects[0].id,
-      tenantId,
+      tenantId, environmentId,
       action: "Progress payment received",
       description: "Received $27,675 against the second progress draw.",
       actor: "Maya Chen",
     },
     {
       projectId: projects[1].id,
-      tenantId,
+      tenantId, environmentId,
       action: "Proposal submitted",
       description: "Proposal sent to Alpine Residential for review.",
       actor: "Jordan Ellis",
     },
     {
       projectId: projects[2].id,
-      tenantId,
+      tenantId, environmentId,
       action: "Bid awarded",
       description: "West & Pine Design selected the standardized townhome package.",
       actor: "Maya Chen",
     },
     {
       projectId: projects[3].id,
-      tenantId,
+      tenantId, environmentId,
       action: "Closeout started",
       description: "Punch list opened after the final walk-through.",
       actor: "Jordan Ellis",
@@ -159,25 +173,25 @@ const seed = async () => {
   await db.insert(followUpsTable).values([
     {
       projectId: projects[1].id,
-      tenantId,
+      tenantId, environmentId,
       dueDate: "2026-09-11",
       note: "Call to confirm appliance specifications and answer proposal questions.",
     },
     {
       projectId: projects[0].id,
-      tenantId,
+      tenantId, environmentId,
       dueDate: "2026-09-14",
       note: "Review wing two delivery readiness and collect second progress draw.",
     },
     {
       projectId: projects[2].id,
-      tenantId,
+      tenantId, environmentId,
       dueDate: "2026-09-15",
       note: "Send contract packet and confirm color match sample appointment.",
     },
     {
       projectId: projects[3].id,
-      tenantId,
+      tenantId, environmentId,
       dueDate: "2026-09-18",
       note: "Check replacement dimmer install and ask about next phase work.",
     },

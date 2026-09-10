@@ -18,6 +18,8 @@ tags:
     description: Future work follow-ups
   - name: tenants
     description: Tenant context and membership operations
+  - name: environments
+    description: Customer environment context and switching
   - name: branding
     description: Tenant branding drafts and published versions
 paths:
@@ -241,6 +243,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/TenantContext"
         "403": { description: User is not a member of the tenant }
+  /tenant/environments:
+    get:
+      operationId: listEnvironments
+      tags: [environments]
+      summary: List environments authorized for the active customer
+      responses:
+        "200":
+          description: Authorized customer environments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Environment" }
+    post:
+      operationId: switchEnvironment
+      tags: [environments]
+      summary: Switch the active customer environment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SwitchEnvironmentInput" }
+      responses:
+        "200":
+          description: Updated customer environment context
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantContext" }
+        "403": { description: User is not authorized for the environment }
+  /platform/releases:
+    get:
+      operationId: listPlatformReleases
+      tags: [environments]
+      summary: List platform releases and environment assignments
+      responses:
+        "200":
+          description: Platform releases
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PlatformRelease" }
   /tenant/branding:
     get:
       operationId: getBranding
@@ -384,6 +428,7 @@ components:
         - updatedAt
       properties:
         id: { type: integer }
+        environmentId: { type: integer }
         projectNumber: { type: string }
         customerName: { type: string }
         projectName: { type: string }
@@ -417,6 +462,7 @@ components:
       type: object
       required: [customerName, projectName, category]
       properties:
+        environmentId: { type: integer, minimum: 1 }
         customerName: { type: string, minLength: 1 }
         projectName: { type: string, minLength: 1 }
         address: { type: string }
@@ -451,6 +497,7 @@ components:
       required: [id, projectId, action, description, createdAt]
       properties:
         id: { type: integer }
+        environmentId: { type: integer }
         projectId: { type: integer }
         projectName: { type: ["string", "null"] }
         action: { type: string }
@@ -462,6 +509,7 @@ components:
       required: [id, projectId, customerName, projectName, dueDate, status, note]
       properties:
         id: { type: integer }
+        environmentId: { type: integer }
         projectId: { type: integer }
         customerName: { type: string }
         projectName: { type: string }
@@ -520,19 +568,61 @@ components:
         name: { type: string }
         slug: { type: string }
         role: { type: string, enum: [owner, admin, member, viewer] }
+    Environment:
+      type: object
+      required: [id, tenantId, name, slug, kind, status]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        kind: { type: string, enum: [production, dtd] }
+        status: { type: string, enum: [active, suspended, provisioning, archived] }
+        provisioningStatus: { type: ["string", "null"] }
+        provisionedAt: { type: ["string", "null"], format: date-time }
     TenantContext:
       type: object
-      required: [activeTenant, memberships]
+      required: [activeTenant, memberships, activeEnvironment, environments, environmentLabel]
       properties:
         activeTenant: { $ref: "#/components/schemas/Tenant" }
         memberships:
           type: array
           items: { $ref: "#/components/schemas/Tenant" }
+        activeEnvironment: { $ref: "#/components/schemas/Environment" }
+        environments:
+          type: array
+          items: { $ref: "#/components/schemas/Environment" }
+        environmentLabel: { type: string, enum: [development, demo, production] }
     SwitchTenantInput:
       type: object
       required: [tenantId]
       properties:
         tenantId: { type: integer, minimum: 1 }
+    SwitchEnvironmentInput:
+      type: object
+      required: [environmentId]
+      properties:
+        environmentId: { type: integer, minimum: 1 }
+    PlatformRelease:
+      type: object
+      required: [id, releaseType, status, version]
+      properties:
+        id: { type: integer }
+        releaseType: { type: string, enum: [security, platform, feature] }
+        status: { type: string, enum: [draft, released, deprecated] }
+        version: { type: string }
+        notes: { type: ["string", "null"] }
+        assignments:
+          type: array
+          items: { $ref: "#/components/schemas/EnvironmentReleaseAssignment" }
+    EnvironmentReleaseAssignment:
+      type: object
+      required: [environmentId, releaseId, approvalStatus]
+      properties:
+        environmentId: { type: integer }
+        releaseId: { type: integer }
+        approvalStatus: { type: string, enum: [pending, approved, rejected, mandatory] }
+        approvedAt: { type: ["string", "null"], format: date-time }
     BrandingInput:
       type: object
       additionalProperties: true
@@ -545,10 +635,11 @@ components:
         foregroundColor: { type: string }
     BrandingVersion:
       type: object
-      required: [id, tenantId, version, data, publishedAt]
+      required: [id, tenantId, environmentId, version, data, publishedAt]
       properties:
         id: { type: integer }
         tenantId: { type: integer }
+        environmentId: { type: integer }
         version: { type: integer }
         data: { type: object, additionalProperties: true }
         publishedAt: { type: string, format: date-time }

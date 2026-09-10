@@ -8,6 +8,7 @@
 
 export interface Activity {
   id: number;
+  environmentId?: number;
   projectId: number;
   /** @nullable */
   projectName?: string | null;

@@ -47,10 +47,12 @@ const addActivity = async (
   action: string,
   description: string,
   tenantId: number,
+  environmentId: number,
 ) => {
   await db.insert(activityTable).values({
     projectId,
     tenantId,
+    environmentId,
     action,
     description,
     actor: "You",
@@ -63,7 +65,7 @@ router.get("/projects", async (req: TenantRequest, res) => {
     stage: req.query.stage,
   });
   const filters = parsed.success ? parsed.data : {};
-  const conditions = [eq(projectsTable.tenantId, req.tenantId!)];
+  const conditions = [eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)];
 
   if (filters.search) {
     const searchCondition = or(
@@ -101,6 +103,7 @@ router.post("/projects", requireRole("owner", "admin", "member"), async (req: Te
     .values({
       ...parsed.data,
       tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
       projectNumber,
       productCategories: parsed.data.productCategories ?? [],
       contractValue: String(parsed.data.contractValue ?? 0),
@@ -111,7 +114,7 @@ router.post("/projects", requireRole("owner", "admin", "member"), async (req: Te
       nextFollowUp: toDateString(parsed.data.nextFollowUp),
     })
     .returning();
-  await addActivity(row.id, "Project created", `New project opened for ${row.customerName}`, req.tenantId!);
+  await addActivity(row.id, "Project created", `New project opened for ${row.customerName}`, req.tenantId!, req.environmentId!);
   res.status(201).json(toProject(row));
 });
 
@@ -120,7 +123,7 @@ router.get("/projects/:projectId", async (req: TenantRequest, res) => {
   const [row] = await db
     .select()
     .from(projectsTable)
-    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.tenantId, req.tenantId!)));
+    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)));
   if (!row) {
     res.status(404).json({ error: "Project not found" });
     return;
@@ -153,14 +156,14 @@ router.patch("/projects/:projectId", requireRole("owner", "admin", "member"), as
   const [row] = await db
     .update(projectsTable)
     .set(updateData)
-    .where(and(eq(projectsTable.id, params.data.projectId), eq(projectsTable.tenantId, req.tenantId!)))
+    .where(and(eq(projectsTable.id, params.data.projectId), eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)))
     .returning();
   if (!row) {
     res.status(404).json({ error: "Project not found" });
     return;
   }
   const changedStage = parsed.data.stage ? ` Stage moved to ${parsed.data.stage}.` : "";
-  await addActivity(row.id, "Project updated", `Project details were updated.${changedStage}`, req.tenantId!);
+   await addActivity(row.id, "Project updated", `Project details were updated.${changedStage}`, req.tenantId!, req.environmentId!);
   res.json(toProject(row));
 });
 
@@ -168,7 +171,7 @@ router.delete("/projects/:projectId", requireRole("owner", "admin", "member"), a
   const projectId = Number(req.params.projectId);
   const [row] = await db
     .delete(projectsTable)
-    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.tenantId, req.tenantId!)))
+    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)))
     .returning({ id: projectsTable.id });
   if (!row) {
     res.status(404).json({ error: "Project not found" });
@@ -180,7 +183,7 @@ router.delete("/projects/:projectId", requireRole("owner", "admin", "member"), a
 router.get("/projects/:projectId/activity", async (req: TenantRequest, res) => {
   const projectId = Number(req.params.projectId);
   const [project] = await db.select({ id: projectsTable.id }).from(projectsTable)
-    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.tenantId, req.tenantId!)));
+    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)));
   if (!project) { res.status(404).json({ error: "Project not found" }); return; }
   const rows = await db
     .select({
@@ -194,7 +197,7 @@ router.get("/projects/:projectId/activity", async (req: TenantRequest, res) => {
     })
     .from(activityTable)
     .leftJoin(projectsTable, eq(activityTable.projectId, projectsTable.id))
-    .where(and(eq(activityTable.projectId, projectId), eq(activityTable.tenantId, req.tenantId!)))
+    .where(and(eq(activityTable.projectId, projectId), eq(activityTable.tenantId, req.tenantId!), eq(activityTable.environmentId, req.environmentId!)))
     .orderBy(desc(activityTable.createdAt));
   res.json(rows);
 });
@@ -213,7 +216,7 @@ router.get("/follow-ups", async (req: TenantRequest, res) => {
     })
     .from(followUpsTable)
     .innerJoin(projectsTable, eq(followUpsTable.projectId, projectsTable.id))
-    .where(eq(followUpsTable.tenantId, req.tenantId!))
+    .where(and(eq(followUpsTable.tenantId, req.tenantId!), eq(followUpsTable.environmentId, req.environmentId!)))
     .orderBy(followUpsTable.dueDate);
   res.json(rows);
 });
@@ -227,7 +230,7 @@ router.post("/follow-ups", requireRole("owner", "admin", "member"), async (req: 
   const [project] = await db
     .select({ customerName: projectsTable.customerName, projectName: projectsTable.projectName })
     .from(projectsTable)
-    .where(and(eq(projectsTable.id, parsed.data.projectId), eq(projectsTable.tenantId, req.tenantId!)));
+    .where(and(eq(projectsTable.id, parsed.data.projectId), eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)));
   if (!project) {
     res.status(404).json({ error: "Project not found" });
     return;
@@ -238,10 +241,11 @@ router.post("/follow-ups", requireRole("owner", "admin", "member"), async (req: 
     .values({
       ...parsed.data,
       tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
       dueDate: parsed.data.dueDate.toISOString().slice(0, 10),
     })
     .returning();
-  await addActivity(row.projectId, "Follow-up scheduled", `Follow-up scheduled for ${row.dueDate}.`, req.tenantId!);
+  await addActivity(row.projectId, "Follow-up scheduled", `Follow-up scheduled for ${row.dueDate}.`, req.tenantId!, req.environmentId!);
   res.status(201).json({
     ...row,
     customerName: project.customerName,
@@ -262,7 +266,7 @@ router.patch("/follow-ups/:followUpId", requireRole("owner", "admin", "member"),
       ...parsed.data,
       dueDate: toDateString(parsed.data.dueDate),
     })
-    .where(and(eq(followUpsTable.id, params.data.followUpId), eq(followUpsTable.tenantId, req.tenantId!)))
+    .where(and(eq(followUpsTable.id, params.data.followUpId), eq(followUpsTable.tenantId, req.tenantId!), eq(followUpsTable.environmentId, req.environmentId!)))
     .returning();
   if (!row) {
     res.status(404).json({ error: "Follow-up not found" });
@@ -271,7 +275,7 @@ router.patch("/follow-ups/:followUpId", requireRole("owner", "admin", "member"),
   const [project] = await db
     .select({ customerName: projectsTable.customerName, projectName: projectsTable.projectName })
     .from(projectsTable)
-    .where(and(eq(projectsTable.id, row.projectId), eq(projectsTable.tenantId, req.tenantId!)));
+    .where(and(eq(projectsTable.id, row.projectId), eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)));
   res.json({
     ...row,
     customerName: project?.customerName ?? "Unknown customer",
@@ -281,8 +285,8 @@ router.patch("/follow-ups/:followUpId", requireRole("owner", "admin", "member"),
 
 router.get("/dashboard/summary", async (req: TenantRequest, res) => {
   const [projects, followUps] = await Promise.all([
-    db.select().from(projectsTable).where(eq(projectsTable.tenantId, req.tenantId!)),
-    db.select({ status: followUpsTable.status }).from(followUpsTable).where(eq(followUpsTable.tenantId, req.tenantId!)),
+    db.select().from(projectsTable).where(and(eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!))),
+    db.select({ status: followUpsTable.status }).from(followUpsTable).where(and(eq(followUpsTable.tenantId, req.tenantId!), eq(followUpsTable.environmentId, req.environmentId!))),
   ]);
   const stageCounts = projectStages.map((stage) => {
     const matching = projects.filter((project) => project.stage === stage);
@@ -320,7 +324,7 @@ router.get("/dashboard/activity", async (req: TenantRequest, res) => {
     })
     .from(activityTable)
     .leftJoin(projectsTable, eq(activityTable.projectId, projectsTable.id))
-    .where(eq(activityTable.tenantId, req.tenantId!))
+    .where(and(eq(activityTable.tenantId, req.tenantId!), eq(activityTable.environmentId, req.environmentId!)))
     .orderBy(desc(activityTable.createdAt))
     .limit(12);
   res.json(rows);

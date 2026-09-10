@@ -78,6 +78,7 @@ export const CloseoutStatus = {
 
 export interface Project {
   id: number;
+  environmentId?: number;
   projectNumber: string;
   customerName: string;
   projectName: string;
@@ -122,6 +123,8 @@ export interface Project {
 }
 
 export interface ProjectInput {
+  /** @minimum 1 */
+  environmentId?: number;
   /** @minLength 1 */
   customerName: string;
   /** @minLength 1 */
@@ -158,6 +161,7 @@ export type ProjectUpdate = ProjectInput;
 
 export interface Activity {
   id: number;
+  environmentId?: number;
   projectId: number;
   /** @nullable */
   projectName?: string | null;
@@ -178,6 +182,7 @@ export const FollowUpStatus = {
 
 export interface FollowUp {
   id: number;
+  environmentId?: number;
   projectId: number;
   customerName: string;
   projectName: string;
@@ -241,14 +246,108 @@ export interface Tenant {
   role: TenantRole;
 }
 
+export type EnvironmentKind = typeof EnvironmentKind[keyof typeof EnvironmentKind];
+
+
+export const EnvironmentKind = {
+  production: 'production',
+  dtd: 'dtd',
+} as const;
+
+export type EnvironmentStatus = typeof EnvironmentStatus[keyof typeof EnvironmentStatus];
+
+
+export const EnvironmentStatus = {
+  active: 'active',
+  suspended: 'suspended',
+  provisioning: 'provisioning',
+  archived: 'archived',
+} as const;
+
+export interface Environment {
+  id: number;
+  tenantId: number;
+  name: string;
+  slug: string;
+  kind: EnvironmentKind;
+  status: EnvironmentStatus;
+  /** @nullable */
+  provisioningStatus?: string | null;
+  /** @nullable */
+  provisionedAt?: string | null;
+}
+
+export type TenantContextEnvironmentLabel = typeof TenantContextEnvironmentLabel[keyof typeof TenantContextEnvironmentLabel];
+
+
+export const TenantContextEnvironmentLabel = {
+  development: 'development',
+  demo: 'demo',
+  production: 'production',
+} as const;
+
 export interface TenantContext {
   activeTenant: Tenant;
   memberships: Tenant[];
+  activeEnvironment: Environment;
+  environments: Environment[];
+  environmentLabel: TenantContextEnvironmentLabel;
 }
 
 export interface SwitchTenantInput {
   /** @minimum 1 */
   tenantId: number;
+}
+
+export interface SwitchEnvironmentInput {
+  /** @minimum 1 */
+  environmentId: number;
+}
+
+export type PlatformReleaseReleaseType = typeof PlatformReleaseReleaseType[keyof typeof PlatformReleaseReleaseType];
+
+
+export const PlatformReleaseReleaseType = {
+  security: 'security',
+  platform: 'platform',
+  feature: 'feature',
+} as const;
+
+export type PlatformReleaseStatus = typeof PlatformReleaseStatus[keyof typeof PlatformReleaseStatus];
+
+
+export const PlatformReleaseStatus = {
+  draft: 'draft',
+  released: 'released',
+  deprecated: 'deprecated',
+} as const;
+
+export type EnvironmentReleaseAssignmentApprovalStatus = typeof EnvironmentReleaseAssignmentApprovalStatus[keyof typeof EnvironmentReleaseAssignmentApprovalStatus];
+
+
+export const EnvironmentReleaseAssignmentApprovalStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+  mandatory: 'mandatory',
+} as const;
+
+export interface EnvironmentReleaseAssignment {
+  environmentId: number;
+  releaseId: number;
+  approvalStatus: EnvironmentReleaseAssignmentApprovalStatus;
+  /** @nullable */
+  approvedAt?: string | null;
+}
+
+export interface PlatformRelease {
+  id: number;
+  releaseType: PlatformReleaseReleaseType;
+  status: PlatformReleaseStatus;
+  version: string;
+  /** @nullable */
+  notes?: string | null;
+  assignments?: EnvironmentReleaseAssignment[];
 }
 
 export interface BrandingInput {
@@ -267,6 +366,7 @@ export type BrandingVersionData = { [key: string]: unknown };
 export interface BrandingVersion {
   id: number;
   tenantId: number;
+  environmentId: number;
   version: number;
   data: BrandingVersionData;
   publishedAt: string;

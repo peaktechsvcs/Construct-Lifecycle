@@ -13,6 +13,8 @@ import type { ProjectStage } from './projectStage';
 import type { ProposalStatus } from './proposalStatus';
 
 export interface ProjectInput {
+  /** @minimum 1 */
+  environmentId?: number;
   /** @minLength 1 */
   customerName: string;
   /** @minLength 1 */

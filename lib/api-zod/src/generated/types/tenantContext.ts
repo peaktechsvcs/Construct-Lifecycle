@@ -5,9 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { Environment } from './environment';
 import type { Tenant } from './tenant';
+import type { TenantContextEnvironmentLabel } from './tenantContextEnvironmentLabel';
 
 export interface TenantContext {
   activeTenant: Tenant;
   memberships: Tenant[];
+  activeEnvironment: Environment;
+  environments: Environment[];
+  environmentLabel: TenantContextEnvironmentLabel;
 }

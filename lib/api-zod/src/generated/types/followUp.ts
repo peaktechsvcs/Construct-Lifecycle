@@ -9,6 +9,7 @@ import type { FollowUpStatus } from './followUpStatus';
 
 export interface FollowUp {
   id: number;
+  environmentId?: number;
   projectId: number;
   customerName: string;
   projectName: string;
