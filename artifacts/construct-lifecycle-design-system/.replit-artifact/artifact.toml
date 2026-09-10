@@ -1,0 +1,19 @@
+kind = "design-system"
+previewPath = "/construct-lifecycle-design-system/"
+title = "Construct Lifecycle Design System"
+description = "The reusable visual language and component library for Construct Lifecycle products, including light and dark themes, semantic tokens, operational UI patterns, and brand assets."
+version = "1.0.0"
+id = "artifacts/construct-lifecycle-design-system"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/construct-lifecycle-design-system/" ]
+localPort = 25762
+
+[services.development]
+run = "pnpm --filter @workspace/construct-lifecycle-design-system run dev"
+
+[services.env]
+PORT = "25762"
+BASE_PATH = "/construct-lifecycle-design-system/"
