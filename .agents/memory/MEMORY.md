@@ -3,3 +3,4 @@
 - [Customer environment model](customer-environment-model.md) — each customer owns Production plus one combined D/T/D; hybrid release approvals govern promotion.
 - [Dependency audit resolution](dependency-audit-resolution.md) — use mature patched transitive versions and never bypass the workspace package-age safeguard.
 - [Web artifact build inputs](web-artifact-build-inputs.md) — manual Vite builds require both PORT and BASE_PATH, matching the artifact workflow environment.
+- [Settings authorization boundary](settings-authorization.md) — keep tenant configuration admin-only while exposing only published branding for global theme hydration.

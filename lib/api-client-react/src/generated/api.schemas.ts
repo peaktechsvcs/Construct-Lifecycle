@@ -794,6 +794,10 @@ export interface BrandingContext {
   published: BrandingVersion[];
 }
 
+export interface PublishedBrandingContext {
+  published: BrandingVersion[];
+}
+
 export type IntegrationCatalogItemCategory = typeof IntegrationCatalogItemCategory[keyof typeof IntegrationCatalogItemCategory];
 
 

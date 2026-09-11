@@ -19,12 +19,10 @@ import { ProjectDetail } from '@/pages/project-detail';
 import { Customers } from '@/pages/customers';
 import { CustomerDetail } from '@/pages/customer-detail';
 import { FollowUps } from '@/pages/follow-ups';
-import { BrandingAdmin } from '@/pages/branding-admin';
-import { IntegrationsAdmin } from '@/pages/integrations-admin';
-import { OrganizationAccess } from '@/pages/organization-access';
 import { PlatformCustomers } from '@/pages/platform-customers';
 import { AcceptInvitation } from '@/pages/accept-invitation';
 import { ComingSoonPage } from '@/pages/coming-soon';
+import { SettingsPage } from '@/pages/settings';
 
 const queryClient = new QueryClient();
 
@@ -205,14 +203,20 @@ function AppRouter() {
         <Route path="/follow-ups">
           <Shell><ProtectedRoute component={FollowUps} /></Shell>
         </Route>
+        <Route path="/settings">
+          <Shell><ProtectedRoute component={SettingsPage} /></Shell>
+        </Route>
+        <Route path="/settings/:section">
+          <Shell><ProtectedRoute component={SettingsPage} /></Shell>
+        </Route>
         <Route path="/administration/organization/branding">
-          <Shell><ProtectedRoute component={BrandingAdmin} /></Shell>
+          <Redirect to="/settings/branding" />
         </Route>
         <Route path="/administration/organization/integrations">
-          <Shell><ProtectedRoute component={IntegrationsAdmin} /></Shell>
+          <Redirect to="/settings/integrations" />
         </Route>
         <Route path="/administration/organization/access">
-          <Shell><ProtectedRoute component={OrganizationAccess} /></Shell>
+          <Redirect to="/settings/access" />
         </Route>
         <Route path="/administration/platform/customers">
           <Shell><ProtectedRoute component={PlatformCustomers} /></Shell>

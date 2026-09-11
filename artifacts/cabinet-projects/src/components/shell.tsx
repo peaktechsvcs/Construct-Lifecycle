@@ -2,13 +2,12 @@ import { useState, type ReactNode } from 'react';
 import { useLocation, Link } from 'wouter';
 import {
   LayoutDashboard, BriefcaseBusiness, Building2,
-  Bell, Menu, Sparkles, LogOut, ChevronDown, Check, Cable,
+  Bell, Menu, Sparkles, LogOut, ChevronDown, Check, Settings,
   FlaskConical, Globe, PanelLeftClose, PanelLeftOpen, X,
   Lightbulb, Gavel, Calculator, FileText, FolderKanban, FileCheck2, Milestone,
   Package, ListChecks, ShoppingCart, ClipboardList, Truck, PackageCheck,
   TrendingUp, HandCoins, Receipt, BadgeDollarSign, FilePenLine, Percent,
-  Files, ReceiptText, Archive, BarChart3, LineChart, Users, ShieldCheck,
-  SlidersHorizontal, type LucideIcon,
+  Files, ReceiptText, Archive, BarChart3, LineChart, type LucideIcon,
 } from 'lucide-react';
 import { useTenant } from '@/providers/tenant-provider';
 import { useListFollowUps, getListFollowUpsQueryKey, FollowUpStatus, useSwitchTenant } from '@workspace/api-client-react';
@@ -226,13 +225,8 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
   {
     label: 'Administration',
     items: [
-      { href: '/administration/organization/branding', label: 'Organization', icon: Building2 },
-      { href: '/administration/organization/access', label: 'Users', icon: Users },
-      { href: '/coming-soon/roles', label: 'Roles', icon: ShieldCheck },
       { href: '/customers', label: 'Customers', icon: BriefcaseBusiness },
       { href: '/coming-soon/vendors', label: 'Vendors', icon: Building2 },
-      { href: '/administration/organization/integrations', label: 'Integrations', icon: Cable },
-      { href: '/coming-soon/settings', label: 'Settings', icon: SlidersHorizontal },
     ],
   },
 ];
@@ -240,9 +234,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
 function getBreadcrumbLabel(location: string): string {
   if (location === '/overview') return 'Dashboard';
   if (location.startsWith('/follow-ups')) return 'My Work';
-  if (location.includes('/administration/organization/branding')) return 'Organization';
-  if (location.includes('/administration/organization/integrations')) return 'Integrations';
-  if (location.includes('/administration/organization/access')) return 'Users';
+  if (location === '/settings' || location.startsWith('/settings/')) return 'Settings';
   if (location.includes('/administration/platform/customers')) return 'Platform Customers';
   if (location.startsWith('/projects')) return 'All Projects';
   if (location.startsWith('/customers')) return 'Customers';
@@ -256,7 +248,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { activeTenant, memberships, branding, activeEnvironment } = useTenant();
+  const { activeTenant, memberships, branding, activeEnvironment, activeRole } = useTenant();
   const { user } = useUser();
   const { signOut } = useClerk();
   const switchTenant = useSwitchTenant();
@@ -287,6 +279,7 @@ export function Shell({ children }: { children: ReactNode }) {
   };
 
   const breadcrumbLabel = getBreadcrumbLabel(location);
+  const canManageSettings = activeRole === 'owner' || activeRole === 'admin';
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -429,36 +422,53 @@ export function Shell({ children }: { children: ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  data-testid="button-user-menu"
-                  aria-label="Open user menu"
-                  className={`flex w-full items-center gap-3 rounded-lg p-2 hover:bg-sidebar-accent/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sidebarCollapsed ? 'justify-center' : ''}`}
-                >
-                  <img
-                    src={user?.imageUrl}
-                    alt={user?.fullName || 'User'}
-                    className="h-8 w-8 shrink-0 rounded-full bg-accent object-cover"
-                  />
-                  {!sidebarCollapsed && (
-                    <span className="min-w-0 flex-1 text-left">
-                      <span className="block truncate text-xs font-semibold">{user?.fullName || 'User'}</span>
-                      <span className="block truncate text-[10px] text-sidebar-foreground/50">{user?.primaryEmailAddress?.emailAddress}</span>
-                    </span>
-                  )}
-                  {!sidebarCollapsed && <ChevronDown size={14} className="shrink-0 text-sidebar-foreground/50" />}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="top" className="w-52">
-                <DropdownMenuLabel>{user?.fullName || 'User account'}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut({ redirectUrl: basePath || '/' })}>
-                  <LogOut size={14} /> Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    data-testid="button-user-menu"
+                    aria-label="Open user menu"
+                    className={`flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 hover:bg-sidebar-accent/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sidebarCollapsed ? 'justify-center' : ''}`}
+                  >
+                    <img
+                      src={user?.imageUrl}
+                      alt={user?.fullName || 'User'}
+                      className="h-8 w-8 shrink-0 rounded-full bg-accent object-cover"
+                    />
+                    {!sidebarCollapsed && (
+                      <span className="min-w-0 flex-1 text-left">
+                        <span className="block truncate text-xs font-semibold">{user?.fullName || 'User'}</span>
+                        <span className="block truncate text-[10px] text-sidebar-foreground/50">{user?.primaryEmailAddress?.emailAddress}</span>
+                      </span>
+                    )}
+                    {!sidebarCollapsed && <ChevronDown size={14} className="shrink-0 text-sidebar-foreground/50" />}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="top" className="w-52">
+                  <DropdownMenuLabel>{user?.fullName || 'User account'}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => signOut({ redirectUrl: basePath || '/' })}>
+                    <LogOut size={14} /> Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {canManageSettings && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href="/settings"
+                      aria-label="Open settings"
+                      data-testid="link-settings"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <Settings size={16} />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="bg-popover text-popover-foreground">Settings</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
           </div>
         </div>
       </aside>

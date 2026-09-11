@@ -52,6 +52,7 @@ import type {
   Project,
   ProjectInput,
   ProjectUpdate,
+  PublishedBrandingContext,
   SwitchEnvironmentInput,
   SwitchTenantInput,
   TenantContext,
@@ -2593,7 +2594,7 @@ export const getGetBrandingQueryKey = () => {
     }
 
 
-export const getGetBrandingQueryOptions = <TData = Awaited<ReturnType<typeof getBranding>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetBrandingQueryOptions = <TData = Awaited<ReturnType<typeof getBranding>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -2612,14 +2613,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetBrandingQueryResult = NonNullable<Awaited<ReturnType<typeof getBranding>>>
-export type GetBrandingQueryError = ErrorType<unknown>
+export type GetBrandingQueryError = ErrorType<void>
 
 
 /**
  * @summary Get branding context and current draft
  */
 
-export function useGetBranding<TData = Awaited<ReturnType<typeof getBranding>>, TError = ErrorType<unknown>>(
+export function useGetBranding<TData = Awaited<ReturnType<typeof getBranding>>, TError = ErrorType<void>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -2663,7 +2664,7 @@ export const saveBrandingDraft = async (brandingInput: BrandingInput, options?: 
 
 
 
-export const getSaveBrandingDraftMutationOptions = <TError = ErrorType<unknown>,
+export const getSaveBrandingDraftMutationOptions = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveBrandingDraft>>, TError,{data: BodyType<BrandingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof saveBrandingDraft>>, TError,{data: BodyType<BrandingInput>}, TContext> => {
 
@@ -2692,12 +2693,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type SaveBrandingDraftMutationResult = NonNullable<Awaited<ReturnType<typeof saveBrandingDraft>>>
     export type SaveBrandingDraftMutationBody = BodyType<BrandingInput>
-    export type SaveBrandingDraftMutationError = ErrorType<unknown>
+    export type SaveBrandingDraftMutationError = ErrorType<void>
 
     /**
  * @summary Save a branding draft
  */
-export const useSaveBrandingDraft = <TError = ErrorType<unknown>,
+export const useSaveBrandingDraft = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveBrandingDraft>>, TError,{data: BodyType<BrandingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof saveBrandingDraft>>,
@@ -2707,6 +2708,83 @@ export const useSaveBrandingDraft = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getSaveBrandingDraftMutationOptions(options));
     }
+
+export const getGetPublishedBrandingUrl = () => {
+
+
+
+
+  return `/api/tenant/branding/published`
+}
+
+/**
+ * @summary Get published branding for the active customer environment
+ */
+export const getPublishedBranding = async ( options?: Parameters<typeof customFetch>[1]): Promise<PublishedBrandingContext> => {
+
+  return customFetch<PublishedBrandingContext>(getGetPublishedBrandingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublishedBrandingQueryKey = () => {
+    return [
+    `/api/tenant/branding/published`
+    ] as const;
+    }
+
+
+export const getGetPublishedBrandingQueryOptions = <TData = Awaited<ReturnType<typeof getPublishedBranding>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublishedBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublishedBrandingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublishedBranding>>> = ({ signal }) => getPublishedBranding({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublishedBranding>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublishedBrandingQueryResult = NonNullable<Awaited<ReturnType<typeof getPublishedBranding>>>
+export type GetPublishedBrandingQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get published branding for the active customer environment
+ */
+
+export function useGetPublishedBranding<TData = Awaited<ReturnType<typeof getPublishedBranding>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublishedBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublishedBrandingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getPublishBrandingUrl = () => {
 

@@ -78,6 +78,7 @@ export * from './projectInput';
 export * from './projectStage';
 export * from './projectUpdate';
 export * from './proposalStatus';
+export * from './publishedBrandingContext';
 export * from './switchEnvironmentInput';
 export * from './switchTenantInput';
 export * from './tenant';

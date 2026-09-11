@@ -593,6 +593,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BrandingContext"
+        "403": { description: Customer administrator permission required }
     put:
       operationId: saveBrandingDraft
       tags: [branding]
@@ -610,6 +611,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BrandingContext"
+        "403": { description: Customer administrator permission required }
+  /tenant/branding/published:
+    get:
+      operationId: getPublishedBranding
+      tags: [branding]
+      summary: Get published branding for the active customer environment
+      responses:
+        "200":
+          description: Published branding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishedBrandingContext"
   /tenant/branding/publish:
     post:
       operationId: publishBranding
@@ -1227,6 +1241,13 @@ components:
       required: [draft, published]
       properties:
         draft: { $ref: "#/components/schemas/BrandingInput" }
+        published:
+          type: array
+          items: { $ref: "#/components/schemas/BrandingVersion" }
+    PublishedBrandingContext:
+      type: object
+      required: [published]
+      properties:
         published:
           type: array
           items: { $ref: "#/components/schemas/BrandingVersion" }

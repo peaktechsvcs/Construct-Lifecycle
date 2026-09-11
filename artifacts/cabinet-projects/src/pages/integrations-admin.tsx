@@ -53,7 +53,7 @@ export function IntegrationsAdmin() {
   if (integrationsQuery.isLoading) {
     return (
       <div className="animate-rise">
-        <PageTitle eyebrow="Administration / Organization" title="Integrations" description="Review the systems available to this customer environment and their recorded activity." />
+        <PageTitle eyebrow="Settings / Integrations" title="Integrations" description="Review the systems available to this customer environment and their recorded activity." />
         <LoadingPanel lines={6} />
       </div>
     );
@@ -62,7 +62,7 @@ export function IntegrationsAdmin() {
   if (integrationsQuery.isError) {
     return (
       <div className="animate-rise">
-        <PageTitle eyebrow="Administration / Organization" title="Integrations" description="Review the systems available to this customer environment and their recorded activity." />
+        <PageTitle eyebrow="Settings / Integrations" title="Integrations" description="Review the systems available to this customer environment and their recorded activity." />
         <div className="mb-4 rounded-xl border border-status-warning/25 bg-status-warning/10 px-4 py-3 text-sm text-foreground">
           <p className="font-semibold">Access to integrations is unavailable.</p>
           <p className="mt-1 text-xs text-muted-foreground">Your role may not have permission to view this customer administration area.</p>
@@ -75,7 +75,7 @@ export function IntegrationsAdmin() {
   return (
     <div className="animate-rise">
       <PageTitle
-        eyebrow="Administration / Organization"
+        eyebrow="Settings / Integrations"
         title="Integrations"
         description="Understand which external systems are entitled in this customer environment, what they cover, and whether activity has been recorded."
       />

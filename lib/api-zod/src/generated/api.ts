@@ -1163,6 +1163,21 @@ export const SaveBrandingDraftResponse = zod.object({
 
 
 /**
+ * @summary Get published branding for the active customer environment
+ */
+export const GetPublishedBrandingResponse = zod.object({
+  "published": zod.array(zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "version": zod.number().int(),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "publishedAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary Publish the draft after WCAG AA contrast validation
  */
 export const PublishBrandingResponse = zod.object({

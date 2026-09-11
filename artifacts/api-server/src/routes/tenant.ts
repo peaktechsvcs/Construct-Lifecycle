@@ -98,7 +98,11 @@ router.post("/tenant/environments", async (req: TenantRequest, res) => {
   req.environmentId = environment.id;
   res.json(await context(req));
 });
-router.get("/tenant/branding", async (req: TenantRequest, res) => {
+router.get("/tenant/branding/published", async (req: TenantRequest, res) => {
+  const published = await db.select().from(tenantBrandingVersionsTable).where(and(eq(tenantBrandingVersionsTable.tenantId, req.tenantId!), eq(tenantBrandingVersionsTable.environmentId, req.environmentId!))).orderBy(desc(tenantBrandingVersionsTable.version));
+  res.json({ published: published.map(v => ({ ...v, data: parse(v.data) })) });
+});
+router.get("/tenant/branding", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
   const [draft] = await db.select().from(tenantBrandingDraftsTable).where(and(eq(tenantBrandingDraftsTable.tenantId, req.tenantId!), eq(tenantBrandingDraftsTable.environmentId, req.environmentId!)));
   const published = await db.select().from(tenantBrandingVersionsTable).where(and(eq(tenantBrandingVersionsTable.tenantId, req.tenantId!), eq(tenantBrandingVersionsTable.environmentId, req.environmentId!))).orderBy(desc(tenantBrandingVersionsTable.version));
   res.json({ draft: draft ? parse(draft.data) : defaults, published: published.map(v => ({ ...v, data: parse(v.data) })) });

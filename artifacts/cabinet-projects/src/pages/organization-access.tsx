@@ -36,13 +36,13 @@ export function OrganizationAccess() {
     qc.invalidateQueries({ queryKey: getListTenantInvitationsQueryKey() });
   };
   const busy = update.isPending || remove.isPending || create.isPending || revoke.isPending;
-  if (members.isLoading || invitations.isLoading) return <><PageTitle eyebrow="Organization" title="Access" description="Manage members and invitations for your customer workspace." /><LoadingPanel lines={6} /></>;
+  if (members.isLoading || invitations.isLoading) return <><PageTitle eyebrow="Settings / Access" title="Access" description="Manage members and invitations for your customer workspace." /><LoadingPanel lines={6} /></>;
   if (members.isError || invitations.isError) return <ErrorPanel onRetry={() => { members.refetch(); invitations.refetch(); }} />;
   if (activeTenant && activeTenant.role !== 'owner' && activeTenant.role !== 'admin') return <EmptyState icon={Users} title="Administrator access required" text="Only customer owners and administrators can manage workspace access." />;
   const pending = (invitations.data ?? []).filter((item) => item.status === 'pending');
   return (
     <div className="animate-rise">
-      <PageTitle eyebrow="Organization" title="Access" description="Manage members and invitations for your customer workspace." />
+      <PageTitle eyebrow="Settings / Access" title="Access" description="Manage members and invitations for your customer workspace." />
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="mb-5 flex items-center gap-3 border-b border-border pb-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary"><Users size={16} /></span><h2 className="text-base font-bold">Members</h2></div>

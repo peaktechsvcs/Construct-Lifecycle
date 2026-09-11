@@ -3,14 +3,14 @@ import { useAuth } from '@clerk/react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useGetTenantContext,
-  useGetBranding,
+  useGetPublishedBranding,
   useSwitchEnvironment,
   getGetTenantContextQueryKey,
-  getGetBrandingQueryKey,
+  getGetPublishedBrandingQueryKey,
   Tenant,
   TenantMembershipSummary,
   Environment,
-  BrandingContext,
+  PublishedBrandingContext,
   TenantContextEnvironmentLabel,
 } from '@workspace/api-client-react';
 import { hexToHsl } from '@/lib/color-utils';
@@ -18,7 +18,7 @@ import { hexToHsl } from '@/lib/color-utils';
 interface TenantContextType {
   activeTenant?: Tenant;
   memberships: TenantMembershipSummary[];
-  branding?: BrandingContext;
+  branding?: PublishedBrandingContext;
   activeEnvironment?: Environment;
   environments: Environment[];
   environmentLabel?: TenantContextEnvironmentLabel;
@@ -54,9 +54,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const brandingQuery = useGetBranding({
+  const brandingQuery = useGetPublishedBranding({
     query: {
-      queryKey: getGetBrandingQueryKey(),
+      queryKey: getGetPublishedBrandingQueryKey(),
       enabled: !!tenantQuery.data?.activeTenant,
     },
   });
