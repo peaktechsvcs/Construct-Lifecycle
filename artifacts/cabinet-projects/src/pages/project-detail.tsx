@@ -236,7 +236,7 @@ export function ProjectDetail() {
           </div>
           <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
             <MapPin size={14} />
-            {project.address || 'Address not added'} · {project.customerName}
+             {project.address || 'Address not added'} · {project.businessCustomerId ? <Link href={`/customers/${project.businessCustomerId}`} className="font-semibold text-primary hover:underline">{project.customerName}</Link> : project.customerName}
           </p>
         </div>
         <Button data-testid="button-edit-project-detail" variant="outline" onClick={() => setShowEdit(true)}>

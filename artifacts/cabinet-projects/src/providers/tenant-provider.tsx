@@ -23,6 +23,7 @@ interface TenantContextType {
   environments: Environment[];
   environmentLabel?: TenantContextEnvironmentLabel;
   isPlatformAdmin: boolean;
+  activeRole?: string;
   isLoading: boolean;
   switchEnvironment: (environmentId: number) => void;
   isSwitchingEnvironment: boolean;
@@ -68,6 +69,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const environments = tenantQuery.data?.environments ?? [];
   const environmentLabel = tenantQuery.data?.environmentLabel;
   const isPlatformAdmin = tenantQuery.data?.isPlatformAdmin ?? false;
+  const activeRole = memberships.find((membership) => membership.id === activeTenant?.id)?.role;
   const branding = brandingQuery.data;
 
   // Apply published branding to CSS variables globally
@@ -132,6 +134,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         environments,
         environmentLabel,
         isPlatformAdmin,
+        activeRole,
         isLoading: !isLoaded || tenantQuery.isLoading,
         switchEnvironment: handleSwitchEnvironment,
         isSwitchingEnvironment: switchEnvMutation.isPending,

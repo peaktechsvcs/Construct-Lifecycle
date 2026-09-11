@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import {
+  businessCustomersTable,
   activityTable,
   db,
   followUpsTable,
+  platformAuditEventsTable,
   projectsTable,
 } from "@workspace/db";
 import {
@@ -17,7 +19,8 @@ import {
   GetDashboardDrilldownQueryParams,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
-import { requireRole } from "../middlewares/rbac";
+import { getCurrentTenantRole, requireRole } from "../middlewares/rbac";
+import { normalizeCustomerName } from "./customers";
 
 const router: IRouter = Router();
 
@@ -109,16 +112,82 @@ router.post("/projects", requireRole("owner", "admin", "member"), async (req: Te
     return;
   }
 
-  const [{ count }] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(projectsTable);
-  const projectNumber = `CP-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
-  const [row] = await db
-    .insert(projectsTable)
-    .values({
-      ...parsed.data,
+  if (parsed.data.businessCustomerId && parsed.data.newCustomer) {
+    res.status(400).json({ error: "Choose an existing customer or create a new one, not both" });
+    return;
+  }
+  if (parsed.data.newCustomer) {
+    const role = await getCurrentTenantRole(req);
+    if (role !== "owner" && role !== "admin") {
+      res.status(403).json({ error: "Customer creation permission required" });
+      return;
+    }
+  }
+
+  const [row] = await db.transaction(async (tx) => {
+    let customerId = parsed.data.businessCustomerId ?? null;
+    let customerName = parsed.data.customerName?.trim() ?? "";
+
+    if (parsed.data.newCustomer) {
+      const normalizedName = normalizeCustomerName(parsed.data.newCustomer.companyName);
+      const [existing] = await tx.select().from(businessCustomersTable).where(and(
+        eq(businessCustomersTable.tenantId, req.tenantId!),
+        eq(businessCustomersTable.environmentId, req.environmentId!),
+        eq(businessCustomersTable.normalizedName, normalizedName),
+      ));
+      if (existing?.status === "archived") {
+        throw new Error("CUSTOMER_ARCHIVED");
+      }
+      if (existing) {
+        customerId = existing.id;
+        customerName = existing.companyName;
+      } else {
+        const [created] = await tx.insert(businessCustomersTable).values({
+          tenantId: req.tenantId!,
+          environmentId: req.environmentId!,
+          companyName: parsed.data.newCustomer.companyName.trim(),
+          normalizedName,
+          customerType: parsed.data.newCustomer.customerType?.trim() || "business",
+          primaryContact: parsed.data.newCustomer.primaryContact?.trim() || null,
+          email: parsed.data.newCustomer.email?.trim().toLowerCase() || null,
+          phone: parsed.data.newCustomer.phone?.trim() || null,
+        }).returning();
+        customerId = created.id;
+        customerName = created.companyName;
+        await tx.insert(platformAuditEventsTable).values({
+          actorUserId: req.localUserId!,
+          tenantId: req.tenantId!,
+          action: "business_customer_created",
+          details: JSON.stringify({ customerId: created.id, environmentId: req.environmentId, source: "project_create" }),
+        });
+      }
+    } else if (customerId) {
+      const [existing] = await tx.select().from(businessCustomersTable).where(and(
+        eq(businessCustomersTable.id, customerId),
+        eq(businessCustomersTable.tenantId, req.tenantId!),
+        eq(businessCustomersTable.environmentId, req.environmentId!),
+        eq(businessCustomersTable.status, "active"),
+      ));
+      if (!existing) throw new Error("CUSTOMER_NOT_FOUND");
+      customerName = existing.companyName;
+    }
+
+    if (!customerId) throw new Error("CUSTOMER_REQUIRED");
+
+    const [{ count }] = await tx.select({ count: sql<number>`count(*)::int` }).from(projectsTable);
+    const projectNumber = `CP-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
+    const {
+      businessCustomerId: _businessCustomerId,
+      newCustomer: _newCustomer,
+      customerName: _legacyCustomerName,
+      ...projectData
+    } = parsed.data;
+    const [createdProject] = await tx.insert(projectsTable).values({
+      ...projectData,
       tenantId: req.tenantId!,
       environmentId: req.environmentId!,
+      businessCustomerId: customerId,
+      customerName,
       projectNumber,
       productCategories: parsed.data.productCategories ?? [],
       contractValue: String(parsed.data.contractValue ?? 0),
@@ -127,9 +196,32 @@ router.post("/projects", requireRole("owner", "admin", "member"), async (req: Te
       contractStart: toDateString(parsed.data.contractStart),
       contractEnd: toDateString(parsed.data.contractEnd),
       nextFollowUp: toDateString(parsed.data.nextFollowUp),
-    })
-    .returning();
-  await addActivity(row.id, "Project created", `New project opened for ${row.customerName}`, req.tenantId!, req.environmentId!);
+    }).returning();
+    await tx.insert(activityTable).values({
+      projectId: createdProject.id,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+      action: "Project created",
+      description: `New project opened for ${customerName}`,
+      actor: "You",
+    });
+    return [createdProject];
+  }).catch((error: unknown) => {
+    if (error instanceof Error && error.message === "CUSTOMER_ARCHIVED") {
+      res.status(409).json({ error: "That customer is archived. Reactivate it before assigning a new project." });
+      return [];
+    }
+    if (error instanceof Error && error.message === "CUSTOMER_NOT_FOUND") {
+      res.status(404).json({ error: "Customer not found in the active environment" });
+      return [];
+    }
+    if (error instanceof Error && error.message === "CUSTOMER_REQUIRED") {
+      res.status(400).json({ error: "Select a customer or create a new customer before saving the project" });
+      return [];
+    }
+    throw error;
+  });
+  if (!row) return;
   res.status(201).json(toProject(row));
 });
 
@@ -154,10 +246,37 @@ router.patch("/projects/:projectId", requireRole("owner", "admin", "member"), as
     return;
   }
 
+  const {
+    businessCustomerId,
+    newCustomer: _newCustomer,
+    customerName: _legacyCustomerName,
+    ...projectFields
+  } = parsed.data;
+  const [existingProject] = await db.select({ businessCustomerId: projectsTable.businessCustomerId })
+    .from(projectsTable)
+    .where(and(
+      eq(projectsTable.id, params.data.projectId),
+      eq(projectsTable.tenantId, req.tenantId!),
+      eq(projectsTable.environmentId, req.environmentId!),
+    ));
   const updateData: Record<string, unknown> = {
-    ...parsed.data,
+    ...projectFields,
     updatedAt: new Date(),
   };
+  if (businessCustomerId != null) {
+    const [customer] = await db.select().from(businessCustomersTable).where(and(
+      eq(businessCustomersTable.id, businessCustomerId),
+      eq(businessCustomersTable.tenantId, req.tenantId!),
+      eq(businessCustomersTable.environmentId, req.environmentId!),
+      eq(businessCustomersTable.status, "active"),
+    ));
+    if (!customer) {
+      res.status(404).json({ error: "Customer not found in the active environment" });
+      return;
+    }
+    updateData.businessCustomerId = customer.id;
+    updateData.customerName = customer.companyName;
+  }
   if (parsed.data.contractValue !== undefined) {
     updateData.contractValue = String(parsed.data.contractValue);
   }
@@ -178,7 +297,16 @@ router.patch("/projects/:projectId", requireRole("owner", "admin", "member"), as
     return;
   }
   const changedStage = parsed.data.stage ? ` Stage moved to ${parsed.data.stage}.` : "";
-   await addActivity(row.id, "Project updated", `Project details were updated.${changedStage}`, req.tenantId!, req.environmentId!);
+  await addActivity(row.id, "Project updated", `Project details were updated.${changedStage}`, req.tenantId!, req.environmentId!);
+  if (businessCustomerId != null && existingProject?.businessCustomerId !== businessCustomerId) {
+    await addActivity(row.id, "Customer assigned", `Project assigned to ${row.customerName}.`, req.tenantId!, req.environmentId!);
+    await db.insert(platformAuditEventsTable).values({
+      actorUserId: req.localUserId!,
+      tenantId: req.tenantId!,
+      action: "project_customer_assigned",
+      details: JSON.stringify({ projectId: row.id, customerId: businessCustomerId, environmentId: req.environmentId }),
+    });
+  }
   res.json(toProject(row));
 });
 

@@ -34,6 +34,14 @@ export const ListProjectsResponseItem = zod.object({
   "id": zod.number().int(),
   "environmentId": zod.number().int().optional(),
   "projectNumber": zod.string(),
+  "businessCustomerId": zod.number().int().nullish(),
+  "businessCustomer": zod.union([zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "customerType": zod.string(),
+  "status": zod.enum(['active', 'archived']),
+  "projectCount": zod.number().int()
+}),zod.null()]).optional(),
   "customerName": zod.string(),
   "projectName": zod.string(),
   "address": zod.string().nullish(),
@@ -69,6 +77,15 @@ export const ListProjectsResponse = zod.array(ListProjectsResponseItem)
  */
 
 
+export const createProjectBodyNewCustomerOneCompanyNameMax = 160;
+
+export const createProjectBodyNewCustomerOneCustomerTypeMax = 40;
+
+export const createProjectBodyNewCustomerOnePrimaryContactMax = 120;
+
+export const createProjectBodyNewCustomerOnePhoneMax = 40;
+
+
 
 export const createProjectBodyDeliveryPercentMin = 0;
 export const createProjectBodyDeliveryPercentMax = 100;
@@ -77,7 +94,15 @@ export const createProjectBodyDeliveryPercentMax = 100;
 
 export const CreateProjectBody = zod.object({
   "environmentId": zod.number().int().min(1).optional(),
-  "customerName": zod.string().min(1),
+  "businessCustomerId": zod.number().int().min(1).nullish(),
+  "newCustomer": zod.union([zod.object({
+  "companyName": zod.string().min(1).max(createProjectBodyNewCustomerOneCompanyNameMax),
+  "customerType": zod.string().max(createProjectBodyNewCustomerOneCustomerTypeMax).optional(),
+  "primaryContact": zod.string().max(createProjectBodyNewCustomerOnePrimaryContactMax).optional(),
+  "email": zod.string().email().optional(),
+  "phone": zod.string().max(createProjectBodyNewCustomerOnePhoneMax).optional()
+}),zod.null()]).optional(),
+  "customerName": zod.string().min(1).optional().describe('Legacy display value; server derives this from the business customer.'),
   "projectName": zod.string().min(1),
   "address": zod.string().optional(),
   "category": zod.string(),
@@ -112,6 +137,14 @@ export const CreateProjectResponse = zod.object({
   "id": zod.number().int(),
   "environmentId": zod.number().int().optional(),
   "projectNumber": zod.string(),
+  "businessCustomerId": zod.number().int().nullish(),
+  "businessCustomer": zod.union([zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "customerType": zod.string(),
+  "status": zod.enum(['active', 'archived']),
+  "projectCount": zod.number().int()
+}),zod.null()]).optional(),
   "customerName": zod.string(),
   "projectName": zod.string(),
   "address": zod.string().nullish(),
@@ -157,6 +190,14 @@ export const GetProjectResponse = zod.object({
   "id": zod.number().int(),
   "environmentId": zod.number().int().optional(),
   "projectNumber": zod.string(),
+  "businessCustomerId": zod.number().int().nullish(),
+  "businessCustomer": zod.union([zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "customerType": zod.string(),
+  "status": zod.enum(['active', 'archived']),
+  "projectCount": zod.number().int()
+}),zod.null()]).optional(),
   "customerName": zod.string(),
   "projectName": zod.string(),
   "address": zod.string().nullish(),
@@ -195,6 +236,15 @@ export const UpdateProjectParams = zod.object({
 
 
 
+export const updateProjectBodyOneNewCustomerOneCompanyNameMax = 160;
+
+export const updateProjectBodyOneNewCustomerOneCustomerTypeMax = 40;
+
+export const updateProjectBodyOneNewCustomerOnePrimaryContactMax = 120;
+
+export const updateProjectBodyOneNewCustomerOnePhoneMax = 40;
+
+
 
 export const updateProjectBodyOneDeliveryPercentMin = 0;
 export const updateProjectBodyOneDeliveryPercentMax = 100;
@@ -203,7 +253,15 @@ export const updateProjectBodyOneDeliveryPercentMax = 100;
 
 export const UpdateProjectBody = zod.object({
   "environmentId": zod.number().int().min(1).optional(),
-  "customerName": zod.string().min(1),
+  "businessCustomerId": zod.number().int().min(1).nullish(),
+  "newCustomer": zod.union([zod.object({
+  "companyName": zod.string().min(1).max(updateProjectBodyOneNewCustomerOneCompanyNameMax),
+  "customerType": zod.string().max(updateProjectBodyOneNewCustomerOneCustomerTypeMax).optional(),
+  "primaryContact": zod.string().max(updateProjectBodyOneNewCustomerOnePrimaryContactMax).optional(),
+  "email": zod.string().email().optional(),
+  "phone": zod.string().max(updateProjectBodyOneNewCustomerOnePhoneMax).optional()
+}),zod.null()]).optional(),
+  "customerName": zod.string().min(1).optional().describe('Legacy display value; server derives this from the business customer.'),
   "projectName": zod.string().min(1),
   "address": zod.string().optional(),
   "category": zod.string(),
@@ -238,6 +296,14 @@ export const UpdateProjectResponse = zod.object({
   "id": zod.number().int(),
   "environmentId": zod.number().int().optional(),
   "projectNumber": zod.string(),
+  "businessCustomerId": zod.number().int().nullish(),
+  "businessCustomer": zod.union([zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "customerType": zod.string(),
+  "status": zod.enum(['active', 'archived']),
+  "projectCount": zod.number().int()
+}),zod.null()]).optional(),
   "customerName": zod.string(),
   "projectName": zod.string(),
   "address": zod.string().nullish(),
@@ -295,6 +361,154 @@ export const ListProjectActivityResponseItem = zod.object({
   "createdAt": zod.coerce.date()
 })
 export const ListProjectActivityResponse = zod.array(ListProjectActivityResponseItem)
+
+
+/**
+ * @summary List business customers in the active workspace
+ */
+export const listBusinessCustomersQuerySearchMax = 100;
+
+export const listBusinessCustomersQueryIncludeArchivedDefault = false;
+
+export const ListBusinessCustomersQueryParams = zod.object({
+  "search": zod.coerce.string().max(listBusinessCustomersQuerySearchMax).optional(),
+  "includeArchived": zod.coerce.boolean().default(listBusinessCustomersQueryIncludeArchivedDefault)
+})
+
+export const ListBusinessCustomersResponseItem = zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "customerType": zod.string(),
+  "status": zod.enum(['active', 'archived']),
+  "projectCount": zod.number().int()
+})
+export const ListBusinessCustomersResponse = zod.array(ListBusinessCustomersResponseItem)
+
+
+/**
+ * @summary Create a business customer in the active workspace
+ */
+export const createBusinessCustomerBodyCompanyNameMax = 160;
+
+export const createBusinessCustomerBodyCustomerTypeMax = 40;
+
+export const createBusinessCustomerBodyPrimaryContactMax = 120;
+
+export const createBusinessCustomerBodyPhoneMax = 40;
+
+
+
+export const CreateBusinessCustomerBody = zod.object({
+  "companyName": zod.string().min(1).max(createBusinessCustomerBodyCompanyNameMax),
+  "customerType": zod.string().max(createBusinessCustomerBodyCustomerTypeMax).optional(),
+  "primaryContact": zod.string().max(createBusinessCustomerBodyPrimaryContactMax).optional(),
+  "email": zod.string().email().optional(),
+  "phone": zod.string().max(createBusinessCustomerBodyPhoneMax).optional()
+})
+
+export const CreateBusinessCustomerResponse = zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "customerType": zod.string(),
+  "status": zod.enum(['active', 'archived']),
+  "projectCount": zod.number().int()
+}).and(zod.object({
+  "primaryContact": zod.string().nullable(),
+  "email": zod.string().email().nullable(),
+  "phone": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectNumber": zod.string(),
+  "projectName": zod.string(),
+  "customerName": zod.string().optional(),
+  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "contractValue": zod.number(),
+  "updatedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Get a business customer and its projects
+ */
+export const GetBusinessCustomerParams = zod.object({
+  "customerId": zod.coerce.number().int()
+})
+
+export const GetBusinessCustomerResponse = zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "customerType": zod.string(),
+  "status": zod.enum(['active', 'archived']),
+  "projectCount": zod.number().int()
+}).and(zod.object({
+  "primaryContact": zod.string().nullable(),
+  "email": zod.string().email().nullable(),
+  "phone": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectNumber": zod.string(),
+  "projectName": zod.string(),
+  "customerName": zod.string().optional(),
+  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "contractValue": zod.number(),
+  "updatedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Update a business customer
+ */
+export const UpdateBusinessCustomerParams = zod.object({
+  "customerId": zod.coerce.number().int()
+})
+
+export const updateBusinessCustomerBodyCompanyNameMax = 160;
+
+export const updateBusinessCustomerBodyCustomerTypeMax = 40;
+
+export const updateBusinessCustomerBodyPrimaryContactMax = 120;
+
+export const updateBusinessCustomerBodyPhoneMax = 40;
+
+
+
+export const UpdateBusinessCustomerBody = zod.object({
+  "companyName": zod.string().min(1).max(updateBusinessCustomerBodyCompanyNameMax).optional(),
+  "customerType": zod.string().max(updateBusinessCustomerBodyCustomerTypeMax).optional(),
+  "primaryContact": zod.string().max(updateBusinessCustomerBodyPrimaryContactMax).optional(),
+  "email": zod.string().email().nullish(),
+  "phone": zod.string().max(updateBusinessCustomerBodyPhoneMax).nullish(),
+  "status": zod.enum(['active', 'archived']).optional()
+})
+
+export const UpdateBusinessCustomerResponse = zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "customerType": zod.string(),
+  "status": zod.enum(['active', 'archived']),
+  "projectCount": zod.number().int()
+}).and(zod.object({
+  "primaryContact": zod.string().nullable(),
+  "email": zod.string().email().nullable(),
+  "phone": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectNumber": zod.string(),
+  "projectName": zod.string(),
+  "customerName": zod.string().optional(),
+  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "contractValue": zod.number(),
+  "updatedAt": zod.coerce.date()
+}))
+}))
 
 
 /**

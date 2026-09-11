@@ -1,7 +1,7 @@
 import { useState, ReactNode } from 'react';
 import { useLocation, Link } from 'wouter';
 import {
-  LayoutDashboard, BriefcaseBusiness, CalendarDays, Settings2,
+  LayoutDashboard, BriefcaseBusiness, CalendarDays, Settings2, Building2,
   Bell, Menu, Sparkles, LogOut, Paintbrush, ChevronDown, Check, Cable,
   FlaskConical, Globe,
 } from 'lucide-react';
@@ -146,6 +146,7 @@ function HeaderEnvironmentPill() {
 const PAGE_LABELS: Record<string, string> = {
   '/overview': 'Overview',
   '/projects': 'Projects',
+  '/customers': 'Customers',
   '/follow-ups': 'Follow-ups',
 };
 
@@ -157,6 +158,7 @@ function getBreadcrumbLabel(location: string): string {
   if (location.includes('/administration/organization/access')) return 'Organization Access';
   if (location.includes('/administration/platform/customers')) return 'Platform Customers';
   if (location.startsWith('/projects')) return 'Projects';
+  if (location.startsWith('/customers')) return 'Customers';
   return '';
 }
 
@@ -174,6 +176,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const nav = [
     { href: '/overview', label: 'Overview', icon: LayoutDashboard },
+    { href: '/customers', label: 'Customers', icon: Building2 },
     { href: '/projects', label: 'Projects', icon: BriefcaseBusiness },
     { href: '/follow-ups', label: 'Follow-ups', icon: CalendarDays },
     { href: '/administration/organization/branding', label: 'Customer Branding', icon: Paintbrush },
@@ -236,7 +239,7 @@ export function Shell({ children }: { children: ReactNode }) {
               />
               <div className="min-w-0">
                 <span className="block truncate text-[15px] font-bold tracking-tight">
-                  {activeTenant?.name || 'Construct LC'}
+                  {activeTenant?.name || 'Construct Lifecycle'}
                 </span>
                 <span className="mono block text-[9px] uppercase tracking-[.2em] text-sidebar-foreground/55">
                   Command Center
@@ -386,7 +389,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <Menu size={19} />
             </button>
             <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
-              <span>{activeTenant?.name || 'Construct LC'}</span>
+              <span>{activeTenant?.name || 'Construct Lifecycle'}</span>
               <span className="text-border">/</span>
               <span className="font-semibold text-foreground">{breadcrumbLabel}</span>
             </div>

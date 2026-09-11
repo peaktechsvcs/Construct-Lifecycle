@@ -19,7 +19,7 @@ export function Scene1() {
         </motion.div>
         <div style={{ marginTop: '9vmin', position: 'relative' }}>
           <motion.p className="scene-kicker" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, delay: .35 }}>
-            Construct LC · opportunities
+            Construct Lifecycle · opportunities
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 30, scale: .94 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: .85, delay: .48, ease: [0.16, 1, .3, 1] }}>
             <VideoText as="h1" scale="display" className="scene-title">

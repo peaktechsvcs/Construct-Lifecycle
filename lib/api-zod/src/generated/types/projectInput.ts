@@ -7,6 +7,7 @@
  */
 import type { BidOutcome } from './bidOutcome';
 import type { BillingStatus } from './billingStatus';
+import type { BusinessCustomerInput } from './businessCustomerInput';
 import type { CloseoutStatus } from './closeoutStatus';
 import type { ContractStatus } from './contractStatus';
 import type { ProjectStage } from './projectStage';
@@ -15,8 +16,17 @@ import type { ProposalStatus } from './proposalStatus';
 export interface ProjectInput {
   /** @minimum 1 */
   environmentId?: number;
-  /** @minLength 1 */
-  customerName: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessCustomerId?: number | null;
+  newCustomer?: BusinessCustomerInput | null;
+  /**
+     * Legacy display value; server derives this from the business customer.
+     * @minLength 1
+     */
+  customerName?: string;
   /** @minLength 1 */
   projectName: string;
   address?: string;

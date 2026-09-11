@@ -77,10 +77,29 @@ export const CloseoutStatus = {
   complete: 'complete',
 } as const;
 
+export type BusinessCustomerStatus = typeof BusinessCustomerStatus[keyof typeof BusinessCustomerStatus];
+
+
+export const BusinessCustomerStatus = {
+  active: 'active',
+  archived: 'archived',
+} as const;
+
+export interface BusinessCustomerSummary {
+  id: number;
+  companyName: string;
+  customerType: string;
+  status: BusinessCustomerStatus;
+  projectCount: number;
+}
+
 export interface Project {
   id: number;
   environmentId?: number;
   projectNumber: string;
+  /** @nullable */
+  businessCustomerId?: number | null;
+  businessCustomer?: BusinessCustomerSummary | null;
   customerName: string;
   projectName: string;
   /** @nullable */
@@ -123,11 +142,35 @@ export interface Project {
   updatedAt: string;
 }
 
+export interface BusinessCustomerInput {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  companyName: string;
+  /** @maxLength 40 */
+  customerType?: string;
+  /** @maxLength 120 */
+  primaryContact?: string;
+  email?: string;
+  /** @maxLength 40 */
+  phone?: string;
+}
+
 export interface ProjectInput {
   /** @minimum 1 */
   environmentId?: number;
-  /** @minLength 1 */
-  customerName: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessCustomerId?: number | null;
+  newCustomer?: BusinessCustomerInput | null;
+  /**
+     * Legacy display value; server derives this from the business customer.
+     * @minLength 1
+     */
+  customerName?: string;
   /** @minLength 1 */
   projectName: string;
   address?: string;
@@ -156,6 +199,48 @@ export interface ProjectInput {
   closeoutStatus?: CloseoutStatus;
   closeoutDetails?: string;
   nextFollowUp?: string;
+}
+
+export interface BusinessCustomerProject {
+  id: number;
+  projectNumber: string;
+  projectName: string;
+  customerName?: string;
+  stage: ProjectStage;
+  contractValue: number;
+  updatedAt: string;
+}
+
+export type BusinessCustomer = BusinessCustomerSummary & ({
+  /** @nullable */
+  primaryContact: string | null;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  phone: string | null;
+  createdAt: string;
+  updatedAt: string;
+  projects: BusinessCustomerProject[];
+});
+
+export interface BusinessCustomerUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  companyName?: string;
+  /** @maxLength 40 */
+  customerType?: string;
+  /** @maxLength 120 */
+  primaryContact?: string;
+  /** @nullable */
+  email?: string | null;
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  phone?: string | null;
+  status?: BusinessCustomerStatus;
 }
 
 export type ProjectUpdate = ProjectInput;
@@ -791,6 +876,14 @@ export interface IntegrationActivity {
 export type ListProjectsParams = {
 search?: string;
 stage?: ProjectStage;
+};
+
+export type ListBusinessCustomersParams = {
+/**
+ * @maxLength 100
+ */
+search?: string;
+includeArchived?: boolean;
 };
 
 export type GetDashboardDrilldownParams = {

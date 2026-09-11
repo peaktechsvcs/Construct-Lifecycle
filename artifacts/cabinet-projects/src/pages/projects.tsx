@@ -6,6 +6,7 @@ import {
   Project, ProjectStage,
   useListProjects, getListProjectsQueryKey,
   useDeleteProject, getGetDashboardSummaryQueryKey,
+  useListBusinessCustomers, getListBusinessCustomersQueryKey,
 } from '@workspace/api-client-react';
 import {
   PageTitle, Button, LoadingPanel, ErrorPanel, EmptyState,
@@ -30,6 +31,7 @@ export function Projects() {
   const urlParams = new URLSearchParams(location.includes('?') ? location.split('?')[1] : '');
   const urlSearch = urlParams.get('search') ?? '';
   const urlStage = urlParams.get('stage') ?? '';
+  const urlCustomerId = Number(urlParams.get('customerId'));
 
   const [search, setSearch] = useState(urlSearch);
   const [stage, setStage] = useState(urlStage);
@@ -40,6 +42,7 @@ export function Projects() {
     const next = new URLSearchParams();
     if (search) next.set('search', search);
     if (stage) next.set('stage', stage);
+    if (urlParams.get('customerId')) next.set('customerId', urlParams.get('customerId')!);
     const qs = next.toString();
     const newPath = qs ? `${base}?${qs}` : base;
     // Only update if the query part actually changed to avoid loops
@@ -55,9 +58,15 @@ export function Projects() {
     [search, stage],
   );
   const query = useListProjects(params, { query: { queryKey: getListProjectsQueryKey(params) } });
+  const customerQuery = useListBusinessCustomers(undefined, { query: { queryKey: getListBusinessCustomersQueryKey() } });
   const deleteProject = useDeleteProject();
   const qc = useQueryClient();
   const projects = query.data ?? [];
+  const initialCustomer = customerQuery.data?.find((customer) => customer.id === urlCustomerId);
+
+  useEffect(() => {
+    if (Number.isFinite(urlCustomerId) && urlCustomerId > 0 && initialCustomer) setShowForm(true);
+  }, [urlCustomerId, initialCustomer]);
 
   const clear = () => {
     setSearch('');
@@ -228,6 +237,7 @@ export function Projects() {
       {showForm && (
         <ProjectFormModal
           project={editing}
+          initialCustomer={initialCustomer}
           onClose={() => {
             setShowForm(false);
             setEditing(undefined);

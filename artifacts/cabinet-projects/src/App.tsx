@@ -16,6 +16,8 @@ import { Dashboard } from '@/pages/dashboard';
 import { DashboardDrilldown } from '@/pages/dashboard-drilldown';
 import { Projects } from '@/pages/projects';
 import { ProjectDetail } from '@/pages/project-detail';
+import { Customers } from '@/pages/customers';
+import { CustomerDetail } from '@/pages/customer-detail';
 import { FollowUps } from '@/pages/follow-ups';
 import { BrandingAdmin } from '@/pages/branding-admin';
 import { IntegrationsAdmin } from '@/pages/integrations-admin';
@@ -193,6 +195,12 @@ function AppRouter() {
         <Route path="/projects/:id">
           <Shell><ProtectedRoute component={ProjectDetail} /></Shell>
         </Route>
+        <Route path="/customers">
+          <Shell><ProtectedRoute component={Customers} /></Shell>
+        </Route>
+        <Route path="/customers/:id">
+          <Shell><ProtectedRoute component={CustomerDetail} /></Shell>
+        </Route>
         <Route path="/follow-ups">
           <Shell><ProtectedRoute component={FollowUps} /></Shell>
         </Route>
@@ -228,8 +236,8 @@ function App() {
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
       localization={{
-        signIn: { start: { title: "Welcome back", subtitle: "Sign in to Construct LC" } },
-        signUp: { start: { title: "Create your account", subtitle: "Join Construct LC today" } },
+        signIn: { start: { title: "Welcome back", subtitle: "Sign in to Construct Lifecycle" } },
+        signUp: { start: { title: "Create your account", subtitle: "Join Construct Lifecycle today" } },
       }}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}

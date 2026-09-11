@@ -7,6 +7,7 @@ import integrationsRouter from "./integrations";
 import tenantAdminRouter from "./tenant-admin";
 import invitationTokenRouter from "./invitation-token";
 import platformRouter from "./platform";
+import customersRouter from "./customers";
 import { requireAuthenticatedUser } from "../middlewares/tenantContext";
 
 const router: IRouter = Router();
@@ -19,6 +20,7 @@ router.use(requireTenantContext);
 router.use(tenantRouter);
 router.use(tenantAdminRouter);
 router.use(integrationsRouter);
+router.use(customersRouter);
 router.use(projectsRouter);
 
 export default router;

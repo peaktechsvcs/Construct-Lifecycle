@@ -11,11 +11,13 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
+import { businessCustomersTable } from "./business-customers";
 import { environmentsTable, tenantsTable } from "./tenants";
 
 export const projectsTable = pgTable("projects", {
   id: serial("id").primaryKey(),
   projectNumber: text("project_number").notNull(),
+  businessCustomerId: integer("business_customer_id").references(() => businessCustomersTable.id, { onDelete: "set null" }),
   customerName: text("customer_name").notNull(),
   projectName: text("project_name").notNull(),
   address: text("address"),

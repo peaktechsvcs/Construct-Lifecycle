@@ -1,5 +1,6 @@
 import {
   activityTable,
+  businessCustomersTable,
   db,
   environmentsTable,
   followUpsTable,
@@ -30,6 +31,30 @@ const seed = async () => {
   const [demoEnvironment] = await db.select().from(environmentsTable)
     .where(sql`tenant_id = ${tenantId} AND slug = 'dtd'`);
   const environmentId = demoEnvironment.id;
+  const existingProjectRows = await db.select({
+    id: projectsTable.id,
+    customerName: projectsTable.customerName,
+    businessCustomerId: projectsTable.businessCustomerId,
+  }).from(projectsTable).where(sql`tenant_id = ${tenantId} AND environment_id = ${environmentId}`);
+  for (const project of existingProjectRows) {
+    if (project.businessCustomerId || !project.customerName.trim()) continue;
+    const normalizedName = project.customerName.trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim();
+    const [customer] = await db.insert(businessCustomersTable).values({
+      tenantId,
+      environmentId,
+      companyName: project.customerName.trim(),
+      normalizedName,
+    }).onConflictDoNothing().returning();
+    const [resolved] = customer
+      ? [customer]
+      : await db.select().from(businessCustomersTable).where(sql`tenant_id = ${tenantId} AND environment_id = ${environmentId} AND normalized_name = ${normalizedName}`);
+    if (resolved) {
+      await db.update(projectsTable).set({
+        businessCustomerId: resolved.id,
+        customerName: resolved.companyName,
+      }).where(sql`id = ${project.id}`);
+    }
+  }
   await db.insert(integrationEntitlementsTable).values([
     "business_central",
     "quickbooks",

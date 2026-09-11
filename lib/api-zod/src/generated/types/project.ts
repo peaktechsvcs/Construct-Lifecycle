@@ -7,6 +7,7 @@
  */
 import type { BidOutcome } from './bidOutcome';
 import type { BillingStatus } from './billingStatus';
+import type { BusinessCustomerSummary } from './businessCustomerSummary';
 import type { CloseoutStatus } from './closeoutStatus';
 import type { ContractStatus } from './contractStatus';
 import type { ProjectStage } from './projectStage';
@@ -16,6 +17,9 @@ export interface Project {
   id: number;
   environmentId?: number;
   projectNumber: string;
+  /** @nullable */
+  businessCustomerId?: number | null;
+  businessCustomer?: BusinessCustomerSummary | null;
   customerName: string;
   projectName: string;
   /** @nullable */

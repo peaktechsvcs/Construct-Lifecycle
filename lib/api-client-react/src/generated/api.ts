@@ -25,6 +25,10 @@ import type {
   BrandingContext,
   BrandingInput,
   BrandingVersion,
+  BusinessCustomer,
+  BusinessCustomerInput,
+  BusinessCustomerSummary,
+  BusinessCustomerUpdate,
   CreatePlatformCustomerInput,
   CreateTenantInvitationInput,
   CreatedPlatformCustomer,
@@ -40,6 +44,7 @@ import type {
   IntegrationActivity,
   IntegrationCatalogItem,
   InvitationDetails,
+  ListBusinessCustomersParams,
   ListIntegrationActivityParams,
   ListProjectsParams,
   PlatformCustomer,
@@ -612,6 +617,310 @@ export function useListProjectActivity<TData = Awaited<ReturnType<typeof listPro
 
 
 
+
+export const getListBusinessCustomersUrl = (params?: ListBusinessCustomersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/customers?${stringifiedParams}` : `/api/customers`
+}
+
+/**
+ * @summary List business customers in the active workspace
+ */
+export const listBusinessCustomers = async (params?: ListBusinessCustomersParams, options?: Parameters<typeof customFetch>[1]): Promise<BusinessCustomerSummary[]> => {
+
+  return customFetch<BusinessCustomerSummary[]>(getListBusinessCustomersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBusinessCustomersQueryKey = (params?: ListBusinessCustomersParams,) => {
+    return [
+    `/api/customers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListBusinessCustomersQueryOptions = <TData = Awaited<ReturnType<typeof listBusinessCustomers>>, TError = ErrorType<unknown>>(params?: ListBusinessCustomersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBusinessCustomers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBusinessCustomersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBusinessCustomers>>> = ({ signal }) => listBusinessCustomers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBusinessCustomers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBusinessCustomersQueryResult = NonNullable<Awaited<ReturnType<typeof listBusinessCustomers>>>
+export type ListBusinessCustomersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List business customers in the active workspace
+ */
+
+export function useListBusinessCustomers<TData = Awaited<ReturnType<typeof listBusinessCustomers>>, TError = ErrorType<unknown>>(
+ params?: ListBusinessCustomersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBusinessCustomers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBusinessCustomersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateBusinessCustomerUrl = () => {
+
+
+
+
+  return `/api/customers`
+}
+
+/**
+ * @summary Create a business customer in the active workspace
+ */
+export const createBusinessCustomer = async (businessCustomerInput: BusinessCustomerInput, options?: Parameters<typeof customFetch>[1]): Promise<BusinessCustomer> => {
+
+  return customFetch<BusinessCustomer>(getCreateBusinessCustomerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(businessCustomerInput)
+  }
+);}
+
+
+
+
+
+export const getCreateBusinessCustomerMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBusinessCustomer>>, TError,{data: BodyType<BusinessCustomerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBusinessCustomer>>, TError,{data: BodyType<BusinessCustomerInput>}, TContext> => {
+
+const mutationKey = ['createBusinessCustomer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBusinessCustomer>>, {data: BodyType<BusinessCustomerInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBusinessCustomer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBusinessCustomerMutationResult = NonNullable<Awaited<ReturnType<typeof createBusinessCustomer>>>
+    export type CreateBusinessCustomerMutationBody = BodyType<BusinessCustomerInput>
+    export type CreateBusinessCustomerMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a business customer in the active workspace
+ */
+export const useCreateBusinessCustomer = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBusinessCustomer>>, TError,{data: BodyType<BusinessCustomerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBusinessCustomer>>,
+        TError,
+        {data: BodyType<BusinessCustomerInput>},
+        TContext
+      > => {
+      return useMutation(getCreateBusinessCustomerMutationOptions(options));
+    }
+
+export const getGetBusinessCustomerUrl = (customerId: number,) => {
+
+
+
+
+  return `/api/customers/${customerId}`
+}
+
+/**
+ * @summary Get a business customer and its projects
+ */
+export const getBusinessCustomer = async (customerId: number, options?: Parameters<typeof customFetch>[1]): Promise<BusinessCustomer> => {
+
+  return customFetch<BusinessCustomer>(getGetBusinessCustomerUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessCustomerQueryKey = (customerId: number,) => {
+    return [
+    `/api/customers/${customerId}`
+    ] as const;
+    }
+
+
+export const getGetBusinessCustomerQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessCustomer>>, TError = ErrorType<void>>(customerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessCustomer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessCustomerQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessCustomer>>> = ({ signal }) => getBusinessCustomer(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessCustomer>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessCustomerQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessCustomer>>>
+export type GetBusinessCustomerQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a business customer and its projects
+ */
+
+export function useGetBusinessCustomer<TData = Awaited<ReturnType<typeof getBusinessCustomer>>, TError = ErrorType<void>>(
+ customerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessCustomer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessCustomerQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateBusinessCustomerUrl = (customerId: number,) => {
+
+
+
+
+  return `/api/customers/${customerId}`
+}
+
+/**
+ * @summary Update a business customer
+ */
+export const updateBusinessCustomer = async (customerId: number,
+    businessCustomerUpdate: BusinessCustomerUpdate, options?: Parameters<typeof customFetch>[1]): Promise<BusinessCustomer> => {
+
+  return customFetch<BusinessCustomer>(getUpdateBusinessCustomerUrl(customerId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(businessCustomerUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateBusinessCustomerMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBusinessCustomer>>, TError,{customerId: number;data: BodyType<BusinessCustomerUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBusinessCustomer>>, TError,{customerId: number;data: BodyType<BusinessCustomerUpdate>}, TContext> => {
+
+const mutationKey = ['updateBusinessCustomer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBusinessCustomer>>, {customerId: number;data: BodyType<BusinessCustomerUpdate>}> = (props) => {
+          const {customerId,data} = props ?? {};
+
+          return  updateBusinessCustomer(customerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBusinessCustomerMutationResult = NonNullable<Awaited<ReturnType<typeof updateBusinessCustomer>>>
+    export type UpdateBusinessCustomerMutationBody = BodyType<BusinessCustomerUpdate>
+    export type UpdateBusinessCustomerMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a business customer
+ */
+export const useUpdateBusinessCustomer = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBusinessCustomer>>, TError,{customerId: number;data: BodyType<BusinessCustomerUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBusinessCustomer>>,
+        TError,
+        {customerId: number;data: BodyType<BusinessCustomerUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateBusinessCustomerMutationOptions(options));
+    }
 
 export const getListFollowUpsUrl = () => {
 

@@ -71,7 +71,7 @@ export default function VideoTemplate() {
               <img alt="Construct Lifecycle" src={`${import.meta.env.BASE_URL}Construct_Lifecycle_icon.png`} />
             </span>
             <div>
-              <div className="brand-name">Construct LC</div>
+              <div className="brand-name">Construct Lifecycle</div>
               <div className="brand-kicker">construction lifecycle platform</div>
             </div>
           </div>

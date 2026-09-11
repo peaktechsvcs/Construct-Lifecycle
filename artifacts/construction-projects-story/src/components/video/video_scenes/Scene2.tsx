@@ -8,7 +8,7 @@ export function Scene2() {
       <SceneLayout layout="stack" style={{ justifyContent: 'flex-start' }}>
         <motion.div className="scene-index" initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .5, delay: .16 }}>02 / proposal</motion.div>
         <div style={{ marginTop: '8.5vmin' }}>
-          <motion.p className="scene-kicker" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45, delay: .28 }}>Construct LC · bids</motion.p>
+          <motion.p className="scene-kicker" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45, delay: .28 }}>Construct Lifecycle · bids</motion.p>
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .78, delay: .42, ease: [0.16, 1, .3, 1] }}>
             <VideoText as="h1" scale="display" className="scene-title">Scope it.<br /><em>Show it.</em></VideoText>
           </motion.div>

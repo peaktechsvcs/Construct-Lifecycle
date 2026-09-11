@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: projects
     description: Project lifecycle operations
+  - name: customers
+    description: Business customer records and project relationships
   - name: dashboard
     description: Dashboard summaries
   - name: follow-ups
@@ -142,6 +144,77 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Activity"
+  /customers:
+    get:
+      operationId: listBusinessCustomers
+      tags: [customers]
+      summary: List business customers in the active workspace
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 100 }
+        - in: query
+          name: includeArchived
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Business customers
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BusinessCustomerSummary" }
+    post:
+      operationId: createBusinessCustomer
+      tags: [customers]
+      summary: Create a business customer in the active workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BusinessCustomerInput" }
+      responses:
+        "201":
+          description: Business customer created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessCustomer" }
+        "403": { description: Customer creation permission required }
+        "409": { description: A customer with the same normalized name already exists }
+  /customers/{customerId}:
+    get:
+      operationId: getBusinessCustomer
+      tags: [customers]
+      summary: Get a business customer and its projects
+      parameters:
+        - $ref: "#/components/parameters/CustomerId"
+      responses:
+        "200":
+          description: Business customer detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessCustomer" }
+        "404": { description: Business customer not found }
+    patch:
+      operationId: updateBusinessCustomer
+      tags: [customers]
+      summary: Update a business customer
+      parameters:
+        - $ref: "#/components/parameters/CustomerId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BusinessCustomerUpdate" }
+      responses:
+        "200":
+          description: Updated business customer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessCustomer" }
+        "403": { description: Customer management permission required }
+        "404": { description: Business customer not found }
+        "409": { description: A customer with the same normalized name already exists }
   /follow-ups:
     get:
       operationId: listFollowUps
@@ -632,6 +705,12 @@ components:
       required: true
       schema:
         type: integer
+    CustomerId:
+      in: path
+      name: customerId
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
@@ -692,6 +771,11 @@ components:
         id: { type: integer }
         environmentId: { type: integer }
         projectNumber: { type: string }
+        businessCustomerId: { type: ["integer", "null"] }
+        businessCustomer:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessCustomerSummary"
+            - type: "null"
         customerName: { type: string }
         projectName: { type: string }
         address: { type: ["string", "null"] }
@@ -722,10 +806,15 @@ components:
         updatedAt: { type: string, format: date-time }
     ProjectInput:
       type: object
-      required: [customerName, projectName, category]
+      required: [projectName, category]
       properties:
         environmentId: { type: integer, minimum: 1 }
-        customerName: { type: string, minLength: 1 }
+        businessCustomerId: { type: ["integer", "null"], minimum: 1 }
+        newCustomer:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessCustomerInput"
+            - type: "null"
+        customerName: { type: string, minLength: 1, description: Legacy display value; server derives this from the business customer. }
         projectName: { type: string, minLength: 1 }
         address: { type: string }
         category: { type: string }
@@ -751,6 +840,61 @@ components:
         closeoutStatus: { $ref: "#/components/schemas/CloseoutStatus" }
         closeoutDetails: { type: string }
         nextFollowUp: { type: string, format: date }
+    BusinessCustomerStatus:
+      type: string
+      enum: [active, archived]
+    BusinessCustomerSummary:
+      type: object
+      required: [id, companyName, customerType, status, projectCount]
+      properties:
+        id: { type: integer }
+        companyName: { type: string }
+        customerType: { type: string }
+        status: { $ref: "#/components/schemas/BusinessCustomerStatus" }
+        projectCount: { type: integer }
+    BusinessCustomerProject:
+      type: object
+      required: [id, projectNumber, projectName, stage, contractValue, updatedAt]
+      properties:
+        id: { type: integer }
+        projectNumber: { type: string }
+        projectName: { type: string }
+        customerName: { type: string }
+        stage: { $ref: "#/components/schemas/ProjectStage" }
+        contractValue: { type: number }
+        updatedAt: { type: string, format: date-time }
+    BusinessCustomer:
+      allOf:
+        - $ref: "#/components/schemas/BusinessCustomerSummary"
+        - type: object
+          required: [primaryContact, email, phone, createdAt, updatedAt, projects]
+          properties:
+            primaryContact: { type: ["string", "null"] }
+            email: { type: ["string", "null"], format: email }
+            phone: { type: ["string", "null"] }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            projects:
+              type: array
+              items: { $ref: "#/components/schemas/BusinessCustomerProject" }
+    BusinessCustomerInput:
+      type: object
+      required: [companyName]
+      properties:
+        companyName: { type: string, minLength: 1, maxLength: 160 }
+        customerType: { type: string, maxLength: 40 }
+        primaryContact: { type: string, maxLength: 120 }
+        email: { type: string, format: email }
+        phone: { type: string, maxLength: 40 }
+    BusinessCustomerUpdate:
+      type: object
+      properties:
+        companyName: { type: string, minLength: 1, maxLength: 160 }
+        customerType: { type: string, maxLength: 40 }
+        primaryContact: { type: string, maxLength: 120 }
+        email: { type: ["string", "null"], format: email }
+        phone: { type: ["string", "null"], maxLength: 40 }
+        status: { $ref: "#/components/schemas/BusinessCustomerStatus" }
     ProjectUpdate:
       allOf:
         - $ref: "#/components/schemas/ProjectInput"

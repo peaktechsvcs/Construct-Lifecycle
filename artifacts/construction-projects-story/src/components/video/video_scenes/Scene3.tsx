@@ -8,7 +8,7 @@ export function Scene3() {
       <SceneLayout layout="stack" style={{ justifyContent: 'flex-start' }}>
         <motion.div className="scene-index" initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .5, delay: .15 }}>03 / handoff</motion.div>
         <div style={{ marginTop: '8.5vmin' }}>
-          <motion.p className="scene-kicker" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45, delay: .25 }}>Construct LC · contracts + deliveries</motion.p>
+          <motion.p className="scene-kicker" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45, delay: .25 }}>Construct Lifecycle · contracts + deliveries</motion.p>
           <motion.div initial={{ opacity: 0, y: 28, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: .82, delay: .4, ease: [0.16, 1, .3, 1] }}>
             <VideoText as="h1" scale="display" className="scene-title">From <em>yes</em><br />to on-site.</VideoText>
           </motion.div>
