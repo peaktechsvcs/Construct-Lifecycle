@@ -1,3 +1,4 @@
 - [Date boundary normalization](date-boundary.md) — convert generated OpenAPI date inputs to YYYY-MM-DD before Drizzle date writes.
 - [Construct Lifecycle design direction](construct-lifecycle-design-direction.md) — approved compact operational UI with vivid blue, navy, amber, Inter, and DM Mono.
 - [Customer environment model](customer-environment-model.md) — each customer owns Production plus one combined D/T/D; hybrid release approvals govern promotion.
+- [Dependency audit resolution](dependency-audit-resolution.md) — use mature patched transitive versions and never bypass the workspace package-age safeguard.
