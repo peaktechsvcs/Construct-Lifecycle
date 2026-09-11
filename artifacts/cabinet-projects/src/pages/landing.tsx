@@ -6,7 +6,7 @@ export function LandingPage() {
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-background p-4 text-center">
       <div className="animate-rise max-w-md">
         <img 
-          src={`${basePath}/logo-full.png`} 
+          src={`${basePath}/logo-full-slogan.svg`} 
           alt="Construct Lifecycle — From Bid to Closeout"
           className="mx-auto mb-8 h-20 object-contain drop-shadow-sm" 
         />
