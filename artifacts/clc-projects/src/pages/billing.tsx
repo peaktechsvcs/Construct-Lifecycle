@@ -1,74 +1,29 @@
-import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, CreditCard, ExternalLink, FileText, RotateCcw, ShieldCheck, X } from 'lucide-react';
+import { CreditCard, ExternalLink, FileText, RotateCcw, ShieldCheck, X } from 'lucide-react';
 import {
   getGetBillingQueryKey,
   getListBillingInvoicesQueryKey,
   useCancelBillingSubscription,
-  useCreateBillingCheckout,
   useCreateBillingPortal,
   useGetBilling,
   useListBillingInvoices,
   useReactivateBillingSubscription,
-  type BillingPlan,
-  type BillingPrice,
 } from '@workspace/api-client-react';
 import { Badge, Button, EmptyState, ErrorPanel, LoadingPanel, PageTitle } from '@/components/app-ui';
+import { StripePricingTable } from '@/components/stripe-pricing-table';
+import { useTenant } from '@/providers/tenant-provider';
 
 const money = (amount: number | null | undefined, currency = 'usd') =>
   amount == null ? 'Contact us' : new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount / 100);
 
-function interval(price: BillingPrice) {
-  return String((price.recurring as { interval?: string } | null | undefined)?.interval ?? '');
-}
-
-function PriceCard({ plan, selectedPriceId, onSelect }: { plan: BillingPlan; selectedPriceId: string | null; onSelect: (priceId: string) => void }) {
-  const prices = plan.prices.filter((price) => price.active && price.type === 'recurring');
-  const monthly = prices.find((price) => interval(price) === 'month');
-  const annual = prices.find((price) => interval(price) === 'year');
-  const selected = selectedPriceId && prices.find((price) => price.id === selectedPriceId);
-  const entitlements = Object.entries(plan.entitlements).filter(([, value]) => Boolean(value));
-
-  return (
-    <article className={`flex h-full flex-col rounded-xl border p-5 ${selected ? 'border-primary bg-primary/[0.04]' : 'border-border bg-card'}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-base font-bold">{plan.name}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{plan.description || 'A clear operating baseline for your team.'}</p>
-        </div>
-        {selected && <Badge tone="teal">Selected</Badge>}
-      </div>
-      <div className="mt-5 grid grid-cols-2 gap-2">
-        {[monthly, annual].filter(Boolean).map((price) => (
-          <button
-            type="button"
-            key={price!.id}
-            onClick={() => onSelect(price!.id)}
-            className={`rounded-lg border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedPriceId === price!.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background hover:border-primary/60'}`}
-          >
-            <span className="block text-[10px] font-bold uppercase tracking-[.1em] opacity-75">{interval(price!) === 'year' ? 'Annual' : 'Monthly'}</span>
-            <span className="mt-1 block text-lg font-bold">{money(price!.unitAmount, price!.currency)}</span>
-          </button>
-        ))}
-      </div>
-      {entitlements.length > 0 && (
-        <ul className="mt-5 flex-1 space-y-2 border-t border-border pt-4">
-          {entitlements.map(([key]) => <li key={key} className="flex items-center gap-2 text-xs text-muted-foreground"><Check size={14} className="text-status-success" /> {key.replace(/[._-]/g, ' ')}</li>)}
-        </ul>
-      )}
-    </article>
-  );
-}
-
 export function BillingAdmin() {
   const qc = useQueryClient();
+  const { activeTenant } = useTenant();
   const billing = useGetBilling({ query: { queryKey: getGetBillingQueryKey(), retry: false } });
   const invoices = useListBillingInvoices({ query: { queryKey: getListBillingInvoicesQueryKey(), retry: false } });
-  const checkout = useCreateBillingCheckout();
   const portal = useCreateBillingPortal();
   const cancel = useCancelBillingSubscription();
   const reactivate = useReactivateBillingSubscription();
-  const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
 
   if (billing.isLoading) return <LoadingPanel lines={7} />;
   if (billing.isError || !billing.data) return <ErrorPanel onRetry={() => billing.refetch()} />;
@@ -76,16 +31,6 @@ export function BillingAdmin() {
   const account = billing.data.billing;
   const subscription = account?.subscription;
   const refresh = () => qc.invalidateQueries({ queryKey: getGetBillingQueryKey() });
-  const startCheckout = () => {
-    if (!selectedPriceId) return;
-    checkout.mutate({
-      data: {
-        priceId: selectedPriceId,
-        successUrl: `${window.location.origin}${import.meta.env.BASE_URL}settings/billing?checkout=success`,
-        cancelUrl: `${window.location.origin}${import.meta.env.BASE_URL}settings/billing?checkout=cancelled`,
-      },
-    }, { onSuccess: (result) => { if (result.url) window.location.assign(result.url); } });
-  };
   const openPortal = () => portal.mutate({
     data: { returnUrl: `${window.location.origin}${import.meta.env.BASE_URL}settings/billing` },
   }, { onSuccess: (result) => { if (result.url) window.location.assign(result.url); } });
@@ -95,7 +40,7 @@ export function BillingAdmin() {
       <PageTitle
         eyebrow="Settings / Billing"
         title="Subscription & Billing"
-        description="Manage the Construct Lifecycle plan for this workspace. Payment details stay with Stripe."
+        description="Manage the Construct Lifecycle plan for this workspace. Stripe hosts subscription selection and payment details."
         action={<Button variant="outline" onClick={openPortal} disabled={portal.isPending}><ExternalLink size={15} /> {portal.isPending ? 'Opening…' : 'Open billing portal'}</Button>}
       />
 
@@ -104,25 +49,15 @@ export function BillingAdmin() {
           <section className="rounded-xl border border-border bg-card p-5">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <p className="mono text-[10px] uppercase tracking-[.14em] text-accent">Plan catalog</p>
-                <h2 className="mt-1 text-lg font-bold">Choose the right operating level</h2>
+                <p className="mono text-[10px] uppercase tracking-[.14em] text-accent">Stripe Pricing Table</p>
+                <h2 className="mt-1 text-lg font-bold">{subscription ? 'Review available plans' : 'Choose the right operating level'}</h2>
               </div>
               {subscription && <Badge tone={subscription.status === 'active' || subscription.status === 'trialing' ? 'green' : 'orange'}>{subscription.status || 'unknown'}</Badge>}
             </div>
-            {billing.data.plans.filter((plan) => plan.active).length === 0 ? (
-              <EmptyState icon={CreditCard} title="Plans are being prepared" text="A platform administrator needs to publish a plan before checkout is available." />
-            ) : (
-              <>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {billing.data.plans.filter((plan) => plan.active).map((plan) => <PriceCard key={plan.productId} plan={plan} selectedPriceId={selectedPriceId} onSelect={setSelectedPriceId} />)}
-                </div>
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
-                  <p className="text-xs text-muted-foreground">{selectedPriceId ? 'Ready to continue with the selected price.' : 'Select a billing frequency to continue.'}</p>
-                  <Button onClick={startCheckout} disabled={!selectedPriceId || checkout.isPending}>{checkout.isPending ? 'Preparing checkout…' : 'Continue to secure checkout'}</Button>
-                </div>
-                {checkout.isError && <p role="alert" className="mt-3 text-xs text-destructive">Checkout could not be started. Try again or open the billing portal.</p>}
-              </>
-            )}
+            <StripePricingTable clientReferenceId={activeTenant?.id ? String(activeTenant.id) : undefined} />
+            <p className="mt-4 text-xs leading-5 text-muted-foreground">
+              Stripe handles plan selection and checkout. A successful browser return does not activate entitlements until the verified Stripe webhook is processed.
+            </p>
           </section>
 
           <section className="rounded-xl border border-border bg-card p-5">

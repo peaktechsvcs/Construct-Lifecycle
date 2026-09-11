@@ -29,6 +29,14 @@ if (!basePath) {
 
 export default defineConfig({
   base: basePath,
+  define: {
+    'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY': JSON.stringify(
+      process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? process.env.STRIPE_PUBLISHABLE_KEY ?? '',
+    ),
+    'import.meta.env.VITE_STRIPE_PRICING_TABLE_ID': JSON.stringify(
+      process.env.VITE_STRIPE_PRICING_TABLE_ID ?? process.env.STRIPE_PRICING_TABLE_ID ?? '',
+    ),
+  },
   plugins: [
     react(),
     tailwindcss({ optimize: false }),

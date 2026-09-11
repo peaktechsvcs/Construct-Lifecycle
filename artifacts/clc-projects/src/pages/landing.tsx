@@ -30,6 +30,12 @@ export function LandingPage() {
             Create an Account
           </Link>
         </div>
+        <Link
+          href="/pricing"
+          className="mt-5 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          View plans and pricing
+        </Link>
       </div>
     </div>
   );

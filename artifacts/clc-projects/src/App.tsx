@@ -23,6 +23,7 @@ import { PlatformCustomers } from '@/pages/platform-customers';
 import { AcceptInvitation } from '@/pages/accept-invitation';
 import { ComingSoonPage } from '@/pages/coming-soon';
 import { SettingsPage } from '@/pages/settings';
+import { PricingCanceledPage, PricingPage, PricingSuccessPage } from '@/pages/pricing';
 
 const queryClient = new QueryClient();
 
@@ -180,6 +181,10 @@ function AppRouter() {
         <Route path="/" component={HomeRedirect} />
         <Route path="/sign-in/*?" component={SignInPage} />
         <Route path="/sign-up/*?" component={SignUpPage} />
+        <Route path="/pricing" component={PricingPage} />
+        <Route path="/subscribe" component={PricingPage} />
+        <Route path="/pricing/success" component={PricingSuccessPage} />
+        <Route path="/pricing/canceled" component={PricingCanceledPage} />
 
         {/* Protected Routes inside Shell */}
         <Route path="/overview">
