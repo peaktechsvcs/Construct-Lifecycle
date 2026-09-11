@@ -21,40 +21,44 @@ const jsonObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
 async function readPlans() {
-  const result = await db.execute(sql`
-    select
-      p.id as "productId",
-      p.name,
-      p.description,
-      p.active,
-      p.metadata,
-      coalesce(json_agg(json_build_object(
-        'id', pr.id,
-        'active', pr.active,
-        'currency', pr.currency,
-        'unitAmount', pr.unit_amount,
-        'type', pr.type,
-        'recurring', pr.recurring,
-        'nickname', pr.nickname
-      ) order by pr.unit_amount nulls last) filter (where pr.id is not null), '[]'::json) as prices
-    from stripe.products p
-    left join stripe.prices pr on pr.product = p.id
-    group by p.id
-    order by p.active desc, p.name asc
-  `);
-  const syncedPlans = result.rows.map((row) => {
-    const metadata = jsonObject(row.metadata);
-    return {
-      productId: String(row.productId),
-      name: String(row.name ?? "Untitled plan"),
-      description: row.description ? String(row.description) : null,
-      active: Boolean(row.active),
-      entitlements: metadata.entitlements ? JSON.parse(String(metadata.entitlements)) : {},
-      limits: metadata.limits ? JSON.parse(String(metadata.limits)) : {},
-      prices: row.prices ?? [],
-    };
-  });
-  if (syncedPlans.length > 0) return syncedPlans;
+  try {
+    const result = await db.execute(sql`
+      select
+        p.id as "productId",
+        p.name,
+        p.description,
+        p.active,
+        p.metadata,
+        coalesce(json_agg(json_build_object(
+          'id', pr.id,
+          'active', pr.active,
+          'currency', pr.currency,
+          'unitAmount', pr.unit_amount,
+          'type', pr.type,
+          'recurring', pr.recurring,
+          'nickname', pr.nickname
+        ) order by pr.unit_amount nulls last) filter (where pr.id is not null), '[]'::json) as prices
+      from stripe.products p
+      left join stripe.prices pr on pr.product = p.id
+      group by p.id
+      order by p.active desc, p.name asc
+    `);
+    const syncedPlans = result.rows.map((row) => {
+      const metadata = jsonObject(row.metadata);
+      return {
+        productId: String(row.productId),
+        name: String(row.name ?? "Untitled plan"),
+        description: row.description ? String(row.description) : null,
+        active: Boolean(row.active),
+        entitlements: metadata.entitlements ? JSON.parse(String(metadata.entitlements)) : {},
+        limits: metadata.limits ? JSON.parse(String(metadata.limits)) : {},
+        prices: row.prices ?? [],
+      };
+    });
+    if (syncedPlans.length > 0) return syncedPlans;
+  } catch {
+    console.warn("[stripe] synced plans unavailable; using connector proxy", { operation: "readPlans" });
+  }
 
   const stripe = getUncachableStripeClient();
   const [products, prices] = await Promise.all([
@@ -104,42 +108,49 @@ async function readBillingAccount(tenantId: number) {
     .where(eq(tenantBillingAccountsTable.tenantId, tenantId)).limit(1);
   if (!account) return null;
 
-  const result = await db.execute(sql`
-    select
-      c.id as "customerId",
-      c.email,
-      c.name,
-      c.delinquent,
-      (
-        select json_build_object(
-          'id', s.id,
-          'status', s.status,
-          'priceId', (s.items->'data'->0->'price'->>'id'),
-          'currentPeriodEnd', s.current_period_end,
-          'currentPeriodStart', s.current_period_start,
-          'cancelAtPeriodEnd', s.cancel_at_period_end,
-          'trialEnd', s.trial_end
-        )
-        from stripe.subscriptions s
-        where s.customer = c.id
-          and s.status not in ('canceled', 'incomplete_expired')
-        order by s.created desc
-        limit 1
-      ) as subscription,
-      (
-        select json_build_object('brand', pm.card->>'brand', 'last4', pm.card->>'last4', 'expMonth', pm.card->>'exp_month', 'expYear', pm.card->>'exp_year')
-        from stripe.payment_methods pm
-        where pm.customer = c.id and pm.type = 'card'
-        order by pm.created desc
-        limit 1
-      ) as "paymentMethod"
-    from stripe.customers c
-    where c.id = ${account.externalCustomerId}
-    limit 1
-  `);
-  let row = result.rows[0] as Row | undefined;
+  let row: Row | undefined;
   let directSubscription: unknown = row?.subscription ?? null;
   let directPaymentMethod: unknown = row?.paymentMethod ?? null;
+  try {
+    const result = await db.execute(sql`
+      select
+        c.id as "customerId",
+        c.email,
+        c.name,
+        c.delinquent,
+        (
+          select json_build_object(
+            'id', s.id,
+            'status', s.status,
+            'priceId', (s.items->'data'->0->'price'->>'id'),
+            'currentPeriodEnd', s.current_period_end,
+            'currentPeriodStart', s.current_period_start,
+            'cancelAtPeriodEnd', s.cancel_at_period_end,
+            'trialEnd', s.trial_end
+          )
+          from stripe.subscriptions s
+          where s.customer = c.id
+            and s.status not in ('canceled', 'incomplete_expired')
+          order by s.created desc
+          limit 1
+        ) as subscription,
+        (
+          select json_build_object('brand', pm.card->>'brand', 'last4', pm.card->>'last4', 'expMonth', pm.card->>'exp_month', 'expYear', pm.card->>'exp_year')
+          from stripe.payment_methods pm
+          where pm.customer = c.id and pm.type = 'card'
+          order by pm.created desc
+          limit 1
+        ) as "paymentMethod"
+      from stripe.customers c
+      where c.id = ${account.externalCustomerId}
+      limit 1
+    `);
+    row = result.rows[0] as Row | undefined;
+    directSubscription = row?.subscription ?? null;
+    directPaymentMethod = row?.paymentMethod ?? null;
+  } catch {
+    console.warn("[stripe] synced billing account unavailable; using connector proxy", { operation: "readBillingAccount" });
+  }
   if (!row) {
     const stripe = getUncachableStripeClient();
     const [customer, subscriptions, paymentMethods] = await Promise.all([
