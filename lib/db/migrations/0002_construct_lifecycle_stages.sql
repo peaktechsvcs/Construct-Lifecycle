@@ -1,4 +1,4 @@
--- Normalize the legacy project stage values into Construct LC's eight-stage lifecycle.
+-- Normalize the legacy project stage values into Construct Lifecycle's eight-stage lifecycle.
 -- This migration is additive and preserves every project record.
 UPDATE projects
 SET stage = CASE stage
