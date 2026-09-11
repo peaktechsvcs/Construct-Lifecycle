@@ -103,7 +103,7 @@ function SignInPage() {
     sessionStorage.removeItem(AUTH_RETURN_KEY);
   }, []);
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 bg-[url('/grid-pattern.svg')]">
+    <div className="auth-grid flex min-h-[100dvh] items-center justify-center bg-background px-4">
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} fallbackRedirectUrl={fallbackRedirectUrl} />
     </div>
   );
@@ -117,7 +117,7 @@ function SignUpPage() {
     sessionStorage.removeItem(AUTH_RETURN_KEY);
   }, []);
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 bg-[url('/grid-pattern.svg')]">
+    <div className="auth-grid flex min-h-[100dvh] items-center justify-center bg-background px-4">
       <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} fallbackRedirectUrl={fallbackRedirectUrl} />
     </div>
   );
