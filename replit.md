@@ -22,7 +22,7 @@ Construct Lifecycle — The Construction Lifecycle Platform is a responsive, mul
 
 ## Where things live
 
-- `artifacts/cabinet-projects` — Construct Lifecycle responsive React/Vite application
+- Construct Lifecycle responsive React/Vite application
 - `artifacts/api-server/src/routes/projects.ts` — tenant-scoped project, activity, follow-up, and dashboard routes
 - `artifacts/api-server/src/routes/tenant.ts` — active workspace and branding lifecycle routes
 - `artifacts/api-server/src/middlewares/tenantContext.ts` — authenticated user and tenant authorization boundary

@@ -12,10 +12,10 @@ paths = [ "/" ]
 localPort = 25539
 
 [services.development]
-run = "pnpm --filter @workspace/cabinet-projects run dev"
+run = "pnpm --filter @workspace/clc-projects run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/cabinet-projects", "run", "build" ]
+build = [ "pnpm", "--filter", "@workspace/clc-projects", "run", "build" ]
 serve = "static"
 publicDir = "artifacts/cabinet-projects/dist/public"
 
