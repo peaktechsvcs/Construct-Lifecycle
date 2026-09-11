@@ -312,7 +312,7 @@ export function Shell({ children }: { children: ReactNode }) {
                   {activeTenant?.name || 'Construct Lifecycle'}
                 </span>
                 <span className="mono block text-[9px] uppercase tracking-[.2em] text-sidebar-foreground/55">
-                   Construction Lifecycle
+                   From Bid to Closeout
                 </span>
               </div>
             </Link>
