@@ -4,3 +4,4 @@ export * from "./tenants";
 export * from "./integrations";
 export * from "./platform";
 export * from "./billing";
+export * from "./workflows";

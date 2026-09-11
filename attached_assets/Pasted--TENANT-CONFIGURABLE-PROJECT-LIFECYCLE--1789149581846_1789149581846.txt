@@ -1,0 +1,1728 @@
+============================================================
+TENANT-CONFIGURABLE PROJECT LIFECYCLE & WORKFLOWS
+============================================================
+
+Add customer/tenant-level configuration for:
+
+- Project lifecycle states
+- Project statuses
+- Lifecycle naming
+- Lifecycle ordering
+- Allowed state transitions
+- Workflow rules
+- Required actions before transition
+- Role-based transition permissions
+- Automation triggers
+- Workflow templates
+
+This must be configurable independently for each Construct Lifecycle software customer / tenant.
+
+Do NOT hard-code one lifecycle for every customer.
+
+============================================================
+CORE PRINCIPLE
+============================================================
+
+Construct Lifecycle must provide a strong default project lifecycle, while allowing each software customer to customize how their organization operates.
+
+Default Construct Lifecycle lifecycle:
+
+Lead
+→ Proposal
+→ Awarded
+→ Contracted
+→ Pre-Construction
+→ In Progress
+→ Billing
+→ Closeout
+
+This remains the default template.
+
+However, each tenant may:
+
+- Rename states
+- Add states
+- Remove unused states
+- Reorder states
+- Archive states
+- Create secondary statuses
+- Configure allowed transitions
+- Define workflow rules
+- Define automation actions
+- Create multiple workflow templates where permitted
+
+Do NOT require every customer to use the exact default terminology.
+
+============================================================
+TENANT OWNERSHIP
+============================================================
+
+Lifecycle configuration belongs to:
+
+tenant_id
+
+and where appropriate:
+
+environment_id
+
+Conceptually:
+
+Software Customer / Tenant
+    ↓
+Lifecycle Configuration
+    ↓
+Lifecycle States
+    ↓
+Statuses
+    ↓
+Transitions
+    ↓
+Workflow Rules
+    ↓
+Projects
+
+Example:
+
+Northline Supply
+    ↓
+Project Lifecycle
+    ↓
+Lead
+Proposal
+Awarded
+Contracted
+Pre-Construction
+In Progress
+Billing
+Closeout
+
+Another tenant may use:
+
+Opportunity
+Estimate
+Approved
+Procurement
+Installation
+Billing
+Completed
+
+Both must work without changing core Construct Lifecycle code.
+
+============================================================
+LIFECYCLE CONFIGURATION UI
+============================================================
+
+Provide an authorized tenant administration area such as:
+
+Administration
+→ Project Configuration
+→ Lifecycle & Workflows
+
+or:
+
+Administration
+→ Projects
+→ Lifecycle & Workflows
+
+Use terminology consistent with the existing Construct Lifecycle administration structure.
+
+Do not add unnecessary top-level navigation.
+
+============================================================
+LIFECYCLE STATES
+============================================================
+
+Allow authorized tenant administrators to manage lifecycle states.
+
+For each state support:
+
+- Name
+- Internal stable ID / key
+- Display order
+- Description
+- Active / Archived
+- Color / semantic appearance where allowed
+- Category
+- Terminal state flag
+- Whether projects may enter manually
+- Whether projects may leave manually
+- Default status
+- Required fields
+- Allowed transitions
+
+Example:
+
+State Name:
+Pre-Construction
+
+Description:
+Selections, approvals, submittals, procurement planning, and project preparation before field execution.
+
+Order:
+5
+
+Active:
+YES
+
+============================================================
+STABLE IDS — DO NOT USE DISPLAY NAME AS KEY
+============================================================
+
+Lifecycle states must use stable internal identifiers.
+
+Example:
+
+state_id:
+lc_state_12345
+
+Display Name:
+Pre-Construction
+
+If customer renames it to:
+
+Project Preparation
+
+the internal state ID remains unchanged.
+
+Do NOT use:
+
+"Pre-Construction"
+
+as the permanent data relationship key.
+
+This is essential for:
+
+- Historical projects
+- Reporting
+- Integrations
+- Audit logs
+- Workflow rules
+- API references
+
+============================================================
+RENAME LIFECYCLE STATE
+============================================================
+
+Tenant administrators must be able to rename lifecycle states.
+
+Example:
+
+Default:
+Proposal
+
+Customer changes to:
+Bid Submitted
+
+Projects currently in that state should display:
+
+Bid Submitted
+
+Historical audit should record the rename.
+
+Do not change state identity merely because the label changed.
+
+============================================================
+ADD LIFECYCLE STATE
+============================================================
+
+Allow authorized tenant admins to add a new state.
+
+Example:
+
+Add State:
+
+Submittals
+
+Place between:
+
+Contracted
+and
+Pre-Construction
+
+Result:
+
+Lead
+→ Proposal
+→ Awarded
+→ Contracted
+→ Submittals
+→ Pre-Construction
+→ In Progress
+→ Billing
+→ Closeout
+
+New state must immediately become available according to configured workflow rules.
+
+============================================================
+REORDER STATES
+============================================================
+
+Allow drag-and-drop or explicit ordering.
+
+Example:
+
+Current:
+
+Awarded
+Contracted
+Pre-Construction
+
+Customer changes to:
+
+Awarded
+Pre-Construction
+Contracted
+
+Warn if reordering could affect:
+
+- Existing workflow transitions
+- Automations
+- Reports
+- Integration mappings
+
+Do not silently rewrite workflow behavior merely because visual order changes.
+
+============================================================
+ARCHIVE / REMOVE STATE
+============================================================
+
+Do not permanently delete lifecycle states that are referenced by historical projects.
+
+If a state has been used:
+
+Use:
+
+Archive State
+
+Archived states:
+
+- remain on historical projects
+- remain available in audit/history
+- are excluded from new transitions by default
+- remain reportable historically
+- may be restored
+
+If a state has never been used and has no dependencies, deletion may be allowed with confirmation.
+
+============================================================
+STATE CATEGORY
+============================================================
+
+Support optional normalized lifecycle categories for reporting and cross-tenant analytics.
+
+Example categories:
+
+PRE_SALES
+AWARDED
+CONTRACTED
+PRE_CONSTRUCTION
+EXECUTION
+FINANCIAL
+CLOSEOUT
+COMPLETED
+CANCELED
+
+A tenant-visible state may map to a normalized category.
+
+Example:
+
+Tenant State:
+Bid Submitted
+
+Normalized Category:
+PRE_SALES
+
+Tenant State:
+Field Work
+
+Normalized Category:
+EXECUTION
+
+This allows platform-level logic and reporting without forcing identical customer terminology.
+
+============================================================
+DO NOT CONFUSE STATE WITH STATUS
+============================================================
+
+Maintain a distinction between:
+
+Lifecycle State
+and
+Status
+
+Example:
+
+Lifecycle State:
+Pre-Construction
+
+Possible Statuses:
+
+- Awaiting Start Date
+- Scheduled
+- Submittals Pending
+- Selections Pending
+- Procurement Planning
+- Material Release Pending
+- Ready to Start
+
+Lifecycle State answers:
+
+Where is the project in the lifecycle?
+
+Status answers:
+
+What condition is it currently in within that state?
+
+============================================================
+CUSTOM STATUS MANAGEMENT
+============================================================
+
+Allow tenant admins to:
+
+- Create status
+- Rename status
+- Archive status
+- Reorder status
+- Associate status with one or more lifecycle states
+- Set default status per state
+- Define whether status is required
+
+Example:
+
+State:
+In Progress
+
+Statuses:
+
+Mobilizing
+Active
+Delayed
+Waiting on Material
+Waiting on Customer
+Punch Work
+
+============================================================
+STATUS STABLE IDS
+============================================================
+
+Statuses also require stable internal IDs.
+
+Example:
+
+status_id:
+status_abc123
+
+Display Name:
+Waiting on Material
+
+Renaming must not break:
+
+- project history
+- reporting
+- automations
+- integrations
+
+============================================================
+WORKFLOW TRANSITIONS
+============================================================
+
+Allow tenant admins to define valid state transitions.
+
+Example:
+
+Lead
+→ Proposal
+
+Proposal
+→ Awarded
+
+Proposal
+→ Lost
+
+Awarded
+→ Contracted
+
+Contracted
+→ Pre-Construction
+
+Pre-Construction
+→ In Progress
+
+In Progress
+→ Billing
+
+Billing
+→ Closeout
+
+Closeout
+→ Complete
+
+Transitions may be:
+
+- Forward
+- Backward
+- Conditional
+- Restricted
+- Automated
+
+============================================================
+TRANSITION RULES
+============================================================
+
+Each transition may define rules such as:
+
+From State
+To State
+Allowed Roles
+Required Fields
+Required Documents
+Required Approvals
+Required Financial Condition
+Required Product/Procurement Condition
+Warning Conditions
+Automation Actions
+Confirmation Required
+
+Example:
+
+Transition:
+
+Proposal
+→ Awarded
+
+Requirements:
+
+- Proposal amount entered
+- Customer selected
+- Award date entered
+- User has project.award permission
+
+============================================================
+ROLE-BASED TRANSITION PERMISSIONS
+============================================================
+
+Allow lifecycle transitions to be limited by user role/permission.
+
+Example:
+
+Sales User:
+
+Lead
+→ Proposal
+→ Awarded
+
+Project Manager:
+
+Awarded
+→ Contracted
+→ Pre-Construction
+→ In Progress
+
+Accounting:
+
+In Progress
+→ Billing
+→ Closeout
+
+Customer Admin:
+
+All transitions
+
+Use permission-based enforcement, not only role-name checks.
+
+============================================================
+REQUIRED FIELDS BEFORE TRANSITION
+============================================================
+
+Allow tenant admins to configure required data before a project can enter a state.
+
+Example:
+
+Before moving to Contracted require:
+
+- Contract Value
+- Contract Date
+- Customer
+- Project Manager
+- Contract Document
+
+Before moving to In Progress require:
+
+- Start Date
+- Procurement Status
+- Delivery Plan
+
+Before Closeout require:
+
+- Final Invoice Status
+- Required Documents
+- Punch List Complete
+
+If conditions fail:
+
+Block transition
+and clearly explain what is missing.
+
+============================================================
+TRANSITION WARNINGS VS BLOCKS
+============================================================
+
+Support both:
+
+BLOCKING RULE
+
+and:
+
+WARNING RULE
+
+Example:
+
+Blocking:
+Cannot move to Contracted without Contract Date.
+
+Warning:
+Project has no Target Completion Date.
+
+User may continue through a warning if authorized.
+
+============================================================
+APPROVAL-BASED TRANSITIONS
+============================================================
+
+Architect support for transitions requiring approval.
+
+Example:
+
+Proposal
+→ Awarded
+
+requires:
+
+Sales Manager Approval
+
+or:
+
+Change Order
+Draft
+→ Approved
+
+requires:
+
+Authorized Approver
+
+Conceptual states:
+
+Pending Approval
+Approved
+Rejected
+
+Do not overbuild a universal BPM engine initially, but structure workflows so approvals can be added consistently.
+
+============================================================
+AUTOMATION ON TRANSITION
+============================================================
+
+Allow transitions to trigger actions.
+
+Examples:
+
+When Project enters Awarded:
+
+- Create follow-up
+- Assign project manager
+- Generate task checklist
+- Notify operations
+- Emit domain event
+
+When Project enters Contracted:
+
+- Create procurement tasks
+- Create submittal checklist
+- Trigger external integration
+
+When Project enters Billing:
+
+- Notify accounting
+- Create invoice preparation task
+
+============================================================
+DOMAIN EVENTS
+============================================================
+
+Lifecycle changes should emit domain events.
+
+Examples:
+
+ProjectLifecycleStateChanged
+ProjectStatusChanged
+ProjectEnteredState
+ProjectExitedState
+
+Example payload should reference:
+
+tenant_id
+environment_id
+project_id
+previous_state_id
+new_state_id
+previous_status_id
+new_status_id
+changed_by
+timestamp
+
+Integrations and automations should consume these events.
+
+============================================================
+WORKFLOW ACTION TYPES
+============================================================
+
+Architect workflow actions such as:
+
+- Create Task
+- Create Follow-up
+- Assign User
+- Assign Role
+- Send Notification
+- Require Approval
+- Update Field
+- Set Status
+- Trigger Integration
+- Trigger Webhook
+- Generate Checklist
+- Add Milestone
+- Add Activity Entry
+
+Only implement action types currently supported by the application.
+
+Do not create nonfunctional UI for future actions.
+
+============================================================
+WORKFLOW CONDITIONS
+============================================================
+
+Architect conditions such as:
+
+Project Value
+Customer Type
+Project Type
+Product Category
+Lifecycle State
+Status
+Owner
+Date
+Contract Status
+Invoice Status
+Payment Status
+Delivery Status
+Change Order Status
+Custom Field
+
+Examples:
+
+IF:
+
+Project Value > $500,000
+
+THEN:
+
+Require executive approval before Awarded → Contracted.
+
+IF:
+
+Customer Type = Homebuilder
+
+THEN:
+
+Create Selection Approval task when entering Pre-Construction.
+
+============================================================
+MULTIPLE PROJECT WORKFLOWS
+============================================================
+
+Architect support for multiple lifecycle/workflow templates per tenant.
+
+Example:
+
+Workflow Templates:
+
+Standard Material Supply
+Flooring Project
+Lighting Project
+Cabinet Project
+Installation Project
+Design Services
+
+Each Project may reference:
+
+workflow_template_id
+
+Do not require multiple workflows in the first implementation if it materially increases complexity.
+
+However, design the schema so the tenant is not permanently limited to one lifecycle.
+
+============================================================
+DEFAULT WORKFLOW TEMPLATE
+============================================================
+
+Each tenant should have one default workflow.
+
+New Projects use:
+
+Default Project Workflow
+
+unless another workflow is explicitly selected.
+
+Example:
+
+New Project
+
+Customer:
+ABC Homebuilders
+
+Project Type:
+Flooring
+
+Workflow:
+Flooring Project
+
+If workflow selection is not needed initially:
+
+Automatically assign tenant default.
+
+============================================================
+WORKFLOW TEMPLATE STRUCTURE
+============================================================
+
+Conceptual:
+
+workflow_templates
+
+id
+tenant_id
+environment_id or environment policy
+name
+description
+status
+is_default
+version
+created_at
+updated_at
+
+workflow_states
+
+id
+workflow_template_id
+stable_key
+display_name
+normalized_category
+display_order
+active
+terminal
+created_at
+updated_at
+
+workflow_statuses
+
+id
+workflow_template_id
+stable_key
+display_name
+active
+
+workflow_transitions
+
+id
+workflow_template_id
+from_state_id
+to_state_id
+active
+requires_confirmation
+
+workflow_rules
+
+id
+transition_id
+rule_type
+configuration
+severity
+active
+
+workflow_actions
+
+id
+transition_id
+action_type
+configuration
+display_order
+active
+
+============================================================
+WORKFLOW VERSIONING
+============================================================
+
+Do not allow workflow edits to silently change historical project meaning.
+
+Support workflow versioning.
+
+Example:
+
+Standard Project Workflow
+Version 1
+
+Customer edits lifecycle significantly.
+
+Publish:
+
+Version 2
+
+Projects should reference the workflow/version under which they operate.
+
+For simple label changes:
+
+May update current display metadata safely.
+
+For structural changes:
+
+Create a new workflow version where appropriate.
+
+============================================================
+DRAFT → PUBLISH
+============================================================
+
+Workflow configuration should support:
+
+Draft
+→ Validate
+→ Publish
+
+Customer admin should be able to edit workflow configuration without immediately affecting active projects.
+
+Example:
+
+Standard Workflow
+
+Published Version:
+3
+
+Draft Version:
+4
+
+Actions:
+
+Edit Draft
+Validate
+Publish
+Discard Draft
+
+============================================================
+WORKFLOW VALIDATION
+============================================================
+
+Before Publish validate:
+
+- At least one starting state
+- No broken transitions
+- No transition referencing archived/missing state
+- No missing required rule configuration
+- No duplicate display order conflicts
+- No unreachable states unless intentionally allowed
+- No state with invalid default status
+- No circular automation conditions that would create loops
+- No destructive mapping breakage
+
+Show actionable errors.
+
+============================================================
+ACTIVE PROJECT MIGRATION
+============================================================
+
+When a structural workflow change is published, do not automatically remap active projects without a defined policy.
+
+Support options such as:
+
+1. Existing projects remain on current workflow version.
+2. New projects use new version.
+3. Authorized admin explicitly migrates selected projects.
+
+Future migration UI may support:
+
+Old State
+→ New State
+
+Example:
+
+Pre-Construction
+→ Project Preparation
+
+Require review before migration.
+
+============================================================
+NORMALIZED REPORTING
+============================================================
+
+Because tenants may rename lifecycle states, platform reporting should distinguish:
+
+Tenant Display State
+
+from:
+
+Normalized Lifecycle Category
+
+Example:
+
+Tenant A:
+Field Work
+
+Tenant B:
+Construction
+
+Tenant C:
+Execution
+
+All may map to:
+
+EXECUTION
+
+This allows common high-level reporting without forcing identical labels.
+
+============================================================
+DASHBOARD IMPACT
+============================================================
+
+Dashboard Stage Distribution must use the tenant's published lifecycle.
+
+Example:
+
+Northline Supply configured:
+
+Lead
+Bid Submitted
+Awarded
+Planning
+Field Work
+Billing
+Closeout
+
+Stage Distribution must show those labels.
+
+Do not continue showing default Construct Lifecycle labels after the tenant changes them.
+
+============================================================
+PROJECT LIST IMPACT
+============================================================
+
+Project filters must use the active tenant workflow states.
+
+Example:
+
+Filter by Stage:
+
+Lead
+Bid Submitted
+Awarded
+Planning
+Field Work
+Billing
+Closeout
+
+Do not hard-code:
+
+Proposal
+Pre-Construction
+In Progress
+
+if tenant has renamed them.
+
+============================================================
+CUSTOMER DETAIL IMPACT
+============================================================
+
+Customer Detail project counts must also use the tenant workflow configuration.
+
+Example:
+
+ABC Homebuilders
+
+Total Projects: 12
+
+Lead: 2
+Bid Submitted: 3
+Awarded: 1
+Planning: 2
+Field Work: 3
+Billing: 1
+
+Counts must derive from the same workflow definitions used elsewhere.
+
+============================================================
+DRILLDOWN CONSISTENCY
+============================================================
+
+Continue the existing rule:
+
+Summary
+→ Filtered Detail
+→ Project
+→ Back to Prior State
+
+Clicking:
+
+Field Work = 3
+
+must show the exact 3 projects mapped to that lifecycle state.
+
+============================================================
+PROJECT DETAIL IMPACT
+============================================================
+
+The Project lifecycle component must render dynamically from workflow configuration.
+
+Do not hard-code the lifecycle progression.
+
+Example:
+
+Project A:
+
+Lead
+→ Proposal
+→ Awarded
+→ Contracted
+→ Pre-Construction
+→ In Progress
+
+Project B:
+
+Opportunity
+→ Estimate
+→ Approved
+→ Procurement
+→ Installation
+
+Each renders from its assigned workflow template/version.
+
+============================================================
+PROJECT CREATE IMPACT
+============================================================
+
+When creating Project:
+
+Customer
+[ Select or create ]
+
+Project Type
+[ ... ]
+
+Workflow
+[ Default / selected workflow ]
+
+If only one active workflow:
+
+Do not require user selection.
+
+Automatically use tenant default.
+
+============================================================
+ENVIRONMENT ISOLATION
+============================================================
+
+Lifecycle/workflow configuration must respect Construct Lifecycle environments.
+
+Production workflow changes must not be altered by D/T/D editing.
+
+Preferred model:
+
+Tenant owns workflow definitions
++
+Environment owns published/configured version where necessary.
+
+Example:
+
+Production:
+
+Standard Workflow v3
+
+D/T/D:
+
+Standard Workflow v4 Draft
+
+Customer can test v4 in D/T/D before promoting it to Production.
+
+============================================================
+D/T/D WORKFLOW TESTING
+============================================================
+
+Customer should be able to test lifecycle changes in:
+
+Development / Test / Demo
+
+Example:
+
+Production:
+Workflow v3
+
+D/T/D:
+Workflow v4
+
+Test:
+
+- state changes
+- new status values
+- permissions
+- required fields
+- automations
+- integrations
+- dashboards
+- reporting
+
+Then promote validated configuration to Production.
+
+============================================================
+PRODUCTION PROMOTION
+============================================================
+
+Workflow promotion should follow controlled configuration promotion.
+
+Example:
+
+D/T/D Workflow v4
+→ Validate
+→ Approve
+→ Promote to Production
+
+Do not overwrite Production blindly.
+
+Record:
+
+Source version
+Destination
+User
+Timestamp
+Validation result
+
+============================================================
+PERMISSIONS
+============================================================
+
+Create permissions such as:
+
+workflows.view
+workflows.create
+workflows.edit
+workflows.publish
+workflows.archive
+workflows.manage_transitions
+workflows.manage_rules
+workflows.manage_automations
+workflows.promote
+
+Customer Administrator may receive all.
+
+Other users should generally only consume workflows.
+
+============================================================
+CLC ADMIN ACCESS
+============================================================
+
+Authorized CLC Admins should be able to inspect tenant workflow configuration for:
+
+- Support
+- Implementation
+- Troubleshooting
+- Migration assistance
+
+CLC Admin should not casually modify a customer's Production workflow without authorization and audit.
+
+============================================================
+AUDIT
+============================================================
+
+Audit all significant workflow changes.
+
+Examples:
+
+Lifecycle State Created
+Lifecycle State Renamed
+Lifecycle State Archived
+Status Created
+Status Renamed
+Transition Added
+Transition Removed
+Rule Changed
+Automation Added
+Workflow Draft Created
+Workflow Published
+Workflow Promoted
+Project Migrated to Workflow Version
+
+Record:
+
+Tenant
+Environment
+Workflow
+Version
+User
+Timestamp
+Previous Value
+New Value
+
+============================================================
+API SUPPORT
+============================================================
+
+Public API must respect tenant-configured lifecycle.
+
+Example:
+
+GET /api/v1/projects/{id}
+
+returns stable identifiers plus display values:
+
+lifecycle_state_id
+lifecycle_state_key
+lifecycle_state_name
+
+status_id
+status_name
+
+Do not make external integrations depend only on tenant display names.
+
+============================================================
+API TRANSITIONS
+============================================================
+
+Changing lifecycle through API must use the same workflow engine as UI.
+
+Example:
+
+POST or PATCH project lifecycle transition
+
+must validate:
+
+- current state
+- requested destination
+- allowed transition
+- user/application permission
+- required fields
+- workflow rules
+- tenant/environment
+- audit
+
+Do not allow API to bypass workflow restrictions.
+
+============================================================
+INTEGRATION MAPPINGS
+============================================================
+
+External integrations may map provider-specific states to Construct Lifecycle stable workflow IDs.
+
+Example:
+
+Business Central Job Status:
+Open
+
+maps to:
+
+Construct Lifecycle State ID:
+state_execution_001
+
+Do not map primarily by display text.
+
+============================================================
+CUSTOMER BRANDING SEPARATION
+============================================================
+
+Workflow configuration and Customer Branding are separate features.
+
+Changing lifecycle colors/names must not break:
+
+- accessibility
+- environment safety indicators
+- semantic status meaning
+- global platform warnings
+
+============================================================
+SUBSCRIPTION ENTITLEMENT
+============================================================
+
+Lifecycle customization may be subscription-controlled.
+
+Example:
+
+Starter:
+Default workflow only
+
+Professional:
+Custom states/statuses
+
+Enterprise:
+Multiple workflows + advanced automation
+
+However, do not hard-code behavior to plan names.
+
+Use centralized entitlements such as:
+
+custom_lifecycle
+custom_statuses
+workflow_builder
+advanced_workflows
+multiple_workflows
+
+Then apply:
+
+Subscription Plan
++
+CLC Admin Entitlement
++
+User Permission
+
+============================================================
+ACCEPTANCE TEST — RENAME STATE
+============================================================
+
+Tenant:
+
+Northline Supply
+
+Current State:
+
+Proposal
+
+Rename to:
+
+Bid Submitted
+
+Verify:
+
+Existing projects formerly showing Proposal now show Bid Submitted.
+
+Verify:
+
+State ID unchanged.
+
+Verify:
+
+Audit history created.
+
+Verify:
+
+Dashboard and project filters show Bid Submitted.
+
+============================================================
+ACCEPTANCE TEST — ADD STATE
+============================================================
+
+Add:
+
+Submittals
+
+between:
+
+Contracted
+and
+Pre-Construction
+
+Publish workflow.
+
+Verify:
+
+New Projects use updated lifecycle.
+
+Verify:
+
+Project lifecycle component shows Submittals.
+
+Verify:
+
+Stage Distribution includes Submittals.
+
+============================================================
+ACCEPTANCE TEST — STATUS
+============================================================
+
+State:
+
+Pre-Construction
+
+Create statuses:
+
+Selections Pending
+Submittals Pending
+Ready to Start
+
+Set:
+
+Ready to Start
+
+on Project A.
+
+Verify:
+
+Project shows:
+
+Pre-Construction
+Ready to Start
+
+============================================================
+ACCEPTANCE TEST — TRANSITION RULE
+============================================================
+
+Configure:
+
+Contracted
+→ Pre-Construction
+
+Requires:
+
+Contract Date
+Contract Value
+
+Project missing Contract Date.
+
+Attempt transition.
+
+Verify:
+
+Transition blocked.
+
+Display:
+
+Contract Date is required before moving to Pre-Construction.
+
+Add Contract Date.
+
+Retry.
+
+Verify:
+
+Transition succeeds.
+
+============================================================
+ACCEPTANCE TEST — PERMISSION
+============================================================
+
+Sales User may transition:
+
+Lead
+→ Proposal
+
+but may not transition:
+
+Contracted
+→ In Progress
+
+Attempt unauthorized transition.
+
+Verify:
+
+Denied server-side.
+
+============================================================
+ACCEPTANCE TEST — AUTOMATION
+============================================================
+
+Configure:
+
+When project enters Awarded:
+
+Create task:
+"Assign Project Manager"
+
+Move project to Awarded.
+
+Verify:
+
+Task created exactly once.
+
+Verify:
+
+Domain event emitted.
+
+Verify:
+
+Audit entry created.
+
+============================================================
+ACCEPTANCE TEST — TENANT ISOLATION
+============================================================
+
+Tenant A lifecycle:
+
+Lead
+Proposal
+Awarded
+
+Tenant B lifecycle:
+
+Opportunity
+Estimate
+Approved
+
+Verify:
+
+Tenant A sees only its lifecycle.
+
+Tenant B sees only its lifecycle.
+
+No cross-tenant workflow data leakage.
+
+============================================================
+ACCEPTANCE TEST — D/T/D
+============================================================
+
+Production:
+
+Workflow v3
+
+D/T/D:
+
+Workflow v4 Draft
+
+Add new state in D/T/D.
+
+Verify:
+
+Production remains unchanged.
+
+Publish/test in D/T/D.
+
+Promote only after explicit action.
+
+============================================================
+ACCEPTANCE TEST — HISTORICAL STATE
+============================================================
+
+Project exists in archived state:
+
+Design Review
+
+Archive Design Review.
+
+Verify:
+
+Historical Project still shows Design Review.
+
+Verify:
+
+New Projects cannot enter Design Review.
+
+Verify:
+
+Historical reporting still works.
+
+============================================================
+ACCEPTANCE TEST — MULTIPLE WORKFLOWS
+============================================================
+
+If multiple workflow templates are implemented:
+
+Create:
+
+Standard Material Supply
+
+and:
+
+Flooring Project
+
+Create Project A using Standard.
+
+Create Project B using Flooring.
+
+Verify:
+
+Each Project renders its assigned lifecycle.
+
+============================================================
+FINAL ACCEPTANCE CRITERIA
+============================================================
+
+[ ] Tenant/customer can manage lifecycle states.
+
+[ ] Tenant/customer can rename lifecycle states.
+
+[ ] Tenant/customer can add lifecycle states.
+
+[ ] Tenant/customer can reorder lifecycle states.
+
+[ ] Tenant/customer can archive lifecycle states safely.
+
+[ ] Lifecycle states use stable internal IDs.
+
+[ ] Tenant/customer can create/manage statuses.
+
+[ ] Statuses use stable internal IDs.
+
+[ ] State and status are separate concepts.
+
+[ ] Tenant/customer can define allowed transitions.
+
+[ ] Transition permissions are enforced server-side.
+
+[ ] Required fields can block transitions.
+
+[ ] Warning-only rules are supported.
+
+[ ] Transition automation architecture exists.
+
+[ ] Workflow changes emit domain events.
+
+[ ] Dashboard uses tenant lifecycle configuration.
+
+[ ] Customer project counts use tenant lifecycle configuration.
+
+[ ] Project filters use tenant lifecycle configuration.
+
+[ ] Project Detail lifecycle is data-driven.
+
+[ ] API uses stable lifecycle identifiers.
+
+[ ] API cannot bypass workflow rules.
+
+[ ] Integrations map to stable workflow IDs.
+
+[ ] Workflow configuration is tenant isolated.
+
+[ ] Workflow configuration is environment isolated.
+
+[ ] D/T/D can test workflow changes independently.
+
+[ ] Workflow changes are audited.
+
+[ ] Structural changes support versioning.
+
+[ ] Workflow configuration supports Draft → Publish.
+
+[ ] Historical projects remain valid after state/status changes.
+
+[ ] Architecture supports multiple project workflow templates.
+
+[ ] Subscription/entitlement architecture can control advanced workflow functionality.
+
+============================================================
+FINAL RULE
+============================================================
+
+Do not treat the default Construct Lifecycle lifecycle as permanently hard-coded.
+
+The default lifecycle is a STARTING TEMPLATE.
+
+Each Construct Lifecycle software customer must be able to configure the terminology and workflow that matches how that organization actually performs construction work.
+
+The architecture must be:
+
+TENANT-CONFIGURED WORKFLOW
+        ↓
+STABLE LIFECYCLE IDs
+        ↓
+PROJECT STATE + STATUS
+        ↓
+VALIDATED TRANSITIONS
+        ↓
+RULES / APPROVALS / AUTOMATIONS
+        ↓
+DOMAIN EVENTS
+        ↓
+DASHBOARDS / REPORTING / API / INTEGRATIONS
+
+Customer-facing labels may change.
+
+Underlying identifiers, security, data integrity, audit, and integration behavior must remain stable.

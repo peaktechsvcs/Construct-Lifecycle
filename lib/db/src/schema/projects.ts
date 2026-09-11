@@ -52,6 +52,8 @@ export const projectsTable = pgTable("projects", {
   nextFollowUp: date("next_follow_up", { mode: "string" }),
   tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id, { onDelete: "cascade" }),
   environmentId: integer("environment_id").notNull().references(() => environmentsTable.id, { onDelete: "cascade" }),
+  workflowTemplateId: integer("workflow_template_id"),
+  projectStatus: text("project_status"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -61,7 +63,6 @@ export const projectsTable = pgTable("projects", {
 }, (table) => [
    index("projects_tenant_environment_idx").on(table.tenantId, table.environmentId),
    uniqueIndex("projects_tenant_environment_project_number_idx").on(table.tenantId, table.environmentId, table.projectNumber),
-   check("projects_stage_check", sql`${table.stage} in ('opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout')`),
 ]);
 
 export const activityTable = pgTable("project_activity", {
