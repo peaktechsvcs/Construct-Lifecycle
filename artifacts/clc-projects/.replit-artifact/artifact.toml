@@ -1,5 +1,5 @@
 kind = "web"
-previewPath = "/clc-projects/"
+previewPath = "/"
 title = "Construct Lifecycle"
 description = "Construct Lifecycle is a multi-tenant construction lifecycle platform for managing customer bids, contracts, delivery, billing, closeout, and future work from one project-centered workspace."
 version = "1.0.0"
@@ -8,7 +8,7 @@ router = "path"
 
 [[services]]
 name = "web"
-paths = [ "/clc-projects/" ]
+paths = [ "/" ]
 localPort = 22780
 
 [services.development]
@@ -25,4 +25,4 @@ to = "/index.html"
 
 [services.env]
 PORT = "22780"
-BASE_PATH = "/clc-projects/"
+BASE_PATH = "/"

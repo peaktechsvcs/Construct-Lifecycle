@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 683" role="img" aria-labelledby="title desc">
+  <title id="title">Construct Lifecycle — From Bid to Closeout</title>
+  <desc id="desc">Construct Lifecycle logo with the slogan From Bid to Closeout.</desc>
+  <image href="logo-full.png" x="0" y="0" width="1024" height="683" preserveAspectRatio="none"/>
+  <rect x="42" y="386" width="940" height="238" fill="#fff"/>
+  <text x="512" y="478" text-anchor="middle" fill="#09264f" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="700" letter-spacing="1">CONSTRUCT LIFECYCLE</text>
+  <line x1="78" y1="548" x2="186" y2="548" stroke="#6c737a" stroke-width="3"/>
+  <line x1="838" y1="548" x2="946" y2="548" stroke="#6c737a" stroke-width="3"/>
+  <text x="512" y="560" text-anchor="middle" fill="#6c737a" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="600" letter-spacing="4">FROM BID TO CLOSEOUT</text>
+</svg>

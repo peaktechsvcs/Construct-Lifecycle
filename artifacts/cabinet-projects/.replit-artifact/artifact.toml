@@ -1,5 +1,5 @@
 kind = "web"
-previewPath = "/"
+previewPath = "/legacy-cabinet-projects/"
 title = "Construct Lifecycle"
 description = "Construct Lifecycle is a multi-tenant construction lifecycle platform for managing customer bids, contracts, delivery, billing, closeout, and future work from one project-centered workspace."
 version = "1.0.0"
@@ -8,14 +8,14 @@ router = "path"
 
 [[services]]
 name = "web"
-paths = [ "/" ]
+paths = [ "/legacy-cabinet-projects/" ]
 localPort = 25539
 
 [services.development]
-run = "pnpm --filter @workspace/clc-projects run dev"
+run = "pnpm --filter @workspace/cabinet-projects run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/clc-projects", "run", "build" ]
+build = [ "pnpm", "--filter", "@workspace/cabinet-projects", "run", "build" ]
 serve = "static"
 publicDir = "artifacts/cabinet-projects/dist/public"
 
@@ -25,4 +25,4 @@ to = "/index.html"
 
 [services.env]
 PORT = "25539"
-BASE_PATH = "/"
+BASE_PATH = "/legacy-cabinet-projects/"
