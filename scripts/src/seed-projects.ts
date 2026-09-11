@@ -1,4 +1,12 @@
-import { db, activityTable, environmentsTable, followUpsTable, projectsTable, tenantsTable } from "@workspace/db";
+import {
+  activityTable,
+  db,
+  environmentsTable,
+  followUpsTable,
+  integrationEntitlementsTable,
+  projectsTable,
+  tenantsTable,
+} from "@workspace/db";
 import { sql } from "drizzle-orm";
 
 const seed = async () => {
@@ -22,6 +30,14 @@ const seed = async () => {
   const [demoEnvironment] = await db.select().from(environmentsTable)
     .where(sql`tenant_id = ${tenantId} AND slug = 'dtd'`);
   const environmentId = demoEnvironment.id;
+  await db.insert(integrationEntitlementsTable).values([
+    "business_central",
+    "quickbooks",
+    "measuresquare",
+    "stack",
+    "shopify",
+    "pim",
+  ].map((capabilityKey) => ({ tenantId, capabilityKey, enabled: true }))).onConflictDoNothing();
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(projectsTable);

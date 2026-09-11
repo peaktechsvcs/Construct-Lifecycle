@@ -480,6 +480,83 @@ export interface BrandingContext {
   published: BrandingVersion[];
 }
 
+export type IntegrationCatalogItemCategory = typeof IntegrationCatalogItemCategory[keyof typeof IntegrationCatalogItemCategory];
+
+
+export const IntegrationCatalogItemCategory = {
+  erp_financial: 'erp_financial',
+  accounting: 'accounting',
+  takeoff_estimating: 'takeoff_estimating',
+  ecommerce: 'ecommerce',
+  product_information: 'product_information',
+} as const;
+
+export type IntegrationCatalogItemConnectorStatus = typeof IntegrationCatalogItemConnectorStatus[keyof typeof IntegrationCatalogItemConnectorStatus];
+
+
+export const IntegrationCatalogItemConnectorStatus = {
+  cataloged: 'cataloged',
+} as const;
+
+export type IntegrationCatalogItemEntitlement = typeof IntegrationCatalogItemEntitlement[keyof typeof IntegrationCatalogItemEntitlement];
+
+
+export const IntegrationCatalogItemEntitlement = {
+  enabled: 'enabled',
+} as const;
+
+export type IntegrationConnectionStatus = typeof IntegrationConnectionStatus[keyof typeof IntegrationConnectionStatus];
+
+
+export const IntegrationConnectionStatus = {
+  not_connected: 'not_connected',
+  connected: 'connected',
+  warning: 'warning',
+  failed: 'failed',
+  disabled: 'disabled',
+} as const;
+
+export interface IntegrationConnection {
+  id: number;
+  status: IntegrationConnectionStatus;
+  connectionType: string;
+  /** @nullable */
+  lastSyncAt: string | null;
+  /** @nullable */
+  lastSyncStatus: string | null;
+  /** @nullable */
+  lastError: string | null;
+}
+
+export interface IntegrationActivitySummary {
+  /** @nullable */
+  lastActivityAt: string | null;
+  activityCount: number;
+}
+
+export interface IntegrationCatalogItem {
+  providerKey: string;
+  name: string;
+  category: IntegrationCatalogItemCategory;
+  categoryLabel: string;
+  description: string;
+  capabilities: string[];
+  connectorStatus: IntegrationCatalogItemConnectorStatus;
+  entitlement: IntegrationCatalogItemEntitlement;
+  connection: IntegrationConnection | null;
+  activity: IntegrationActivitySummary;
+}
+
+export type IntegrationActivityDetails = { [key: string]: unknown };
+
+export interface IntegrationActivity {
+  id: number;
+  providerKey: string;
+  action: string;
+  details: IntegrationActivityDetails;
+  createdAt: string;
+}
+
 export type ListProjectsParams = {
 search?: string;
 stage?: ProjectStage;
@@ -490,5 +567,17 @@ type: DashboardDrilldownType;
 stage?: ProjectStage;
 search?: string;
 sort?: DashboardDrilldownSort;
+};
+
+export type ListIntegrationActivityParams = {
+/**
+ * @pattern ^[a-z][a-z0-9_]{1,63}$
+ */
+providerKey: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
 };
 

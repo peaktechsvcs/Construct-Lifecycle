@@ -760,3 +760,55 @@ export const ResetBrandingResponse = zod.object({
 })
 
 
+/**
+ * @summary List entitled integrations for the active customer environment
+ */
+export const ListIntegrationsResponseItem = zod.object({
+  "providerKey": zod.string(),
+  "name": zod.string(),
+  "category": zod.enum(['erp_financial', 'accounting', 'takeoff_estimating', 'ecommerce', 'product_information']),
+  "categoryLabel": zod.string(),
+  "description": zod.string(),
+  "capabilities": zod.array(zod.string()),
+  "connectorStatus": zod.enum(['cataloged']),
+  "entitlement": zod.enum(['enabled']),
+  "connection": zod.union([zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['not_connected', 'connected', 'warning', 'failed', 'disabled']),
+  "connectionType": zod.string(),
+  "lastSyncAt": zod.coerce.date().nullable(),
+  "lastSyncStatus": zod.string().nullable(),
+  "lastError": zod.string().nullable()
+}),zod.null()]),
+  "activity": zod.object({
+  "lastActivityAt": zod.coerce.date().nullable(),
+  "activityCount": zod.number().int()
+})
+})
+export const ListIntegrationsResponse = zod.array(ListIntegrationsResponseItem)
+
+
+/**
+ * @summary List integration configuration and audit activity
+ */
+export const listIntegrationActivityQueryProviderKeyRegExp = new RegExp('^[a-z][a-z0-9_]{1,63}$');
+export const listIntegrationActivityQueryLimitDefault = 50;
+export const listIntegrationActivityQueryLimitMax = 100;
+
+
+
+export const ListIntegrationActivityQueryParams = zod.object({
+  "providerKey": zod.coerce.string().regex(listIntegrationActivityQueryProviderKeyRegExp),
+  "limit": zod.coerce.number().int().min(1).max(listIntegrationActivityQueryLimitMax).default(listIntegrationActivityQueryLimitDefault)
+})
+
+export const ListIntegrationActivityResponseItem = zod.object({
+  "id": zod.number().int(),
+  "providerKey": zod.string(),
+  "action": zod.string(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})
+export const ListIntegrationActivityResponse = zod.array(ListIntegrationActivityResponseItem)
+
+

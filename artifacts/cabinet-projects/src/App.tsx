@@ -17,6 +17,7 @@ import { Projects } from '@/pages/projects';
 import { ProjectDetail } from '@/pages/project-detail';
 import { FollowUps } from '@/pages/follow-ups';
 import { BrandingAdmin } from '@/pages/branding-admin';
+import { IntegrationsAdmin } from '@/pages/integrations-admin';
 
 const queryClient = new QueryClient();
 
@@ -179,6 +180,9 @@ function AppRouter() {
         </Route>
         <Route path="/administration/organization/branding">
           <Shell><ProtectedRoute component={BrandingAdmin} /></Shell>
+        </Route>
+        <Route path="/administration/organization/integrations">
+          <Shell><ProtectedRoute component={IntegrationsAdmin} /></Shell>
         </Route>
 
         <Route component={NotFound} />

@@ -2,7 +2,7 @@ import { useState, ReactNode } from 'react';
 import { useLocation, Link } from 'wouter';
 import {
   LayoutDashboard, BriefcaseBusiness, CalendarDays, Settings2,
-  Bell, Menu, Sparkles, LogOut, Paintbrush, ChevronDown, Check,
+  Bell, Menu, Sparkles, LogOut, Paintbrush, ChevronDown, Check, Cable,
   FlaskConical, Globe,
 } from 'lucide-react';
 import { useTenant } from '@/providers/tenant-provider';
@@ -153,6 +153,7 @@ function getBreadcrumbLabel(location: string): string {
   if (location === '/overview') return 'Overview';
   if (location.startsWith('/follow-ups')) return 'Follow-ups';
   if (location.includes('/administration/organization/branding')) return 'Customer Branding';
+  if (location.includes('/administration/organization/integrations')) return 'Integrations';
   if (location.startsWith('/projects')) return 'Projects';
   return '';
 }
@@ -174,6 +175,7 @@ export function Shell({ children }: { children: ReactNode }) {
     { href: '/projects', label: 'Projects', icon: BriefcaseBusiness },
     { href: '/follow-ups', label: 'Follow-ups', icon: CalendarDays },
     { href: '/administration/organization/branding', label: 'Customer Branding', icon: Paintbrush },
+    { href: '/administration/organization/integrations', label: 'Integrations', icon: Cable },
   ];
 
   const handleSwitchTenant = (tenantId: number) => {

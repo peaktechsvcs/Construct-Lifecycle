@@ -107,6 +107,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
                 key.startsWith('/api/follow-ups') ||
                 key.startsWith('/api/dashboard') ||
                 key.startsWith('/api/tenant/branding') ||
+                  key.startsWith('/api/integrations') ||
                 key.startsWith('/api/platform')
               );
             }});

@@ -32,6 +32,9 @@ import type {
   FollowUpUpdate,
   GetDashboardDrilldownParams,
   HealthStatus,
+  IntegrationActivity,
+  IntegrationCatalogItem,
+  ListIntegrationActivityParams,
   ListProjectsParams,
   PlatformRelease,
   Project,
@@ -140,13 +143,6 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getListProjectsUrl = (params?: ListProjectsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -224,13 +220,6 @@ export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getCreateProjectUrl = () => {
 
 
@@ -1790,4 +1779,165 @@ export const useResetBranding = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getResetBrandingMutationOptions(options));
     }
+
+export const getListIntegrationsUrl = () => {
+
+
+
+
+  return `/api/integrations`
+}
+
+/**
+ * @summary List entitled integrations for the active customer environment
+ */
+export const listIntegrations = async ( options?: Parameters<typeof customFetch>[1]): Promise<IntegrationCatalogItem[]> => {
+
+  return customFetch<IntegrationCatalogItem[]>(getListIntegrationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListIntegrationsQueryKey = () => {
+    return [
+    `/api/integrations`
+    ] as const;
+    }
+
+
+export const getListIntegrationsQueryOptions = <TData = Awaited<ReturnType<typeof listIntegrations>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listIntegrations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListIntegrationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listIntegrations>>> = ({ signal }) => listIntegrations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listIntegrations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListIntegrationsQueryResult = NonNullable<Awaited<ReturnType<typeof listIntegrations>>>
+export type ListIntegrationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List entitled integrations for the active customer environment
+ */
+
+export function useListIntegrations<TData = Awaited<ReturnType<typeof listIntegrations>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listIntegrations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListIntegrationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListIntegrationActivityUrl = (params: ListIntegrationActivityParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/integrations/activity?${stringifiedParams}` : `/api/integrations/activity`
+}
+
+/**
+ * @summary List integration configuration and audit activity
+ */
+export const listIntegrationActivity = async (params: ListIntegrationActivityParams, options?: Parameters<typeof customFetch>[1]): Promise<IntegrationActivity[]> => {
+
+  return customFetch<IntegrationActivity[]>(getListIntegrationActivityUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListIntegrationActivityQueryKey = (params?: ListIntegrationActivityParams,) => {
+    return [
+    `/api/integrations/activity`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListIntegrationActivityQueryOptions = <TData = Awaited<ReturnType<typeof listIntegrationActivity>>, TError = ErrorType<void>>(params: ListIntegrationActivityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listIntegrationActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListIntegrationActivityQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listIntegrationActivity>>> = ({ signal }) => listIntegrationActivity(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listIntegrationActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListIntegrationActivityQueryResult = NonNullable<Awaited<ReturnType<typeof listIntegrationActivity>>>
+export type ListIntegrationActivityQueryError = ErrorType<void>
+
+
+/**
+ * @summary List integration configuration and audit activity
+ */
+
+export function useListIntegrationActivity<TData = Awaited<ReturnType<typeof listIntegrationActivity>>, TError = ErrorType<void>>(
+ params: ListIntegrationActivityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listIntegrationActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListIntegrationActivityQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

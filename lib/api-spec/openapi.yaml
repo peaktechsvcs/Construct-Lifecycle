@@ -22,6 +22,8 @@ tags:
     description: Customer environment context and switching
   - name: branding
     description: Tenant branding drafts and published versions
+  - name: integrations
+    description: Customer-scoped integration catalog and activity
 paths:
   /healthz:
     get:
@@ -387,6 +389,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BrandingContext"
+  /integrations:
+    get:
+      operationId: listIntegrations
+      tags: [integrations]
+      summary: List entitled integrations for the active customer environment
+      responses:
+        "200":
+          description: Entitled integration catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/IntegrationCatalogItem" }
+        "403": { description: Customer administrator permission required }
+  /integrations/activity:
+    get:
+      operationId: listIntegrationActivity
+      tags: [integrations]
+      summary: List integration configuration and audit activity
+      parameters:
+        - in: query
+          name: providerKey
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-z][a-z0-9_]{1,63}$"
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Integration activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/IntegrationActivity" }
+        "404": { description: Integration provider not available }
 components:
   parameters:
     ProjectId:
@@ -747,4 +787,48 @@ components:
         published:
           type: array
           items: { $ref: "#/components/schemas/BrandingVersion" }
+    IntegrationCatalogItem:
+      type: object
+      required: [providerKey, name, category, categoryLabel, description, capabilities, connectorStatus, entitlement, connection, activity]
+      properties:
+        providerKey: { type: string }
+        name: { type: string }
+        category: { type: string, enum: [erp_financial, accounting, takeoff_estimating, ecommerce, product_information] }
+        categoryLabel: { type: string }
+        description: { type: string }
+        capabilities:
+          type: array
+          items: { type: string }
+        connectorStatus: { type: string, enum: [cataloged] }
+        entitlement: { type: string, enum: [enabled] }
+        connection:
+          oneOf:
+            - $ref: "#/components/schemas/IntegrationConnection"
+            - type: "null"
+        activity: { $ref: "#/components/schemas/IntegrationActivitySummary" }
+    IntegrationConnection:
+      type: object
+      required: [id, status, connectionType, lastSyncAt, lastSyncStatus, lastError]
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [not_connected, connected, warning, failed, disabled] }
+        connectionType: { type: string }
+        lastSyncAt: { type: ["string", "null"], format: date-time }
+        lastSyncStatus: { type: ["string", "null"] }
+        lastError: { type: ["string", "null"] }
+    IntegrationActivitySummary:
+      type: object
+      required: [lastActivityAt, activityCount]
+      properties:
+        lastActivityAt: { type: ["string", "null"], format: date-time }
+        activityCount: { type: integer }
+    IntegrationActivity:
+      type: object
+      required: [id, providerKey, action, details, createdAt]
+      properties:
+        id: { type: integer }
+        providerKey: { type: string }
+        action: { type: string }
+        details: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
 
