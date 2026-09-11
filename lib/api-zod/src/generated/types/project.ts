@@ -29,6 +29,10 @@ export interface Project {
   /** @nullable */
   owner?: string | null;
   stage: ProjectStage;
+  /** @nullable */
+  workflowTemplateId?: number | null;
+  /** @nullable */
+  projectStatus?: string | null;
   proposalStatus: ProposalStatus;
   /** @nullable */
   proposalDetails?: string | null;

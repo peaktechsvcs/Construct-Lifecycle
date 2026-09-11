@@ -10,8 +10,9 @@ import {
   currency, shortDate,
   PageTitle, LoadingPanel, ErrorPanel, EmptyState, ActivityList,
 } from '@/components/app-ui';
-import { stageLabels, stageColors } from '@/lib/stage-config';
+import { stageLabels } from '@/lib/stage-config';
 import { Badge } from '@/components/app-ui';
+import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
 
 // ─── Clickable stat card with drilldown link ──────────────────────────────────
 
@@ -65,6 +66,7 @@ export function Dashboard() {
   const summaryQuery = useGetDashboardSummary({ query: { queryKey: getGetDashboardSummaryQueryKey() } });
   const activityQuery = useListRecentActivity({ query: { queryKey: getListRecentActivityQueryKey(), staleTime: 60000 } });
   const followQuery = useListFollowUps({ query: { queryKey: getListFollowUpsQueryKey(), staleTime: 60000 } });
+  const workflow = useWorkflow();
 
   const summary = summaryQuery.data;
   const activity = activityQuery.data ?? [];
@@ -163,14 +165,14 @@ export function Dashboard() {
                   href={`/dashboard/drilldown/stage?stage=${item.stage}`}
                   data-testid={`stage-bar-${item.stage}`}
                   className="group grid grid-cols-[108px_1fr_52px] items-center gap-3 rounded-lg px-1 py-1 hover:bg-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  aria-label={`View ${stageLabels[item.stage] ?? item.stage} projects (${item.count})`}
+                  aria-label={`View ${workflow.labels[item.stage] ?? stageLabels[item.stage] ?? item.stage} projects (${item.count})`}
                 >
                   <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground">
-                    {stageLabels[item.stage] ?? item.stage}
+                    {workflow.labels[item.stage] ?? stageLabels[item.stage] ?? item.stage}
                   </span>
                   <div className="h-2 overflow-hidden rounded-full bg-secondary">
                     <div
-                      className={`h-full rounded-full transition-all ${stageColors[item.stage] ?? 'bg-status-neutral'}`}
+                      className={`h-full rounded-full transition-all ${workflowStageColor(workflow.stateByKey.get(item.stage))}`}
                       style={{ width: `${Math.max((item.count / maxStage) * 100, 4)}%` }}
                     />
                   </div>
@@ -183,8 +185,8 @@ export function Dashboard() {
             <div>
               <p className="mono text-[10px] uppercase text-muted-foreground">Largest stage</p>
               <p className="mt-1 text-sm font-bold">
-                {summary?.stageCounts.sort((a, b) => b.value - a.value)[0]
-                  ? stageLabels[summary.stageCounts.sort((a, b) => b.value - a.value)[0].stage] ?? '—'
+                {[...(summary?.stageCounts ?? [])].sort((a, b) => b.value - a.value)[0]
+                  ? workflow.labels[[...(summary?.stageCounts ?? [])].sort((a, b) => b.value - a.value)[0].stage] ?? '—'
                   : '—'}
               </p>
             </div>

@@ -11,6 +11,7 @@ import {
 import { Badge, Button, currency, ErrorPanel, LoadingPanel, Modal, PageTitle, shortDate } from '@/components/app-ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTenant } from '@/providers/tenant-provider';
+import { useWorkflow } from '@/hooks/use-workflow';
 
 const inputClass = 'w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-4 focus:ring-primary/20';
 const linkButtonClass = 'inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-90';
@@ -25,6 +26,7 @@ export function CustomerDetail() {
   const { activeRole } = useTenant();
   const canManage = activeRole === 'owner' || activeRole === 'admin';
   const customer = query.data;
+  const workflow = useWorkflow();
 
   if (query.isLoading) return <LoadingPanel lines={7} />;
   if (query.isError || !customer) return <ErrorPanel onRetry={() => query.refetch()} />;
@@ -56,7 +58,7 @@ export function CustomerDetail() {
         </section>
         <section className="rounded-xl border border-border bg-card p-5 md:p-6">
           <div className="mb-5 flex items-center justify-between"><div><p className="mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Connected work</p><h2 className="mt-1 text-base font-bold">Projects</h2></div><span className="mono text-xs text-muted-foreground">{customer.projects.length} total</span></div>
-          {customer.projects.length ? <div className="divide-y divide-border">{customer.projects.map((project) => <Link key={project.id} href={`/projects/${project.id}`} className="flex items-center gap-4 py-4 hover:text-primary"><div className="min-w-0 flex-1"><p className="mono text-[10px] text-accent">{project.projectNumber}</p><p className="truncate text-sm font-bold">{project.projectName}</p><p className="mt-1 text-xs text-muted-foreground">{project.stage.replace('_', ' ')} · Updated {shortDate(project.updatedAt)}</p></div><span className="mono text-sm">{currency.format(project.contractValue)}</span></Link>)}</div> : <div className="rounded-lg border border-dashed border-border px-5 py-10 text-center"><MapPin className="mx-auto mb-3 text-muted-foreground" size={20} /><p className="text-sm font-semibold">No projects yet</p><p className="mt-1 text-xs text-muted-foreground">Create the first project from this relationship record.</p></div>}
+          {customer.projects.length ? <div className="divide-y divide-border">{customer.projects.map((project) => <Link key={project.id} href={`/projects/${project.id}`} className="flex items-center gap-4 py-4 hover:text-primary"><div className="min-w-0 flex-1"><p className="mono text-[10px] text-accent">{project.projectNumber}</p><p className="truncate text-sm font-bold">{project.projectName}</p><p className="mt-1 text-xs text-muted-foreground">{workflow.labels[project.stage] ?? project.stage.replace('_', ' ')} · Updated {shortDate(project.updatedAt)}</p></div><span className="mono text-sm">{currency.format(project.contractValue)}</span></Link>)}</div> : <div className="rounded-lg border border-dashed border-border px-5 py-10 text-center"><MapPin className="mx-auto mb-3 text-muted-foreground" size={20} /><p className="text-sm font-semibold">No projects yet</p><p className="mt-1 text-xs text-muted-foreground">Create the first project from this relationship record.</p></div>}
         </section>
       </div>
       {showEdit && <CustomerEditModal customer={customer} onClose={() => setShowEdit(false)} onSave={save} pending={update.isPending} />}

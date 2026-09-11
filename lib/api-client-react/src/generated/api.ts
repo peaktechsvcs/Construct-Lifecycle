@@ -71,7 +71,10 @@ import type {
   TenantInvitation,
   TenantMember,
   UpdatePlatformCustomerInput,
-  UpdateTenantMemberInput
+  UpdateTenantMemberInput,
+  WorkflowConfigInput,
+  WorkflowConfigResponse,
+  WorkflowDraftResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -630,6 +633,296 @@ export function useListProjectActivity<TData = Awaited<ReturnType<typeof listPro
 
 
 
+
+export const getGetWorkflowConfigUrl = () => {
+
+
+
+
+  return `/api/workflow/config`
+}
+
+/**
+ * @summary Get the active tenant workflow configuration
+ */
+export const getWorkflowConfig = async ( options?: Parameters<typeof customFetch>[1]): Promise<WorkflowConfigResponse> => {
+
+  return customFetch<WorkflowConfigResponse>(getGetWorkflowConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkflowConfigQueryKey = () => {
+    return [
+    `/api/workflow/config`
+    ] as const;
+    }
+
+
+export const getGetWorkflowConfigQueryOptions = <TData = Awaited<ReturnType<typeof getWorkflowConfig>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkflowConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkflowConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkflowConfig>>> = ({ signal }) => getWorkflowConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkflowConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkflowConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkflowConfig>>>
+export type GetWorkflowConfigQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the active tenant workflow configuration
+ */
+
+export function useGetWorkflowConfig<TData = Awaited<ReturnType<typeof getWorkflowConfig>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkflowConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkflowConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateWorkflowDraftUrl = () => {
+
+
+
+
+  return `/api/workflow/draft`
+}
+
+/**
+ * @summary Create a tenant workflow draft from the published configuration
+ */
+export const createWorkflowDraft = async ( options?: Parameters<typeof customFetch>[1]): Promise<WorkflowDraftResponse> => {
+
+  return customFetch<WorkflowDraftResponse>(getCreateWorkflowDraftUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateWorkflowDraftMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkflowDraft>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createWorkflowDraft>>, TError,void, TContext> => {
+
+const mutationKey = ['createWorkflowDraft'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createWorkflowDraft>>, void> = () => {
+
+
+          return  createWorkflowDraft(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateWorkflowDraftMutationResult = NonNullable<Awaited<ReturnType<typeof createWorkflowDraft>>>
+
+    export type CreateWorkflowDraftMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a tenant workflow draft from the published configuration
+ */
+export const useCreateWorkflowDraft = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWorkflowDraft>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createWorkflowDraft>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCreateWorkflowDraftMutationOptions(options));
+    }
+
+export const getUpdateWorkflowDraftUrl = () => {
+
+
+
+
+  return `/api/workflow/draft`
+}
+
+/**
+ * @summary Replace the tenant workflow draft
+ */
+export const updateWorkflowDraft = async (workflowConfigInput: WorkflowConfigInput, options?: Parameters<typeof customFetch>[1]): Promise<WorkflowConfigResponse> => {
+
+  return customFetch<WorkflowConfigResponse>(getUpdateWorkflowDraftUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(workflowConfigInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateWorkflowDraftMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWorkflowDraft>>, TError,{data: BodyType<WorkflowConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateWorkflowDraft>>, TError,{data: BodyType<WorkflowConfigInput>}, TContext> => {
+
+const mutationKey = ['updateWorkflowDraft'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWorkflowDraft>>, {data: BodyType<WorkflowConfigInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateWorkflowDraft(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateWorkflowDraftMutationResult = NonNullable<Awaited<ReturnType<typeof updateWorkflowDraft>>>
+    export type UpdateWorkflowDraftMutationBody = BodyType<WorkflowConfigInput>
+    export type UpdateWorkflowDraftMutationError = ErrorType<void>
+
+    /**
+ * @summary Replace the tenant workflow draft
+ */
+export const useUpdateWorkflowDraft = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWorkflowDraft>>, TError,{data: BodyType<WorkflowConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateWorkflowDraft>>,
+        TError,
+        {data: BodyType<WorkflowConfigInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateWorkflowDraftMutationOptions(options));
+    }
+
+export const getPublishWorkflowDraftUrl = () => {
+
+
+
+
+  return `/api/workflow/draft/publish`
+}
+
+/**
+ * @summary Validate and publish the tenant workflow draft
+ */
+export const publishWorkflowDraft = async ( options?: Parameters<typeof customFetch>[1]): Promise<WorkflowConfigResponse> => {
+
+  return customFetch<WorkflowConfigResponse>(getPublishWorkflowDraftUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPublishWorkflowDraftMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishWorkflowDraft>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof publishWorkflowDraft>>, TError,void, TContext> => {
+
+const mutationKey = ['publishWorkflowDraft'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof publishWorkflowDraft>>, void> = () => {
+
+
+          return  publishWorkflowDraft(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PublishWorkflowDraftMutationResult = NonNullable<Awaited<ReturnType<typeof publishWorkflowDraft>>>
+
+    export type PublishWorkflowDraftMutationError = ErrorType<void>
+
+    /**
+ * @summary Validate and publish the tenant workflow draft
+ */
+export const usePublishWorkflowDraft = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishWorkflowDraft>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof publishWorkflowDraft>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPublishWorkflowDraftMutationOptions(options));
+    }
 
 export const getListBusinessCustomersUrl = (params?: ListBusinessCustomersParams,) => {
   const normalizedParams = new URLSearchParams();

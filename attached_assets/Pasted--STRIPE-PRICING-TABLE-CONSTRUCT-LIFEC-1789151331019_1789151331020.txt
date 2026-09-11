@@ -1,0 +1,660 @@
+============================================================
+STRIPE PRICING TABLE — CONSTRUCT LIFECYCLE
+============================================================
+
+Integrate the official Stripe Pricing Table into the Construct Lifecycle web application.
+
+IMPORTANT:
+
+Use Stripe's hosted Pricing Table component for subscription selection and checkout.
+
+Do NOT recreate the Stripe pricing table manually.
+
+Do NOT build a separate custom credit-card collection form.
+
+Do NOT store payment-card information in Construct Lifecycle.
+
+============================================================
+STRIPE CONFIGURATION
+============================================================
+
+Stripe Pricing Table ID:
+
+prctbl_1UEZ70Gm6tfr5re5q5BaWON8
+
+Stripe Publishable Key:
+
+pk_test_51UEWUqGm6tfr5re5YXPeeiYvYzY8VaF73xXq6kpFK5ZTkrS7Mh20cJJGWQks2AuQx6MCT66x9NnXn2fTkEn05ctf00SphtV19o
+
+Current Stripe embed provided by Stripe:
+
+<script async src="https://js.stripe.com/v3/pricing-table.js"></script>
+
+<stripe-pricing-table
+    pricing-table-id="prctbl_1UEZ70Gm6tfr5re5q5BaWON8"
+    publishable-key="pk_test_51UEWUqGm6tfr5re5YXPeeiYvYzY8VaF73xXq6kpFK5ZTkrS7Mh20cJJGWQks2AuQx6MCT66x9NnXn2fTkEn05ctf00SphtV19o">
+</stripe-pricing-table>
+
+============================================================
+TEST MODE
+============================================================
+
+IMPORTANT:
+
+The provided publishable key begins with:
+
+pk_test_
+
+Therefore this is currently a STRIPE TEST MODE integration.
+
+Clearly treat this configuration as non-production.
+
+Do not assume this key should be used for the Construct Lifecycle Production environment.
+
+Architecture must support separate:
+
+Development / Test / Demo Stripe configuration
+
+and
+
+Production Stripe configuration
+
+============================================================
+ENVIRONMENT CONFIGURATION
+============================================================
+
+Do not permanently hard-code Stripe configuration throughout the application.
+
+Use environment configuration.
+
+Conceptually:
+
+STRIPE_PUBLISHABLE_KEY
+STRIPE_PRICING_TABLE_ID
+
+For Development / Test / Demo:
+
+Use the provided test-mode configuration.
+
+For Production:
+
+Require separate Production Stripe configuration before accepting real subscriptions.
+
+Never allow D/T/D Stripe configuration to process Production subscriptions.
+
+============================================================
+SUBSCRIPTION / PRICING PAGE
+============================================================
+
+Create or update the customer-facing Construct Lifecycle subscription page.
+
+Recommended route:
+
+/pricing
+
+and/or:
+
+/subscribe
+
+Use the existing Construct Lifecycle visual language around the Stripe component.
+
+Example:
+
+------------------------------------------------
+
+Construct Lifecycle
+
+From Bid to Closeout.
+
+Choose the subscription that works best for your organization.
+
+[ STRIPE PRICING TABLE ]
+
+------------------------------------------------
+
+Do not wrap the pricing table in excessive cards or redesign it.
+
+Let Stripe handle:
+
+- Price presentation
+- Monthly/annual selection where configured
+- Seat quantity where configured
+- Checkout
+- Payment collection
+
+Construct Lifecycle should provide the surrounding product experience.
+
+============================================================
+AUTHENTICATED SUBSCRIPTION EXPERIENCE
+============================================================
+
+For an authenticated software customer, also support:
+
+Administration
+→ Subscription & Billing
+
+Show Construct Lifecycle subscription information such as:
+
+Current Plan
+Billing Frequency
+Licensed Users / Seats
+Active Users
+Subscription Status
+Current Billing Period
+Next Renewal Date
+
+Provide appropriate actions such as:
+
+Manage Subscription
+Update Billing
+View Billing History
+
+Use Stripe's supported customer billing/portal functionality where appropriate rather than rebuilding payment-management functionality unnecessarily.
+
+============================================================
+NEW CUSTOMER SUBSCRIPTION FLOW
+============================================================
+
+Target flow:
+
+Construct Lifecycle Website
+        ↓
+Pricing
+        ↓
+Stripe Pricing Table
+        ↓
+Select Monthly or Annual
+        ↓
+Select User / Seat Quantity
+        ↓
+Stripe Checkout
+        ↓
+Payment / Subscription Created
+        ↓
+Stripe Webhook
+        ↓
+Construct Lifecycle Subscription Activated
+        ↓
+Software Customer / Tenant Provisioning
+        ↓
+Primary Administrator
+        ↓
+Production Environment
+        ↓
+Construct Lifecycle
+
+Do NOT consider the subscription active merely because the browser reaches a success page.
+
+Stripe webhook confirmation must be authoritative.
+
+============================================================
+STRIPE WEBHOOKS
+============================================================
+
+Implement secure Stripe webhook handling for subscription lifecycle events.
+
+At minimum architect handling for relevant Stripe events such as:
+
+checkout.session.completed
+
+customer.subscription.created
+customer.subscription.updated
+customer.subscription.deleted
+
+invoice.paid
+invoice.payment_failed
+
+and other required Stripe Billing events according to the Stripe implementation.
+
+Verify Stripe webhook signatures.
+
+Webhook processing must be idempotent.
+
+Never trust an unverified webhook.
+
+============================================================
+STRIPE → CONSTRUCT LIFECYCLE MAPPING
+============================================================
+
+Maintain mappings between Stripe and Construct Lifecycle.
+
+Conceptually:
+
+Construct Lifecycle Tenant
+        ↕
+Stripe Customer
+
+Construct Lifecycle Subscription
+        ↕
+Stripe Subscription
+
+Construct Lifecycle Billing Plan
+        ↕
+Stripe Product / Price
+
+Construct Lifecycle Licensed Seats
+        ↕
+Stripe Subscription Quantity
+
+Store stable external references such as:
+
+stripe_customer_id
+stripe_subscription_id
+stripe_product_id
+stripe_price_id
+
+Do not use Stripe IDs as the primary Construct Lifecycle tenant ID.
+
+============================================================
+SEAT QUANTITY
+============================================================
+
+The current Construct Lifecycle subscription is priced per user.
+
+Current monthly pricing:
+
+$100
+per user
+per month
+
+Therefore:
+
+Stripe subscription quantity represents purchased/licensed seats.
+
+Example:
+
+Quantity 1
+= $100/month
+
+Quantity 5
+= $500/month
+
+Quantity 10
+= $1,000/month
+
+Construct Lifecycle should synchronize the purchased seat quantity.
+
+Conceptually:
+
+licensed_seats = stripe_subscription_quantity
+
+============================================================
+ACTIVE USERS VS LICENSED SEATS
+============================================================
+
+Track:
+
+Licensed Seats
+Active Users
+Available Seats
+
+Example:
+
+Licensed Seats: 10
+Active Users: 7
+Available Seats: 3
+
+Do not count deactivated users as active licensed users.
+
+Define treatment of pending invitations consistently.
+
+============================================================
+SEAT LIMIT ENFORCEMENT
+============================================================
+
+If:
+
+Active Users >= Licensed Seats
+
+and an administrator attempts to activate/add another licensed user:
+
+Do not silently exceed the subscription quantity.
+
+Provide an appropriate workflow to increase licensed seats according to the Stripe billing implementation.
+
+Do not simply create an unpaid active seat.
+
+============================================================
+STRIPE ENTITLEMENTS
+============================================================
+
+Continue using the Construct Lifecycle entitlement architecture.
+
+Stripe subscription status/features provide commercial eligibility.
+
+Construct Lifecycle determines effective access through:
+
+STRIPE SUBSCRIPTION
+        +
+STRIPE / PLAN FEATURE ENTITLEMENTS
+        +
+CLC ADMIN ENTITLEMENTS
+        +
+ENVIRONMENT RULES
+        +
+USER PERMISSIONS
+
+Do not make the Stripe Pricing Table itself the authorization mechanism.
+
+============================================================
+CORE FEATURES
+============================================================
+
+The current core Construct Lifecycle subscription may include entitlements such as:
+
+customers
+projects
+follow_ups
+project_lifecycle
+custom_lifecycle
+workflow_builder
+documents
+reporting
+customer_admin
+user_management
+
+Continue to resolve these through the centralized entitlement service.
+
+Do not scatter Stripe product/price checks throughout application code.
+
+============================================================
+PREMIUM / SEPARATELY CONTROLLED FEATURES
+============================================================
+
+Preserve the ability to separately control capabilities such as:
+
+customer_branding
+development_test_demo
+public_api
+advanced_workflows
+multiple_workflows
+advanced_reporting
+
+business_central_integration
+quickbooks_integration
+measuresquare_integration
+stack_integration
+shopify_integration
+pim_integration
+
+ai_automation
+
+Do not automatically expose these simply because a Stripe subscription is Active unless the appropriate entitlement rules permit them.
+
+============================================================
+STRIPE CUSTOMER IDENTITY
+============================================================
+
+Where Stripe Pricing Table supports passing a client reference or customer identity, associate checkout with the Construct Lifecycle account safely.
+
+Do not rely solely on:
+
+email address
+
+to identify an existing Construct Lifecycle tenant.
+
+Use stable Construct Lifecycle identifiers where Stripe supports them.
+
+Validate those identifiers server-side when processing webhooks.
+
+============================================================
+SUCCESS PAGE
+============================================================
+
+After Stripe checkout, provide a Construct Lifecycle success experience.
+
+Example:
+
+Subscription Started
+
+Your Construct Lifecycle subscription is being activated.
+
+Do not state that provisioning is complete until the server has confirmed the Stripe subscription.
+
+Once confirmed:
+
+Continue to Construct Lifecycle
+
+============================================================
+CANCELED CHECKOUT
+============================================================
+
+If Stripe checkout is abandoned/canceled:
+
+Return the user safely to:
+
+Pricing / Subscription
+
+Do not create an Active Construct Lifecycle subscription.
+
+Do not provision paid entitlements based solely on an incomplete checkout.
+
+============================================================
+SUBSCRIPTION STATUS
+============================================================
+
+Synchronize appropriate Stripe subscription/payment state into Construct Lifecycle.
+
+Construct Lifecycle states may include:
+
+Trial
+Active
+Past Due
+Payment Failed
+Canceled
+Expired
+Suspended
+
+Map Stripe states carefully.
+
+Do not invent payment status independently of Stripe when Stripe is the billing System of Record.
+
+============================================================
+PAYMENT FAILURE
+============================================================
+
+If Stripe reports payment failure:
+
+Do not delete:
+
+Tenant
+Users
+Business Customers
+Projects
+Documents
+Configuration
+Workflow Configuration
+Integrations
+Audit History
+
+Update subscription status and apply Construct Lifecycle grace-period/suspension policy.
+
+============================================================
+CUSTOMER BILLING PORTAL
+============================================================
+
+Where appropriate, use Stripe Customer Portal for:
+
+Payment Method Changes
+Billing Information
+Invoices
+Subscription Management
+Cancellation
+Other supported billing operations
+
+Avoid rebuilding functionality that Stripe securely provides.
+
+Construct Lifecycle should remain the source for application-specific subscription information and entitlements.
+
+============================================================
+SECURITY
+============================================================
+
+The Stripe publishable key may be used client-side as intended.
+
+Never expose:
+
+Stripe Secret Key
+Webhook Signing Secret
+Other private Stripe credentials
+
+Store private credentials only in secure environment secrets.
+
+Never commit private Stripe credentials to source control.
+
+============================================================
+PRODUCTION LAUNCH CHECK
+============================================================
+
+Before Production subscription billing is enabled, verify:
+
+[ ] Production Stripe account/configuration is ready.
+
+[ ] Production Stripe Pricing Table exists.
+
+[ ] Production publishable key uses pk_live_.
+
+[ ] Production secret key is securely configured server-side.
+
+[ ] Production webhook endpoint is configured.
+
+[ ] Production webhook signing secret is securely configured.
+
+[ ] Production Product/Prices are correct.
+
+[ ] Monthly pricing is correct.
+
+[ ] Annual pricing is correct if offered.
+
+[ ] Per-user quantity behavior is correct.
+
+[ ] Subscription entitlements are correct.
+
+[ ] Checkout success/cancel behavior is correct.
+
+[ ] Subscription webhook processing is tested.
+
+[ ] Seat synchronization is tested.
+
+[ ] Failed payment behavior is tested.
+
+[ ] Cancellation behavior is tested.
+
+Do NOT switch from Test Mode to Production automatically.
+
+============================================================
+TEST ACCEPTANCE — MONTHLY
+============================================================
+
+Using Stripe Test Mode:
+
+Select Construct Lifecycle monthly subscription.
+
+Quantity:
+5 users
+
+Expected:
+
+$100 × 5
+=
+$500/month
+
+Complete Stripe test checkout.
+
+Verify:
+
+Stripe Customer created/associated.
+
+Stripe Subscription created.
+
+Construct Lifecycle receives verified webhook.
+
+Construct Lifecycle subscription becomes Active.
+
+Licensed Seats = 5.
+
+Correct entitlements are applied.
+
+============================================================
+TEST ACCEPTANCE — SEAT LIMIT
+============================================================
+
+Licensed Seats:
+5
+
+Active Users:
+5
+
+Attempt to activate User 6.
+
+Verify:
+
+Construct Lifecycle identifies that no paid seat is available.
+
+Do not silently activate an unpaid sixth licensed user.
+
+============================================================
+TEST ACCEPTANCE — PAYMENT FAILURE
+============================================================
+
+Use Stripe test payment failure scenario.
+
+Verify:
+
+Stripe webhook received.
+
+Subscription state updated.
+
+Customer data remains intact.
+
+Appropriate billing status appears in Construct Lifecycle.
+
+============================================================
+TEST ACCEPTANCE — TENANT ISOLATION
+============================================================
+
+Stripe Customer A must map only to:
+
+Construct Lifecycle Tenant A
+
+Stripe Customer B must map only to:
+
+Construct Lifecycle Tenant B
+
+Never expose or apply another tenant's:
+
+subscription
+seat quantity
+billing records
+entitlements
+
+============================================================
+FINAL RULE
+============================================================
+
+Use the official Stripe Pricing Table as the customer-facing subscription selection and checkout experience.
+
+STRIPE
+owns:
+
+Pricing Checkout
+Payment Collection
+Subscription Billing
+Payment Method Security
+
+CONSTRUCT LIFECYCLE
+owns:
+
+Tenant Identity
+Subscription Mapping
+Licensed Seat Enforcement
+Application Entitlements
+Users
+Permissions
+Environment Access
+Feature Access
+Application Provisioning
+
+Stripe subscription state must be synchronized into Construct Lifecycle through verified server-side Stripe events.
+
+Do not trust client-side checkout state as proof of an active subscription.

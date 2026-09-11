@@ -9,19 +9,10 @@ export interface HealthStatus {
   status: string;
 }
 
-export type ProjectStage = typeof ProjectStage[keyof typeof ProjectStage];
-
-
-export const ProjectStage = {
-  opportunity: 'opportunity',
-  bid: 'bid',
-  award: 'award',
-  contract: 'contract',
-  procure: 'procure',
-  deliver: 'deliver',
-  financial: 'financial',
-  closeout: 'closeout',
-} as const;
+/**
+ * @pattern ^[a-z][a-z0-9_]{1,62}$
+ */
+export type ProjectStage = string;
 
 export type ProposalStatus = typeof ProposalStatus[keyof typeof ProposalStatus];
 
@@ -107,6 +98,10 @@ export interface Project {
   /** @nullable */
   owner?: string | null;
   stage: ProjectStage;
+  /** @nullable */
+  workflowTemplateId?: number | null;
+  /** @nullable */
+  projectStatus?: string | null;
   proposalStatus: ProposalStatus;
   /** @nullable */
   proposalDetails?: string | null;
@@ -176,6 +171,8 @@ export interface ProjectInput {
   productCategories?: string[];
   owner?: string;
   stage?: ProjectStage;
+  /** @pattern ^[a-z][a-z0-9_]{1,62}$ */
+  projectStatus?: string;
   proposalStatus?: ProposalStatus;
   proposalDetails?: string;
   bidOutcome?: BidOutcome;
@@ -1032,6 +1029,184 @@ export interface IntegrationActivity {
   action: string;
   details: IntegrationActivityDetails;
   createdAt: string;
+}
+
+export type WorkflowTemplateStatus = typeof WorkflowTemplateStatus[keyof typeof WorkflowTemplateStatus];
+
+
+export const WorkflowTemplateStatus = {
+  draft: 'draft',
+  published: 'published',
+  archived: 'archived',
+} as const;
+
+export interface WorkflowTemplate {
+  id: number;
+  tenantId: number;
+  environmentId: number;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  status: WorkflowTemplateStatus;
+  isDefault: boolean;
+  version: number;
+  /** @nullable */
+  createdByUserId?: number | null;
+  /** @nullable */
+  publishedByUserId?: number | null;
+  /** @nullable */
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowState {
+  id: number;
+  workflowTemplateId: number;
+  stableKey: string;
+  displayName: string;
+  /** @nullable */
+  description?: string | null;
+  normalizedCategory: string;
+  displayOrder: number;
+  active: boolean;
+  terminal: boolean;
+  allowManualEnter: boolean;
+  allowManualLeave: boolean;
+  /** @nullable */
+  defaultStatusKey?: string | null;
+  requiredFields: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowStatus {
+  id: number;
+  workflowTemplateId: number;
+  stableKey: string;
+  displayName: string;
+  stateKeys: string[];
+  displayOrder: number;
+  active: boolean;
+  required: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowTransition {
+  id: number;
+  workflowTemplateId: number;
+  fromStateKey: string;
+  toStateKey: string;
+  active: boolean;
+  requiresConfirmation: boolean;
+  allowedRoles: string[];
+  requiredFields: string[];
+  warningFields: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowConfig {
+  template: WorkflowTemplate;
+  states: WorkflowState[];
+  statuses: WorkflowStatus[];
+  transitions: WorkflowTransition[];
+}
+
+export interface WorkflowConfigResponse {
+  published: WorkflowConfig;
+  draft: WorkflowConfig | null;
+}
+
+export interface WorkflowDraftResponse {
+  draft: WorkflowConfig | null;
+}
+
+export type WorkflowConfigInputStatesItem = {
+  /** @pattern ^[a-z][a-z0-9_]{1,62}$ */
+  stableKey: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  displayName: string;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  normalizedCategory: string;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  displayOrder: number;
+  active?: boolean;
+  terminal?: boolean;
+  allowManualEnter?: boolean;
+  allowManualLeave?: boolean;
+  /** @nullable */
+  defaultStatusKey?: string | null;
+  /**
+     * @items.minLength 1
+     * @items.maxLength 80
+     */
+  requiredFields?: string[];
+};
+
+export type WorkflowConfigInputStatusesItem = {
+  /** @pattern ^[a-z][a-z0-9_]{1,62}$ */
+  stableKey: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  displayName: string;
+  stateKeys?: string[];
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  displayOrder: number;
+  active?: boolean;
+  required?: boolean;
+};
+
+export type WorkflowConfigInputTransitionsItem = {
+  fromStateKey: string;
+  toStateKey: string;
+  active?: boolean;
+  requiresConfirmation?: boolean;
+  allowedRoles?: string[];
+  requiredFields?: string[];
+  warningFields?: string[];
+};
+
+export interface WorkflowConfigInput {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  name?: string;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  states: WorkflowConfigInputStatesItem[];
+  /** @maxItems 200 */
+  statuses: WorkflowConfigInputStatusesItem[];
+  /** @maxItems 500 */
+  transitions: WorkflowConfigInputTransitionsItem[];
 }
 
 export type ListProjectsParams = {

@@ -34,7 +34,8 @@ import {
   EmptyState,
   Badge,
 } from '@/components/app-ui';
-import { stageLabels, stageColors } from '@/lib/stage-config';
+import { stageLabels } from '@/lib/stage-config';
+import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
 
 // ─── URL query-state helpers ─────────────────────────────────────────────────
 
@@ -84,9 +85,8 @@ function severityTone(s: DashboardDrilldownAttentionSeverity) {
 }
 
 function stageBadgeTone(stage: string) {
-  if (stage === 'financial') return 'violet' as const;
-  if (stage === 'closeout') return 'green' as const;
-  if (stage === 'procure') return 'violet' as const;
+  if (stage === 'financial' || stage === 'FINANCIAL' || stage === 'PRE_CONSTRUCTION') return 'violet' as const;
+  if (stage === 'closeout' || stage === 'COMPLETED') return 'green' as const;
   return 'teal' as const;
 }
 
@@ -145,6 +145,7 @@ function ProjectsTable({
   returnUrl: string;
   showReceived?: boolean;
 }) {
+  const workflow = useWorkflow();
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card">
       <table className="min-w-full text-sm">
@@ -190,7 +191,7 @@ function ProjectsTable({
             <tr key={p.id} className="group transition-colors hover:bg-secondary/30">
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${stageColors[p.stage] ?? 'bg-status-neutral'}`} />
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${workflowStageColor(workflow.stateByKey.get(p.stage))}`} />
                   <div className="min-w-0">
                     <p className="mono text-[10px] text-muted-foreground">{p.projectNumber}</p>
                     <p className="truncate text-xs font-bold leading-4">{p.projectName}</p>
@@ -202,7 +203,7 @@ function ProjectsTable({
                 <p className="truncate text-xs">{p.customerName}</p>
               </td>
               <td className="hidden px-4 py-3 lg:table-cell">
-                <Badge tone={stageBadgeTone(p.stage)}>{stageLabels[p.stage] ?? p.stage}</Badge>
+                <Badge tone={stageBadgeTone(workflow.stateByKey.get(p.stage)?.normalizedCategory ?? p.stage)}>{workflow.labels[p.stage] ?? stageLabels[p.stage] ?? p.stage}</Badge>
               </td>
               <td className="px-4 py-3 text-right">
                 <p className="mono text-xs font-semibold">{currency.format(p.contractValue)}</p>
@@ -425,6 +426,7 @@ export function DashboardDrilldown() {
   // URL query state
   const [search, setSearch] = useSearchParam('search');
   const [sort, setSort] = useSearchParam('sort');
+  const workflow = useWorkflow();
   const [stage] = useSearchParam('stage');
 
   // Debounced search
@@ -502,11 +504,11 @@ export function DashboardDrilldown() {
               <p className="mono text-[10px] uppercase tracking-[.13em] text-muted-foreground">Dashboard drilldown</p>
             </div>
             <h1 className="mt-1 text-2xl font-bold tracking-tight">
-              {data?.title ?? (stage ? `${stageLabels[stage] ?? stage} projects` : 'Loading…')}
+              {data?.title ?? (stage ? `${workflow.labels[stage] ?? stageLabels[stage] ?? stage} projects` : 'Loading…')}
             </h1>
             {stage && (
               <div className="mt-1 flex items-center gap-2">
-                <Badge tone={stageBadgeTone(stage)}>{stageLabels[stage] ?? stage}</Badge>
+                <Badge tone={stageBadgeTone(workflow.stateByKey.get(stage)?.normalizedCategory ?? stage)}>{workflow.labels[stage] ?? stageLabels[stage] ?? stage}</Badge>
               </div>
             )}
           </div>

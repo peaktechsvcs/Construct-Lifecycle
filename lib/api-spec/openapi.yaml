@@ -32,6 +32,8 @@ tags:
     description: Platform administrator customer lifecycle operations
   - name: billing
     description: Subscription plans, billing actions, entitlements, and audit history
+  - name: workflows
+    description: Tenant-configurable project lifecycle states, statuses, and transitions
 paths:
   /healthz:
     get:
@@ -146,6 +148,59 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Activity"
+  /workflow/config:
+    get:
+      operationId: getWorkflowConfig
+      tags: [workflows]
+      summary: Get the active tenant workflow configuration
+      responses:
+        "200":
+          description: Published and draft workflow configuration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowConfigResponse" }
+  /workflow/draft:
+    post:
+      operationId: createWorkflowDraft
+      tags: [workflows]
+      summary: Create a tenant workflow draft from the published configuration
+      responses:
+        "201":
+          description: Workflow draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowDraftResponse" }
+        "403": { description: Tenant administrator permission required }
+    put:
+      operationId: updateWorkflowDraft
+      tags: [workflows]
+      summary: Replace the tenant workflow draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkflowConfigInput" }
+      responses:
+        "200":
+          description: Updated workflow configuration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowConfigResponse" }
+        "403": { description: Tenant administrator permission required }
+        "422": { description: Workflow validation failed }
+  /workflow/draft/publish:
+    post:
+      operationId: publishWorkflowDraft
+      tags: [workflows]
+      summary: Validate and publish the tenant workflow draft
+      responses:
+        "200":
+          description: Published workflow configuration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowConfigResponse" }
+        "403": { description: Tenant administrator permission required }
+        "422": { description: Workflow validation failed }
   /customers:
     get:
       operationId: listBusinessCustomers
@@ -890,15 +945,7 @@ components:
         - status
     ProjectStage:
       type: string
-      enum:
-        - opportunity
-        - bid
-        - award
-        - contract
-        - procure
-        - deliver
-        - financial
-        - closeout
+      pattern: "^[a-z][a-z0-9_]{1,62}$"
     ProposalStatus:
       type: string
       enum: [not_started, drafting, submitted, revised, accepted]
@@ -952,6 +999,8 @@ components:
           items: { type: string }
         owner: { type: ["string", "null"] }
         stage: { $ref: "#/components/schemas/ProjectStage" }
+        workflowTemplateId: { type: ["integer", "null"] }
+        projectStatus: { type: ["string", "null"] }
         proposalStatus: { $ref: "#/components/schemas/ProposalStatus" }
         proposalDetails: { type: ["string", "null"] }
         bidOutcome: { $ref: "#/components/schemas/BidOutcome" }
@@ -990,6 +1039,7 @@ components:
           items: { type: string }
         owner: { type: string }
         stage: { $ref: "#/components/schemas/ProjectStage" }
+        projectStatus: { type: string, pattern: "^[a-z][a-z0-9_]{1,62}$" }
         proposalStatus: { $ref: "#/components/schemas/ProposalStatus" }
         proposalDetails: { type: string }
         bidOutcome: { $ref: "#/components/schemas/BidOutcome" }
@@ -1584,4 +1634,172 @@ components:
         action: { type: string }
         details: { type: object, additionalProperties: true }
         createdAt: { type: string, format: date-time }
+    WorkflowTemplate:
+      type: object
+      required: [id, tenantId, environmentId, name, status, isDefault, version, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        environmentId: { type: integer }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        status: { type: string, enum: [draft, published, archived] }
+        isDefault: { type: boolean }
+        version: { type: integer }
+        createdByUserId: { type: ["integer", "null"] }
+        publishedByUserId: { type: ["integer", "null"] }
+        publishedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    WorkflowState:
+      type: object
+      required: [id, workflowTemplateId, stableKey, displayName, normalizedCategory, displayOrder, active, terminal, allowManualEnter, allowManualLeave, requiredFields, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        workflowTemplateId: { type: integer }
+        stableKey: { type: string }
+        displayName: { type: string }
+        description: { type: ["string", "null"] }
+        normalizedCategory: { type: string }
+        displayOrder: { type: integer }
+        active: { type: boolean }
+        terminal: { type: boolean }
+        allowManualEnter: { type: boolean }
+        allowManualLeave: { type: boolean }
+        defaultStatusKey: { type: ["string", "null"] }
+        requiredFields:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    WorkflowStatus:
+      type: object
+      required: [id, workflowTemplateId, stableKey, displayName, stateKeys, displayOrder, active, required, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        workflowTemplateId: { type: integer }
+        stableKey: { type: string }
+        displayName: { type: string }
+        stateKeys:
+          type: array
+          items: { type: string }
+        displayOrder: { type: integer }
+        active: { type: boolean }
+        required: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    WorkflowTransition:
+      type: object
+      required: [id, workflowTemplateId, fromStateKey, toStateKey, active, requiresConfirmation, allowedRoles, requiredFields, warningFields, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        workflowTemplateId: { type: integer }
+        fromStateKey: { type: string }
+        toStateKey: { type: string }
+        active: { type: boolean }
+        requiresConfirmation: { type: boolean }
+        allowedRoles:
+          type: array
+          items: { type: string }
+        requiredFields:
+          type: array
+          items: { type: string }
+        warningFields:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    WorkflowConfig:
+      type: object
+      required: [template, states, statuses, transitions]
+      properties:
+        template: { $ref: "#/components/schemas/WorkflowTemplate" }
+        states:
+          type: array
+          items: { $ref: "#/components/schemas/WorkflowState" }
+        statuses:
+          type: array
+          items: { $ref: "#/components/schemas/WorkflowStatus" }
+        transitions:
+          type: array
+          items: { $ref: "#/components/schemas/WorkflowTransition" }
+    WorkflowConfigResponse:
+      type: object
+      required: [published, draft]
+      properties:
+        published: { $ref: "#/components/schemas/WorkflowConfig" }
+        draft:
+          oneOf:
+            - $ref: "#/components/schemas/WorkflowConfig"
+            - type: "null"
+    WorkflowDraftResponse:
+      type: object
+      required: [draft]
+      properties:
+        draft:
+          oneOf:
+            - $ref: "#/components/schemas/WorkflowConfig"
+            - type: "null"
+    WorkflowConfigInput:
+      type: object
+      required: [states, statuses, transitions]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: ["string", "null"], maxLength: 1000 }
+        states:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required: [stableKey, displayName, normalizedCategory, displayOrder]
+            properties:
+              stableKey: { type: string, pattern: "^[a-z][a-z0-9_]{1,62}$" }
+              displayName: { type: string, minLength: 1, maxLength: 120 }
+              description: { type: ["string", "null"], maxLength: 1000 }
+              normalizedCategory: { type: string, minLength: 1, maxLength: 64 }
+              displayOrder: { type: integer, minimum: 0, maximum: 1000 }
+              active: { type: boolean }
+              terminal: { type: boolean }
+              allowManualEnter: { type: boolean }
+              allowManualLeave: { type: boolean }
+              defaultStatusKey: { type: ["string", "null"] }
+              requiredFields:
+                type: array
+                items: { type: string, minLength: 1, maxLength: 80 }
+        statuses:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required: [stableKey, displayName, displayOrder]
+            properties:
+              stableKey: { type: string, pattern: "^[a-z][a-z0-9_]{1,62}$" }
+              displayName: { type: string, minLength: 1, maxLength: 120 }
+              stateKeys:
+                type: array
+                items: { type: string }
+              displayOrder: { type: integer, minimum: 0, maximum: 1000 }
+              active: { type: boolean }
+              required: { type: boolean }
+        transitions:
+          type: array
+          maxItems: 500
+          items:
+            type: object
+            required: [fromStateKey, toStateKey]
+            properties:
+              fromStateKey: { type: string }
+              toStateKey: { type: string }
+              active: { type: boolean }
+              requiresConfirmation: { type: boolean }
+              allowedRoles:
+                type: array
+                items: { type: string }
+              requiredFields:
+                type: array
+                items: { type: string }
+              warningFields:
+                type: array
+                items: { type: string }
 

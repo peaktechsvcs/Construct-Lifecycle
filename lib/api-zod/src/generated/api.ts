@@ -20,11 +20,15 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary List projects
  */
+export const listProjectsQueryStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+
+
 export const ListProjectsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']).optional()
+  "stage": zod.coerce.string().regex(listProjectsQueryStageRegExp).optional()
 })
 
+export const listProjectsResponseStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
 export const listProjectsResponseDeliveryPercentMin = 0;
 export const listProjectsResponseDeliveryPercentMax = 100;
 
@@ -48,7 +52,9 @@ export const ListProjectsResponseItem = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().nullish(),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
+  "stage": zod.string().regex(listProjectsResponseStageRegExp),
+  "workflowTemplateId": zod.number().int().nullish(),
+  "projectStatus": zod.string().nullish(),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']),
   "proposalDetails": zod.string().nullish(),
   "bidOutcome": zod.enum(['pending', 'won', 'lost', 'no_bid']),
@@ -87,6 +93,8 @@ export const createProjectBodyNewCustomerOnePhoneMax = 40;
 
 
 
+export const createProjectBodyStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+export const createProjectBodyProjectStatusRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
 export const createProjectBodyDeliveryPercentMin = 0;
 export const createProjectBodyDeliveryPercentMax = 100;
 
@@ -108,7 +116,8 @@ export const CreateProjectBody = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().optional(),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']).optional(),
+  "stage": zod.string().regex(createProjectBodyStageRegExp).optional(),
+  "projectStatus": zod.string().regex(createProjectBodyProjectStatusRegExp).optional(),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']).optional(),
   "proposalDetails": zod.string().optional(),
   "bidOutcome": zod.enum(['pending', 'won', 'lost', 'no_bid']).optional(),
@@ -128,6 +137,7 @@ export const CreateProjectBody = zod.object({
   "nextFollowUp": zod.coerce.date().optional()
 })
 
+export const createProjectResponseStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
 export const createProjectResponseDeliveryPercentMin = 0;
 export const createProjectResponseDeliveryPercentMax = 100;
 
@@ -151,7 +161,9 @@ export const CreateProjectResponse = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().nullish(),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
+  "stage": zod.string().regex(createProjectResponseStageRegExp),
+  "workflowTemplateId": zod.number().int().nullish(),
+  "projectStatus": zod.string().nullish(),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']),
   "proposalDetails": zod.string().nullish(),
   "bidOutcome": zod.enum(['pending', 'won', 'lost', 'no_bid']),
@@ -181,6 +193,7 @@ export const GetProjectParams = zod.object({
   "projectId": zod.coerce.number().int()
 })
 
+export const getProjectResponseStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
 export const getProjectResponseDeliveryPercentMin = 0;
 export const getProjectResponseDeliveryPercentMax = 100;
 
@@ -204,7 +217,9 @@ export const GetProjectResponse = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().nullish(),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
+  "stage": zod.string().regex(getProjectResponseStageRegExp),
+  "workflowTemplateId": zod.number().int().nullish(),
+  "projectStatus": zod.string().nullish(),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']),
   "proposalDetails": zod.string().nullish(),
   "bidOutcome": zod.enum(['pending', 'won', 'lost', 'no_bid']),
@@ -246,6 +261,8 @@ export const updateProjectBodyOneNewCustomerOnePhoneMax = 40;
 
 
 
+export const updateProjectBodyOneStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+export const updateProjectBodyOneProjectStatusRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
 export const updateProjectBodyOneDeliveryPercentMin = 0;
 export const updateProjectBodyOneDeliveryPercentMax = 100;
 
@@ -267,7 +284,8 @@ export const UpdateProjectBody = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().optional(),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']).optional(),
+  "stage": zod.string().regex(updateProjectBodyOneStageRegExp).optional(),
+  "projectStatus": zod.string().regex(updateProjectBodyOneProjectStatusRegExp).optional(),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']).optional(),
   "proposalDetails": zod.string().optional(),
   "bidOutcome": zod.enum(['pending', 'won', 'lost', 'no_bid']).optional(),
@@ -287,6 +305,7 @@ export const UpdateProjectBody = zod.object({
   "nextFollowUp": zod.coerce.date().optional()
 })
 
+export const updateProjectResponseStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
 export const updateProjectResponseDeliveryPercentMin = 0;
 export const updateProjectResponseDeliveryPercentMax = 100;
 
@@ -310,7 +329,9 @@ export const UpdateProjectResponse = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().nullish(),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
+  "stage": zod.string().regex(updateProjectResponseStageRegExp),
+  "workflowTemplateId": zod.number().int().nullish(),
+  "projectStatus": zod.string().nullish(),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']),
   "proposalDetails": zod.string().nullish(),
   "bidOutcome": zod.enum(['pending', 'won', 'lost', 'no_bid']),
@@ -364,6 +385,512 @@ export const ListProjectActivityResponse = zod.array(ListProjectActivityResponse
 
 
 /**
+ * @summary Get the active tenant workflow configuration
+ */
+export const GetWorkflowConfigResponse = zod.object({
+  "published": zod.object({
+  "template": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "version": zod.number().int(),
+  "createdByUserId": zod.number().int().nullish(),
+  "publishedByUserId": zod.number().int().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "states": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "description": zod.string().nullish(),
+  "normalizedCategory": zod.string(),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "terminal": zod.boolean(),
+  "allowManualEnter": zod.boolean(),
+  "allowManualLeave": zod.boolean(),
+  "defaultStatusKey": zod.string().nullish(),
+  "requiredFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "statuses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "stateKeys": zod.array(zod.string()),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "required": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "transitions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "fromStateKey": zod.string(),
+  "toStateKey": zod.string(),
+  "active": zod.boolean(),
+  "requiresConfirmation": zod.boolean(),
+  "allowedRoles": zod.array(zod.string()),
+  "requiredFields": zod.array(zod.string()),
+  "warningFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}),
+  "draft": zod.union([zod.object({
+  "template": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "version": zod.number().int(),
+  "createdByUserId": zod.number().int().nullish(),
+  "publishedByUserId": zod.number().int().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "states": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "description": zod.string().nullish(),
+  "normalizedCategory": zod.string(),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "terminal": zod.boolean(),
+  "allowManualEnter": zod.boolean(),
+  "allowManualLeave": zod.boolean(),
+  "defaultStatusKey": zod.string().nullish(),
+  "requiredFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "statuses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "stateKeys": zod.array(zod.string()),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "required": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "transitions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "fromStateKey": zod.string(),
+  "toStateKey": zod.string(),
+  "active": zod.boolean(),
+  "requiresConfirmation": zod.boolean(),
+  "allowedRoles": zod.array(zod.string()),
+  "requiredFields": zod.array(zod.string()),
+  "warningFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}),zod.null()])
+})
+
+
+/**
+ * @summary Create a tenant workflow draft from the published configuration
+ */
+export const CreateWorkflowDraftResponse = zod.object({
+  "draft": zod.union([zod.object({
+  "template": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "version": zod.number().int(),
+  "createdByUserId": zod.number().int().nullish(),
+  "publishedByUserId": zod.number().int().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "states": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "description": zod.string().nullish(),
+  "normalizedCategory": zod.string(),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "terminal": zod.boolean(),
+  "allowManualEnter": zod.boolean(),
+  "allowManualLeave": zod.boolean(),
+  "defaultStatusKey": zod.string().nullish(),
+  "requiredFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "statuses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "stateKeys": zod.array(zod.string()),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "required": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "transitions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "fromStateKey": zod.string(),
+  "toStateKey": zod.string(),
+  "active": zod.boolean(),
+  "requiresConfirmation": zod.boolean(),
+  "allowedRoles": zod.array(zod.string()),
+  "requiredFields": zod.array(zod.string()),
+  "warningFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}),zod.null()])
+})
+
+
+/**
+ * @summary Replace the tenant workflow draft
+ */
+export const updateWorkflowDraftBodyNameMax = 160;
+
+export const updateWorkflowDraftBodyDescriptionMax = 1000;
+
+export const updateWorkflowDraftBodyStatesItemStableKeyRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+export const updateWorkflowDraftBodyStatesItemDisplayNameMax = 120;
+
+export const updateWorkflowDraftBodyStatesItemDescriptionMax = 1000;
+
+export const updateWorkflowDraftBodyStatesItemNormalizedCategoryMax = 64;
+
+export const updateWorkflowDraftBodyStatesItemDisplayOrderMin = 0;
+export const updateWorkflowDraftBodyStatesItemDisplayOrderMax = 1000;
+
+export const updateWorkflowDraftBodyStatesItemRequiredFieldsItemMax = 80;
+
+export const updateWorkflowDraftBodyStatesMax = 100;
+
+export const updateWorkflowDraftBodyStatusesItemStableKeyRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+export const updateWorkflowDraftBodyStatusesItemDisplayNameMax = 120;
+
+export const updateWorkflowDraftBodyStatusesItemDisplayOrderMin = 0;
+export const updateWorkflowDraftBodyStatusesItemDisplayOrderMax = 1000;
+
+export const updateWorkflowDraftBodyStatusesMax = 200;
+
+export const updateWorkflowDraftBodyTransitionsMax = 500;
+
+
+
+export const UpdateWorkflowDraftBody = zod.object({
+  "name": zod.string().min(1).max(updateWorkflowDraftBodyNameMax).optional(),
+  "description": zod.string().max(updateWorkflowDraftBodyDescriptionMax).nullish(),
+  "states": zod.array(zod.object({
+  "stableKey": zod.string().regex(updateWorkflowDraftBodyStatesItemStableKeyRegExp),
+  "displayName": zod.string().min(1).max(updateWorkflowDraftBodyStatesItemDisplayNameMax),
+  "description": zod.string().max(updateWorkflowDraftBodyStatesItemDescriptionMax).nullish(),
+  "normalizedCategory": zod.string().min(1).max(updateWorkflowDraftBodyStatesItemNormalizedCategoryMax),
+  "displayOrder": zod.number().int().min(updateWorkflowDraftBodyStatesItemDisplayOrderMin).max(updateWorkflowDraftBodyStatesItemDisplayOrderMax),
+  "active": zod.boolean().optional(),
+  "terminal": zod.boolean().optional(),
+  "allowManualEnter": zod.boolean().optional(),
+  "allowManualLeave": zod.boolean().optional(),
+  "defaultStatusKey": zod.string().nullish(),
+  "requiredFields": zod.array(zod.string().min(1).max(updateWorkflowDraftBodyStatesItemRequiredFieldsItemMax)).optional()
+})).min(1).max(updateWorkflowDraftBodyStatesMax),
+  "statuses": zod.array(zod.object({
+  "stableKey": zod.string().regex(updateWorkflowDraftBodyStatusesItemStableKeyRegExp),
+  "displayName": zod.string().min(1).max(updateWorkflowDraftBodyStatusesItemDisplayNameMax),
+  "stateKeys": zod.array(zod.string()).optional(),
+  "displayOrder": zod.number().int().min(updateWorkflowDraftBodyStatusesItemDisplayOrderMin).max(updateWorkflowDraftBodyStatusesItemDisplayOrderMax),
+  "active": zod.boolean().optional(),
+  "required": zod.boolean().optional()
+})).max(updateWorkflowDraftBodyStatusesMax),
+  "transitions": zod.array(zod.object({
+  "fromStateKey": zod.string(),
+  "toStateKey": zod.string(),
+  "active": zod.boolean().optional(),
+  "requiresConfirmation": zod.boolean().optional(),
+  "allowedRoles": zod.array(zod.string()).optional(),
+  "requiredFields": zod.array(zod.string()).optional(),
+  "warningFields": zod.array(zod.string()).optional()
+})).max(updateWorkflowDraftBodyTransitionsMax)
+})
+
+export const UpdateWorkflowDraftResponse = zod.object({
+  "published": zod.object({
+  "template": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "version": zod.number().int(),
+  "createdByUserId": zod.number().int().nullish(),
+  "publishedByUserId": zod.number().int().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "states": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "description": zod.string().nullish(),
+  "normalizedCategory": zod.string(),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "terminal": zod.boolean(),
+  "allowManualEnter": zod.boolean(),
+  "allowManualLeave": zod.boolean(),
+  "defaultStatusKey": zod.string().nullish(),
+  "requiredFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "statuses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "stateKeys": zod.array(zod.string()),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "required": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "transitions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "fromStateKey": zod.string(),
+  "toStateKey": zod.string(),
+  "active": zod.boolean(),
+  "requiresConfirmation": zod.boolean(),
+  "allowedRoles": zod.array(zod.string()),
+  "requiredFields": zod.array(zod.string()),
+  "warningFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}),
+  "draft": zod.union([zod.object({
+  "template": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "version": zod.number().int(),
+  "createdByUserId": zod.number().int().nullish(),
+  "publishedByUserId": zod.number().int().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "states": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "description": zod.string().nullish(),
+  "normalizedCategory": zod.string(),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "terminal": zod.boolean(),
+  "allowManualEnter": zod.boolean(),
+  "allowManualLeave": zod.boolean(),
+  "defaultStatusKey": zod.string().nullish(),
+  "requiredFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "statuses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "stateKeys": zod.array(zod.string()),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "required": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "transitions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "fromStateKey": zod.string(),
+  "toStateKey": zod.string(),
+  "active": zod.boolean(),
+  "requiresConfirmation": zod.boolean(),
+  "allowedRoles": zod.array(zod.string()),
+  "requiredFields": zod.array(zod.string()),
+  "warningFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}),zod.null()])
+})
+
+
+/**
+ * @summary Validate and publish the tenant workflow draft
+ */
+export const PublishWorkflowDraftResponse = zod.object({
+  "published": zod.object({
+  "template": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "version": zod.number().int(),
+  "createdByUserId": zod.number().int().nullish(),
+  "publishedByUserId": zod.number().int().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "states": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "description": zod.string().nullish(),
+  "normalizedCategory": zod.string(),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "terminal": zod.boolean(),
+  "allowManualEnter": zod.boolean(),
+  "allowManualLeave": zod.boolean(),
+  "defaultStatusKey": zod.string().nullish(),
+  "requiredFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "statuses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "stateKeys": zod.array(zod.string()),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "required": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "transitions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "fromStateKey": zod.string(),
+  "toStateKey": zod.string(),
+  "active": zod.boolean(),
+  "requiresConfirmation": zod.boolean(),
+  "allowedRoles": zod.array(zod.string()),
+  "requiredFields": zod.array(zod.string()),
+  "warningFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}),
+  "draft": zod.union([zod.object({
+  "template": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "version": zod.number().int(),
+  "createdByUserId": zod.number().int().nullish(),
+  "publishedByUserId": zod.number().int().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "states": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "description": zod.string().nullish(),
+  "normalizedCategory": zod.string(),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "terminal": zod.boolean(),
+  "allowManualEnter": zod.boolean(),
+  "allowManualLeave": zod.boolean(),
+  "defaultStatusKey": zod.string().nullish(),
+  "requiredFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "statuses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "stableKey": zod.string(),
+  "displayName": zod.string(),
+  "stateKeys": zod.array(zod.string()),
+  "displayOrder": zod.number().int(),
+  "active": zod.boolean(),
+  "required": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "transitions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "workflowTemplateId": zod.number().int(),
+  "fromStateKey": zod.string(),
+  "toStateKey": zod.string(),
+  "active": zod.boolean(),
+  "requiresConfirmation": zod.boolean(),
+  "allowedRoles": zod.array(zod.string()),
+  "requiredFields": zod.array(zod.string()),
+  "warningFields": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}),zod.null()])
+})
+
+
+/**
  * @summary List business customers in the active workspace
  */
 export const listBusinessCustomersQuerySearchMax = 100;
@@ -406,6 +933,9 @@ export const CreateBusinessCustomerBody = zod.object({
   "phone": zod.string().max(createBusinessCustomerBodyPhoneMax).optional()
 })
 
+export const createBusinessCustomerResponseTwoProjectsItemStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+
+
 export const CreateBusinessCustomerResponse = zod.object({
   "id": zod.number().int(),
   "companyName": zod.string(),
@@ -423,7 +953,7 @@ export const CreateBusinessCustomerResponse = zod.object({
   "projectNumber": zod.string(),
   "projectName": zod.string(),
   "customerName": zod.string().optional(),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
+  "stage": zod.string().regex(createBusinessCustomerResponseTwoProjectsItemStageRegExp),
   "contractValue": zod.number(),
   "updatedAt": zod.coerce.date()
 }))
@@ -436,6 +966,9 @@ export const CreateBusinessCustomerResponse = zod.object({
 export const GetBusinessCustomerParams = zod.object({
   "customerId": zod.coerce.number().int()
 })
+
+export const getBusinessCustomerResponseTwoProjectsItemStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+
 
 export const GetBusinessCustomerResponse = zod.object({
   "id": zod.number().int(),
@@ -454,7 +987,7 @@ export const GetBusinessCustomerResponse = zod.object({
   "projectNumber": zod.string(),
   "projectName": zod.string(),
   "customerName": zod.string().optional(),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
+  "stage": zod.string().regex(getBusinessCustomerResponseTwoProjectsItemStageRegExp),
   "contractValue": zod.number(),
   "updatedAt": zod.coerce.date()
 }))
@@ -487,6 +1020,9 @@ export const UpdateBusinessCustomerBody = zod.object({
   "status": zod.enum(['active', 'archived']).optional()
 })
 
+export const updateBusinessCustomerResponseTwoProjectsItemStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+
+
 export const UpdateBusinessCustomerResponse = zod.object({
   "id": zod.number().int(),
   "companyName": zod.string(),
@@ -504,7 +1040,7 @@ export const UpdateBusinessCustomerResponse = zod.object({
   "projectNumber": zod.string(),
   "projectName": zod.string(),
   "customerName": zod.string().optional(),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
+  "stage": zod.string().regex(updateBusinessCustomerResponseTwoProjectsItemStageRegExp),
   "contractValue": zod.number(),
   "updatedAt": zod.coerce.date()
 }))
@@ -582,6 +1118,9 @@ export const UpdateFollowUpResponse = zod.object({
 /**
  * @summary Get dashboard summary
  */
+export const getDashboardSummaryResponseStageCountsItemStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+
+
 export const GetDashboardSummaryResponse = zod.object({
   "activeProjects": zod.number().int(),
   "pipelineValue": zod.number(),
@@ -590,7 +1129,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "receivedValue": zod.number(),
   "openFollowUps": zod.number().int(),
   "stageCounts": zod.array(zod.object({
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
+  "stage": zod.string().regex(getDashboardSummaryResponseStageCountsItemStageRegExp),
   "count": zod.number().int(),
   "value": zod.number()
 }))
@@ -616,13 +1155,18 @@ export const ListRecentActivityResponse = zod.array(ListRecentActivityResponseIt
 /**
  * @summary Inspect records contributing to a dashboard metric
  */
+export const getDashboardDrilldownQueryStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+
+
 export const GetDashboardDrilldownQueryParams = zod.object({
   "type": zod.enum(['active-projects', 'pipeline-value', 'received-to-date', 'open-follow-ups', 'stage', 'needs-attention']),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']).optional(),
+  "stage": zod.coerce.string().regex(getDashboardDrilldownQueryStageRegExp).optional(),
   "search": zod.coerce.string().optional(),
   "sort": zod.enum(['value_desc', 'value_asc', 'updated_desc', 'due_priority']).optional()
 })
 
+export const getDashboardDrilldownResponseProjectsItemStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+export const getDashboardDrilldownResponseAttentionItemProjectStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
 export const getDashboardDrilldownResponseAttentionItemAgeDaysMin = 0;
 
 
@@ -638,7 +1182,7 @@ export const GetDashboardDrilldownResponse = zod.object({
   "customerName": zod.string(),
   "projectName": zod.string(),
   "owner": zod.string().nullish(),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
+  "stage": zod.string().regex(getDashboardDrilldownResponseProjectsItemStageRegExp),
   "contractValue": zod.number(),
   "receivedAmount": zod.number(),
   "deliveryPercent": zod.number().int().optional(),
@@ -666,7 +1210,7 @@ export const GetDashboardDrilldownResponse = zod.object({
   "customerName": zod.string(),
   "projectName": zod.string(),
   "owner": zod.string().nullish(),
-  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
+  "stage": zod.string().regex(getDashboardDrilldownResponseAttentionItemProjectStageRegExp),
   "contractValue": zod.number(),
   "receivedAmount": zod.number(),
   "deliveryPercent": zod.number().int().optional(),

@@ -9,8 +9,8 @@ import {
   getListProjectsQueryKey, getGetProjectQueryKey, getGetDashboardSummaryQueryKey,
 } from '@workspace/api-client-react';
 import { Modal, Button } from '@/components/app-ui';
-import { stageLabels, STAGE_ORDER } from '@/lib/stage-config';
 import { useTenant } from '@/providers/tenant-provider';
+import { useWorkflow } from '@/hooks/use-workflow';
 
 type ProjectForm = {
   customerName: string; businessCustomerId?: number; newCustomer?: BusinessCustomerInput; projectName: string; address: string; category: string;
@@ -88,11 +88,6 @@ const projectPayload = (form: ProjectForm): ProjectInput => ({
   closeoutDetails: form.closeoutDetails || undefined,
   nextFollowUp: form.nextFollowUp || undefined,
 });
-
-const stageOptions = STAGE_ORDER.map((s) => ({
-  value: s,
-  label: stageLabels[s] ?? s,
-}));
 
 function CustomerSelector({
   value,
@@ -195,6 +190,8 @@ export function ProjectFormModal({ project, initialCustomer, onClose }: { projec
   const create = useCreateProject();
   const update = useUpdateProject();
   const qc = useQueryClient();
+  const workflow = useWorkflow();
+  const stageOptions = workflow.states.map((state) => ({ value: state.stableKey, label: state.displayName }));
 
   const set = (key: keyof ProjectForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const setCustomer = (customer?: { id: number; companyName: string }) =>

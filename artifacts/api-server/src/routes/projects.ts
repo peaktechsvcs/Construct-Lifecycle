@@ -21,19 +21,9 @@ import {
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { getCurrentTenantRole, requireRole } from "../middlewares/rbac";
 import { normalizeCustomerName } from "./customers";
+import { ensurePublishedWorkflow, validateProjectTransition } from "../lib/workflow";
 
 const router: IRouter = Router();
-
-const projectStages = [
-  "opportunity",
-  "bid",
-  "award",
-  "contract",
-  "procure",
-  "deliver",
-  "financial",
-  "closeout",
-] as const;
 
 const toProject = (row: typeof projectsTable.$inferSelect) => ({
   ...row,
@@ -57,6 +47,11 @@ const projectContribution = (project: typeof projectsTable.$inferSelect) => ({
   contractEnd: project.contractEnd, nextFollowUp: project.nextFollowUp,
   updatedAt: project.updatedAt, nextAction: project.nextFollowUp ? "Complete scheduled follow-up" : null,
 });
+
+const workflowCategory = (workflow: Awaited<ReturnType<typeof ensurePublishedWorkflow>>, stage: string) =>
+  workflow?.states.find((state) => state.stableKey === stage)?.normalizedCategory ?? null;
+const isPipelineCategory = (category: string | null) => category === "PRE_SALES";
+const isActiveCategory = (category: string | null) => !!category && !["PRE_SALES", "COMPLETED", "CANCELED"].includes(category);
 
 const addActivity = async (
   projectId: number,
@@ -121,6 +116,21 @@ router.post("/projects", requireRole("owner", "admin", "member"), async (req: Te
       return;
     }
   }
+  const workflow = await ensurePublishedWorkflow(req.tenantId!, req.environmentId!, req.localUserId);
+  if (!workflow) {
+    res.status(409).json({ error: "No published project workflow is available." });
+    return;
+  }
+  const initialState = workflow.states.find((state) => state.stableKey === parsed.data.stage)
+    ?? workflow.states.find((state) => state.active);
+  if (!initialState) {
+    res.status(422).json({ error: "The project workflow has no active starting state." });
+    return;
+  }
+  const initialStatus = parsed.data.projectStatus
+    ?? initialState.defaultStatusKey
+    ?? workflow.statuses.find((status) => status.active)?.stableKey
+    ?? null;
 
   const [row] = await db.transaction(async (tx) => {
     let customerId = parsed.data.businessCustomerId ?? null;
@@ -187,6 +197,9 @@ router.post("/projects", requireRole("owner", "admin", "member"), async (req: Te
       businessCustomerId: customerId,
       customerName,
       projectNumber,
+      stage: initialState.stableKey,
+      projectStatus: initialStatus,
+      workflowTemplateId: workflow.template.id,
       productCategories: parsed.data.productCategories ?? [],
       contractValue: String(parsed.data.contractValue ?? 0),
       invoicedAmount: String(parsed.data.invoicedAmount ?? 0),
@@ -250,7 +263,7 @@ router.patch("/projects/:projectId", requireRole("owner", "admin", "member"), as
     customerName: _legacyCustomerName,
     ...projectFields
   } = parsed.data;
-  const [existingProject] = await db.select({ businessCustomerId: projectsTable.businessCustomerId })
+  const [existingProject] = await db.select()
     .from(projectsTable)
     .where(and(
       eq(projectsTable.id, params.data.projectId),
@@ -261,6 +274,16 @@ router.patch("/projects/:projectId", requireRole("owner", "admin", "member"), as
     ...projectFields,
     updatedAt: new Date(),
   };
+  if (!existingProject) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+  const workflow = await ensurePublishedWorkflow(req.tenantId!, req.environmentId!, req.localUserId);
+  if (!workflow) {
+    res.status(409).json({ error: "No published project workflow is available." });
+    return;
+  }
+  if (!existingProject.workflowTemplateId) updateData.workflowTemplateId = workflow.template.id;
   if (businessCustomerId != null) {
     const [customer] = await db.select().from(businessCustomersTable).where(and(
       eq(businessCustomersTable.id, businessCustomerId),
@@ -284,17 +307,32 @@ router.patch("/projects/:projectId", requireRole("owner", "admin", "member"), as
   if (parsed.data.receivedAmount !== undefined) {
     updateData.receivedAmount = String(parsed.data.receivedAmount);
   }
+  if (parsed.data.stage && parsed.data.stage !== existingProject.stage) {
+    const role = await getCurrentTenantRole(req);
+    const transition = validateProjectTransition(workflow, existingProject.stage, parsed.data.stage, role, {
+      ...existingProject,
+      ...updateData,
+    });
+    if (transition.error) {
+      res.status(transition.error.includes("permission") ? 403 : 422).json({
+        error: transition.error,
+        warnings: transition.warnings ?? [],
+      });
+      return;
+    }
+    if (parsed.data.projectStatus === undefined) {
+      updateData.projectStatus = workflow.states.find((state) => state.stableKey === parsed.data.stage)?.defaultStatusKey ?? null;
+    }
+  }
 
   const [row] = await db
     .update(projectsTable)
     .set(updateData)
     .where(and(eq(projectsTable.id, params.data.projectId), eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)))
     .returning();
-  if (!row) {
-    res.status(404).json({ error: "Project not found" });
-    return;
-  }
-  const changedStage = parsed.data.stage ? ` Stage moved to ${parsed.data.stage}.` : "";
+  const changedStage = parsed.data.stage && parsed.data.stage !== existingProject.stage
+    ? ` Stage moved from ${existingProject.stage} to ${parsed.data.stage}.`
+    : "";
   await addActivity(row.id, "Project updated", `Project details were updated.${changedStage}`, req.tenantId!, req.environmentId!);
   if (businessCustomerId != null && existingProject?.businessCustomerId !== businessCustomerId) {
     await addActivity(row.id, "Customer assigned", `Project assigned to ${row.customerName}.`, req.tenantId!, req.environmentId!);
@@ -433,6 +471,7 @@ router.get("/dashboard/drilldown", async (req: TenantRequest, res) => {
     return;
   }
   const { type, stage, search } = parsed.data;
+  const workflow = await ensurePublishedWorkflow(req.tenantId!, req.environmentId!, req.localUserId);
   const conditions = [eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)];
   if (search) conditions.push(or(
     ilike(projectsTable.customerName, `%${search}%`),
@@ -442,9 +481,9 @@ router.get("/dashboard/drilldown", async (req: TenantRequest, res) => {
   const projects = await db.select().from(projectsTable).where(and(...conditions));
   const today = dateToday();
   const matches = type === "active-projects"
-    ? projects.filter((p) => ACTIVE_STAGES.includes(p.stage as typeof ACTIVE_STAGES[number]))
+    ? projects.filter((p) => isActiveCategory(workflowCategory(workflow, p.stage)))
     : type === "pipeline-value"
-      ? projects.filter((p) => PIPELINE_STAGES.includes(p.stage as typeof PIPELINE_STAGES[number]))
+      ? projects.filter((p) => isPipelineCategory(workflowCategory(workflow, p.stage)))
       : type === "stage"
         ? projects.filter((p) => p.stage === stage)
         : [];
@@ -478,7 +517,7 @@ router.get("/dashboard/drilldown", async (req: TenantRequest, res) => {
     const attention = projects.map((p) => {
       const reasons: string[] = [];
       if (p.nextFollowUp && p.nextFollowUp < today) reasons.push("nextFollowUp overdue");
-      if (ACTIVE_STAGES.includes(p.stage as typeof ACTIVE_STAGES[number]) && !p.contractEnd) reasons.push("missing target completion for active work");
+       if (isActiveCategory(workflowCategory(workflow, p.stage)) && !p.contractEnd) reasons.push("missing target completion for active work");
       const last = latest.get(p.id) ?? p.updatedAt;
       if (daysSince(last) > 30) reasons.push("no activity for more than 30 days");
       return { project: projectContribution(p), reasons, severity: reasons.some((r) => r.includes("overdue")) ? "high" : reasons.length > 1 ? "medium" : "low", ageDays: daysSince(last), recommendedAction: reasons.some((r) => r.includes("overdue")) ? "Review and complete the overdue action" : "Review project status and schedule next action" };
@@ -492,25 +531,26 @@ router.get("/dashboard/drilldown", async (req: TenantRequest, res) => {
 });
 
 router.get("/dashboard/summary", async (req: TenantRequest, res) => {
-  const [projects, followUps] = await Promise.all([
+  const [projects, followUps, workflow] = await Promise.all([
     db.select().from(projectsTable).where(and(eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!))),
     db.select({ status: followUpsTable.status }).from(followUpsTable).where(and(eq(followUpsTable.tenantId, req.tenantId!), eq(followUpsTable.environmentId, req.environmentId!))),
+    ensurePublishedWorkflow(req.tenantId!, req.environmentId!, req.localUserId),
   ]);
-  const stageCounts = projectStages.map((stage) => {
-    const matching = projects.filter((project) => project.stage === stage);
+  const stageCounts = (workflow?.states.filter((state) => state.active).sort((a, b) => a.displayOrder - b.displayOrder) ?? []).map((state) => {
+    const matching = projects.filter((project) => project.stage === state.stableKey);
     return {
-      stage,
+      stage: state.stableKey,
       count: matching.length,
       value: matching.reduce((sum, project) => sum + Number(project.contractValue), 0),
     };
   });
   res.json({
-    activeProjects: projects.filter((project) => ACTIVE_STAGES.includes(project.stage as typeof ACTIVE_STAGES[number])).length,
+    activeProjects: projects.filter((project) => isActiveCategory(workflowCategory(workflow, project.stage))).length,
     pipelineValue: projects
-      .filter((project) => PIPELINE_STAGES.includes(project.stage as typeof PIPELINE_STAGES[number]))
+      .filter((project) => isPipelineCategory(workflowCategory(workflow, project.stage)))
       .reduce((sum, project) => sum + Number(project.contractValue), 0),
     awardedValue: projects
-      .filter((project) => ACTIVE_STAGES.includes(project.stage as typeof ACTIVE_STAGES[number]))
+      .filter((project) => isActiveCategory(workflowCategory(workflow, project.stage)))
       .reduce((sum, project) => sum + Number(project.contractValue), 0),
     invoicedValue: projects.reduce((sum, project) => sum + Number(project.invoicedAmount), 0),
     receivedValue: projects.reduce((sum, project) => sum + Number(project.receivedAmount), 0),

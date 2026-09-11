@@ -1,5 +1,4 @@
 import { createInsertSchema } from "drizzle-zod";
-import { sql } from "drizzle-orm";
 import {
   date,
   check,

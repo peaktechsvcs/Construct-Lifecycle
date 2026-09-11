@@ -15,8 +15,9 @@ import {
   Badge, Button, LoadingPanel, ErrorPanel, Modal, ActivityList,
   currency, shortDate, fullDate,
 } from '@/components/app-ui';
-import { stageLabels, LIFECYCLE_STAGES } from '@/lib/stage-config';
+import { stageLabels } from '@/lib/stage-config';
 import { ProjectFormModal } from '@/components/project-form-modal';
+import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
 
 // ─── Back navigation: respects ?return= drilldown URL ─────────────────────────
 
@@ -51,8 +52,9 @@ function BackNav() {
 }
 
 function Lifecycle({ project }: { project: Project }) {
-  const stages = LIFECYCLE_STAGES;
-  const current = stages.indexOf(project.stage);
+  const workflow = useWorkflow();
+  const stages = workflow.states;
+  const current = stages.findIndex((state) => state.stableKey === project.stage);
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 md:p-6">
@@ -62,13 +64,13 @@ function Lifecycle({ project }: { project: Project }) {
           <h2 className="mt-1 text-lg font-bold">Move the job forward</h2>
         </div>
         <Badge tone={project.stage === 'financial' || project.stage === 'procure' ? 'violet' : project.stage === 'closeout' ? 'green' : 'teal'}>
-          {stageLabels[project.stage] ?? project.stage}
+          {workflow.labels[project.stage] ?? stageLabels[project.stage] ?? project.stage}
         </Badge>
       </div>
       <div className="overflow-x-auto pb-2">
         <div className="grid min-w-[720px] grid-cols-8 gap-2">
-        {stages.map((stage, index) => (
-          <div key={stage} className="relative">
+        {stages.map((state, index) => (
+          <div key={state.stableKey} className="relative">
             <div
               className={`mb-2 flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
                 index <= current ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
@@ -77,7 +79,7 @@ function Lifecycle({ project }: { project: Project }) {
               {index < current ? <Check size={14} /> : index + 1}
             </div>
             <p className={`text-[10px] leading-4 ${index === current ? 'font-bold text-foreground' : index < current ? 'font-medium text-primary' : 'text-muted-foreground'}`}>
-              {stageLabels[stage] ?? stage}
+              {state.displayName}
             </p>
             {index < stages.length - 1 && (
               <span
@@ -204,6 +206,7 @@ export function ProjectDetail() {
     query: { queryKey: getListProjectActivityQueryKey(projectId), enabled: Number.isFinite(projectId) },
   });
   const project = projectQuery.data;
+  const workflow = useWorkflow();
 
   if (projectQuery.isLoading) return <LoadingPanel lines={8} />;
   if (projectQuery.isError || !project) return <ErrorPanel onRetry={() => projectQuery.refetch()} />;
@@ -219,7 +222,7 @@ export function ProjectDetail() {
           <div className="mt-1 flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-bold tracking-[-.05em]">{project.projectName}</h1>
             <Badge tone={project.stage === 'financial' || project.stage === 'procure' ? 'violet' : project.stage === 'closeout' ? 'green' : 'teal'}>
-              {stageLabels[project.stage] ?? project.stage}
+              {workflow.labels[project.stage] ?? stageLabels[project.stage] ?? project.stage}
             </Badge>
           </div>
           <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">

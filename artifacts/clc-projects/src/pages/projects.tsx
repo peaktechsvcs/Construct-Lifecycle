@@ -12,8 +12,9 @@ import {
   PageTitle, Button, LoadingPanel, ErrorPanel, EmptyState,
   Badge, currency, shortDate,
 } from '@/components/app-ui';
-import { stageLabels, stageColors, STAGE_ORDER } from '@/lib/stage-config';
+import { stageLabels } from '@/lib/stage-config';
 import { ProjectFormModal } from '@/components/project-form-modal';
+import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
 
 function stageBadgeTone(stage: string) {
   if (stage === 'financial') return 'violet' as const;
@@ -58,6 +59,7 @@ export function Projects() {
     [search, stage],
   );
   const query = useListProjects(params, { query: { queryKey: getListProjectsQueryKey(params) } });
+  const workflow = useWorkflow();
   const customerQuery = useListBusinessCustomers(undefined, { query: { queryKey: getListBusinessCustomersQueryKey() } });
   const deleteProject = useDeleteProject();
   const qc = useQueryClient();
@@ -74,9 +76,9 @@ export function Projects() {
   };
 
   // Stage filter options in canonical lifecycle order
-  const stageOptions = STAGE_ORDER.map((s) => ({
-    value: s,
-    label: stageLabels[s] ?? s,
+  const stageOptions = workflow.states.map((state) => ({
+    value: state.stableKey,
+    label: state.displayName,
   }));
 
   return (
@@ -176,7 +178,7 @@ export function Projects() {
                 >
                   <div className="flex items-center gap-2">
                     <span
-                      className={`h-2 w-2 shrink-0 rounded-full ${stageColors[project.stage] ?? 'bg-status-neutral'}`}
+                       className={`h-2 w-2 shrink-0 rounded-full ${workflowStageColor(workflow.stateByKey.get(project.stage))}`}
                     />
                     <div className="min-w-0">
                       <p className="mono text-[10px] text-accent">{project.projectNumber}</p>
@@ -191,7 +193,7 @@ export function Projects() {
                   {project.owner || 'Unassigned'}
                 </p>
                 <div>
-                  <Badge tone={stageBadgeTone(project.stage)}>{stageLabels[project.stage] ?? project.stage}</Badge>
+                   <Badge tone={stageBadgeTone(workflow.stateByKey.get(project.stage)?.normalizedCategory ?? project.stage)}>{workflow.labels[project.stage] ?? stageLabels[project.stage] ?? project.stage}</Badge>
                 </div>
                 <p className="mono text-sm font-medium">{currency.format(project.contractValue)}</p>
                 <p className="hidden text-xs text-muted-foreground md:block">{shortDate(project.updatedAt)}</p>

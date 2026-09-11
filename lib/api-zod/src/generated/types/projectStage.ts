@@ -6,16 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ProjectStage = typeof ProjectStage[keyof typeof ProjectStage];
-
-
-export const ProjectStage = {
-  opportunity: 'opportunity',
-  bid: 'bid',
-  award: 'award',
-  contract: 'contract',
-  procure: 'procure',
-  deliver: 'deliver',
-  financial: 'financial',
-  closeout: 'closeout',
-} as const;
+/**
+ * @pattern ^[a-z][a-z0-9_]{1,62}$
+ */
+export type ProjectStage = string;

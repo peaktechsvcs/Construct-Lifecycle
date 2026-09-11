@@ -6,9 +6,10 @@ import { OrganizationAccess } from '@/pages/organization-access';
 import { EmptyState, LoadingPanel, PageTitle } from '@/components/app-ui';
 import { useTenant } from '@/providers/tenant-provider';
 import { BillingAdmin } from '@/pages/billing';
+import { WorkflowsAdmin } from '@/pages/workflows';
 
 type SettingsSection = 'profile' | 'branding' | 'integrations' | 'billing' | 'administration';
-type AdministrationSection = 'users' | 'roles' | 'access';
+type AdministrationSection = 'users' | 'roles' | 'access' | 'workflows';
 
 const settingsSections: Array<{ key: SettingsSection; label: string; description: string; icon: typeof Building2 }> = [
   { key: 'profile', label: 'Organization Profile', description: 'Workspace identity and environment context', icon: Building2 },
@@ -22,6 +23,7 @@ const administrationSections: Array<{ key: AdministrationSection; label: string;
   { key: 'users', label: 'Users', description: 'Manage workspace members and invitations', icon: Users },
   { key: 'roles', label: 'Roles', description: 'Define what each workspace role can do', icon: KeyRound },
   { key: 'access', label: 'Access & Memberships', description: 'Review membership access and assignments', icon: ShieldCheck },
+  { key: 'workflows', label: 'Lifecycle & Workflows', description: 'Configure project states, statuses, and transitions', icon: Layers3 },
 ];
 
 function AdministrationSettings() {
@@ -49,7 +51,9 @@ function AdministrationSettings() {
         ))}
       </nav>
       <div className="mt-6">
-        {section === 'roles' ? (
+        {section === 'workflows' ? (
+          <WorkflowsAdmin />
+        ) : section === 'roles' ? (
           <section className="rounded-xl border border-border bg-card p-5">
             <div className="mb-5 flex items-center gap-3 border-b border-border pb-4">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary"><KeyRound size={16} /></span>
