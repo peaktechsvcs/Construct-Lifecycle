@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, ChevronDown, BriefcaseBusiness, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Filter, BriefcaseBusiness, Pencil, Trash2 } from 'lucide-react';
 import {
   Project, ProjectStage,
   useListProjects, getListProjectsQueryKey,
@@ -15,6 +15,8 @@ import {
 import { stageLabels } from '@/lib/stage-config';
 import { ProjectFormModal } from '@/components/project-form-modal';
 import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
+import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/construct-lifecycle-design-system/components/ui/select';
 
 function stageBadgeTone(stage: string) {
   if (stage === 'financial') return 'violet' as const;
@@ -103,30 +105,25 @@ export function Projects() {
       <div className="mb-5 flex flex-col gap-3 rounded-xl border border-border bg-card p-3 md:flex-row">
         <label className="relative flex-1">
           <Search size={16} className="absolute left-3 top-3 text-muted-foreground" />
-          <input
+          <Input
             data-testid="input-search-projects"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search customer, project, or address"
-            className="w-full rounded-lg border border-transparent bg-secondary/65 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-primary/30 focus:bg-background"
+            className="h-10 border-transparent bg-secondary/65 pl-9 focus:border-primary/30 focus:bg-background"
           />
         </label>
         <div className="relative md:w-60">
           <Filter size={15} className="pointer-events-none absolute left-3 top-3.5 text-muted-foreground" />
-          <select
-            data-testid="select-filter-stage"
-            value={stage}
-            onChange={(e) => setStage(e.target.value)}
-            className="w-full appearance-none rounded-lg border border-transparent bg-secondary/65 py-2.5 pl-9 pr-8 text-sm outline-none focus:border-primary/30 focus:bg-background"
-          >
-            <option value="">All lifecycle stages</option>
-            {stageOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={15} className="pointer-events-none absolute right-3 top-3.5 text-muted-foreground" />
+          <Select value={stage || 'all'} onValueChange={(value) => setStage(value === 'all' ? '' : value)}>
+            <SelectTrigger data-testid="select-filter-stage" className="h-10 border-transparent bg-secondary/65 pl-9 focus:border-primary/30 focus:bg-background">
+              <SelectValue placeholder="All lifecycle stages" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All lifecycle stages</SelectItem>
+              {stageOptions.map((opt) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         {(search || stage) && (
           <Button data-testid="button-clear-filters" variant="ghost" onClick={clear}>

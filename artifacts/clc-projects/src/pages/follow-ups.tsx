@@ -8,6 +8,7 @@ import {
   useUpdateFollowUp, getGetDashboardSummaryQueryKey
 } from '@workspace/api-client-react';
 import { PageTitle, LoadingPanel, ErrorPanel, EmptyState, Badge, Button, fullDate } from '@/components/app-ui';
+import { Tabs, TabsList, TabsTrigger } from '@workspace/construct-lifecycle-design-system/components/ui/tabs';
 
 export function FollowUps() {
   const query = useListFollowUps({ query: { queryKey: getListFollowUpsQueryKey() } });
@@ -31,14 +32,16 @@ export function FollowUps() {
     <div className="animate-rise">
       <PageTitle eyebrow="Future work" title="Follow-ups" description="A deliberate queue for the conversations that turn good jobs into the next job." action={<Link href="/projects" data-testid="link-followups-projects" className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-bold hover:bg-secondary"><BriefcaseBusiness size={15} /> Browse projects</Link>} />
       
-      <div className="mb-5 flex items-center gap-2 border-b border-border">
-        <button data-testid="button-filter-open-followups" onClick={() => setFilter('open')} className={`border-b-2 px-1 pb-3 text-sm font-bold ${filter === 'open' ? 'border-accent text-foreground' : 'border-transparent text-muted-foreground'}`}>
-          Open <span className="mono ml-1 text-[10px]">{query.data?.filter((item) => item.status === 'open').length ?? 0}</span>
-        </button>
-        <button data-testid="button-filter-completed-followups" onClick={() => setFilter('completed')} className={`border-b-2 px-1 pb-3 text-sm font-bold ${filter === 'completed' ? 'border-accent text-foreground' : 'border-transparent text-muted-foreground'}`}>
-          Completed
-        </button>
-      </div>
+      <Tabs value={filter} onValueChange={(value) => setFilter(value as 'open' | 'completed')} className="mb-5">
+        <TabsList className="h-auto rounded-none border-b border-border bg-transparent p-0">
+          <TabsTrigger data-testid="button-filter-open-followups" value="open" className="rounded-none border-b-2 border-transparent px-1 pb-3 font-bold data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+            Open <span className="mono ml-1 text-[10px]">{query.data?.filter((item) => item.status === 'open').length ?? 0}</span>
+          </TabsTrigger>
+          <TabsTrigger data-testid="button-filter-completed-followups" value="completed" className="rounded-none border-b-2 border-transparent px-1 pb-3 font-bold data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+            Completed
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
       
       {query.isLoading ? <LoadingPanel lines={6} /> : query.isError ? <ErrorPanel onRetry={() => query.refetch()} /> : items.length === 0 ? 
         <EmptyState icon={CalendarDays} title={filter === 'open' ? 'Your queue is clear' : 'No completed follow-ups yet'} text={filter === 'open' ? 'That is a good day. Add one from a project when the next conversation is known.' : 'Completed conversations will stay here as your operating history.'} action={<Link href="/projects" data-testid="link-empty-followups-projects" className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-bold text-primary-foreground"><Plus size={15} /> Find a project</Link>} /> : 

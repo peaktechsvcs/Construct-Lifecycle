@@ -34,7 +34,7 @@ function DrillStatCard({
   const color = {
     teal: 'bg-primary/10 text-primary',
     orange: 'bg-status-warning/10 text-status-warning',
-    violet: 'bg-violet-500/10 text-violet-700',
+    violet: 'bg-status-info/10 text-status-info',
     green: 'bg-status-success/10 text-status-success',
   }[accent];
 
@@ -42,7 +42,7 @@ function DrillStatCard({
     <Link
       href={href}
       data-testid={`stat-card-${label.toLowerCase().replace(/\s+/g, '-')}`}
-      className="group block rounded-xl border border-border bg-card p-5 shadow-[0_1px_0_hsl(var(--border))] transition-transform hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/40"
+      className="group block rounded-xl border border-border bg-card p-5 shadow-sm transition-transform hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/40"
     >
       <div className="flex items-start justify-between">
         <span className="mono text-[10px] uppercase tracking-[.12em] text-muted-foreground">{label}</span>

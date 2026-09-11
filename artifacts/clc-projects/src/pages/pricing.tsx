@@ -1,6 +1,7 @@
 import { Link } from 'wouter';
 import { ArrowLeft, CheckCircle2, ExternalLink, ShieldCheck } from 'lucide-react';
 import { StripePricingTable, isStripeTestMode } from '@/components/stripe-pricing-table';
+import { Button } from '@workspace/construct-lifecycle-design-system/components/ui/button';
 
 function PricingHeader() {
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -15,12 +16,7 @@ function PricingHeader() {
             className="h-9 w-auto max-w-[220px] object-contain sm:h-11"
           />
         </Link>
-        <Link
-          href="/sign-in"
-          className="shrink-0 rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
-        >
-          Sign in
-        </Link>
+        <Button asChild variant="outline"><Link href="/sign-in">Sign in</Link></Button>
       </div>
     </header>
   );
@@ -34,13 +30,7 @@ export function PricingPage() {
       <PricingHeader />
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <Link
-            href="/"
-            className="mb-6 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <ArrowLeft size={15} />
-            Back to Construct Lifecycle
-          </Link>
+          <Button asChild variant="ghost" className="mb-6"><Link href="/"><ArrowLeft size={15} /> Back to Construct Lifecycle</Link></Button>
           <p className="mono text-[10px] font-bold uppercase tracking-[.16em] text-accent">Plans &amp; billing</p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-5xl">Choose the plan that fits your operation</h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
@@ -98,9 +88,7 @@ export function PricingSuccessPage() {
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
           Stripe has returned you to Construct Lifecycle. Access is updated only after the verified billing webhook is processed.
         </p>
-        <Link href="/overview" className="mt-7 inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          Continue to workspace
-        </Link>
+        <Button asChild size="lg" className="mt-7"><Link href="/overview">Continue to workspace</Link></Button>
       </section>
     </div>
   );
@@ -113,9 +101,7 @@ export function PricingCanceledPage() {
         <p className="mono text-[10px] font-bold uppercase tracking-[.16em] text-muted-foreground">Checkout canceled</p>
         <h1 className="mt-2 text-2xl font-bold tracking-tight">No changes were made</h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">Your workspace and existing billing state are unchanged. You can review plans again whenever you’re ready.</p>
-        <Link href="/pricing" className="mt-7 inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          Return to plans
-        </Link>
+        <Button asChild size="lg" variant="outline" className="mt-7"><Link href="/pricing">Return to plans</Link></Button>
       </section>
     </div>
   );

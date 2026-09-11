@@ -12,8 +12,10 @@ import {
 import { Badge, Button, EmptyState, ErrorPanel, LoadingPanel, Modal, PageTitle } from '@/components/app-ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTenant } from '@/providers/tenant-provider';
+import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
+import { Checkbox } from '@workspace/construct-lifecycle-design-system/components/ui/checkbox';
 
-const inputClass = 'w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-4 focus:ring-primary/20';
+const inputClass = 'w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
 
 export function Customers() {
   const [search, setSearch] = useState('');
@@ -51,10 +53,10 @@ export function Customers() {
       <div className="mb-5 flex flex-col gap-3 rounded-xl border border-border bg-card p-3 md:flex-row md:items-center">
         <label className="relative flex-1">
           <Search size={16} className="absolute left-3 top-3 text-muted-foreground" />
-          <input data-testid="input-search-customers" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search company, contact, or email" className={`${inputClass} pl-9`} />
+          <Input data-testid="input-search-customers" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search company, contact, or email" className={`h-10 ${inputClass} pl-9`} />
         </label>
         <label className="flex items-center gap-2 px-2 text-xs font-semibold text-muted-foreground">
-          <input type="checkbox" checked={includeArchived} onChange={(e) => setIncludeArchived(e.target.checked)} />
+          <Checkbox checked={includeArchived} onCheckedChange={(checked) => setIncludeArchived(checked === true)} />
           Show archived
         </label>
       </div>

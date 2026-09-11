@@ -5,8 +5,8 @@ import { shadcn } from '@clerk/themes';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { Toaster } from '@/components/ui/toaster';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { Toaster } from '@workspace/construct-lifecycle-design-system/components/ui/toaster';
+import { TooltipProvider } from '@workspace/construct-lifecycle-design-system/components/ui/tooltip';
 
 import { TenantProvider } from '@/providers/tenant-provider';
 import { Shell } from '@/components/shell';

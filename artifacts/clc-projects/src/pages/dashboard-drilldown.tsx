@@ -36,6 +36,8 @@ import {
 } from '@/components/app-ui';
 import { stageLabels } from '@/lib/stage-config';
 import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
+import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/construct-lifecycle-design-system/components/ui/select';
 
 // ─── URL query-state helpers ─────────────────────────────────────────────────
 
@@ -104,21 +106,14 @@ function SortControl({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="relative">
-      <select
-        data-testid="select-drilldown-sort"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="appearance-none rounded-lg border border-border bg-card py-2 pl-3 pr-8 text-xs font-semibold outline-none focus:ring-2 focus:ring-primary/30"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-2.5 text-muted-foreground" />
-    </div>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger data-testid="select-drilldown-sort" className="h-10 min-w-48 bg-card text-xs font-semibold">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -536,12 +531,12 @@ export function DashboardDrilldown() {
           {showSearch && (
             <label className="relative flex-1">
               <Search size={15} className="absolute left-3 top-2.5 text-muted-foreground" />
-              <input
+               <Input
                 data-testid="input-drilldown-search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search project or customer…"
-                className="w-full rounded-lg border border-transparent bg-secondary/65 py-2 pl-9 pr-3 text-sm outline-none focus:border-primary/30 focus:bg-background"
+                 className="h-10 border-transparent bg-secondary/65 pl-9 focus-visible:border-primary/30 focus-visible:bg-background"
               />
             </label>
           )}
