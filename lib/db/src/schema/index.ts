@@ -3,3 +3,4 @@ export * from "./business-customers";
 export * from "./tenants";
 export * from "./integrations";
 export * from "./platform";
+export * from "./billing";

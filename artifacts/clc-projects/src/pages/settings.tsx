@@ -1,18 +1,20 @@
-import { Building2, Cable, ShieldCheck, Paintbrush, Layers3, Users, KeyRound } from 'lucide-react';
+import { Building2, Cable, ShieldCheck, Paintbrush, Layers3, Users, KeyRound, CreditCard } from 'lucide-react';
 import { Link, useLocation, Redirect } from 'wouter';
 import { BrandingAdmin } from '@/pages/branding-admin';
 import { IntegrationsAdmin } from '@/pages/integrations-admin';
 import { OrganizationAccess } from '@/pages/organization-access';
 import { EmptyState, LoadingPanel, PageTitle } from '@/components/app-ui';
 import { useTenant } from '@/providers/tenant-provider';
+import { BillingAdmin } from '@/pages/billing';
 
-type SettingsSection = 'profile' | 'branding' | 'integrations' | 'administration';
+type SettingsSection = 'profile' | 'branding' | 'integrations' | 'billing' | 'administration';
 type AdministrationSection = 'users' | 'roles' | 'access';
 
 const settingsSections: Array<{ key: SettingsSection; label: string; description: string; icon: typeof Building2 }> = [
   { key: 'profile', label: 'Organization Profile', description: 'Workspace identity and environment context', icon: Building2 },
   { key: 'branding', label: 'Branding', description: 'Theme, live preview, and publishing', icon: Paintbrush },
   { key: 'integrations', label: 'Integrations', description: 'Connected systems and activity', icon: Cable },
+  { key: 'billing', label: 'Subscription & Billing', description: 'Plans, payment, and invoices', icon: CreditCard },
   { key: 'administration', label: 'Administration', description: 'Users, roles, and access', icon: ShieldCheck },
 ];
 
@@ -125,6 +127,8 @@ export function SettingsPage() {
       ? <BrandingAdmin />
       : section === 'integrations'
         ? <IntegrationsAdmin />
+      : section === 'billing'
+        ? <BillingAdmin />
         : <AdministrationSettings />;
 
   return (

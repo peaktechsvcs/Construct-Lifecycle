@@ -1108,6 +1108,229 @@ export const ListPlatformReleasesResponse = zod.array(ListPlatformReleasesRespon
 
 
 /**
+ * @summary List active subscription plans
+ */
+export const ListBillingPlansResponseItem = zod.object({
+  "productId": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "active": zod.boolean(),
+  "entitlements": zod.record(zod.string(), zod.unknown()),
+  "limits": zod.record(zod.string(), zod.unknown()),
+  "prices": zod.array(zod.object({
+  "id": zod.string(),
+  "active": zod.boolean(),
+  "currency": zod.string(),
+  "unitAmount": zod.number().int().nullable(),
+  "type": zod.string(),
+  "recurring": zod.record(zod.string(), zod.unknown()).nullish(),
+  "nickname": zod.string().nullish()
+}))
+})
+export const ListBillingPlansResponse = zod.array(ListBillingPlansResponseItem)
+
+
+/**
+ * @summary Get the active workspace billing state
+ */
+export const GetBillingResponse = zod.object({
+  "plans": zod.array(zod.object({
+  "productId": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "active": zod.boolean(),
+  "entitlements": zod.record(zod.string(), zod.unknown()),
+  "limits": zod.record(zod.string(), zod.unknown()),
+  "prices": zod.array(zod.object({
+  "id": zod.string(),
+  "active": zod.boolean(),
+  "currency": zod.string(),
+  "unitAmount": zod.number().int().nullable(),
+  "type": zod.string(),
+  "recurring": zod.record(zod.string(), zod.unknown()).nullish(),
+  "nickname": zod.string().nullish()
+}))
+})),
+  "billing": zod.union([zod.object({
+  "provider": zod.string(),
+  "customerId": zod.string(),
+  "email": zod.string().nullish(),
+  "name": zod.string().nullish(),
+  "delinquent": zod.boolean(),
+  "subscription": zod.union([zod.object({
+  "id": zod.string().optional(),
+  "status": zod.string().optional(),
+  "priceId": zod.string().nullish(),
+  "cancelAtPeriodEnd": zod.boolean().optional()
+}),zod.null()]).optional(),
+  "paymentMethod": zod.record(zod.string(), zod.unknown()).nullish(),
+  "overrides": zod.array(zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "capabilityKey": zod.string(),
+  "enabled": zod.boolean()
+}))
+}),zod.null()])
+})
+
+
+/**
+ * @summary Create a Stripe subscription checkout session
+ */
+export const createBillingCheckoutBodyPriceIdMin = 5;
+
+
+
+export const CreateBillingCheckoutBody = zod.object({
+  "priceId": zod.string().min(createBillingCheckoutBodyPriceIdMin),
+  "successUrl": zod.string().url(),
+  "cancelUrl": zod.string().url()
+})
+
+export const CreateBillingCheckoutResponse = zod.object({
+  "url": zod.string().url().nullable()
+})
+
+
+/**
+ * @summary Create a Stripe customer portal session
+ */
+export const CreateBillingPortalBody = zod.object({
+  "returnUrl": zod.string().url()
+})
+
+export const CreateBillingPortalResponse = zod.object({
+  "url": zod.string().url().nullable()
+})
+
+
+/**
+ * @summary Cancel the current subscription at period end
+ */
+export const CancelBillingSubscriptionResponse = zod.object({
+  "status": zod.string(),
+  "cancelAtPeriodEnd": zod.boolean()
+})
+
+
+/**
+ * @summary Remove a scheduled subscription cancellation
+ */
+export const ReactivateBillingSubscriptionResponse = zod.object({
+  "status": zod.string(),
+  "cancelAtPeriodEnd": zod.boolean()
+})
+
+
+/**
+ * @summary List synced billing invoices
+ */
+export const ListBillingInvoicesResponseItem = zod.object({
+  "id": zod.string().optional(),
+  "number": zod.string().nullish(),
+  "status": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "amountDue": zod.number().int().nullish(),
+  "amountPaid": zod.number().int().nullish(),
+  "hostedInvoiceUrl": zod.string().url().nullish(),
+  "invoicePdf": zod.string().url().nullish(),
+  "created": zod.number().int().nullish()
+})
+export const ListBillingInvoicesResponse = zod.array(ListBillingInvoicesResponseItem)
+
+
+/**
+ * @summary List subscription and entitlement audit events
+ */
+export const ListBillingAuditEventsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "action": zod.string(),
+  "previousState": zod.string().nullish(),
+  "newState": zod.string().nullish(),
+  "providerReference": zod.string().nullish(),
+  "details": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListBillingAuditEventsResponse = zod.array(ListBillingAuditEventsResponseItem)
+
+
+/**
+ * @summary List all platform-managed plans
+ */
+export const ListPlatformBillingPlansResponseItem = zod.object({
+  "productId": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "active": zod.boolean(),
+  "entitlements": zod.record(zod.string(), zod.unknown()),
+  "limits": zod.record(zod.string(), zod.unknown()),
+  "prices": zod.array(zod.object({
+  "id": zod.string(),
+  "active": zod.boolean(),
+  "currency": zod.string(),
+  "unitAmount": zod.number().int().nullable(),
+  "type": zod.string(),
+  "recurring": zod.record(zod.string(), zod.unknown()).nullish(),
+  "nickname": zod.string().nullish()
+}))
+})
+export const ListPlatformBillingPlansResponse = zod.array(ListPlatformBillingPlansResponseItem)
+
+
+/**
+ * @summary Create a Stripe product with monthly and annual prices
+ */
+export const createPlatformBillingPlanBodyNameMin = 2;
+export const createPlatformBillingPlanBodyNameMax = 80;
+
+export const createPlatformBillingPlanBodyDescriptionMax = 500;
+
+export const createPlatformBillingPlanBodyMonthlyAmountMin = 0;
+
+export const createPlatformBillingPlanBodyAnnualAmountMin = 0;
+
+
+
+export const CreatePlatformBillingPlanBody = zod.object({
+  "name": zod.string().min(createPlatformBillingPlanBodyNameMin).max(createPlatformBillingPlanBodyNameMax),
+  "description": zod.string().max(createPlatformBillingPlanBodyDescriptionMax).optional(),
+  "monthlyAmount": zod.number().int().min(createPlatformBillingPlanBodyMonthlyAmountMin),
+  "annualAmount": zod.number().int().min(createPlatformBillingPlanBodyAnnualAmountMin),
+  "entitlements": zod.record(zod.string(), zod.unknown()).optional(),
+  "limits": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const CreatePlatformBillingPlanResponse = zod.object({
+  "productId": zod.string(),
+  "priceIds": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Override one effective tenant entitlement
+ */
+
+
+
+export const UpdatePlatformEntitlementOverrideParams = zod.object({
+  "tenantId": zod.coerce.number().int().min(1)
+})
+
+export const UpdatePlatformEntitlementOverrideBody = zod.object({
+  "capabilityKey": zod.string(),
+  "enabled": zod.boolean()
+})
+
+export const UpdatePlatformEntitlementOverrideResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "capabilityKey": zod.string(),
+  "enabled": zod.boolean()
+})
+
+
+/**
  * @summary Get branding context and current draft
  */
 export const GetBrandingResponse = zod.object({

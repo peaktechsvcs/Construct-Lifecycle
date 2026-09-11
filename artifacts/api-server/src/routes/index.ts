@@ -9,6 +9,7 @@ import invitationTokenRouter from "./invitation-token";
 import platformRouter from "./platform";
 import customersRouter from "./customers";
 import { requireAuthenticatedUser } from "../middlewares/tenantContext";
+import billingRouter from "./billing";
 
 const router: IRouter = Router();
 
@@ -16,6 +17,7 @@ router.use(healthRouter);
 router.use("/tenant/invitations/token", invitationTokenRouter);
 router.use(requireAuthenticatedUser);
 router.use(platformRouter);
+router.use(billingRouter);
 router.use(requireTenantContext);
 router.use(tenantRouter);
 router.use(tenantAdminRouter);

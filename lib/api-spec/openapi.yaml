@@ -30,6 +30,8 @@ tags:
     description: Customer invitations and membership administration
   - name: platform
     description: Platform administrator customer lifecycle operations
+  - name: billing
+    description: Subscription plans, billing actions, entitlements, and audit history
 paths:
   /healthz:
     get:
@@ -581,6 +583,159 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/PlatformRelease" }
+  /billing/plans:
+    get:
+      operationId: listBillingPlans
+      tags: [billing]
+      summary: List active subscription plans
+      responses:
+        "200":
+          description: Subscription plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BillingPlan" }
+  /billing:
+    get:
+      operationId: getBilling
+      tags: [billing]
+      summary: Get the active workspace billing state
+      responses:
+        "200":
+          description: Billing state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingResponse" }
+  /billing/checkout:
+    post:
+      operationId: createBillingCheckout
+      tags: [billing]
+      summary: Create a Stripe subscription checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingCheckoutInput" }
+      responses:
+        "200":
+          description: Checkout session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingCheckoutResponse" }
+  /billing/portal:
+    post:
+      operationId: createBillingPortal
+      tags: [billing]
+      summary: Create a Stripe customer portal session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingPortalInput" }
+      responses:
+        "200":
+          description: Portal session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingCheckoutResponse" }
+  /billing/cancel:
+    post:
+      operationId: cancelBillingSubscription
+      tags: [billing]
+      summary: Cancel the current subscription at period end
+      responses:
+        "200":
+          description: Updated subscription state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingActionResponse" }
+  /billing/reactivate:
+    post:
+      operationId: reactivateBillingSubscription
+      tags: [billing]
+      summary: Remove a scheduled subscription cancellation
+      responses:
+        "200":
+          description: Updated subscription state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingActionResponse" }
+  /billing/invoices:
+    get:
+      operationId: listBillingInvoices
+      tags: [billing]
+      summary: List synced billing invoices
+      responses:
+        "200":
+          description: Billing invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BillingInvoice" }
+  /billing/audit:
+    get:
+      operationId: listBillingAuditEvents
+      tags: [billing]
+      summary: List subscription and entitlement audit events
+      responses:
+        "200":
+          description: Billing audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BillingAuditEvent" }
+  /platform/billing/plans:
+    get:
+      operationId: listPlatformBillingPlans
+      tags: [billing, platform]
+      summary: List all platform-managed plans
+      responses:
+        "200":
+          description: Platform plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BillingPlan" }
+    post:
+      operationId: createPlatformBillingPlan
+      tags: [billing, platform]
+      summary: Create a Stripe product with monthly and annual prices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBillingPlanInput" }
+      responses:
+        "201":
+          description: Created plan identifiers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreateBillingPlanResponse" }
+  /platform/billing/entitlements/{tenantId}:
+    patch:
+      operationId: updatePlatformEntitlementOverride
+      tags: [billing, platform]
+      summary: Override one effective tenant entitlement
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EntitlementOverrideInput" }
+      responses:
+        "200":
+          description: Updated entitlement override
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EntitlementOverride" }
   /tenant/branding:
     get:
       operationId: getBranding
@@ -1196,6 +1351,140 @@ components:
       required: [status]
       properties:
         status: { type: string, enum: [active, suspended] }
+    BillingPrice:
+      type: object
+      required: [id, active, currency, unitAmount, type]
+      properties:
+        id: { type: string }
+        active: { type: boolean }
+        currency: { type: string }
+        unitAmount: { type: ["integer", "null"] }
+        type: { type: string }
+        recurring: { type: ["object", "null"], additionalProperties: true }
+        nickname: { type: ["string", "null"] }
+    BillingPlan:
+      type: object
+      required: [productId, name, active, entitlements, limits, prices]
+      properties:
+        productId: { type: string }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        active: { type: boolean }
+        entitlements: { type: object, additionalProperties: true }
+        limits: { type: object, additionalProperties: true }
+        prices:
+          type: array
+          items: { $ref: "#/components/schemas/BillingPrice" }
+    BillingSubscription:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        status: { type: string }
+        priceId: { type: ["string", "null"] }
+        cancelAtPeriodEnd: { type: boolean }
+    BillingAccount:
+      type: object
+      required: [provider, customerId, delinquent, overrides]
+      properties:
+        provider: { type: string }
+        customerId: { type: string }
+        email: { type: ["string", "null"] }
+        name: { type: ["string", "null"] }
+        delinquent: { type: boolean }
+        subscription: { oneOf: [{ $ref: "#/components/schemas/BillingSubscription" }, { type: "null" }] }
+        paymentMethod: { type: ["object", "null"], additionalProperties: true }
+        overrides:
+          type: array
+          items: { $ref: "#/components/schemas/EntitlementOverride" }
+    BillingResponse:
+      type: object
+      required: [plans, billing]
+      properties:
+        plans:
+          type: array
+          items: { $ref: "#/components/schemas/BillingPlan" }
+        billing: { oneOf: [{ $ref: "#/components/schemas/BillingAccount" }, { type: "null" }] }
+    BillingCheckoutInput:
+      type: object
+      required: [priceId, successUrl, cancelUrl]
+      properties:
+        priceId: { type: string, minLength: 5 }
+        successUrl: { type: string, format: uri }
+        cancelUrl: { type: string, format: uri }
+    BillingPortalInput:
+      type: object
+      required: [returnUrl]
+      properties:
+        returnUrl: { type: string, format: uri }
+    BillingCheckoutResponse:
+      type: object
+      required: [url]
+      properties:
+        url: { type: ["string", "null"], format: uri }
+    BillingActionResponse:
+      type: object
+      required: [status, cancelAtPeriodEnd]
+      properties:
+        status: { type: string }
+        cancelAtPeriodEnd: { type: boolean }
+    BillingInvoice:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        number: { type: ["string", "null"] }
+        status: { type: ["string", "null"] }
+        currency: { type: ["string", "null"] }
+        amountDue: { type: ["integer", "null"] }
+        amountPaid: { type: ["integer", "null"] }
+        hostedInvoiceUrl: { type: ["string", "null"], format: uri }
+        invoicePdf: { type: ["string", "null"], format: uri }
+        created: { type: ["integer", "null"] }
+    BillingAuditEvent:
+      type: object
+      required: [id, tenantId, action, details, createdAt]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        action: { type: string }
+        previousState: { type: ["string", "null"] }
+        newState: { type: ["string", "null"] }
+        providerReference: { type: ["string", "null"] }
+        details: { type: string }
+        createdAt: { type: string, format: date-time }
+    EntitlementOverride:
+      type: object
+      required: [id, tenantId, capabilityKey, enabled]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        capabilityKey: { type: string }
+        enabled: { type: boolean }
+    EntitlementOverrideInput:
+      type: object
+      required: [capabilityKey, enabled]
+      properties:
+        capabilityKey: { type: string }
+        enabled: { type: boolean }
+    CreateBillingPlanInput:
+      type: object
+      required: [name, monthlyAmount, annualAmount]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80 }
+        description: { type: string, maxLength: 500 }
+        monthlyAmount: { type: integer, minimum: 0 }
+        annualAmount: { type: integer, minimum: 0 }
+        entitlements: { type: object, additionalProperties: true }
+        limits: { type: object, additionalProperties: true }
+    CreateBillingPlanResponse:
+      type: object
+      required: [productId, priceIds]
+      properties:
+        productId: { type: string }
+        priceIds:
+          type: array
+          items: { type: string }
     PlatformRelease:
       type: object
       required: [id, releaseType, status, version]

@@ -4,3 +4,4 @@
 - [Dependency audit resolution](dependency-audit-resolution.md) — use mature patched transitive versions and never bypass the workspace package-age safeguard.
 - [Web artifact build inputs](web-artifact-build-inputs.md) — manual Vite builds require both PORT and BASE_PATH, matching the artifact workflow environment.
 - [Settings authorization boundary](settings-authorization.md) — keep tenant configuration admin-only while exposing only published branding for global theme hydration.
+- [Stripe connector runtime](stripe-connector-runtime.md) — the attached connection may expose proxy access without a raw sync secret; billing must fail closed around sync/webhooks.

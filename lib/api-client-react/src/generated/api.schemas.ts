@@ -721,6 +721,165 @@ export interface UpdatePlatformCustomerInput {
   status: UpdatePlatformCustomerInputStatus;
 }
 
+/**
+ * @nullable
+ */
+export type BillingPriceRecurring = { [key: string]: unknown } | null;
+
+export interface BillingPrice {
+  id: string;
+  active: boolean;
+  currency: string;
+  /** @nullable */
+  unitAmount: number | null;
+  type: string;
+  /** @nullable */
+  recurring?: BillingPriceRecurring;
+  /** @nullable */
+  nickname?: string | null;
+}
+
+export type BillingPlanEntitlements = { [key: string]: unknown };
+
+export type BillingPlanLimits = { [key: string]: unknown };
+
+export interface BillingPlan {
+  productId: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  active: boolean;
+  entitlements: BillingPlanEntitlements;
+  limits: BillingPlanLimits;
+  prices: BillingPrice[];
+}
+
+export interface BillingSubscription {
+  id?: string;
+  status?: string;
+  /** @nullable */
+  priceId?: string | null;
+  cancelAtPeriodEnd?: boolean;
+  [key: string]: unknown;
+ }
+
+/**
+ * @nullable
+ */
+export type BillingAccountPaymentMethod = { [key: string]: unknown } | null;
+
+export interface EntitlementOverride {
+  id: number;
+  tenantId: number;
+  capabilityKey: string;
+  enabled: boolean;
+}
+
+export interface BillingAccount {
+  provider: string;
+  customerId: string;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  name?: string | null;
+  delinquent: boolean;
+  subscription?: BillingSubscription | null;
+  /** @nullable */
+  paymentMethod?: BillingAccountPaymentMethod;
+  overrides: EntitlementOverride[];
+}
+
+export interface BillingResponse {
+  plans: BillingPlan[];
+  billing: BillingAccount | null;
+}
+
+export interface BillingCheckoutInput {
+  /** @minLength 5 */
+  priceId: string;
+  successUrl: string;
+  cancelUrl: string;
+}
+
+export interface BillingPortalInput {
+  returnUrl: string;
+}
+
+export interface BillingCheckoutResponse {
+  /** @nullable */
+  url: string | null;
+}
+
+export interface BillingActionResponse {
+  status: string;
+  cancelAtPeriodEnd: boolean;
+}
+
+export interface BillingInvoice {
+  id?: string;
+  /** @nullable */
+  number?: string | null;
+  /** @nullable */
+  status?: string | null;
+  /** @nullable */
+  currency?: string | null;
+  /** @nullable */
+  amountDue?: number | null;
+  /** @nullable */
+  amountPaid?: number | null;
+  /** @nullable */
+  hostedInvoiceUrl?: string | null;
+  /** @nullable */
+  invoicePdf?: string | null;
+  /** @nullable */
+  created?: number | null;
+  [key: string]: unknown;
+ }
+
+export interface BillingAuditEvent {
+  id: number;
+  tenantId: number;
+  action: string;
+  /** @nullable */
+  previousState?: string | null;
+  /** @nullable */
+  newState?: string | null;
+  /** @nullable */
+  providerReference?: string | null;
+  details: string;
+  createdAt: string;
+}
+
+export interface EntitlementOverrideInput {
+  capabilityKey: string;
+  enabled: boolean;
+}
+
+export type CreateBillingPlanInputEntitlements = { [key: string]: unknown };
+
+export type CreateBillingPlanInputLimits = { [key: string]: unknown };
+
+export interface CreateBillingPlanInput {
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  name: string;
+  /** @maxLength 500 */
+  description?: string;
+  /** @minimum 0 */
+  monthlyAmount: number;
+  /** @minimum 0 */
+  annualAmount: number;
+  entitlements?: CreateBillingPlanInputEntitlements;
+  limits?: CreateBillingPlanInputLimits;
+}
+
+export interface CreateBillingPlanResponse {
+  productId: string;
+  priceIds: string[];
+}
+
 export type PlatformReleaseReleaseType = typeof PlatformReleaseReleaseType[keyof typeof PlatformReleaseReleaseType];
 
 
