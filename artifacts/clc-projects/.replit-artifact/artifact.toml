@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/clc-projects/"
+title = "Construct Lifecycle"
+description = "Construct Lifecycle is a multi-tenant construction lifecycle platform for managing customer bids, contracts, delivery, billing, closeout, and future work from one project-centered workspace."
+version = "1.0.0"
+id = "artifacts/clc-projects"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/clc-projects/" ]
+localPort = 22780
+
+[services.development]
+run = "pnpm --filter @workspace/clc-projects run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/clc-projects", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/clc-projects/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22780"
+BASE_PATH = "/clc-projects/"
