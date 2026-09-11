@@ -5,3 +5,4 @@
 - [Web artifact build inputs](web-artifact-build-inputs.md) — manual Vite builds require both PORT and BASE_PATH, matching the artifact workflow environment.
 - [Settings authorization boundary](settings-authorization.md) — keep tenant configuration admin-only while exposing only published branding for global theme hydration.
 - [Stripe connector runtime](stripe-connector-runtime.md) — the attached connection may expose proxy access without a raw sync secret; billing must fail closed around sync/webhooks.
+- [Sidebar token mapping](sidebar-token-mapping.md) — Tailwind v4 custom sidebar utilities need explicit `@theme` color mappings or mobile navigation can become transparent.
