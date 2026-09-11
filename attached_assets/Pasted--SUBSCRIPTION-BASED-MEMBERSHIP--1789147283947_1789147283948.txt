@@ -1,0 +1,1243 @@
+============================================================
+SUBSCRIPTION-BASED MEMBERSHIP
+============================================================
+
+Add subscription-based membership for Construct Lifecycle software customers.
+
+Support both:
+
+- Monthly subscriptions
+- Annual subscriptions
+
+The subscription belongs to the Construct Lifecycle software customer / tenant.
+
+Do NOT confuse:
+
+Construct Lifecycle Subscription Customer
+with
+Business Customer / Client
+
+Hierarchy:
+
+CONSTRUCT LIFECYCLE
+        ↓
+SOFTWARE CUSTOMER / TENANT
+        ↓
+SUBSCRIPTION
+        ↓
+USERS / FEATURES / ENVIRONMENTS
+        ↓
+BUSINESS CUSTOMERS
+        ↓
+PROJECTS
+
+Example:
+
+Construct Lifecycle
+    ↓
+Northline Supply
+    ↓
+Construct Lifecycle Professional — Annual
+    ↓
+Users / Integrations / Features
+    ↓
+ABC Homebuilders
+    ↓
+Cedar Ridge Development
+
+============================================================
+SUBSCRIPTION BILLING FREQUENCY
+============================================================
+
+Support:
+
+MONTHLY
+
+Customer pays once per month.
+
+ANNUAL
+
+Customer pays once per year.
+
+Each plan may define separate pricing for:
+
+monthly_price
+annual_price
+
+Annual pricing may include a discount compared with paying monthly.
+
+Do not calculate annual pricing as monthly_price × 12 unless that is explicitly how the plan is configured.
+
+Store annual and monthly pricing independently.
+
+============================================================
+SUBSCRIPTION PLANS
+============================================================
+
+Create a configurable subscription plan model.
+
+Conceptual examples:
+
+Construct Lifecycle Starter
+Construct Lifecycle Professional
+Construct Lifecycle Enterprise
+
+Do not hard-code these exact plan names if a plan model already exists.
+
+Plan configuration should support:
+
+plan_id
+name
+description
+status
+monthly_price
+annual_price
+currency
+billing_type
+included_users
+included_features
+included_integrations
+included_environments
+api_access
+customer_branding
+limits
+created_at
+updated_at
+
+Use configuration rather than hard-coding plan behavior throughout the application.
+
+============================================================
+PLAN + ENTITLEMENT ARCHITECTURE
+============================================================
+
+Subscriptions and feature entitlements must work together.
+
+Example:
+
+Professional Plan
+
+Includes:
+
+Projects
+Customers
+Follow-ups
+Development / Test / Demo
+Selected Integrations
+Customer Branding
+Public API
+Advanced Reporting
+
+However:
+
+CLC Admin must still have the ability to override specific capabilities for a tenant where appropriate.
+
+Effective access should conceptually be determined by:
+
+Subscription Plan
++
+CLC Admin Entitlements / Overrides
++
+Customer User Role / Permission
+
+Example:
+
+Professional subscription includes Customer Branding
++
+CLC Admin enables Customer Branding
++
+Customer Administrator has permission
+
+=
+Customer Branding visible and accessible
+
+If CLC Admin has Customer Branding disabled:
+
+Customer Branding remains hidden even if the subscription normally includes it.
+
+============================================================
+SUBSCRIPTION STATUS
+============================================================
+
+Support subscription states such as:
+
+Trial
+Active
+Past Due
+Payment Failed
+Canceled
+Expired
+Suspended
+
+Use payment-provider terminology where appropriate, but expose clear Construct Lifecycle terminology in the UI.
+
+Conceptual subscription:
+
+subscription_id
+customer_id
+plan_id
+billing_frequency
+status
+start_date
+current_period_start
+current_period_end
+cancel_at_period_end
+canceled_at
+trial_end
+billing_provider
+external_subscription_id
+created_at
+updated_at
+
+============================================================
+MONTHLY SUBSCRIPTION
+============================================================
+
+Monthly subscriptions should:
+
+- Renew automatically each month unless canceled.
+- Track current billing period.
+- Generate/associate billing records.
+- Support payment failure handling.
+- Support plan changes.
+- Support cancellation at end of billing period.
+- Support immediate cancellation only when explicitly allowed.
+
+Example:
+
+Plan:
+Construct Lifecycle Professional
+
+Billing:
+Monthly
+
+Next Billing Date:
+October 11, 2026
+
+============================================================
+ANNUAL SUBSCRIPTION
+============================================================
+
+Annual subscriptions should:
+
+- Renew automatically each year unless canceled.
+- Track annual billing period.
+- Generate/associate billing records.
+- Support annual pricing.
+- Support renewal notification architecture.
+- Support plan changes according to billing policy.
+
+Example:
+
+Plan:
+Construct Lifecycle Professional
+
+Billing:
+Annual
+
+Current Term:
+September 11, 2026
+through
+September 10, 2027
+
+Next Renewal:
+September 11, 2027
+
+============================================================
+SUBSCRIPTION SIGNUP
+============================================================
+
+Provide a signup/subscription flow for new Construct Lifecycle customers.
+
+Conceptual flow:
+
+Select Plan
+        ↓
+Choose Billing Frequency
+        ↓
+Monthly / Annual
+        ↓
+Create Account / Organization
+        ↓
+Enter Billing Information
+        ↓
+Payment
+        ↓
+Create Subscription
+        ↓
+Create Construct Lifecycle Tenant
+        ↓
+Create Production Environment
+        ↓
+Create Primary Administrator
+        ↓
+Start Using Construct Lifecycle
+
+If D/T/D is included or enabled:
+
+Create:
+
+Production
+Development / Test / Demo
+
+according to platform/customer configuration.
+
+============================================================
+PLAN SELECTION UI
+============================================================
+
+Provide a pricing/plan selection experience.
+
+Example:
+
+Construct Lifecycle Professional
+
+MONTHLY
+$___ / month
+
+ANNUAL
+$___ / year
+
+Include a billing selector:
+
+[ Monthly ] [ Annual ]
+
+If annual provides savings, display the actual configured savings.
+
+Example:
+
+Annual
+Save 15%
+
+Only show a savings percentage when it is mathematically accurate from configured prices.
+
+============================================================
+CUSTOMER SUBSCRIPTION MANAGEMENT
+============================================================
+
+Authorized customer administrators should have access to:
+
+Administration
+→ Subscription & Billing
+
+Show:
+
+Current Plan
+Billing Frequency
+Subscription Status
+Next Billing Date
+Current Billing Period
+Included Users
+Current Users
+Included Features
+Payment Method
+Billing Contact
+
+Actions may include:
+
+Change Plan
+Switch Monthly / Annual
+Update Payment Method
+View Billing History
+Cancel Subscription
+
+Only expose actions actually supported by the billing provider and platform policy.
+
+============================================================
+CLC ADMIN SUBSCRIPTION MANAGEMENT
+============================================================
+
+CLC Admins must have subscription visibility across software customers.
+
+Example:
+
+CLC Administration
+→ Customers
+→ Northline Supply
+→ Subscription
+
+Show:
+
+Plan
+Billing Frequency
+Subscription Status
+Start Date
+Current Period
+Renewal Date
+Customer User Count
+Entitlements
+Billing Provider
+External Subscription Reference
+
+CLC Admin actions may include:
+
+Assign Plan
+Change Plan
+Set Billing Frequency
+Apply Override
+Suspend Service
+Reactivate
+Extend Trial
+Cancel Subscription
+View Billing Status
+
+All sensitive billing operations must require appropriate CLC Admin permissions.
+
+============================================================
+CLC CUSTOMER LIST — SUBSCRIPTION COLUMNS
+============================================================
+
+Update the CLC Admin Customers list to support subscription information.
+
+Recommended columns:
+
+Customer
+Subscription Plan
+Billing
+Subscription Status
+Production
+D/T/D
+Users
+Customer Branding
+Renewal Date
+Created
+Actions
+
+Example:
+
+Northline Supply
+Professional
+Annual
+Active
+Production Active
+D/T/D Active
+12 Users
+Branding Enabled
+Sep 11, 2027
+
+============================================================
+FREE TRIAL SUPPORT
+============================================================
+
+Architect support for configurable free trials.
+
+Example:
+
+14-Day Trial
+
+or another platform-defined period.
+
+Trial should include:
+
+trial_start
+trial_end
+trial_plan
+
+Do not hard-code 14 days unless that is the configured business rule.
+
+Trial states:
+
+Trial Active
+Trial Ending Soon
+Trial Expired
+
+When trial expires:
+
+Apply platform policy.
+
+Possible policy:
+
+- Require subscription.
+- Restrict write access.
+- Provide grace period.
+
+Do not permanently delete customer data when trial expires.
+
+============================================================
+PAYMENT PROVIDER
+============================================================
+
+Keep Construct Lifecycle billing architecture provider-agnostic.
+
+Use a billing provider adapter.
+
+Conceptual:
+
+BillingProvider
+├── StripeBillingProvider
+├── FutureBillingProvider
+└── ManualBillingProvider where required
+
+Stripe is an appropriate initial provider if selected, but do not tightly couple subscription business logic directly to Stripe-specific objects.
+
+Use internal Construct Lifecycle:
+
+Plan
+Subscription
+Customer
+Invoice / Billing Record
+
+with mappings to external provider IDs.
+
+============================================================
+BILLING PROVIDER MAPPINGS
+============================================================
+
+Store external billing references separately.
+
+Examples:
+
+billing_customer_id
+billing_subscription_id
+billing_price_id
+billing_invoice_id
+billing_payment_method_reference
+
+Do not use external billing-provider IDs as primary Construct Lifecycle customer IDs.
+
+============================================================
+PAYMENT INFORMATION SECURITY
+============================================================
+
+Do NOT store raw credit-card information in Construct Lifecycle.
+
+Do not store:
+
+- Full card number
+- CVV
+- Raw payment credentials
+
+Use payment-provider hosted/tokenized payment methods.
+
+Construct Lifecycle may display safe metadata such as:
+
+Visa ending in 4242
+Expires 09/29
+
+when supplied securely by the billing provider.
+
+============================================================
+BILLING HISTORY
+============================================================
+
+Authorized customer administrators should be able to view billing history.
+
+Example:
+
+Date
+Description
+Billing Period
+Amount
+Status
+Invoice / Receipt
+
+Statuses may include:
+
+Paid
+Open
+Past Due
+Failed
+Refunded
+Voided
+
+Provide access to billing-provider invoice/receipt where supported.
+
+============================================================
+SUBSCRIPTION RENEWAL
+============================================================
+
+Track:
+
+current_period_start
+current_period_end
+
+For automatic renewal:
+
+Monthly renews monthly.
+
+Annual renews annually.
+
+Support notification architecture for:
+
+- Upcoming annual renewal
+- Upcoming card expiration
+- Payment failure
+- Subscription past due
+- Subscription canceled
+- Trial ending
+
+Do not send notifications until notification settings/templates are implemented.
+
+============================================================
+FAILED PAYMENT
+============================================================
+
+Do not immediately destroy or delete customer access/data after a failed payment.
+
+Support a configurable grace-period/dunning process.
+
+Conceptual:
+
+Active
+    ↓
+Payment Failed
+    ↓
+Past Due
+    ↓
+Grace Period
+    ↓
+Suspended
+
+If payment is resolved:
+
+Past Due
+→ Active
+
+Customer data remains intact.
+
+============================================================
+SUSPENDED SUBSCRIPTION
+============================================================
+
+If a subscription is suspended for billing reasons:
+
+Preserve:
+
+- Tenant
+- Users
+- Projects
+- Customers
+- Documents
+- Integration mappings
+- Configuration
+- Audit history
+
+Do not delete operational data.
+
+Access behavior should follow platform policy.
+
+A reasonable future policy is:
+
+- Customer administrators can access billing.
+- Business application access is restricted.
+- CLC Admin can access tenant for support.
+
+Do not implement destructive deletion as part of suspension.
+
+============================================================
+CANCELLATION
+============================================================
+
+Support:
+
+Cancel at End of Billing Period
+
+Recommended default behavior.
+
+Example:
+
+Subscription:
+Active
+
+Cancel at Period End:
+YES
+
+Access remains available until:
+
+current_period_end
+
+Then subscription becomes:
+
+Canceled / Expired
+
+Also architect for immediate administrative cancellation where necessary.
+
+Require explicit confirmation.
+
+============================================================
+REACTIVATION
+============================================================
+
+Allow eligible canceled/suspended subscriptions to be reactivated.
+
+Preserve customer data according to retention policy.
+
+Do not force recreation of:
+
+- Tenant
+- Users
+- Customers
+- Projects
+- Branding
+- Integrations
+
+when reactivation is permitted.
+
+============================================================
+MONTHLY ↔ ANNUAL CHANGES
+============================================================
+
+Support changing billing frequency.
+
+Example:
+
+Monthly
+→ Annual
+
+or:
+
+Annual
+→ Monthly
+
+Do not manually invent proration behavior.
+
+Use configured billing policy/provider capabilities.
+
+The UI should clearly show:
+
+Current Plan
+Current Billing
+New Billing
+Effective Date
+Amount Due / Credit where applicable
+
+Require confirmation before completing the change.
+
+============================================================
+PLAN CHANGES
+============================================================
+
+Support:
+
+Upgrade Plan
+
+and:
+
+Downgrade Plan
+
+Plan-change behavior should consider:
+
+- Current billing period
+- Proration
+- Included users
+- Feature entitlements
+- API
+- Integrations
+- Customer Branding
+- Environment access
+
+Do not immediately destroy customer configuration when downgrading.
+
+Example:
+
+Customer downgrades from a plan that includes Customer Branding.
+
+Preserve prior branding configuration.
+
+Disable/hide access according to entitlement rules.
+
+If upgraded again later, configuration can be restored.
+
+============================================================
+USER / SEAT MODEL
+============================================================
+
+Architect subscriptions so plans may include:
+
+Unlimited users
+
+OR
+
+Included number of users/seats
+
+OR
+
+Per-user pricing
+
+Do not assume one pricing method permanently.
+
+Conceptual plan fields:
+
+included_users
+user_pricing_model
+additional_user_price
+
+Initial implementation may use a simpler model, but do not make the database incapable of future seat-based billing.
+
+============================================================
+SUBSCRIPTION FEATURE LIMITS
+============================================================
+
+Plan limits may eventually include:
+
+Users
+Projects
+Storage
+API usage
+Integrations
+D/T/D
+Customer Branding
+Advanced Reporting
+AI Usage
+Other premium capabilities
+
+Use a configurable entitlement/limit system.
+
+Do not scatter plan-name checks throughout application code.
+
+WRONG:
+
+if plan == "Professional":
+    show_feature()
+
+CORRECT:
+
+if effective_entitlements.customer_branding:
+    show_feature()
+
+============================================================
+EFFECTIVE ENTITLEMENTS
+============================================================
+
+Create a centralized entitlement resolution service.
+
+Conceptually:
+
+EffectiveEntitlements =
+    Subscription Plan Entitlements
+    + CLC Admin Overrides
+    + Environment Rules
+
+Then user access additionally requires:
+
+User Role / Permission
+
+Example:
+
+Plan includes Public API
++
+CLC Admin API override = enabled
++
+Customer Admin permission = yes
+
+=
+Show Public API
+
+============================================================
+CUSTOMER BRANDING INTERACTION
+============================================================
+
+Preserve the existing Customer Branding rule.
+
+Even if the subscription plan includes Customer Branding:
+
+Customer Branding must be hidden from the software customer unless enabled for the tenant by CLC Admin.
+
+Therefore:
+
+Plan Eligibility
++
+CLC Admin Enablement
++
+User Permission
+
+are required.
+
+If Customer Branding is not enabled:
+
+Do not show it.
+
+============================================================
+INTEGRATION INTERACTION
+============================================================
+
+Subscription plans may determine which integrations are eligible.
+
+Example:
+
+Starter:
+Limited integrations
+
+Professional:
+Additional integrations
+
+Enterprise:
+Advanced/custom integrations
+
+However:
+
+CLC Admin entitlement control remains authoritative.
+
+An integration should appear only when:
+
+Plan permits it
++
+CLC Admin enables it
++
+User has permission
+
+============================================================
+PUBLIC API INTERACTION
+============================================================
+
+Public API may be included only in selected subscription plans.
+
+Example:
+
+Starter:
+Public API unavailable
+
+Professional:
+Public API optional
+
+Enterprise:
+Public API included
+
+Still enforce the existing CLC Admin entitlement and customer-role permissions.
+
+============================================================
+D/T/D INTERACTION
+============================================================
+
+Plans may define whether Development / Test / Demo is included.
+
+Examples:
+
+Starter:
+Production only
+
+Professional:
+Production + D/T/D
+
+Enterprise:
+Production + D/T/D + advanced release capabilities
+
+Do not automatically delete a D/T/D environment immediately when plan eligibility changes.
+
+Use controlled disable/archive behavior.
+
+============================================================
+SUBSCRIPTION AUDIT
+============================================================
+
+Audit:
+
+Subscription Created
+Plan Changed
+Billing Frequency Changed
+Trial Started
+Trial Extended
+Trial Expired
+Payment Failed
+Subscription Past Due
+Subscription Suspended
+Subscription Reactivated
+Subscription Canceled
+Subscription Renewed
+CLC Entitlement Override Changed
+
+Record:
+
+Customer
+Subscription
+Plan
+Previous State
+New State
+User / System Actor
+Timestamp
+Billing Provider Reference where appropriate
+
+============================================================
+BILLING WEBHOOKS
+============================================================
+
+Billing-provider events should update Construct Lifecycle through secure webhook processing.
+
+Potential events:
+
+subscription.created
+subscription.updated
+subscription.canceled
+invoice.created
+invoice.paid
+invoice.payment_failed
+payment_method.updated
+trial.will_end
+
+Do not trust client/browser state for subscription status.
+
+Verify provider webhook signatures.
+
+Use idempotent webhook processing.
+
+============================================================
+SUBSCRIPTION DOMAIN EVENTS
+============================================================
+
+Construct Lifecycle may emit internal events such as:
+
+SubscriptionCreated
+SubscriptionActivated
+SubscriptionChanged
+SubscriptionPastDue
+SubscriptionSuspended
+SubscriptionCanceled
+SubscriptionRenewed
+
+Other services may react to these events.
+
+Example:
+
+SubscriptionActivated
+→ recalculate entitlements
+
+SubscriptionCanceled
+→ schedule entitlement changes for period end
+
+============================================================
+SUBSCRIPTION UI — EXISTING DESIGN
+============================================================
+
+Subscription/Billing UI must match the existing Construct Lifecycle design.
+
+Use:
+
+- Existing cards
+- Existing typography
+- Existing spacing
+- Existing status pills
+- Existing tables
+- Existing drawers/modals
+
+Do not redesign the app into a generic subscription-management SaaS interface.
+
+============================================================
+ACCEPTANCE TEST — MONTHLY
+============================================================
+
+Create:
+
+Customer:
+ABC Construction Supply
+
+Plan:
+Professional
+
+Billing:
+Monthly
+
+Verify:
+
+Subscription Active
+Current Period displayed
+Next Billing Date displayed
+Correct effective entitlements applied
+
+============================================================
+ACCEPTANCE TEST — ANNUAL
+============================================================
+
+Create:
+
+Customer:
+Summit Building Products
+
+Plan:
+Professional
+
+Billing:
+Annual
+
+Verify:
+
+Annual price used
+Annual billing period used
+Correct renewal date shown
+Correct effective entitlements applied
+
+============================================================
+ACCEPTANCE TEST — PLAN ENTITLEMENT
+============================================================
+
+Plan includes:
+
+Customer Branding
+
+CLC Admin has:
+
+Customer Branding OFF
+
+Verify:
+
+Customer cannot see Customer Branding.
+
+Enable it as CLC Admin.
+
+Verify:
+
+Authorized Customer Admin can now see it.
+
+============================================================
+ACCEPTANCE TEST — MONTHLY TO ANNUAL
+============================================================
+
+Customer currently:
+
+Professional
+Monthly
+
+Change to:
+
+Professional
+Annual
+
+Verify:
+
+New billing frequency shown
+Effective date shown
+Billing provider updated
+Subscription record updated
+Audit entry created
+
+============================================================
+ACCEPTANCE TEST — FAILED PAYMENT
+============================================================
+
+Simulate payment failure.
+
+Verify:
+
+Subscription becomes appropriate past-due/payment-failed state.
+
+Customer data remains intact.
+
+Billing access remains available according to policy.
+
+Resolve payment.
+
+Verify:
+
+Subscription returns to Active.
+
+============================================================
+ACCEPTANCE TEST — CANCEL
+============================================================
+
+Customer selects:
+
+Cancel at End of Billing Period
+
+Verify:
+
+Subscription remains active until current_period_end.
+
+Verify:
+
+Cancellation date/status shown.
+
+At period end:
+
+Subscription transitions to Canceled/Expired according to policy.
+
+Data remains preserved.
+
+============================================================
+ACCEPTANCE TEST — TENANT ISOLATION
+============================================================
+
+Tenant A subscription data must never be visible to Tenant B.
+
+Customer administrators may view only their own subscription/billing records.
+
+CLC Admin access must follow CLC platform permissions.
+
+============================================================
+SUBSCRIPTION ACCEPTANCE CRITERIA
+============================================================
+
+[ ] Monthly subscriptions are supported.
+
+[ ] Annual subscriptions are supported.
+
+[ ] Monthly and annual prices are independently configurable.
+
+[ ] Subscription plans are configurable.
+
+[ ] Subscription belongs to the Construct Lifecycle software customer/tenant.
+
+[ ] Business Customers are not treated as subscription accounts.
+
+[ ] Customer admins can view authorized subscription/billing information.
+
+[ ] CLC Admin can manage authorized subscription information.
+
+[ ] Subscription status is centrally tracked.
+
+[ ] Automatic renewal architecture is supported.
+
+[ ] Trial architecture is supported.
+
+[ ] Billing provider architecture is provider-agnostic.
+
+[ ] Raw credit-card information is not stored by Construct Lifecycle.
+
+[ ] Failed payments do not delete customer data.
+
+[ ] Cancellation at period end is supported.
+
+[ ] Reactivation is supported where allowed.
+
+[ ] Monthly-to-annual changes are supported.
+
+[ ] Annual-to-monthly changes are supported.
+
+[ ] Plan upgrades/downgrades are supported.
+
+[ ] Feature entitlement resolution is centralized.
+
+[ ] Plan names are not hard-coded throughout the UI.
+
+[ ] CLC Admin entitlement overrides are supported.
+
+[ ] Customer user permissions remain required.
+
+[ ] Customer Branding remains hidden unless CLC Admin enables it.
+
+[ ] Integration availability respects plan + CLC entitlement + user permission.
+
+[ ] Public API availability respects subscription entitlements.
+
+[ ] D/T/D availability can be subscription controlled.
+
+[ ] Subscription changes are audited.
+
+[ ] Billing webhooks are securely processed.
+
+[ ] Billing UI preserves the existing Construct Lifecycle look and feel.
+
+============================================================
+FINAL SUBSCRIPTION PRINCIPLE
+============================================================
+
+Construct Lifecycle is a subscription-based SaaS platform.
+
+The subscription model must support:
+
+MONTHLY
+or
+ANNUAL
+
+The subscription controls commercial eligibility for platform capabilities.
+
+Actual feature access is determined by:
+
+SUBSCRIPTION PLAN
+        +
+CLC ADMIN ENTITLEMENTS
+        +
+ENVIRONMENT RULES
+        +
+CUSTOMER USER PERMISSIONS
+
+Do not hard-code feature access to plan names.
+
+Build a centralized subscription + entitlement architecture so future pricing, plans, integrations, API access, Customer Branding, D/T/D, user limits, and premium capabilities can be changed without redesigning the application.
