@@ -1,6 +1,6 @@
 # Button
 
-**Source:** `artifacts/cabinet-projects/src/components/app-ui.tsx`, Button export.
+**Source:** the Construct Lifecycle web application's `src/components/app-ui.tsx`, Button export.
 
 Preserve the native button API and the `primary`, `outline`, `ghost`, and `danger`
 variants. Buttons use 14px semibold type, an 8px radius, compact horizontal

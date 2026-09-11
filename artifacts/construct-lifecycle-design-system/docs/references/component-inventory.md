@@ -1,6 +1,6 @@
 # Construct Lifecycle component inventory
 
-Source: the existing Construct Lifecycle web application in `artifacts/cabinet-projects`.
+Source: the existing Construct Lifecycle web application.
 App pages and business-specific compositions are excluded.
 
 | Family | Build contract | Dependencies | Evidence | Chunk | Status |
