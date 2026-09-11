@@ -1,0 +1,781 @@
+============================================================
+WORKSPACE NAVIGATION — CUSTOMER BEFORE PROJECTS
+============================================================
+
+Update the Construct Lifecycle workspace navigation order.
+
+The Workspace section should be:
+
+WORKSPACE
+- Overview
+- Customers
+- Projects
+- Follow-ups
+
+Customers must appear ABOVE Projects.
+
+Do not redesign the sidebar.
+
+Maintain the existing Construct Lifecycle look and feel.
+
+============================================================
+CUSTOMER → PROJECT RELATIONSHIP
+============================================================
+
+Customers are first-class business records.
+
+A Project should normally be associated with a Business Customer/Client.
+
+Hierarchy:
+
+Software Customer / Tenant
+    ↓
+Environment
+    ↓
+Business Customer
+    ↓
+Project
+
+Example:
+
+Northline Supply
+    ↓
+Production
+    ↓
+ABC Homebuilders
+    ↓
+Cedar Ridge Development
+
+============================================================
+NEW PROJECT — CUSTOMER FIELD
+============================================================
+
+When a user creates a new Project, include a Customer field.
+
+Example:
+
+Customer
+[ Select or enter customer... ]
+
+This field must support BOTH:
+
+1. Selecting an existing Customer.
+2. Entering a new Customer.
+
+The user should not have to leave the New Project workflow to create a Customer.
+
+============================================================
+SELECT EXISTING CUSTOMER
+============================================================
+
+When the user opens the Customer field:
+
+Show existing active Business Customers belonging to:
+
+- the active tenant/customer
+- the active environment
+
+Example:
+
+Customer
+[ ABC Homebuilders            ]
+  Summit Development
+  Red Rock Construction
+  Canyon Builders
+
+Support:
+
+- Search
+- Keyboard selection
+- Mouse selection
+
+Do not show:
+
+- another tenant's customers
+- another environment's customers
+- archived customers by default
+- Construct Lifecycle SaaS tenants
+
+============================================================
+ENTER NEW CUSTOMER FROM PROJECT
+============================================================
+
+If the user types a Customer name that does not already exist, allow that entry to create a new Business Customer record.
+
+Example:
+
+User types:
+
+Front Range Builders
+
+No matching Customer exists.
+
+Present an action such as:
+
++ Create "Front Range Builders"
+
+When selected:
+
+1. Create a new Business Customer record.
+2. Save it to the active tenant.
+3. Save it to the active environment.
+4. Automatically associate it with the Project being created.
+5. Keep the user in the New Project workflow.
+
+Do not require navigation to the Customers page first.
+
+============================================================
+NEW CUSTOMER CREATION — MINIMUM DATA
+============================================================
+
+When creating a Customer directly from the Project form, only require the minimum information necessary.
+
+Required:
+
+Customer / Company Name
+
+Optional quick-entry fields may include:
+
+Primary Contact
+Email
+Phone
+Customer Type
+
+Do not force the user through the complete Customer form during quick creation.
+
+The full Customer record can be completed later from:
+
+Workspace
+→ Customers
+→ Customer Detail
+
+============================================================
+QUICK CREATE BEHAVIOR
+============================================================
+
+Recommended interaction:
+
+Customer
+[ Front Range Builders        ]
+
+No existing customer found.
+
++ Create "Front Range Builders"
+
+User selects Create.
+
+Optional compact modal/drawer:
+
+NEW CUSTOMER
+
+Company Name
+Front Range Builders
+
+Customer Type
+[ Select... ]
+
+Primary Contact
+[ Optional ]
+
+Email
+[ Optional ]
+
+Phone
+[ Optional ]
+
+[ Cancel ] [ Create Customer ]
+
+After Create Customer:
+
+- Save Customer.
+- Return to Project form.
+- Automatically select Front Range Builders.
+- Preserve every other Project field already entered.
+
+============================================================
+DUPLICATE CUSTOMER CHECK
+============================================================
+
+Before creating a new Customer from the Project form, perform a duplicate check within the active tenant/environment.
+
+Check reasonable matching criteria such as:
+
+- Company Name
+- Display Name
+- Normalized Company Name
+
+Example:
+
+Existing:
+ABC Homebuilders
+
+User enters:
+ABC Home Builders
+
+If a likely match exists:
+
+Show:
+
+Possible existing customer
+
+ABC Homebuilders
+
+[ Use Existing Customer ]
+
+and:
+
+[ Create New Anyway ]
+
+Do not silently create obvious duplicates.
+
+Do not block legitimate similarly named organizations without allowing an authorized user to proceed.
+
+============================================================
+PROJECT SAVE BEHAVIOR
+============================================================
+
+When the Project is saved:
+
+Store the stable Business Customer identifier.
+
+Example:
+
+project.business_customer_id
+
+Do not store only:
+
+"ABC Homebuilders"
+
+as free text.
+
+The displayed Customer name should come from the related Customer record.
+
+============================================================
+TRANSACTIONAL CREATION
+============================================================
+
+When a new Customer is created as part of New Project:
+
+Ensure the workflow avoids partial or orphaned records where practical.
+
+Preferred sequence:
+
+1. Validate Project form.
+2. Validate Customer entry.
+3. Check for existing Customer.
+4. Create Customer if required.
+5. Associate Customer ID to Project.
+6. Create Project.
+7. Commit successfully.
+
+If Project creation fails after Customer creation, handle the failure cleanly according to the application's transaction architecture.
+
+Do not accidentally create large numbers of orphaned Customers from failed Project submissions.
+
+============================================================
+CUSTOMER REQUIRED
+============================================================
+
+Customer should normally be required for a Project.
+
+Example:
+
+Customer *
+[ Select or enter customer... ]
+
+If there are legitimate future workflows for projects without a Customer, support those explicitly rather than allowing accidental empty Customer relationships.
+
+For the current implementation:
+
+Require Customer unless existing project logic explicitly requires otherwise.
+
+============================================================
+CUSTOMERS PAGE
+============================================================
+
+The Customers workspace remains the primary place to fully manage Customer records.
+
+Navigation:
+
+WORKSPACE
+- Overview
+- Customers
+- Projects
+- Follow-ups
+
+Customers page supports:
+
+- Add Customer
+- Search
+- Filter
+- Open Customer
+- Edit Customer
+- Archive Customer
+- View Customer Projects
+- Project counts by lifecycle stage
+
+============================================================
+CUSTOMER DETAIL → NEW PROJECT
+============================================================
+
+From Customer Detail, provide a convenient action:
+
+[ + New Project ]
+
+Example:
+
+Customers
+→ ABC Homebuilders
+→ + New Project
+
+Opening New Project from this Customer should automatically preselect:
+
+Customer:
+ABC Homebuilders
+
+The user should not have to select it again.
+
+============================================================
+PROJECT DETAIL → CUSTOMER
+============================================================
+
+On Project Detail, display the associated Customer prominently where it fits the existing design.
+
+Example:
+
+Customer
+ABC Homebuilders
+
+The Customer name should be clickable.
+
+Click:
+
+ABC Homebuilders
+
+→ open Customer Detail.
+
+============================================================
+EDIT PROJECT CUSTOMER
+============================================================
+
+Authorized users may change the Customer associated with a Project where business rules permit.
+
+If changing a Project Customer:
+
+- Select from existing Customers
+- Allow new Customer creation if permitted
+- Update stable Customer ID
+- Audit the relationship change
+- Do not modify historical financial documents automatically unless business rules explicitly support it
+
+Consider warning when changing Customer on a Project that already contains contracts, invoices, payments, or other significant transactions.
+
+============================================================
+ARCHIVED CUSTOMERS
+============================================================
+
+Archived Customers:
+
+- remain associated with historical Projects
+- remain visible when viewing those Projects
+- do not appear in the normal New Project Customer selector
+
+If an archived Customer needs to be used again:
+
+Require restoration/reactivation first, or provide an explicit restore flow.
+
+============================================================
+TENANT AND ENVIRONMENT ISOLATION
+============================================================
+
+The Customer field must query only:
+
+active tenant_id
++
+active environment_id
+
+Example:
+
+Northline Supply — Production
+
+Customer selector:
+ABC Homebuilders
+Summit Development
+
+Northline Supply — Development / Test / Demo
+
+Customer selector:
+Demo Builder
+Test Developer
+
+Do not mix lists.
+
+============================================================
+CUSTOMER QUICK-CREATE SECURITY
+============================================================
+
+Creating a Customer from the New Project form requires the same permission as creating one from the Customers page.
+
+Example permission:
+
+customers.create
+
+If user has:
+
+projects.create
+but NOT
+customers.create
+
+Then:
+
+Customer field may allow selection of existing Customers
+
+but must NOT show:
+
++ Create New Customer
+
+Enforce this server-side.
+
+============================================================
+API / DOMAIN SERVICE BEHAVIOR
+============================================================
+
+Use the same Customer and Project services used elsewhere.
+
+Conceptually:
+
+CustomerService.findOrCreate()
+ProjectService.createProject()
+
+Do not create special duplicate Customer creation logic only inside the Project UI.
+
+The same validation and tenant/environment rules must apply.
+
+============================================================
+INTEGRATION EVENTS
+============================================================
+
+If a Customer is created from the New Project form:
+
+Emit the normal CustomerCreated domain event.
+
+If integrations are configured:
+
+CustomerCreated
+→ Integration Layer
+→ Business Central / QuickBooks / CRM / other configured systems
+
+Then create the Project and emit:
+
+ProjectCreated
+
+Do not bypass integration/audit behavior simply because the Customer originated from the Project form.
+
+============================================================
+AUDIT
+============================================================
+
+Audit:
+
+Customer Created
+Project Created
+Customer Assigned to Project
+Project Customer Changed
+
+Where applicable record:
+
+- Tenant
+- Environment
+- User
+- Customer
+- Project
+- Timestamp
+- Previous Value
+- New Value
+
+============================================================
+UPDATED USER FLOW
+============================================================
+
+PRIMARY FLOW:
+
+WORKSPACE
+    ↓
+CUSTOMERS
+    ↓
+ABC HOMEBUILDERS
+    ↓
+PROJECTS
+
+OR:
+
+WORKSPACE
+    ↓
+PROJECTS
+    ↓
++ NEW PROJECT
+    ↓
+CUSTOMER
+    ↓
+SELECT EXISTING
+OR
+CREATE NEW CUSTOMER
+    ↓
+SAVE PROJECT
+
+============================================================
+ACCEPTANCE TEST — NAVIGATION
+============================================================
+
+Verify sidebar order:
+
+Overview
+Customers
+Projects
+Follow-ups
+
+Customers must appear above Projects.
+
+============================================================
+ACCEPTANCE TEST — EXISTING CUSTOMER
+============================================================
+
+Existing Customer:
+
+ABC Homebuilders
+
+Open:
+
+Projects
+→ New Project
+
+Open Customer field.
+
+Verify:
+
+ABC Homebuilders appears.
+
+Select:
+
+ABC Homebuilders
+
+Create:
+
+Cedar Ridge Development
+
+Save.
+
+Verify Project references ABC Homebuilders.
+
+============================================================
+ACCEPTANCE TEST — NEW CUSTOMER FROM PROJECT
+============================================================
+
+Open:
+
+Projects
+→ New Project
+
+Enter:
+
+Customer:
+Front Range Builders
+
+No existing match exists.
+
+Verify:
+
++ Create "Front Range Builders"
+
+Select Create.
+
+Save Customer.
+
+Verify:
+
+Front Range Builders is automatically selected in New Project.
+
+Complete Project:
+
+Pine Creek Apartments
+
+Save.
+
+Verify:
+
+Workspace
+→ Customers
+
+now contains:
+
+Front Range Builders
+
+Open Front Range Builders.
+
+Verify:
+
+Total Projects = 1
+
+Verify:
+
+Pine Creek Apartments appears.
+
+============================================================
+ACCEPTANCE TEST — DUPLICATE CHECK
+============================================================
+
+Existing:
+
+ABC Homebuilders
+
+Type:
+
+ABC Home Builders
+
+Verify likely existing Customer is suggested.
+
+User can choose:
+
+Use Existing Customer
+
+Do not create duplicate unless user explicitly chooses Create New Anyway and has permission.
+
+============================================================
+ACCEPTANCE TEST — PERMISSIONS
+============================================================
+
+User has:
+
+projects.create = YES
+customers.create = NO
+
+Verify:
+
+User can select existing Customer.
+
+Verify:
+
+User cannot create a new Customer from the Project form.
+
+Attempt direct API request to create Customer:
+
+DENY.
+
+============================================================
+ACCEPTANCE TEST — TENANT ISOLATION
+============================================================
+
+Tenant A:
+
+ABC Homebuilders
+
+Tenant B:
+
+Summit Construction
+
+Log into Tenant A.
+
+New Project Customer field must show:
+
+ABC Homebuilders
+
+Must NOT show:
+
+Summit Construction.
+
+============================================================
+ACCEPTANCE TEST — ENVIRONMENT ISOLATION
+============================================================
+
+Production Customer:
+
+ABC Homebuilders
+
+D/T/D Customer:
+
+Demo Homebuilder
+
+Production New Project selector:
+
+ABC Homebuilders only.
+
+D/T/D New Project selector:
+
+Demo Homebuilder only unless Production data was intentionally refreshed into D/T/D.
+
+============================================================
+UPDATED ACCEPTANCE CRITERIA
+============================================================
+
+[ ] Customers appears above Projects in Workspace navigation.
+
+[ ] Customers is a first-class Workspace area.
+
+[ ] New Project includes a Customer field.
+
+[ ] Customer field supports search/select of existing Customers.
+
+[ ] Customer field supports creation of a new Customer.
+
+[ ] A typed new Customer can be saved as an actual Business Customer record.
+
+[ ] Newly created Customer is automatically associated with the Project.
+
+[ ] Project form state is preserved during quick Customer creation.
+
+[ ] Customer quick-create uses the same Customer domain logic as the main Customers page.
+
+[ ] Duplicate Customer detection is performed.
+
+[ ] Project stores stable business_customer_id.
+
+[ ] Customer is normally required.
+
+[ ] Customer creation honors customers.create permission.
+
+[ ] Tenant isolation is enforced.
+
+[ ] Environment isolation is enforced.
+
+[ ] Archived Customers are excluded from normal selection.
+
+[ ] Customer Detail can launch New Project with Customer preselected.
+
+[ ] Project Detail links back to Customer Detail.
+
+[ ] CustomerCreated and ProjectCreated use normal event/audit/integration flows.
+
+============================================================
+FINAL RULE
+============================================================
+
+Workspace navigation must be:
+
+Overview
+Customers
+Projects
+Follow-ups
+
+Customers come before Projects because the Customer is the parent business relationship under which Projects are created.
+
+When creating a Project:
+
+The user may either:
+
+SELECT AN EXISTING CUSTOMER
+
+or
+
+ENTER A NEW CUSTOMER
+
+If the entered Customer does not exist and the user has permission:
+
+CREATE THE CUSTOMER RECORD
++
+SELECT IT AUTOMATICALLY
++
+CONTINUE CREATING THE PROJECT
+
+Do not store newly typed Customer names as unstructured Project text.
+
+A new Customer entered from a Project must become a real Construct Lifecycle Business Customer record.

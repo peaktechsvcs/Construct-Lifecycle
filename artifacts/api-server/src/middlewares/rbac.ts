@@ -12,3 +12,9 @@ export const requireRole = (...roles: string[]) => async (req: TenantRequest, re
   }
   next();
 };
+
+export async function getCurrentTenantRole(req: TenantRequest) {
+  const [membership] = await db.select({ role: membershipsTable.role }).from(membershipsTable)
+    .where(and(eq(membershipsTable.userId, req.localUserId!), eq(membershipsTable.tenantId, req.tenantId!)));
+  return membership?.role;
+}

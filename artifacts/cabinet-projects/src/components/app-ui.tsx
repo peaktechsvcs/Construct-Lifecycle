@@ -29,7 +29,9 @@ export function Button({
     <button
       {...props}
       className={`inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${styles[variant]} ${className}`}
-    />
+    >
+      {children}
+    </button>
   );
 }
 

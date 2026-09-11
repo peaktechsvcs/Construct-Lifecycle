@@ -50,7 +50,7 @@ const validateContrast = (data: Record<string, unknown>) => {
   });
 };
 const context = async (req: TenantRequest) => {
-  const memberships = await db.select({ id: tenantsTable.id, name: tenantsTable.name, slug: tenantsTable.slug, role: membershipsTable.role })
+  const memberships = await db.select({ id: tenantsTable.id, name: tenantsTable.name, slug: tenantsTable.slug, status: tenantsTable.status, role: membershipsTable.role })
     .from(membershipsTable).innerJoin(tenantsTable, eq(membershipsTable.tenantId, tenantsTable.id)).where(eq(membershipsTable.userId, req.localUserId!));
   const environments = await db.select().from(environmentsTable)
     .where(eq(environmentsTable.tenantId, req.tenantId!)).orderBy(environmentsTable.name);
@@ -61,6 +61,7 @@ const context = async (req: TenantRequest) => {
     activeEnvironment,
     environments,
     environmentLabel: req.environmentLabel ?? process.env.APP_ENV ?? "development",
+    isPlatformAdmin: Boolean(req.isPlatformAdmin),
   };
 };
 

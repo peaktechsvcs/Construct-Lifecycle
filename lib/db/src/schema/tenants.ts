@@ -1,9 +1,10 @@
-import { integer, pgTable, serial, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, serial, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 
 export const tenantsTable = pgTable("tenants", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -29,6 +30,7 @@ export const usersTable = pgTable("local_users", {
   clerkUserId: text("clerk_user_id").notNull().unique(),
   email: text("email"),
   displayName: text("display_name"),
+  isPlatformAdmin: boolean("is_platform_admin").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -42,6 +44,22 @@ export const membershipsTable = pgTable("tenant_memberships", {
 }, (table) => [
   uniqueIndex("tenant_memberships_tenant_user_idx").on(table.tenantId, table.userId),
   index("tenant_memberships_user_idx").on(table.userId),
+]);
+
+export const tenantInvitationsTable = pgTable("tenant_invitations", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role").notNull().default("member"),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  invitedByUserId: integer("invited_by_user_id").notNull().references(() => usersTable.id, { onDelete: "restrict" }),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("tenant_invitations_tenant_idx").on(table.tenantId),
+  index("tenant_invitations_email_idx").on(table.tenantId, table.email),
 ]);
 
 export const userTenantContextTable = pgTable("user_tenant_context", {
@@ -96,4 +114,5 @@ export type Tenant = typeof tenantsTable.$inferSelect;
 export type LocalUser = typeof usersTable.$inferSelect;
 export type TenantMembership = typeof membershipsTable.$inferSelect;
 export type Environment = typeof environmentsTable.$inferSelect;
+export type TenantInvitation = typeof tenantInvitationsTable.$inferSelect;
 export type PlatformRelease = typeof platformReleasesTable.$inferSelect;

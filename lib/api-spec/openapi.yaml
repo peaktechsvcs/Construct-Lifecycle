@@ -24,6 +24,10 @@ tags:
     description: Tenant branding drafts and published versions
   - name: integrations
     description: Customer-scoped integration catalog and activity
+  - name: membership
+    description: Customer invitations and membership administration
+  - name: platform
+    description: Platform administrator customer lifecycle operations
 paths:
   /healthz:
     get:
@@ -304,6 +308,193 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/TenantContext" }
         "403": { description: User is not authorized for the environment }
+  /tenant/members:
+    get:
+      operationId: listTenantMembers
+      tags: [membership]
+      summary: List members of the active customer
+      responses:
+        "200":
+          description: Customer members
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TenantMember" }
+        "403": { description: Customer administrator permission required }
+  /tenant/members/{userId}:
+    patch:
+      operationId: updateTenantMember
+      tags: [membership]
+      summary: Change a customer's member role
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateTenantMemberInput" }
+      responses:
+        "200":
+          description: Updated membership
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantMember" }
+        "403": { description: Customer administrator permission required }
+        "409": { description: The last owner cannot be removed }
+    delete:
+      operationId: removeTenantMember
+      tags: [membership]
+      summary: Remove a member from the active customer
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "204": { description: Member removed }
+        "403": { description: Customer administrator permission required }
+        "409": { description: The last owner cannot be removed }
+  /tenant/invitations:
+    get:
+      operationId: listTenantInvitations
+      tags: [membership]
+      summary: List invitations for the active customer
+      responses:
+        "200":
+          description: Customer invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TenantInvitation" }
+        "403": { description: Customer administrator permission required }
+    post:
+      operationId: createTenantInvitation
+      tags: [membership]
+      summary: Invite a user to the active customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateTenantInvitationInput" }
+      responses:
+        "201":
+          description: Invitation created; the token is returned only once
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatedTenantInvitation" }
+        "403": { description: Customer administrator permission required }
+        "409": { description: Active invitation already exists }
+  /tenant/invitations/{invitationId}/revoke:
+    post:
+      operationId: revokeTenantInvitation
+      tags: [membership]
+      summary: Revoke a pending customer invitation
+      parameters:
+        - in: path
+          name: invitationId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Revoked invitation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantInvitation" }
+        "403": { description: Customer administrator permission required }
+  /tenant/invitations/token/{token}:
+    get:
+      operationId: getInvitationDetails
+      tags: [membership]
+      summary: Inspect an invitation link for the signed-in user
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string, minLength: 32 }
+      responses:
+        "200":
+          description: Invitation details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvitationDetails" }
+        "404": { description: Invitation not found }
+  /tenant/invitations/token/{token}/accept:
+    post:
+      operationId: acceptTenantInvitation
+      tags: [membership]
+      summary: Accept an invitation for the authenticated user
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string, minLength: 32 }
+      responses:
+        "200":
+          description: Invitation accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AcceptedTenantInvitation" }
+        "404": { description: Invitation not found }
+        "409": { description: Invitation is no longer active }
+  /platform/customers:
+    get:
+      operationId: listPlatformCustomers
+      tags: [platform]
+      summary: List customer workspaces for platform administrators
+      responses:
+        "200":
+          description: Customer workspaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PlatformCustomer" }
+        "403": { description: Platform administrator permission required }
+    post:
+      operationId: createPlatformCustomer
+      tags: [platform]
+      summary: Create a customer workspace and its environments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePlatformCustomerInput" }
+      responses:
+        "201":
+          description: Customer created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatedPlatformCustomer" }
+        "403": { description: Platform administrator permission required }
+        "409": { description: Customer slug already exists }
+  /platform/customers/{tenantId}:
+    patch:
+      operationId: updatePlatformCustomer
+      tags: [platform]
+      summary: Suspend or reactivate a customer workspace
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdatePlatformCustomerInput" }
+      responses:
+        "200":
+          description: Updated customer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformCustomer" }
+        "403": { description: Platform administrator permission required }
+        "404": { description: Customer not found }
   /platform/releases:
     get:
       operationId: listPlatformReleases
@@ -698,11 +889,21 @@ components:
           items: { $ref: "#/components/schemas/DashboardDrilldownAttention" }
     Tenant:
       type: object
-      required: [id, name, slug, role]
+      required: [id, name, slug, status, role]
       properties:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
+        status: { type: string, enum: [active, suspended] }
+        role: { type: string, enum: [owner, admin, member, viewer] }
+    TenantMembershipSummary:
+      type: object
+      required: [id, name, slug, status, role]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        status: { type: string, enum: [active, suspended] }
         role: { type: string, enum: [owner, admin, member, viewer] }
     Environment:
       type: object
@@ -718,17 +919,18 @@ components:
         provisionedAt: { type: ["string", "null"], format: date-time }
     TenantContext:
       type: object
-      required: [activeTenant, memberships, activeEnvironment, environments, environmentLabel]
+      required: [activeTenant, memberships, activeEnvironment, environments, environmentLabel, isPlatformAdmin]
       properties:
         activeTenant: { $ref: "#/components/schemas/Tenant" }
         memberships:
           type: array
-          items: { $ref: "#/components/schemas/Tenant" }
+          items: { $ref: "#/components/schemas/TenantMembershipSummary" }
         activeEnvironment: { $ref: "#/components/schemas/Environment" }
         environments:
           type: array
           items: { $ref: "#/components/schemas/Environment" }
         environmentLabel: { type: string, enum: [development, demo, production] }
+        isPlatformAdmin: { type: boolean }
     SwitchTenantInput:
       type: object
       required: [tenantId]
@@ -739,6 +941,105 @@ components:
       required: [environmentId]
       properties:
         environmentId: { type: integer, minimum: 1 }
+    TenantMember:
+      type: object
+      required: [userId, email, displayName, role, joinedAt]
+      properties:
+        userId: { type: integer }
+        email: { type: ["string", "null"] }
+        displayName: { type: ["string", "null"] }
+        role: { type: string, enum: [owner, admin, member, viewer] }
+        joinedAt: { type: string, format: date-time }
+    UpdateTenantMemberInput:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [owner, admin, member, viewer] }
+    CreateTenantInvitationInput:
+      type: object
+      required: [email, role]
+      properties:
+        email: { type: string, format: email }
+        role: { type: string, enum: [owner, admin, member, viewer] }
+    TenantInvitation:
+      type: object
+      required: [id, tenantId, email, role, status, expiresAt, createdAt]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        email: { type: string, format: email }
+        role: { type: string, enum: [owner, admin, member, viewer] }
+        status: { type: string, enum: [pending, accepted, revoked, expired] }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    CreatedTenantInvitation:
+      type: object
+      required: [invitation, token]
+      properties:
+        invitation: { $ref: "#/components/schemas/TenantInvitation" }
+        token: { type: string }
+    InvitationDetails:
+      type: object
+      required: [id, tenantId, tenantName, email, role, status, expiresAt]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        tenantName: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [owner, admin, member, viewer] }
+        status: { type: string, enum: [pending, accepted, revoked, expired] }
+        expiresAt: { type: string, format: date-time }
+    AcceptedTenantInvitation:
+      type: object
+      required: [tenantId, environmentId]
+      properties:
+        tenantId: { type: integer }
+        environmentId: { type: integer }
+    PlatformCustomerEnvironment:
+      type: object
+      required: [id, name, kind, status]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        kind: { type: string, enum: [production, dtd] }
+        status: { type: string, enum: [active, suspended, provisioning, archived] }
+    PlatformCustomer:
+      type: object
+      required: [id, name, slug, status, memberCount, pendingInvitationCount, environments, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        status: { type: string, enum: [active, suspended] }
+        memberCount: { type: integer }
+        pendingInvitationCount: { type: integer }
+        environments:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformCustomerEnvironment" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreatePlatformCustomerInput:
+      type: object
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        slug: { type: string, pattern: "^[a-z0-9][a-z0-9-]{2,62}$" }
+        ownerEmail: { type: ["string", "null"], format: email }
+    CreatedPlatformCustomer:
+      type: object
+      required: [customer, invitation, invitationToken]
+      properties:
+        customer: { $ref: "#/components/schemas/PlatformCustomer" }
+        invitation:
+          oneOf:
+            - $ref: "#/components/schemas/TenantInvitation"
+            - type: "null"
+        invitationToken: { type: ["string", "null"] }
+    UpdatePlatformCustomerInput:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [active, suspended] }
     PlatformRelease:
       type: object
       required: [id, releaseType, status, version]

@@ -8,11 +8,13 @@
 import type { Environment } from './environment';
 import type { Tenant } from './tenant';
 import type { TenantContextEnvironmentLabel } from './tenantContextEnvironmentLabel';
+import type { TenantMembershipSummary } from './tenantMembershipSummary';
 
 export interface TenantContext {
   activeTenant: Tenant;
-  memberships: Tenant[];
+  memberships: TenantMembershipSummary[];
   activeEnvironment: Environment;
   environments: Environment[];
   environmentLabel: TenantContextEnvironmentLabel;
+  isPlatformAdmin: boolean;
 }

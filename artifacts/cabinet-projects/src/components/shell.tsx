@@ -154,6 +154,8 @@ function getBreadcrumbLabel(location: string): string {
   if (location.startsWith('/follow-ups')) return 'Follow-ups';
   if (location.includes('/administration/organization/branding')) return 'Customer Branding';
   if (location.includes('/administration/organization/integrations')) return 'Integrations';
+  if (location.includes('/administration/organization/access')) return 'Organization Access';
+  if (location.includes('/administration/platform/customers')) return 'Platform Customers';
   if (location.startsWith('/projects')) return 'Projects';
   return '';
 }
@@ -161,7 +163,7 @@ function getBreadcrumbLabel(location: string): string {
 export function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { activeTenant, memberships, branding, activeEnvironment } = useTenant();
+  const { activeTenant, memberships, branding, activeEnvironment, isPlatformAdmin } = useTenant();
   const { user } = useUser();
   const { signOut } = useClerk();
   const switchTenant = useSwitchTenant();
@@ -176,6 +178,8 @@ export function Shell({ children }: { children: ReactNode }) {
     { href: '/follow-ups', label: 'Follow-ups', icon: CalendarDays },
     { href: '/administration/organization/branding', label: 'Customer Branding', icon: Paintbrush },
     { href: '/administration/organization/integrations', label: 'Integrations', icon: Cable },
+    { href: '/administration/organization/access', label: 'Organization Access', icon: Settings2 },
+    ...(isPlatformAdmin ? [{ href: '/administration/platform/customers', label: 'Platform Customers', icon: Globe }] : []),
   ];
 
   const handleSwitchTenant = (tenantId: number) => {

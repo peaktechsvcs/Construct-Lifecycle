@@ -6,10 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { TenantRole } from './tenantRole';
+import type { TenantStatus } from './tenantStatus';
 
 export interface Tenant {
   id: number;
   name: string;
   slug: string;
+  status: TenantStatus;
   role: TenantRole;
 }

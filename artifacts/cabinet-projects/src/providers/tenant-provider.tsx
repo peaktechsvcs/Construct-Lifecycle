@@ -8,6 +8,7 @@ import {
   getGetTenantContextQueryKey,
   getGetBrandingQueryKey,
   Tenant,
+  TenantMembershipSummary,
   Environment,
   BrandingContext,
   TenantContextEnvironmentLabel,
@@ -16,11 +17,12 @@ import { hexToHsl } from '@/lib/color-utils';
 
 interface TenantContextType {
   activeTenant?: Tenant;
-  memberships: Tenant[];
+  memberships: TenantMembershipSummary[];
   branding?: BrandingContext;
   activeEnvironment?: Environment;
   environments: Environment[];
   environmentLabel?: TenantContextEnvironmentLabel;
+  isPlatformAdmin: boolean;
   isLoading: boolean;
   switchEnvironment: (environmentId: number) => void;
   isSwitchingEnvironment: boolean;
@@ -32,6 +34,7 @@ const TenantContext = createContext<TenantContextType>({
   isLoading: true,
   switchEnvironment: () => {},
   isSwitchingEnvironment: false,
+  isPlatformAdmin: false,
 });
 
 export function useTenant() {
@@ -64,6 +67,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const activeEnvironment = tenantQuery.data?.activeEnvironment;
   const environments = tenantQuery.data?.environments ?? [];
   const environmentLabel = tenantQuery.data?.environmentLabel;
+  const isPlatformAdmin = tenantQuery.data?.isPlatformAdmin ?? false;
   const branding = brandingQuery.data;
 
   // Apply published branding to CSS variables globally
@@ -127,6 +131,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         activeEnvironment,
         environments,
         environmentLabel,
+        isPlatformAdmin,
         isLoading: !isLoaded || tenantQuery.isLoading,
         switchEnvironment: handleSwitchEnvironment,
         isSwitchingEnvironment: switchEnvMutation.isPending,

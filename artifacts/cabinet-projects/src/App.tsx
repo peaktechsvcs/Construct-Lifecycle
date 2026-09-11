@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
+import { shadcn } from '@clerk/themes';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -18,6 +19,9 @@ import { ProjectDetail } from '@/pages/project-detail';
 import { FollowUps } from '@/pages/follow-ups';
 import { BrandingAdmin } from '@/pages/branding-admin';
 import { IntegrationsAdmin } from '@/pages/integrations-admin';
+import { OrganizationAccess } from '@/pages/organization-access';
+import { PlatformCustomers } from '@/pages/platform-customers';
+import { AcceptInvitation } from '@/pages/accept-invitation';
 
 const queryClient = new QueryClient();
 
@@ -29,6 +33,7 @@ const clerkPubKey = publishableKeyFromHost(
 
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+const AUTH_RETURN_KEY = 'construct-lc.auth-return';
 
 function stripBase(path: string): string {
   return basePath && path.startsWith(basePath)
@@ -41,6 +46,7 @@ if (!clerkPubKey) {
 }
 
 const clerkAppearance = {
+  theme: shadcn,
   cssLayerName: "clerk",
   options: {
     logoPlacement: "inside" as const,
@@ -89,17 +95,29 @@ const clerkAppearance = {
 };
 
 function SignInPage() {
+  const [fallbackRedirectUrl] = useState(
+    () => sessionStorage.getItem(AUTH_RETURN_KEY) || `${basePath}/overview`,
+  );
+  useEffect(() => {
+    sessionStorage.removeItem(AUTH_RETURN_KEY);
+  }, []);
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 bg-[url('/grid-pattern.svg')]">
-      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} fallbackRedirectUrl={fallbackRedirectUrl} />
     </div>
   );
 }
 
 function SignUpPage() {
+  const [fallbackRedirectUrl] = useState(
+    () => sessionStorage.getItem(AUTH_RETURN_KEY) || `${basePath}/overview`,
+  );
+  useEffect(() => {
+    sessionStorage.removeItem(AUTH_RETURN_KEY);
+  }, []);
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 bg-[url('/grid-pattern.svg')]">
-      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} fallbackRedirectUrl={fallbackRedirectUrl} />
     </div>
   );
 }
@@ -183,6 +201,15 @@ function AppRouter() {
         </Route>
         <Route path="/administration/organization/integrations">
           <Shell><ProtectedRoute component={IntegrationsAdmin} /></Shell>
+        </Route>
+        <Route path="/administration/organization/access">
+          <Shell><ProtectedRoute component={OrganizationAccess} /></Shell>
+        </Route>
+        <Route path="/administration/platform/customers">
+          <Shell><ProtectedRoute component={PlatformCustomers} /></Shell>
+        </Route>
+        <Route path="/accept-invitation/:token">
+          <AcceptInvitation />
         </Route>
 
         <Route component={NotFound} />

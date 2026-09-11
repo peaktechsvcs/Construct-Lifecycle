@@ -16,61 +16,241 @@ if (!["development", "demo", "production"].includes(APP_ENV)) {
   throw new Error("APP_ENV must be one of development, demo, or production");
 }
 
-export type TenantRequest = Request & { tenantId?: number; environmentId?: number; localUserId?: number; environmentLabel?: string };
+export type TenantRequest = Request & {
+  tenantId?: number;
+  environmentId?: number;
+  localUserId?: number;
+  environmentLabel?: string;
+  isPlatformAdmin?: boolean;
+};
 
-export async function requireTenantContext(req: TenantRequest, res: Response, next: NextFunction) {
+async function upsertAuthenticatedUser(req: TenantRequest) {
   const auth = getAuth(req);
   const clerkUserId = auth?.userId;
-  if (!clerkUserId) { res.status(401).json({ error: "Unauthorized" }); return; }
-  try {
-    const [user] = await db.insert(usersTable).values({ clerkUserId })
-      .onConflictDoUpdate({ target: usersTable.clerkUserId, set: { updatedAt: new Date() } })
-      .returning();
-    const [{ count: membershipCount }] = await db.select({ count: sql<number>`count(*)::int` }).from(membershipsTable);
-    let tenant = (await db.select().from(tenantsTable).limit(1))[0];
-    if (!tenant && APP_ENV !== "production" && Number(membershipCount) === 0) {
-      [tenant] = await db.insert(tenantsTable).values(DEFAULT_TENANT).returning();
-      await db.insert(membershipsTable).values({ tenantId: tenant.id, userId: user.id, role: "owner" }).onConflictDoNothing();
+  if (!clerkUserId) return null;
+  const claims = auth.sessionClaims as Record<string, unknown> | undefined;
+  const email = typeof claims?.email === "string" ? claims.email : undefined;
+  const displayName =
+    typeof claims?.name === "string"
+      ? claims.name
+      : typeof claims?.full_name === "string"
+        ? claims.full_name
+        : undefined;
+
+  const [existingUser] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.clerkUserId, clerkUserId))
+    .limit(1);
+
+  if (existingUser) {
+    if (email || displayName) {
+      const [updatedUser] = await db
+        .update(usersTable)
+        .set({
+          ...(email ? { email: email.toLowerCase() } : {}),
+          ...(displayName ? { displayName } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(usersTable.id, existingUser.id))
+        .returning();
+      req.localUserId = updatedUser.id;
+      req.isPlatformAdmin = updatedUser.isPlatformAdmin;
+      return updatedUser;
     }
-    if (!tenant) {
-      res.status(403).json({ error: "No customer access. Ask a customer owner to invite you." });
+    req.localUserId = existingUser.id;
+    req.isPlatformAdmin = existingUser.isPlatformAdmin;
+    return existingUser;
+  }
+
+  const [{ count: userCount }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(usersTable);
+
+  const shouldBootstrapPlatformAdmin =
+    APP_ENV !== "production" && Number(userCount) === 0;
+
+  const [user] = await db
+    .insert(usersTable)
+    .values({
+      clerkUserId,
+      email: email?.toLowerCase(),
+      displayName,
+      isPlatformAdmin: shouldBootstrapPlatformAdmin,
+    })
+    .onConflictDoUpdate({
+      target: usersTable.clerkUserId,
+      set: { updatedAt: new Date() },
+    })
+    .returning();
+
+  req.localUserId = user.id;
+  req.isPlatformAdmin = user.isPlatformAdmin;
+  return user;
+}
+
+export async function requireAuthenticatedUser(
+  req: TenantRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  if (!getAuth(req)?.userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    await upsertAuthenticatedUser(req);
+    next();
+  } catch (error) {
+    req.log?.error(error, "failed to initialize authenticated user");
+    res.status(500).json({ error: "Unable to initialize authenticated user" });
+  }
+}
+
+export async function requireTenantContext(
+  req: TenantRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  if (!getAuth(req)?.userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const user = await upsertAuthenticatedUser(req);
+    if (!user) {
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
-    let environment = (await db.select().from(environmentsTable)
-      .where(eq(environmentsTable.tenantId, tenant.id))
-      .orderBy(sql`case when ${environmentsTable.kind} = 'dtd' then 0 else 1 end`, environmentsTable.id)
-      .limit(1))[0];
-    if (!environment && APP_ENV !== "production") {
-      [environment] = await db.insert(environmentsTable).values({
-        tenantId: tenant.id, name: "Development", slug: "development", kind: "dtd", status: "active",
-      }).returning();
-    }
-    const [context] = await db.select().from(userTenantContextTable)
-      .where(eq(userTenantContextTable.userId, user.id));
-    const activeTenantId = context?.activeTenantId ?? tenant.id;
-    const [membership] = await db.select().from(membershipsTable)
-      .where(and(eq(membershipsTable.userId, user.id), eq(membershipsTable.tenantId, activeTenantId)));
-    if (!membership) {
-      const [defaultMembership] = await db.select().from(membershipsTable)
-        .where(and(eq(membershipsTable.userId, user.id), eq(membershipsTable.tenantId, tenant.id)));
-      if (!defaultMembership) {
-        res.status(403).json({ error: "No workspace access. Ask a workspace owner to invite you." });
-        return;
+
+    let userMemberships = await db
+      .select({
+        tenantId: membershipsTable.tenantId,
+        role: membershipsTable.role,
+      })
+      .from(membershipsTable)
+      .where(eq(membershipsTable.userId, user.id));
+
+    // Preserve the populated demo experience for the first development user,
+    // while keeping production access invitation/membership controlled.
+    if (userMemberships.length === 0 && APP_ENV !== "production") {
+      const [{ count: membershipCount }] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(membershipsTable);
+
+      if (Number(membershipCount) === 0) {
+        const [tenant] = await db
+          .insert(tenantsTable)
+          .values(DEFAULT_TENANT)
+          .onConflictDoUpdate({
+            target: tenantsTable.slug,
+            set: { name: DEFAULT_TENANT.name, updatedAt: new Date() },
+          })
+          .returning();
+
+        await db
+          .insert(membershipsTable)
+          .values({ tenantId: tenant.id, userId: user.id, role: "owner" })
+          .onConflictDoNothing();
+
+        userMemberships = [{ tenantId: tenant.id, role: "owner" }];
       }
-       await db.insert(userTenantContextTable).values({ userId: user.id, activeTenantId: tenant.id, activeEnvironmentId: environment?.id })
-         .onConflictDoUpdate({ target: userTenantContextTable.userId, set: { activeTenantId: tenant.id, activeEnvironmentId: environment?.id, updatedAt: new Date() } });
-      req.tenantId = tenant.id;
-     } else req.tenantId = activeTenantId;
-     const contextEnvironmentId = context?.activeEnvironmentId;
-     const [activeEnvironment] = await db.select().from(environmentsTable).where(and(
-       eq(environmentsTable.tenantId, req.tenantId), eq(environmentsTable.id, contextEnvironmentId ?? environment?.id ?? 0),
-     ));
-     req.environmentId = activeEnvironment?.id ?? environment?.id;
-     req.environmentLabel = APP_ENV;
-     await db.insert(userTenantContextTable).values({ userId: user.id, activeTenantId: req.tenantId, activeEnvironmentId: req.environmentId })
-       .onConflictDoUpdate({ target: userTenantContextTable.userId, set: { activeTenantId: req.tenantId, activeEnvironmentId: req.environmentId, updatedAt: new Date() } });
-    req.localUserId = user.id;
-    next(); return;
+    }
+
+    if (userMemberships.length === 0) {
+      res.status(403).json({
+        error: "No customer access. Ask a customer owner to invite you.",
+      });
+      return;
+    }
+
+    const [savedContext] = await db
+      .select()
+      .from(userTenantContextTable)
+      .where(eq(userTenantContextTable.userId, user.id))
+      .limit(1);
+
+    const activeTenantId = userMemberships.some(
+      (membership) => membership.tenantId === savedContext?.activeTenantId,
+    )
+      ? savedContext!.activeTenantId
+      : userMemberships[0].tenantId;
+
+    const [tenant] = await db
+      .select()
+      .from(tenantsTable)
+      .where(eq(tenantsTable.id, activeTenantId))
+      .limit(1);
+
+    if (!tenant || tenant.status !== "active") {
+      res.status(403).json({ error: "This customer workspace is not active." });
+      return;
+    }
+
+    let [environment] = await db
+      .select()
+      .from(environmentsTable)
+      .where(eq(environmentsTable.tenantId, tenant.id))
+      .orderBy(
+        sql`case when ${environmentsTable.kind} = 'dtd' then 0 else 1 end`,
+        environmentsTable.id,
+      )
+      .limit(1);
+
+    if (!environment && APP_ENV !== "production") {
+      [environment] = await db
+        .insert(environmentsTable)
+        .values({
+          tenantId: tenant.id,
+          name: "Development",
+          slug: "development",
+          kind: "dtd",
+          status: "active",
+        })
+        .returning();
+    }
+
+    if (!environment) {
+      res.status(409).json({ error: "Customer has no active environment." });
+      return;
+    }
+
+    const [savedEnvironment] = savedContext?.activeEnvironmentId
+      ? await db
+          .select()
+          .from(environmentsTable)
+          .where(
+            and(
+              eq(environmentsTable.id, savedContext.activeEnvironmentId),
+              eq(environmentsTable.tenantId, tenant.id),
+              eq(environmentsTable.status, "active"),
+            ),
+          )
+          .limit(1)
+      : [];
+
+    await db
+      .insert(userTenantContextTable)
+      .values({
+        userId: user.id,
+        activeTenantId: tenant.id,
+        activeEnvironmentId: savedEnvironment?.id ?? environment.id,
+      })
+      .onConflictDoUpdate({
+        target: userTenantContextTable.userId,
+        set: {
+          activeTenantId: tenant.id,
+          activeEnvironmentId: savedEnvironment?.id ?? environment.id,
+          updatedAt: new Date(),
+        },
+      });
+
+    req.tenantId = tenant.id;
+    req.environmentId = savedEnvironment?.id ?? environment.id;
+    req.environmentLabel = APP_ENV;
+    next();
   } catch (error) {
     req.log?.error(error, "failed to provision tenant context");
     res.status(500).json({ error: "Unable to initialize tenant context" });

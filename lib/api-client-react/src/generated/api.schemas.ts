@@ -332,6 +332,14 @@ export interface DashboardDrilldownResponse {
   attention?: DashboardDrilldownAttention[];
 }
 
+export type TenantStatus = typeof TenantStatus[keyof typeof TenantStatus];
+
+
+export const TenantStatus = {
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
 export type TenantRole = typeof TenantRole[keyof typeof TenantRole];
 
 
@@ -346,7 +354,34 @@ export interface Tenant {
   id: number;
   name: string;
   slug: string;
+  status: TenantStatus;
   role: TenantRole;
+}
+
+export type TenantMembershipSummaryStatus = typeof TenantMembershipSummaryStatus[keyof typeof TenantMembershipSummaryStatus];
+
+
+export const TenantMembershipSummaryStatus = {
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export type TenantMembershipSummaryRole = typeof TenantMembershipSummaryRole[keyof typeof TenantMembershipSummaryRole];
+
+
+export const TenantMembershipSummaryRole = {
+  owner: 'owner',
+  admin: 'admin',
+  member: 'member',
+  viewer: 'viewer',
+} as const;
+
+export interface TenantMembershipSummary {
+  id: number;
+  name: string;
+  slug: string;
+  status: TenantMembershipSummaryStatus;
+  role: TenantMembershipSummaryRole;
 }
 
 export type EnvironmentKind = typeof EnvironmentKind[keyof typeof EnvironmentKind];
@@ -391,10 +426,11 @@ export const TenantContextEnvironmentLabel = {
 
 export interface TenantContext {
   activeTenant: Tenant;
-  memberships: Tenant[];
+  memberships: TenantMembershipSummary[];
   activeEnvironment: Environment;
   environments: Environment[];
   environmentLabel: TenantContextEnvironmentLabel;
+  isPlatformAdmin: boolean;
 }
 
 export interface SwitchTenantInput {
@@ -405,6 +441,201 @@ export interface SwitchTenantInput {
 export interface SwitchEnvironmentInput {
   /** @minimum 1 */
   environmentId: number;
+}
+
+export type TenantMemberRole = typeof TenantMemberRole[keyof typeof TenantMemberRole];
+
+
+export const TenantMemberRole = {
+  owner: 'owner',
+  admin: 'admin',
+  member: 'member',
+  viewer: 'viewer',
+} as const;
+
+export interface TenantMember {
+  userId: number;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  displayName: string | null;
+  role: TenantMemberRole;
+  joinedAt: string;
+}
+
+export type UpdateTenantMemberInputRole = typeof UpdateTenantMemberInputRole[keyof typeof UpdateTenantMemberInputRole];
+
+
+export const UpdateTenantMemberInputRole = {
+  owner: 'owner',
+  admin: 'admin',
+  member: 'member',
+  viewer: 'viewer',
+} as const;
+
+export interface UpdateTenantMemberInput {
+  role: UpdateTenantMemberInputRole;
+}
+
+export type CreateTenantInvitationInputRole = typeof CreateTenantInvitationInputRole[keyof typeof CreateTenantInvitationInputRole];
+
+
+export const CreateTenantInvitationInputRole = {
+  owner: 'owner',
+  admin: 'admin',
+  member: 'member',
+  viewer: 'viewer',
+} as const;
+
+export interface CreateTenantInvitationInput {
+  email: string;
+  role: CreateTenantInvitationInputRole;
+}
+
+export type TenantInvitationRole = typeof TenantInvitationRole[keyof typeof TenantInvitationRole];
+
+
+export const TenantInvitationRole = {
+  owner: 'owner',
+  admin: 'admin',
+  member: 'member',
+  viewer: 'viewer',
+} as const;
+
+export type TenantInvitationStatus = typeof TenantInvitationStatus[keyof typeof TenantInvitationStatus];
+
+
+export const TenantInvitationStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+  revoked: 'revoked',
+  expired: 'expired',
+} as const;
+
+export interface TenantInvitation {
+  id: number;
+  tenantId: number;
+  email: string;
+  role: TenantInvitationRole;
+  status: TenantInvitationStatus;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface CreatedTenantInvitation {
+  invitation: TenantInvitation;
+  token: string;
+}
+
+export type InvitationDetailsRole = typeof InvitationDetailsRole[keyof typeof InvitationDetailsRole];
+
+
+export const InvitationDetailsRole = {
+  owner: 'owner',
+  admin: 'admin',
+  member: 'member',
+  viewer: 'viewer',
+} as const;
+
+export type InvitationDetailsStatus = typeof InvitationDetailsStatus[keyof typeof InvitationDetailsStatus];
+
+
+export const InvitationDetailsStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+  revoked: 'revoked',
+  expired: 'expired',
+} as const;
+
+export interface InvitationDetails {
+  id: number;
+  tenantId: number;
+  tenantName: string;
+  email: string;
+  role: InvitationDetailsRole;
+  status: InvitationDetailsStatus;
+  expiresAt: string;
+}
+
+export interface AcceptedTenantInvitation {
+  tenantId: number;
+  environmentId: number;
+}
+
+export type PlatformCustomerEnvironmentKind = typeof PlatformCustomerEnvironmentKind[keyof typeof PlatformCustomerEnvironmentKind];
+
+
+export const PlatformCustomerEnvironmentKind = {
+  production: 'production',
+  dtd: 'dtd',
+} as const;
+
+export type PlatformCustomerEnvironmentStatus = typeof PlatformCustomerEnvironmentStatus[keyof typeof PlatformCustomerEnvironmentStatus];
+
+
+export const PlatformCustomerEnvironmentStatus = {
+  active: 'active',
+  suspended: 'suspended',
+  provisioning: 'provisioning',
+  archived: 'archived',
+} as const;
+
+export interface PlatformCustomerEnvironment {
+  id: number;
+  name: string;
+  kind: PlatformCustomerEnvironmentKind;
+  status: PlatformCustomerEnvironmentStatus;
+}
+
+export type PlatformCustomerStatus = typeof PlatformCustomerStatus[keyof typeof PlatformCustomerStatus];
+
+
+export const PlatformCustomerStatus = {
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export interface PlatformCustomer {
+  id: number;
+  name: string;
+  slug: string;
+  status: PlatformCustomerStatus;
+  memberCount: number;
+  pendingInvitationCount: number;
+  environments: PlatformCustomerEnvironment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePlatformCustomerInput {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  name: string;
+  /** @pattern ^[a-z0-9][a-z0-9-]{2,62}$ */
+  slug: string;
+  /** @nullable */
+  ownerEmail?: string | null;
+}
+
+export interface CreatedPlatformCustomer {
+  customer: PlatformCustomer;
+  invitation: TenantInvitation | null;
+  /** @nullable */
+  invitationToken: string | null;
+}
+
+export type UpdatePlatformCustomerInputStatus = typeof UpdatePlatformCustomerInputStatus[keyof typeof UpdatePlatformCustomerInputStatus];
+
+
+export const UpdatePlatformCustomerInputStatus = {
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
+export interface UpdatePlatformCustomerInput {
+  status: UpdatePlatformCustomerInputStatus;
 }
 
 export type PlatformReleaseReleaseType = typeof PlatformReleaseReleaseType[keyof typeof PlatformReleaseReleaseType];
