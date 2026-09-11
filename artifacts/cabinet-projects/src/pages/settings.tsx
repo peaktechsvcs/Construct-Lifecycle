@@ -1,19 +1,71 @@
-import { Building2, Cable, ShieldCheck, Paintbrush, Layers3 } from 'lucide-react';
+import { Building2, Cable, ShieldCheck, Paintbrush, Layers3, Users, KeyRound } from 'lucide-react';
 import { Link, useLocation, Redirect } from 'wouter';
 import { BrandingAdmin } from '@/pages/branding-admin';
 import { IntegrationsAdmin } from '@/pages/integrations-admin';
 import { OrganizationAccess } from '@/pages/organization-access';
-import { LoadingPanel, PageTitle } from '@/components/app-ui';
+import { EmptyState, LoadingPanel, PageTitle } from '@/components/app-ui';
 import { useTenant } from '@/providers/tenant-provider';
 
-type SettingsSection = 'profile' | 'branding' | 'integrations' | 'access';
+type SettingsSection = 'profile' | 'branding' | 'integrations' | 'administration';
+type AdministrationSection = 'users' | 'roles' | 'access';
 
 const settingsSections: Array<{ key: SettingsSection; label: string; description: string; icon: typeof Building2 }> = [
   { key: 'profile', label: 'Organization Profile', description: 'Workspace identity and environment context', icon: Building2 },
   { key: 'branding', label: 'Branding', description: 'Theme, live preview, and publishing', icon: Paintbrush },
   { key: 'integrations', label: 'Integrations', description: 'Connected systems and activity', icon: Cable },
-  { key: 'access', label: 'Access', description: 'Users, roles, and memberships', icon: ShieldCheck },
+  { key: 'administration', label: 'Administration', description: 'Users, roles, and access', icon: ShieldCheck },
 ];
+
+const administrationSections: Array<{ key: AdministrationSection; label: string; description: string; icon: typeof Users }> = [
+  { key: 'users', label: 'Users', description: 'Manage workspace members and invitations', icon: Users },
+  { key: 'roles', label: 'Roles', description: 'Define what each workspace role can do', icon: KeyRound },
+  { key: 'access', label: 'Access & Memberships', description: 'Review membership access and assignments', icon: ShieldCheck },
+];
+
+function AdministrationSettings() {
+  const [location] = useLocation();
+  const requested = location.split('/')[3] as AdministrationSection | undefined;
+  const section: AdministrationSection = administrationSections.some((item) => item.key === requested) ? requested! : 'users';
+
+  return (
+    <div className="animate-rise">
+      <PageTitle eyebrow="Settings / Administration" title="Administration" description="Manage workspace users, roles, and access memberships." />
+      <nav className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-2" aria-label="Administration navigation">
+        {administrationSections.map(({ key, label, description, icon: Icon }) => (
+          <Link
+            key={key}
+            href={`/settings/administration/${key}`}
+            aria-current={section === key ? 'page' : undefined}
+            className={`flex min-w-[170px] flex-1 items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${section === key ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-secondary'}`}
+          >
+            <Icon size={17} className="mt-0.5 shrink-0" />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">{label}</span>
+              <span className={`mt-0.5 block text-[11px] leading-4 ${section === key ? 'text-primary/75' : 'text-muted-foreground'}`}>{description}</span>
+            </span>
+          </Link>
+        ))}
+      </nav>
+      <div className="mt-6">
+        {section === 'roles' ? (
+          <section className="rounded-xl border border-border bg-card p-5">
+            <div className="mb-5 flex items-center gap-3 border-b border-border pb-4">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary"><KeyRound size={16} /></span>
+              <h2 className="text-base font-bold">Roles</h2>
+            </div>
+            <EmptyState icon={KeyRound} title="Role controls are coming soon" text="Workspace role assignments are available from Users today. Dedicated role policies will be added here." />
+          </section>
+        ) : (
+          <OrganizationAccess
+            title={section === 'users' ? 'Users' : 'Access & Memberships'}
+            description={section === 'users' ? 'Manage workspace members, invitations, and role assignments.' : 'Review workspace members and manage their access.'}
+            showPageTitle={false}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
 
 function OrganizationProfile() {
   const { activeTenant, activeEnvironment, activeRole, memberships } = useTenant();
@@ -73,7 +125,7 @@ export function SettingsPage() {
       ? <BrandingAdmin />
       : section === 'integrations'
         ? <IntegrationsAdmin />
-        : <OrganizationAccess />;
+        : <AdministrationSettings />;
 
   return (
     <div className="animate-rise">

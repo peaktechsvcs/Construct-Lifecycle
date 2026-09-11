@@ -18,7 +18,15 @@ import { useTenant } from '@/providers/tenant-provider';
 
 const inputClass = 'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-primary/20';
 
-export function OrganizationAccess() {
+export function OrganizationAccess({
+  title = 'Access & Memberships',
+  description = 'Manage members and invitations for your customer workspace.',
+  showPageTitle = true,
+}: {
+  title?: string;
+  description?: string;
+  showPageTitle?: boolean;
+}) {
   const { activeTenant } = useTenant();
   const qc = useQueryClient();
   const members = useListTenantMembers({ query: { queryKey: getListTenantMembersQueryKey() } });
@@ -36,13 +44,13 @@ export function OrganizationAccess() {
     qc.invalidateQueries({ queryKey: getListTenantInvitationsQueryKey() });
   };
   const busy = update.isPending || remove.isPending || create.isPending || revoke.isPending;
-  if (members.isLoading || invitations.isLoading) return <><PageTitle eyebrow="Settings / Access" title="Access" description="Manage members and invitations for your customer workspace." /><LoadingPanel lines={6} /></>;
+  if (members.isLoading || invitations.isLoading) return <>{showPageTitle && <PageTitle eyebrow="Settings / Administration" title={title} description={description} />}<LoadingPanel lines={6} /></>;
   if (members.isError || invitations.isError) return <ErrorPanel onRetry={() => { members.refetch(); invitations.refetch(); }} />;
   if (activeTenant && activeTenant.role !== 'owner' && activeTenant.role !== 'admin') return <EmptyState icon={Users} title="Administrator access required" text="Only customer owners and administrators can manage workspace access." />;
   const pending = (invitations.data ?? []).filter((item) => item.status === 'pending');
   return (
     <div className="animate-rise">
-      <PageTitle eyebrow="Settings / Access" title="Access" description="Manage members and invitations for your customer workspace." />
+      {showPageTitle && <PageTitle eyebrow="Settings / Administration" title={title} description={description} />}
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="mb-5 flex items-center gap-3 border-b border-border pb-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary"><Users size={16} /></span><h2 className="text-base font-bold">Members</h2></div>

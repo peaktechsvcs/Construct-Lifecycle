@@ -206,6 +206,12 @@ function AppRouter() {
         <Route path="/settings">
           <Shell><ProtectedRoute component={SettingsPage} /></Shell>
         </Route>
+        <Route path="/settings/administration/:adminSection">
+          <Shell><ProtectedRoute component={SettingsPage} /></Shell>
+        </Route>
+        <Route path="/settings/access">
+          <Redirect to="/settings/administration/access" />
+        </Route>
         <Route path="/settings/:section">
           <Shell><ProtectedRoute component={SettingsPage} /></Shell>
         </Route>
@@ -216,7 +222,13 @@ function AppRouter() {
           <Redirect to="/settings/integrations" />
         </Route>
         <Route path="/administration/organization/access">
-          <Redirect to="/settings/access" />
+          <Redirect to="/settings/administration/access" />
+        </Route>
+        <Route path="/coming-soon/roles">
+          <Redirect to="/settings/administration/roles" />
+        </Route>
+        <Route path="/coming-soon/settings">
+          <Redirect to="/settings" />
         </Route>
         <Route path="/administration/platform/customers">
           <Shell><ProtectedRoute component={PlatformCustomers} /></Shell>

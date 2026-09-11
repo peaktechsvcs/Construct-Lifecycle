@@ -176,6 +176,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
   {
     label: 'Projects',
     items: [
+      { href: '/customers', label: 'Customers', icon: BriefcaseBusiness },
       { href: '/projects', label: 'All Projects', icon: FolderKanban },
       { href: '/coming-soon/active-projects', label: 'Active Projects', icon: BriefcaseBusiness },
       { href: '/coming-soon/contracts', label: 'Contracts', icon: FileCheck2 },
@@ -185,6 +186,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
   {
     label: 'Operations',
     items: [
+      { href: '/coming-soon/vendors', label: 'Vendors', icon: Building2 },
       { href: '/coming-soon/products', label: 'Products', icon: Package },
       { href: '/coming-soon/selections', label: 'Selections', icon: ListChecks },
       { href: '/coming-soon/procurement', label: 'Procurement', icon: ShoppingCart },
@@ -222,18 +224,12 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       { href: '/coming-soon/construct-intelligence', label: 'Construct Intelligence', icon: Sparkles },
     ],
   },
-  {
-    label: 'Administration',
-    items: [
-      { href: '/customers', label: 'Customers', icon: BriefcaseBusiness },
-      { href: '/coming-soon/vendors', label: 'Vendors', icon: Building2 },
-    ],
-  },
 ];
 
 function getBreadcrumbLabel(location: string): string {
   if (location === '/overview') return 'Dashboard';
   if (location.startsWith('/follow-ups')) return 'My Work';
+  if (location.startsWith('/settings/administration')) return 'Administration';
   if (location === '/settings' || location.startsWith('/settings/')) return 'Settings';
   if (location.includes('/administration/platform/customers')) return 'Platform Customers';
   if (location.startsWith('/projects')) return 'All Projects';
