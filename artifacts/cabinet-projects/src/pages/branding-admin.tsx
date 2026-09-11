@@ -220,7 +220,7 @@ export function BrandingAdmin() {
                 ) : (
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">L</div>
                 )}
-                <span className="font-bold">Command Center</span>
+                <span className="font-bold">Construction Lifecycle</span>
               </div>
               
               <h1 className="text-2xl font-bold tracking-tight">Active Project</h1>

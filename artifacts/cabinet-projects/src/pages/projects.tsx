@@ -16,9 +16,9 @@ import { stageLabels, stageColors, STAGE_ORDER } from '@/lib/stage-config';
 import { ProjectFormModal } from '@/components/project-form-modal';
 
 function stageBadgeTone(stage: string) {
-  if (stage === 'billing') return 'violet' as const;
+  if (stage === 'financial') return 'violet' as const;
   if (stage === 'closeout') return 'green' as const;
-  if (stage === 'pre_construction') return 'violet' as const;
+  if (stage === 'procure') return 'violet' as const;
   return 'teal' as const;
 }
 
@@ -74,7 +74,7 @@ export function Projects() {
   };
 
   // Stage filter options in canonical lifecycle order
-  const stageOptions = STAGE_ORDER.filter((s) => s !== 'follow_up').map((s) => ({
+  const stageOptions = STAGE_ORDER.map((s) => ({
     value: s,
     label: stageLabels[s] ?? s,
   }));
@@ -117,7 +117,7 @@ export function Projects() {
             onChange={(e) => setStage(e.target.value)}
             className="w-full appearance-none rounded-lg border border-transparent bg-secondary/65 py-2.5 pl-9 pr-8 text-sm outline-none focus:border-primary/30 focus:bg-background"
           >
-            <option value="">All stages</option>
+            <option value="">All lifecycle stages</option>
             {stageOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}

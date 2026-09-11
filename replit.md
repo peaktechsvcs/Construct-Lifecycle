@@ -1,6 +1,6 @@
 # Construct LC
 
-Construct LC is a responsive, multi-tenant construction lifecycle workspace for tracking cabinet, countertop, flooring, lighting, and hardware jobs from opportunity through collected cash and future-work follow-up.
+Construct LC — The Construction Lifecycle Platform is a responsive, multi-tenant workspace for construction suppliers and teams managing work from opportunity through closeout.
 
 ## Run & Operate
 

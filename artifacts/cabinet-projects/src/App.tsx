@@ -24,6 +24,7 @@ import { IntegrationsAdmin } from '@/pages/integrations-admin';
 import { OrganizationAccess } from '@/pages/organization-access';
 import { PlatformCustomers } from '@/pages/platform-customers';
 import { AcceptInvitation } from '@/pages/accept-invitation';
+import { ComingSoonPage } from '@/pages/coming-soon';
 
 const queryClient = new QueryClient();
 
@@ -56,7 +57,7 @@ const clerkAppearance = {
     logoImageUrl: `${window.location.origin}${basePath}/logo-full.png`,
   },
   variables: {
-    colorPrimary: "hsl(221, 83%, 53%)", // Construct LC Vivid Blue
+    colorPrimary: "hsl(198, 80%, 43%)", // Construct Blue
     colorBackground: "hsl(0, 0%, 100%)",
     colorForeground: "hsl(222, 47%, 11%)",
     colorMutedForeground: "hsl(215, 16%, 47%)",
@@ -216,6 +217,9 @@ function AppRouter() {
         <Route path="/administration/platform/customers">
           <Shell><ProtectedRoute component={PlatformCustomers} /></Shell>
         </Route>
+        <Route path="/coming-soon/:item">
+          <Shell><ProtectedRoute component={ComingSoonPage} /></Shell>
+        </Route>
         <Route path="/accept-invitation/:token">
           <AcceptInvitation />
         </Route>
@@ -236,8 +240,8 @@ function App() {
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
       localization={{
-        signIn: { start: { title: "Welcome back", subtitle: "Sign in to Construct Lifecycle" } },
-        signUp: { start: { title: "Create your account", subtitle: "Join Construct Lifecycle today" } },
+        signIn: { start: { title: "Welcome back", subtitle: "Construct LC — The Construction Lifecycle Platform" } },
+        signUp: { start: { title: "Create your account", subtitle: "Construct LC — The Construction Lifecycle Platform" } },
       }}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}

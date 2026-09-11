@@ -13,16 +13,14 @@ export type ProjectStage = typeof ProjectStage[keyof typeof ProjectStage];
 
 
 export const ProjectStage = {
-  lead: 'lead',
-  proposal: 'proposal',
-  awarded: 'awarded',
-  contracted: 'contracted',
-  pre_construction: 'pre_construction',
-  in_progress: 'in_progress',
-  billing: 'billing',
+  opportunity: 'opportunity',
+  bid: 'bid',
+  award: 'award',
+  contract: 'contract',
+  procure: 'procure',
+  deliver: 'deliver',
+  financial: 'financial',
   closeout: 'closeout',
-  follow_up: 'follow_up',
-  lost: 'lost',
 } as const;
 
 export type ProposalStatus = typeof ProposalStatus[keyof typeof ProposalStatus];

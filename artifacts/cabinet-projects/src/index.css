@@ -49,7 +49,7 @@
   --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
-  --primary: 221 83% 53%; /* Construct LC Vivid Blue */
+  --primary: 198 80% 43%; /* Construct Blue #1479C9 */
   --primary-foreground: 210 40% 98%;
   --secondary: 210 40% 96%;
   --secondary-foreground: 222 47% 11%;
@@ -59,7 +59,7 @@
   --accent-foreground: 222 47% 11%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 210 40% 98%;
-  --sidebar: 222 47% 11%; /* Construct LC Navy */
+  --sidebar: 211 87% 18%; /* Construct Navy #062B55 */
   --sidebar-foreground: 210 40% 98%;
   --sidebar-border: 217 33% 17%;
   --sidebar-accent: 217 33% 17%;

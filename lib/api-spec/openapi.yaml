@@ -722,16 +722,14 @@ components:
     ProjectStage:
       type: string
       enum:
-        - lead
-        - proposal
-        - awarded
-        - contracted
-        - pre_construction
-        - in_progress
-        - billing
+        - opportunity
+        - bid
+        - award
+        - contract
+        - procure
+        - deliver
+        - financial
         - closeout
-        - follow_up
-        - lost
     ProposalStatus:
       type: string
       enum: [not_started, drafting, submitted, revised, accepted]

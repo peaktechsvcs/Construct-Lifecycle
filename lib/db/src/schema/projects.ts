@@ -1,6 +1,8 @@
 import { createInsertSchema } from "drizzle-zod";
+import { sql } from "drizzle-orm";
 import {
   date,
+  check,
   index,
   integer,
   numeric,
@@ -24,7 +26,7 @@ export const projectsTable = pgTable("projects", {
   category: text("category").notNull(),
   productCategories: text("product_categories").array().notNull().default([]),
   owner: text("owner"),
-  stage: text("stage").notNull().default("lead"),
+  stage: text("stage").notNull().default("opportunity"),
   proposalStatus: text("proposal_status").notNull().default("not_started"),
   proposalDetails: text("proposal_details"),
   bidOutcome: text("bid_outcome").notNull().default("pending"),
@@ -59,6 +61,7 @@ export const projectsTable = pgTable("projects", {
 }, (table) => [
    index("projects_tenant_environment_idx").on(table.tenantId, table.environmentId),
    uniqueIndex("projects_tenant_environment_project_number_idx").on(table.tenantId, table.environmentId, table.projectNumber),
+   check("projects_stage_check", sql`${table.stage} in ('opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout')`),
 ]);
 
 export const activityTable = pgTable("project_activity", {

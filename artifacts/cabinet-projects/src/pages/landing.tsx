@@ -7,14 +7,14 @@ export function LandingPage() {
       <div className="animate-rise max-w-md">
         <img 
           src={`${basePath}/logo-full.png`} 
-          alt="Construct Lifecycle" 
+          alt="Construct LC — The Construction Lifecycle Platform"
           className="mx-auto mb-8 h-20 object-contain drop-shadow-sm" 
         />
         <h1 className="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          The Construction Lifecycle Command Center
+          Construct LC — The Construction Lifecycle Platform
         </h1>
         <p className="mb-10 text-base text-muted-foreground">
-          See every project from bid to closeout without reconstructing state across systems. Build better, bill faster.
+          From Bid to Closeout.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link 

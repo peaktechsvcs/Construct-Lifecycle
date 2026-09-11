@@ -24,7 +24,7 @@ type ProjectForm = {
 
 const emptyProjectForm: ProjectForm = {
   customerName: '', projectName: '', address: '', category: 'Residential',
-  productCategories: '', owner: '', stage: 'lead', proposalStatus: 'not_started',
+  productCategories: '', owner: '', stage: 'opportunity', proposalStatus: 'not_started',
   proposalDetails: '', bidOutcome: 'pending', contractStatus: 'none', contractValue: '0',
   contractDetails: '', contractStart: '', contractEnd: '', deliveryPercent: '0',
   requirementsSummary: '', billingStatus: 'not_started', invoicedAmount: '0',
@@ -89,8 +89,7 @@ const projectPayload = (form: ProjectForm): ProjectInput => ({
   nextFollowUp: form.nextFollowUp || undefined,
 });
 
-// Stage options in canonical lifecycle order (exclude terminal stages from the primary selector)
-const stageOptions = STAGE_ORDER.filter((s) => s !== 'follow_up').map((s) => ({
+const stageOptions = STAGE_ORDER.map((s) => ({
   value: s,
   label: stageLabels[s] ?? s,
 }));
@@ -295,7 +294,7 @@ export function ProjectFormModal({ project, initialCustomer, onClose }: { projec
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           {input('category', 'Category', 'text', 'Residential or commercial')}
-          {input('productCategories', 'Product categories', 'text', 'Cabinetry, surfaces, hardware')}
+          {input('productCategories', 'Product categories', 'text', 'Materials, finishes, equipment')}
         </div>
         <div className="ink-rule pt-5">
           <p className="mb-4 text-sm font-bold">Lifecycle & value</p>

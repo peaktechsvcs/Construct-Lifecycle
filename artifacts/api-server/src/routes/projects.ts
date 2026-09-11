@@ -25,16 +25,14 @@ import { normalizeCustomerName } from "./customers";
 const router: IRouter = Router();
 
 const projectStages = [
-  "lead",
-  "proposal",
-  "awarded",
-  "contracted",
-  "pre_construction",
-  "in_progress",
-  "billing",
+  "opportunity",
+  "bid",
+  "award",
+  "contract",
+  "procure",
+  "deliver",
+  "financial",
   "closeout",
-  "follow_up",
-  "lost",
 ] as const;
 
 const toProject = (row: typeof projectsTable.$inferSelect) => ({
@@ -47,8 +45,8 @@ const toProject = (row: typeof projectsTable.$inferSelect) => ({
 const toDateString = (value: Date | undefined) =>
   value ? value.toISOString().slice(0, 10) : undefined;
 
-const ACTIVE_STAGES = ["awarded", "contracted", "pre_construction", "in_progress", "billing", "closeout"] as const;
-const PIPELINE_STAGES = ["lead", "proposal"] as const;
+const ACTIVE_STAGES = ["award", "contract", "procure", "deliver", "financial", "closeout"] as const;
+const PIPELINE_STAGES = ["opportunity", "bid"] as const;
 const dateToday = () => new Date().toISOString().slice(0, 10);
 const daysSince = (date: Date) => Math.max(0, Math.floor((Date.now() - date.getTime()) / 86400000));
 const projectContribution = (project: typeof projectsTable.$inferSelect) => ({

@@ -50,8 +50,6 @@ function BackNav() {
   );
 }
 
-// ─── Lifecycle stepper (now includes pre_construction) ────────────────────────
-
 function Lifecycle({ project }: { project: Project }) {
   const stages = LIFECYCLE_STAGES;
   const current = stages.indexOf(project.stage);
@@ -63,12 +61,12 @@ function Lifecycle({ project }: { project: Project }) {
           <p className="mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Lifecycle</p>
           <h2 className="mt-1 text-lg font-bold">Move the job forward</h2>
         </div>
-        <Badge tone={project.stage === 'billing' ? 'violet' : project.stage === 'pre_construction' ? 'violet' : 'teal'}>
+        <Badge tone={project.stage === 'financial' || project.stage === 'procure' ? 'violet' : project.stage === 'closeout' ? 'green' : 'teal'}>
           {stageLabels[project.stage] ?? project.stage}
         </Badge>
       </div>
-      {/* Responsive grid: 4 cols on small, 8 on md+ */}
-      <div className="grid grid-cols-4 gap-2 md:grid-cols-8">
+      <div className="overflow-x-auto pb-2">
+        <div className="grid min-w-[720px] grid-cols-8 gap-2">
         {stages.map((stage, index) => (
           <div key={stage} className="relative">
             <div
@@ -78,7 +76,7 @@ function Lifecycle({ project }: { project: Project }) {
             >
               {index < current ? <Check size={14} /> : index + 1}
             </div>
-            <p className={`text-[9px] leading-4 ${index === current ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
+            <p className={`text-[10px] leading-4 ${index === current ? 'font-bold text-foreground' : index < current ? 'font-medium text-primary' : 'text-muted-foreground'}`}>
               {stageLabels[stage] ?? stage}
             </p>
             {index < stages.length - 1 && (
@@ -88,18 +86,8 @@ function Lifecycle({ project }: { project: Project }) {
             )}
           </div>
         ))}
-      </div>
-      {/* Pre-Construction sub-status note */}
-      {project.stage === 'pre_construction' && (
-        <div className="mt-5 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3">
-          <p className="text-xs font-semibold text-violet-800">Pre-Construction phase</p>
-          <p className="mt-1 text-xs text-violet-700 leading-5">
-            The project is contracted but execution has not yet begun. Typical sub-statuses include: Awaiting Start
-            Date, Submittals / Approvals, Selections Pending, Procurement Planning, Material Release Pending, or
-            Ready to Start.
-          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -182,7 +170,7 @@ function FollowUpModal({ project, onClose }: { project: Project; onClose: () => 
             onChange={(e) => setNote(e.target.value)}
             required
             rows={4}
-            placeholder="e.g. Confirm revised countertop lead time with client"
+            placeholder="e.g. Confirm revised material lead time with client"
             className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-4 focus:ring-primary/20"
           />
         </label>
@@ -230,7 +218,7 @@ export function ProjectDetail() {
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-bold tracking-[-.05em]">{project.projectName}</h1>
-            <Badge tone={project.stage === 'billing' ? 'violet' : project.stage === 'pre_construction' ? 'violet' : 'teal'}>
+            <Badge tone={project.stage === 'financial' || project.stage === 'procure' ? 'violet' : project.stage === 'closeout' ? 'green' : 'teal'}>
               {stageLabels[project.stage] ?? project.stage}
             </Badge>
           </div>

@@ -4,7 +4,7 @@ import {
   useGetDashboardSummary, getGetDashboardSummaryQueryKey,
   useListRecentActivity, getListRecentActivityQueryKey,
   useListFollowUps, getListFollowUpsQueryKey,
-  ProjectStage, FollowUpStatus,
+  FollowUpStatus,
 } from '@workspace/api-client-react';
 import {
   currency, shortDate,
@@ -157,7 +157,6 @@ export function Dashboard() {
 
           <div className="space-y-3">
             {(summary?.stageCounts ?? [])
-              .filter((item) => item.stage !== ProjectStage.lost)
               .map((item) => (
                 <Link
                   key={item.stage}

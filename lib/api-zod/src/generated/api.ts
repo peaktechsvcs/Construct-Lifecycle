@@ -22,7 +22,7 @@ export const HealthCheckResponse = zod.object({
  */
 export const ListProjectsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']).optional()
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']).optional()
 })
 
 export const listProjectsResponseDeliveryPercentMin = 0;
@@ -48,7 +48,7 @@ export const ListProjectsResponseItem = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().nullish(),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']),
   "proposalDetails": zod.string().nullish(),
   "bidOutcome": zod.enum(['pending', 'won', 'lost', 'no_bid']),
@@ -108,7 +108,7 @@ export const CreateProjectBody = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().optional(),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']).optional(),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']).optional(),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']).optional(),
   "proposalDetails": zod.string().optional(),
   "bidOutcome": zod.enum(['pending', 'won', 'lost', 'no_bid']).optional(),
@@ -151,7 +151,7 @@ export const CreateProjectResponse = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().nullish(),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']),
   "proposalDetails": zod.string().nullish(),
   "bidOutcome": zod.enum(['pending', 'won', 'lost', 'no_bid']),
@@ -204,7 +204,7 @@ export const GetProjectResponse = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().nullish(),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']),
   "proposalDetails": zod.string().nullish(),
   "bidOutcome": zod.enum(['pending', 'won', 'lost', 'no_bid']),
@@ -267,7 +267,7 @@ export const UpdateProjectBody = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().optional(),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']).optional(),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']).optional(),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']).optional(),
   "proposalDetails": zod.string().optional(),
   "bidOutcome": zod.enum(['pending', 'won', 'lost', 'no_bid']).optional(),
@@ -310,7 +310,7 @@ export const UpdateProjectResponse = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().nullish(),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']),
   "proposalDetails": zod.string().nullish(),
   "bidOutcome": zod.enum(['pending', 'won', 'lost', 'no_bid']),
@@ -423,7 +423,7 @@ export const CreateBusinessCustomerResponse = zod.object({
   "projectNumber": zod.string(),
   "projectName": zod.string(),
   "customerName": zod.string().optional(),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
   "contractValue": zod.number(),
   "updatedAt": zod.coerce.date()
 }))
@@ -454,7 +454,7 @@ export const GetBusinessCustomerResponse = zod.object({
   "projectNumber": zod.string(),
   "projectName": zod.string(),
   "customerName": zod.string().optional(),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
   "contractValue": zod.number(),
   "updatedAt": zod.coerce.date()
 }))
@@ -504,7 +504,7 @@ export const UpdateBusinessCustomerResponse = zod.object({
   "projectNumber": zod.string(),
   "projectName": zod.string(),
   "customerName": zod.string().optional(),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
   "contractValue": zod.number(),
   "updatedAt": zod.coerce.date()
 }))
@@ -590,7 +590,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "receivedValue": zod.number(),
   "openFollowUps": zod.number().int(),
   "stageCounts": zod.array(zod.object({
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
   "count": zod.number().int(),
   "value": zod.number()
 }))
@@ -618,7 +618,7 @@ export const ListRecentActivityResponse = zod.array(ListRecentActivityResponseIt
  */
 export const GetDashboardDrilldownQueryParams = zod.object({
   "type": zod.enum(['active-projects', 'pipeline-value', 'received-to-date', 'open-follow-ups', 'stage', 'needs-attention']),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']).optional(),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']).optional(),
   "search": zod.coerce.string().optional(),
   "sort": zod.enum(['value_desc', 'value_asc', 'updated_desc', 'due_priority']).optional()
 })
@@ -638,7 +638,7 @@ export const GetDashboardDrilldownResponse = zod.object({
   "customerName": zod.string(),
   "projectName": zod.string(),
   "owner": zod.string().nullish(),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
   "contractValue": zod.number(),
   "receivedAmount": zod.number(),
   "deliveryPercent": zod.number().int().optional(),
@@ -666,7 +666,7 @@ export const GetDashboardDrilldownResponse = zod.object({
   "customerName": zod.string(),
   "projectName": zod.string(),
   "owner": zod.string().nullish(),
-  "stage": zod.enum(['lead', 'proposal', 'awarded', 'contracted', 'pre_construction', 'in_progress', 'billing', 'closeout', 'follow_up', 'lost']),
+  "stage": zod.enum(['opportunity', 'bid', 'award', 'contract', 'procure', 'deliver', 'financial', 'closeout']),
   "contractValue": zod.number(),
   "receivedAmount": zod.number(),
   "deliveryPercent": zod.number().int().optional(),

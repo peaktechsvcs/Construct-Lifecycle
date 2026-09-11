@@ -84,9 +84,9 @@ function severityTone(s: DashboardDrilldownAttentionSeverity) {
 }
 
 function stageBadgeTone(stage: string) {
-  if (stage === 'billing') return 'violet' as const;
+  if (stage === 'financial') return 'violet' as const;
   if (stage === 'closeout') return 'green' as const;
-  if (stage === 'pre_construction') return 'violet' as const;
+  if (stage === 'procure') return 'violet' as const;
   return 'teal' as const;
 }
 
