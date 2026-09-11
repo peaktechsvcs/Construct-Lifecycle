@@ -1,0 +1,2350 @@
+============================================================
+CONSTRUCT LIFECYCLE — INTEGRATIONS, PUBLIC API,
+SHARED DOMAIN SERVICES, AND SYSTEM-OF-RECORD ARCHITECTURE
+============================================================
+
+Implement an extensible integration platform for Construct Lifecycle.
+
+This replaces prior separate integration prompts and should be treated as the governing architecture for:
+
+- Native integrations
+- Public API
+- Webhooks
+- Background synchronization
+- Integration health
+- System-of-record configuration
+- Third-party connector development
+
+IMPORTANT:
+
+Do NOT rebuild the existing application.
+
+Inspect the current codebase first.
+
+Preserve the current Construct Lifecycle UI/UX, visual language, navigation behavior, multi-tenant model, environment model, customer branding entitlement model, lifecycle model, drilldown behavior, and security architecture.
+
+The purpose of this work is to add a scalable integration architecture without changing the established product experience.
+
+============================================================
+CORE PLATFORM PRINCIPLE
+============================================================
+
+Construct Lifecycle is the PROJECT LIFECYCLE PLATFORM.
+
+It should connect specialized systems rather than attempt to replace every specialized system.
+
+Construct Lifecycle should remain authoritative for:
+
+- Project lifecycle
+- Operational project status
+- Cross-system project relationships
+- Follow-ups
+- Workflow state
+- Integration mappings
+- Lifecycle activity
+- Cross-system orchestration
+
+External systems may remain authoritative for specialized domains such as:
+
+- Accounting
+- ERP
+- Inventory
+- Product information
+- Takeoff
+- Estimating
+- Ecommerce
+- Documents
+- CRM
+
+============================================================
+INITIAL INTEGRATIONS
+============================================================
+
+The architecture must specifically support:
+
+- Microsoft Dynamics 365 Business Central
+- QuickBooks
+- MeasureSquare
+- STACK
+- Shopify
+- PIM platforms
+
+Examples of PIM platforms:
+
+- Perfion
+- Akeneo
+- Plytix
+
+The architecture must also support future integrations such as:
+
+- NetSuite
+- Sage
+- Xero
+- Acumatica
+- Procore
+- Autodesk Construction Cloud
+- Salesforce
+- HubSpot
+- Microsoft Dynamics 365
+- SharePoint
+- OneDrive
+- Google Drive
+- DocuSign
+- Adobe
+- Avalara
+- Buildertrend
+- ServiceTitan
+- Other construction-industry systems
+- Customer-built applications
+- Custom middleware
+
+Do NOT hard-code future providers as active integrations unless actually implemented.
+
+============================================================
+SHARED APPLICATION / DOMAIN SERVICE LAYER
+============================================================
+
+All application entry points must use one shared application/domain service layer.
+
+Conceptually:
+
+CONSTRUCT LIFECYCLE UI
+        │
+PUBLIC API
+        │
+NATIVE CONNECTORS
+        │
+WEBHOOK PROCESSING
+        │
+BACKGROUND SYNCHRONIZATION
+        │
+AUTOMATIONS
+        ↓
+SHARED APPLICATION / DOMAIN SERVICES
+        ↓
+CONSTRUCT LIFECYCLE CANONICAL DOMAIN MODEL
+        ↓
+DATABASE / DATA ACCESS
+
+Do NOT build separate business rules for:
+
+- UI
+- API
+- QuickBooks
+- Business Central
+- MeasureSquare
+- STACK
+- Webhooks
+- Background jobs
+
+All paths should use the same domain/application services.
+
+============================================================
+DO NOT CONNECT PROVIDERS DIRECTLY TO UI LOGIC
+============================================================
+
+WRONG:
+
+QuickBooks Connector
+→ UI Component
+→ Database
+
+WRONG:
+
+Business Central Connector
+→ Special Project Logic
+→ Database
+
+CORRECT:
+
+QuickBooks Connector
+        ↓
+Construct Lifecycle Domain Service
+        ↓
+Canonical Entity
+
+Business Central Connector
+        ↓
+Same Construct Lifecycle Domain Service
+        ↓
+Same Canonical Entity
+
+Public API
+        ↓
+Same Construct Lifecycle Domain Service
+        ↓
+Same Canonical Entity
+
+This ensures:
+
+- Consistent validation
+- Consistent permissions
+- Consistent lifecycle logic
+- Consistent tenant isolation
+- Consistent environment isolation
+- Consistent audit logging
+- Easier testing
+- Easier addition of new integrations
+
+============================================================
+CANONICAL DOMAIN SERVICES
+============================================================
+
+Create or formalize shared services around existing core domains.
+
+Examples:
+
+CustomerService
+ProjectService
+OpportunityService
+EstimateService
+ProposalService
+ContractService
+ProductService
+VendorService
+ProcurementService
+PurchaseOrderService
+DeliveryService
+InvoiceService
+PaymentService
+ChangeOrderService
+DocumentService
+TaskService
+FollowUpService
+IntegrationService
+
+Use existing code patterns where practical.
+
+Do not create duplicate services if equivalent ones already exist.
+
+============================================================
+CANONICAL DATA MODEL
+============================================================
+
+External systems map into Construct Lifecycle canonical entities.
+
+Core entities include:
+
+Customer / Client
+Project
+Opportunity
+Estimate
+Proposal
+Contract
+Product
+Vendor
+Purchase Order
+Delivery
+Invoice
+Payment
+Change Order
+Document
+Task
+Follow-up
+Closeout
+
+Do NOT create separate competing business domains such as:
+
+quickbooks_customer
+bc_customer
+stack_project
+measuresquare_project
+
+Instead:
+
+Construct Lifecycle Customer
++
+External Record Mapping
+
+Construct Lifecycle Project
++
+External Record Mapping
+
+Construct Lifecycle Invoice
++
+External Record Mapping
+
+Provider-specific metadata may exist inside integration/mapping structures.
+
+============================================================
+INTEGRATION ARCHITECTURE
+============================================================
+
+Use the conceptual architecture:
+
+EXTERNAL SYSTEMS
+        ↓
+CONNECTOR ADAPTERS / PUBLIC API
+        ↓
+INTEGRATION LAYER
+        ↓
+SHARED DOMAIN SERVICES
+        ↓
+CONSTRUCT LIFECYCLE CANONICAL MODEL
+        ↓
+CUSTOMER + ENVIRONMENT DATA
+
+Example:
+
+QuickBooks ────────────┐
+Business Central ──────┤
+MeasureSquare ─────────┤
+STACK ─────────────────┤
+Shopify ───────────────┤
+PIM ───────────────────┤
+Custom API ────────────┤
+                       ↓
+              Integration Layer
+                       ↓
+           Shared Domain Services
+                       ↓
+             Construct Lifecycle
+
+============================================================
+GENERIC CONNECTOR FRAMEWORK
+============================================================
+
+Do not implement integrations as isolated one-off code.
+
+Create a reusable connector framework.
+
+Conceptual categories:
+
+AccountingConnector
+ERPConnector
+TakeoffConnector
+EstimatingConnector
+PIMConnector
+EcommerceConnector
+DocumentConnector
+CRMConnector
+
+Specific providers implement these interfaces.
+
+Example:
+
+AccountingConnector
+├── QuickBooksConnector
+├── BusinessCentralConnector
+├── XeroConnector       [future]
+└── SageConnector       [future]
+
+TakeoffConnector
+├── STACKConnector
+├── MeasureSquareConnector
+└── FutureConnector
+
+============================================================
+PROVIDER CAPABILITY MODEL
+============================================================
+
+Not every provider supports the same operations.
+
+Each connector should declare capabilities.
+
+Example:
+
+BUSINESS CENTRAL
+
+Customers               Supported
+Vendors                 Supported
+Items                   Supported
+Inventory               Supported
+Sales Orders            Supported
+Purchase Orders         Supported
+Invoices                Supported
+Payments                Supported
+Jobs / Projects         Supported
+
+QUICKBOOKS
+
+Customers               Supported
+Invoices                Supported
+Payments                Supported
+Estimates               Supported
+Projects                Supported where available
+Inventory               Depends on QuickBooks product/configuration
+Purchase Orders         Depends on product/configuration
+
+MEASURESQUARE
+
+Flooring Takeoff         Supported where API/export permits
+Rooms / Areas            Supported where available
+Material Quantities      Supported
+Waste Factors            Supported
+Estimate Data            Supported where available
+
+STACK
+
+Project Data             Supported where available
+Takeoff                  Supported where available
+Estimate                 Supported where available
+Quantities               Supported where available
+
+Do not fake unsupported functionality.
+
+============================================================
+INTEGRATION METADATA
+============================================================
+
+Conceptual integration record:
+
+integration_id
+customer_id
+environment_id
+provider
+provider_category
+status
+connection_type
+configuration
+credentials_reference
+last_sync_at
+last_sync_status
+created_at
+updated_at
+
+Do not store external credentials/secrets as plain text in normal database records.
+
+Use secure secrets/credential storage.
+
+============================================================
+TENANT / CUSTOMER SCOPING
+============================================================
+
+Every integration belongs to a Construct Lifecycle software customer/tenant.
+
+Every integration must be scoped by:
+
+customer_id
+
+and:
+
+environment_id
+
+Never expose or synchronize another tenant's records.
+
+============================================================
+ENVIRONMENT-SPECIFIC INTEGRATIONS
+============================================================
+
+Production and Development / Test / Demo integrations must be separate.
+
+Example:
+
+Northline Supply
+├── Production
+│   └── Business Central Production
+│
+└── Development / Test / Demo
+    └── Business Central Sandbox
+
+Another example:
+
+Northline Supply
+├── Production
+│   └── QuickBooks Production Company
+│
+└── Development / Test / Demo
+    └── QuickBooks Sandbox/Test Company
+
+D/T/D must never accidentally write to a Production external system.
+
+============================================================
+INTEGRATION ENTITLEMENTS
+============================================================
+
+Follow the same entitlement model used for Customer Branding.
+
+CLC Admin controls which integrations/capabilities are available for each software customer.
+
+Example:
+
+CLC Administration
+→ Customers
+→ Northline Supply
+→ Capabilities
+
+Customer Branding              ON
+Business Central Integration   ON
+QuickBooks Integration         OFF
+MeasureSquare                  ON
+STACK                          ON
+Shopify                        OFF
+Public API                     ON
+
+If an integration/capability is OFF:
+
+- Hide it from the customer's normal UI.
+- Do not show it as disabled.
+- Deny direct route access.
+- Deny configuration/API access.
+- Customer cannot self-enable it.
+
+If ON:
+
+- Show it only to authorized customer roles.
+- Allow configuration according to permissions.
+
+Access requires BOTH:
+
+CLC entitlement
++
+Customer user permission
+
+============================================================
+CUSTOMER INTEGRATION ADMINISTRATION
+============================================================
+
+Authorized customer administrators should access:
+
+Administration
+→ Integrations
+
+Do not create a separate navigation item for each connector.
+
+Use cards or compact list rows consistent with the existing Construct Lifecycle design.
+
+Example:
+
+Microsoft Dynamics 365 Business Central
+ERP & Financial
+Connected
+
+QuickBooks
+Accounting & Financial
+Not Connected
+
+MeasureSquare
+Flooring Takeoff & Estimating
+Connected
+
+STACK
+Takeoff & Estimating
+Connected
+
+Shopify
+Ecommerce
+Not Connected
+
+Public API
+Custom Integrations
+Enabled
+
+Only entitled integrations should appear.
+
+============================================================
+CLC ADMIN INTEGRATION ACCESS
+============================================================
+
+CLC platform admins must also have authorized integration visibility.
+
+Example:
+
+CLC Administration
+→ Customers
+→ Northline Supply
+→ Integrations
+
+Allow CLC Admins to:
+
+- Enable/disable entitlements
+- View connection health
+- Assist with setup
+- View integration logs
+- View sync errors
+- Revoke connections where authorized
+- Troubleshoot mappings
+- View environment assignment
+- View system-of-record settings
+
+Do not expose external passwords/secrets unnecessarily.
+
+============================================================
+QUICKBOOKS INTEGRATION
+============================================================
+
+Support QuickBooks as an accounting provider.
+
+Prioritize QuickBooks Online unless another QuickBooks product is explicitly implemented.
+
+Potential synchronization domains:
+
+CUSTOMERS
+
+Construct Lifecycle Customer
+↔
+QuickBooks Customer
+
+PROJECTS / JOBS
+
+Construct Lifecycle Project
+↔
+QuickBooks Project where supported
+
+ESTIMATES
+
+Construct Lifecycle Estimate
+↔
+QuickBooks Estimate where supported
+
+INVOICES
+
+Construct Lifecycle Invoice
+↔
+QuickBooks Invoice
+
+PAYMENTS
+
+QuickBooks Payment
+→
+Construct Lifecycle Payment
+
+OTHER FINANCIAL INFORMATION
+
+Receivables
+Credits
+References
+Taxes where applicable
+
+QuickBooks may be designated as System of Record for accounting-related domains.
+
+============================================================
+QUICKBOOKS — RECEIVED TO DATE
+============================================================
+
+The dashboard Received to Date metric should be capable of using synchronized QuickBooks payment data.
+
+Example:
+
+Received to Date
+$850,000
+
+Click →
+
+Received Date
+Project
+Customer
+Invoice
+QuickBooks Reference
+Payment Method
+Amount
+
+The dashboard total must reconcile to the underlying synchronized payment records.
+
+Expected/upcoming payments must remain separate.
+
+Never mix expected payments into actual Received to Date.
+
+============================================================
+MICROSOFT DYNAMICS 365 BUSINESS CENTRAL
+============================================================
+
+Support Business Central as a first-class ERP/accounting integration.
+
+Potential domains:
+
+Customers
+Vendors
+Items
+Products
+Inventory
+Projects/Jobs
+Sales Orders
+Purchase Orders
+Invoices
+Payments
+Shipments
+Receipts
+Costs
+Financial Dimensions
+
+Architecture must allow Business Central to remain the ERP/system of record.
+
+Construct Lifecycle should remain the operational project lifecycle layer.
+
+Do not reproduce full ERP behavior inside Construct Lifecycle unnecessarily.
+
+============================================================
+MEASURESQUARE
+============================================================
+
+Treat MeasureSquare as a specialized flooring integration.
+
+Potential data:
+
+Projects
+Rooms
+Areas
+Floor plans
+Flooring products
+Takeoff quantities
+Waste factors
+Labor quantities
+Materials
+Estimate data
+Pricing where available
+Attachments
+Takeoff status
+
+Conceptual workflow:
+
+Construct Lifecycle Project
+        ↓
+Flooring Scope
+        ↓
+MeasureSquare Takeoff
+        ↓
+Quantities / Materials / Estimate
+        ↓
+Construct Lifecycle Products / Estimate
+        ↓
+Proposal / Procurement
+
+MeasureSquare must NOT be a dependency for flooring projects.
+
+If MeasureSquare is unavailable:
+
+- Allow manual entry.
+- Allow imports where supported.
+- Continue normal project workflow.
+
+============================================================
+STACK
+============================================================
+
+Treat STACK as a specialized takeoff/estimating integration.
+
+Potential data:
+
+Projects
+Takeoffs
+Estimates
+Quantities
+Assemblies
+Products
+Documents
+Status
+
+Conceptual flow:
+
+Construct Lifecycle Project
+        ↓
+Takeoff / Estimate Requested
+        ↓
+STACK
+        ↓
+Takeoff Quantities
+        ↓
+Estimate Information
+        ↓
+Construct Lifecycle Proposal / Project Lifecycle
+
+Construct Lifecycle owns lifecycle state.
+
+STACK owns specialized estimating/takeoff functionality according to configuration.
+
+============================================================
+SHOPIFY
+============================================================
+
+Architect Shopify integration for ecommerce workflows.
+
+Potential domains:
+
+Products
+Customers
+Orders
+Order Lines
+Pricing
+Inventory References
+Fulfillment
+Payment References
+
+Example:
+
+Shopify Order
+        ↓
+Construct Lifecycle Customer
+        ↓
+Project / Order
+        ↓
+Products
+        ↓
+Fulfillment / Delivery
+
+Do not assume every Shopify order is automatically a project.
+
+Use configurable business rules.
+
+============================================================
+PIM INTEGRATIONS
+============================================================
+
+Support Product Information Management systems such as:
+
+Perfion
+Akeneo
+Plytix
+Other PIM platforms
+
+Potential product data:
+
+Product ID
+SKU
+Manufacturer
+Description
+Category
+Specifications
+Attributes
+Images
+Cut Sheets
+Installation Documents
+Warranty Documents
+Submittal Information
+O&M Documentation
+
+PIM may be configured as Product Master System of Record.
+
+Construct Lifecycle should consume/reference project-relevant product information.
+
+============================================================
+LIVE MASTER DATA VS TRANSACTION SNAPSHOT
+============================================================
+
+Distinguish between current master data and historical transactional data.
+
+Example:
+
+PIM product description changes today.
+
+A project from two years ago may need to retain the description/specification used when the project was sold.
+
+Support transaction snapshots where appropriate.
+
+Potential snapshot fields include:
+
+Product description
+Specification
+Price
+Vendor
+Customer address
+Contract terms
+Estimate values
+
+Do not blindly render historical documents from current external master data.
+
+============================================================
+ERP / ACCOUNTING SYSTEM OF RECORD
+============================================================
+
+Construct Lifecycle must support multiple ERP/accounting providers.
+
+Initial providers:
+
+- Business Central
+- QuickBooks
+
+Future providers:
+
+- NetSuite
+- Sage
+- Xero
+- Acumatica
+- Others
+
+Do not make either initial provider mandatory.
+
+============================================================
+ACCOUNTING SYSTEM OF RECORD SETTING
+============================================================
+
+Each customer may designate an authoritative ERP/accounting provider.
+
+Example:
+
+Accounting / ERP System of Record
+
+[ Microsoft Dynamics 365 Business Central ▼ ]
+
+or:
+
+[ QuickBooks ▼ ]
+
+or:
+
+[ None / External Not Connected ]
+
+Only entitled/connected systems should be selectable.
+
+============================================================
+MULTIPLE ERP CONNECTIONS
+============================================================
+
+A customer may connect more than one accounting/ERP system.
+
+Example:
+
+Business Central
+Connected
+System of Record: YES
+
+QuickBooks
+Connected
+System of Record: NO
+
+The secondary system could exist for:
+
+- Legacy data
+- Migration
+- Subsidiary reporting
+- Read-only use
+- Transitional architecture
+
+Connecting a provider does NOT automatically make it authoritative.
+
+============================================================
+DOMAIN-LEVEL SYSTEM OF RECORD
+============================================================
+
+Design for system-of-record ownership by domain.
+
+Example:
+
+DOMAIN                       SYSTEM OF RECORD
+
+Project Lifecycle            Construct Lifecycle
+Customers                    Construct Lifecycle
+Product Master               Perfion
+Inventory                    Business Central
+Accounting                   Business Central
+Payments                     Business Central
+Flooring Takeoff             MeasureSquare
+General Takeoff              STACK
+
+Conceptual configuration:
+
+system_of_record_settings
+
+customer_id
+environment_id
+domain
+provider
+integration_id
+sync_direction
+created_at
+updated_at
+
+============================================================
+SYSTEM-OF-RECORD CONFLICT PREVENTION
+============================================================
+
+Do not allow ambiguous domain ownership.
+
+If Business Central owns Payments and the user attempts to assign QuickBooks instead:
+
+Display:
+
+Change Payment System of Record?
+
+Current:
+Microsoft Dynamics 365 Business Central
+
+New:
+QuickBooks
+
+Require explicit confirmation.
+
+Audit the change.
+
+============================================================
+SYNC DIRECTION
+============================================================
+
+Support synchronization directions such as:
+
+External → Construct Lifecycle
+
+Construct Lifecycle → External
+
+Bidirectional
+
+Internal Only
+
+Examples:
+
+PIM Product Master:
+PIM → Construct Lifecycle
+
+Business Central Inventory:
+Business Central → Construct Lifecycle
+
+QuickBooks Payments:
+QuickBooks → Construct Lifecycle
+
+Construct Lifecycle Project:
+Construct Lifecycle → STACK
+
+Project Lifecycle:
+Construct Lifecycle Internal Only
+
+Do not assume all integrations are bidirectional.
+
+============================================================
+EXTERNAL RECORD MAPPINGS
+============================================================
+
+Maintain stable mappings between Construct Lifecycle records and external records.
+
+Conceptual table:
+
+external_record_mappings
+
+customer_id
+environment_id
+integration_id
+entity_type
+construct_lifecycle_id
+external_id
+external_parent_id
+last_synced_at
+sync_status
+metadata
+
+Example:
+
+Construct Lifecycle Project:
+PRJ-1024
+
+Business Central Job:
+J-10024
+
+STACK Project:
+98765
+
+MeasureSquare Project:
+MS-4382
+
+QuickBooks Project:
+12345
+
+Never use display names as integration keys.
+
+============================================================
+PROJECT INTEGRATION REFERENCES
+============================================================
+
+Project Detail may show compact integration references.
+
+Example:
+
+INTEGRATIONS
+
+Business Central
+Job J-10024
+
+STACK
+Project 98765
+
+MeasureSquare
+Takeoff MS-4382
+
+QuickBooks
+Project QB-12345
+
+Allow navigation to external records where supported.
+
+Do not turn Project Detail into a large integration dashboard.
+
+============================================================
+BUSINESS CUSTOMER INTEGRATION REFERENCES
+============================================================
+
+Business Customer/Client Detail may show mappings.
+
+Example:
+
+ABC Homebuilders
+
+QuickBooks
+Customer ID 2394
+
+Business Central
+Customer C-10042
+
+This should help support record matching and troubleshooting.
+
+============================================================
+PUBLIC CONSTRUCT LIFECYCLE API
+============================================================
+
+Provide a versioned public API.
+
+Conceptual base path:
+
+/api/v1/
+
+Potential resources:
+
+/customers
+/projects
+/opportunities
+/estimates
+/proposals
+/contracts
+/products
+/vendors
+/purchase-orders
+/deliveries
+/invoices
+/payments
+/change-orders
+/documents
+/tasks
+/follow-ups
+
+Only expose sufficiently implemented and secured domains.
+
+Do not expose unfinished resources merely to fill documentation.
+
+============================================================
+PUBLIC API USES SAME SERVICES
+============================================================
+
+Example:
+
+POST /api/v1/projects
+
+must use the same:
+
+ProjectService.createProject()
+
+used by the Construct Lifecycle UI.
+
+Both paths must enforce identical:
+
+- Validation
+- Customer scope
+- Environment scope
+- Permissions
+- Lifecycle rules
+- Relationships
+- Audit logging
+- Integration events
+
+Do not implement API-specific business logic.
+
+============================================================
+API AUTHENTICATION
+============================================================
+
+Support secure integration authentication such as:
+
+- OAuth 2.0 where appropriate
+- Service accounts
+- Scoped credentials
+- Revocable credentials
+- Rotatable credentials
+- Environment-specific credentials
+
+Do NOT rely on one permanent unrestricted API key.
+
+============================================================
+API SCOPES
+============================================================
+
+Use granular scopes.
+
+Examples:
+
+customers.read
+customers.write
+
+projects.read
+projects.write
+
+products.read
+products.write
+
+estimates.read
+estimates.write
+
+procurement.read
+procurement.write
+
+financial.read
+financial.write
+
+documents.read
+documents.write
+
+webhooks.manage
+
+Only grant required capabilities.
+
+============================================================
+PUBLIC API ENTITLEMENT
+============================================================
+
+Treat Public API access as an entitled feature.
+
+CLC Admin:
+
+Public API
+[ ON / OFF ]
+
+When OFF:
+
+- Hide API management.
+- Deny credential creation.
+- Deny customer API management routes.
+- Existing credentials should be disabled according to platform policy.
+
+When ON:
+
+Authorized customer admins may access:
+
+Administration
+→ Integrations
+→ API
+
+============================================================
+API MANAGEMENT UI
+============================================================
+
+Allow authorized customers to manage:
+
+Applications
+Credentials
+Scopes
+Webhooks
+Activity
+Documentation
+
+Example:
+
+Custom Integration
+
+Environment:
+Development / Test / Demo
+
+Scopes:
+
+customers.read
+projects.read
+projects.write
+
+Status:
+Active
+
+Provide:
+
+Rotate
+Revoke
+View Activity
+
+Display secrets only once at creation unless secure platform architecture explicitly supports otherwise.
+
+============================================================
+API ENVIRONMENT ISOLATION
+============================================================
+
+API credentials belong to exactly one environment.
+
+A Production credential cannot access D/T/D.
+
+A D/T/D credential cannot access Production.
+
+Authenticated identity determines tenant/environment.
+
+Never trust caller-supplied customer_id as authorization.
+
+============================================================
+API AUTHORIZATION FLOW
+============================================================
+
+Every API request must resolve:
+
+Credential Identity
+        ↓
+Authorized Customer/Tenant
+        ↓
+Authorized Environment
+        ↓
+Scopes
+        ↓
+Requested Resource
+        ↓
+Resource Ownership
+        ↓
+ALLOW / DENY
+
+============================================================
+API VERSIONING
+============================================================
+
+Version the API from the beginning.
+
+Example:
+
+/api/v1/
+
+Breaking changes must not silently change existing integrations.
+
+Future:
+
+/api/v2/
+
+Maintain a deprecation/version policy.
+
+============================================================
+API DESIGN PRINCIPLES
+============================================================
+
+Public API should support, where applicable:
+
+- Standard HTTP semantics
+- Predictable errors
+- Pagination
+- Filtering
+- Sorting
+- Rate limiting
+- Audit
+- Idempotency
+- Environment isolation
+- Tenant isolation
+- Permission scopes
+
+============================================================
+RATE LIMITING
+============================================================
+
+Implement or architect rate limits by appropriate combination of:
+
+- Customer
+- Environment
+- Integration/application
+- Credential
+
+Return standard rate-limit responses.
+
+============================================================
+IDEMPOTENCY
+============================================================
+
+Support idempotency for create/update operations where retries could duplicate business transactions.
+
+Especially:
+
+Payments
+Invoices
+Orders
+Purchase Orders
+Change Orders
+Other financial/operational transactions
+
+A retried request must not accidentally create duplicates.
+
+============================================================
+WEBHOOK FRAMEWORK
+============================================================
+
+Support event-driven integrations.
+
+Potential events:
+
+customer.created
+customer.updated
+
+project.created
+project.updated
+project.stage_changed
+
+estimate.created
+estimate.approved
+
+contract.created
+contract.updated
+
+purchase_order.created
+purchase_order.updated
+
+delivery.updated
+
+invoice.created
+invoice.updated
+
+payment.received
+
+change_order.created
+change_order.approved
+
+project.closed
+
+Do not implement events for domains that do not yet exist.
+
+Build the event framework so new events can be added consistently.
+
+============================================================
+DOMAIN EVENTS
+============================================================
+
+Use internal domain events as the source for integrations/webhooks.
+
+Example:
+
+ProjectService
+→ Save Project
+→ Emit ProjectCreated
+→ Integration layer handles configured actions
+→ Webhook subsystem handles subscribed events
+
+The user should not wait for every external connector to finish before project creation succeeds.
+
+============================================================
+ASYNC PROCESSING
+============================================================
+
+External synchronization should use background processing where appropriate.
+
+Example:
+
+User creates project.
+
+1. Validate.
+2. Save project.
+3. Commit transaction.
+4. Return success to user.
+5. Emit ProjectCreated event.
+6. Background process syncs enabled integrations.
+
+Example status:
+
+Cedar Ridge Development
+
+Business Central:
+Sync Pending
+
+STACK:
+Sync Pending
+
+MeasureSquare:
+Not Applicable
+
+============================================================
+SYNC STATUS
+============================================================
+
+Support statuses such as:
+
+Not Applicable
+Pending
+Syncing
+Synced
+Warning
+Failed
+
+Do not confuse integration sync status with lifecycle stage.
+
+============================================================
+RETRY MODEL
+============================================================
+
+Failed integration calls should support retries with backoff.
+
+Track:
+
+attempt_count
+last_attempt_at
+last_error
+next_retry_at
+status
+
+Do not retry indefinitely without visibility.
+
+============================================================
+DEAD-LETTER / MANUAL REVIEW
+============================================================
+
+After repeated failures, move the event into a review state.
+
+Example:
+
+Integration Exception
+
+Project:
+Cedar Ridge Development
+
+Provider:
+Business Central
+
+Action:
+Create Job
+
+Status:
+Failed
+
+Reason:
+Invalid Dimension Code
+
+Actions:
+
+Retry
+Edit Mapping
+Dismiss
+Open Project
+
+============================================================
+WEBHOOK SECURITY
+============================================================
+
+Support:
+
+- HTTPS only
+- Signed payloads
+- Signing secret rotation
+- Retry behavior
+- Delivery history
+- Failure logging
+- Disable/re-enable
+- Environment isolation
+
+============================================================
+WEBHOOK MANAGEMENT UI
+============================================================
+
+Authorized API customers should be able to configure:
+
+Name
+Environment
+Endpoint
+Subscribed Events
+Status
+
+Example:
+
+Project Updates
+
+Environment:
+Development / Test / Demo
+
+Events:
+project.created
+project.updated
+project.stage_changed
+
+Provide:
+
+Test Webhook
+Disable
+Rotate Signing Secret
+View Deliveries
+
+============================================================
+INTEGRATION ACTIVITY
+============================================================
+
+Each integration should expose operational history.
+
+Example:
+
+QuickBooks
+
+Status:
+Connected
+
+Last Sync:
+Today 4:32 PM
+
+Result:
+Successful
+
+Records:
+Customers 12
+Invoices 37
+Payments 29
+
+Allow:
+
+View Activity
+
+Activity rows:
+
+Timestamp
+Direction
+Entity
+Provider
+Operation
+Status
+Error
+
+Never expose secrets in logs.
+
+============================================================
+INTEGRATION HEALTH
+============================================================
+
+Customer Integrations page should display compact health.
+
+Example:
+
+Business Central
+Connected
+Healthy
+
+STACK
+Connected
+Healthy
+
+MeasureSquare
+Warning
+2 records need review
+
+QuickBooks
+Not Connected
+
+Public API
+2 Active Applications
+
+Every warning/error count should be drillable.
+
+============================================================
+SYNC EXCEPTIONS
+============================================================
+
+Do not silently discard unmatched or invalid records.
+
+Example:
+
+QuickBooks Payment
+$25,000
+
+Customer:
+ABC Homebuilders
+
+Invoice:
+QB-1043
+
+No matching Construct Lifecycle project
+
+Actions:
+
+Match Project
+Ignore
+Review Later
+
+Do not automatically create a relationship when confidence is low.
+
+============================================================
+DASHBOARD / DRILLDOWN PRINCIPLE
+============================================================
+
+Integration metrics follow the existing Construct Lifecycle drilldown rule:
+
+Summary
+→ Filtered Detail
+→ Record
+→ Back to prior state
+
+Example:
+
+MeasureSquare
+2 Sync Errors
+
+Click →
+
+Show the 2 exact errors.
+
+Then:
+
+Error
+→ related project
+→ integration record
+→ correction action
+
+The user should always be able to determine:
+
+- What failed?
+- Why?
+- Which record?
+- What action is required?
+
+============================================================
+PRODUCTION SAFETY
+============================================================
+
+Before enabling a write-capable Production integration:
+
+- Validate tenant.
+- Validate environment.
+- Validate external organization.
+- Validate credentials.
+- Confirm intended sync direction.
+- Confirm System of Record ownership.
+- Confirm authorized user.
+- Record action in audit log.
+
+D/T/D should use provider sandbox/test endpoints where available.
+
+============================================================
+CONNECTION TEST
+============================================================
+
+Provide:
+
+Test Connection
+
+Example successful result:
+
+Connected Successfully
+
+External Organization:
+Northline Supply, Inc.
+
+Environment:
+Production
+
+Do not enable write sync until validation succeeds.
+
+============================================================
+INTEGRATION ONBOARDING
+============================================================
+
+Typical flow:
+
+1. CLC Admin enables integration entitlement.
+2. Authorized customer admin sees integration.
+3. Customer selects Connect.
+4. Authenticate.
+5. Choose external organization/account where needed.
+6. Choose Production or D/T/D connection.
+7. Configure sync direction.
+8. Configure System of Record where needed.
+9. Configure mappings.
+10. Test connection.
+11. Enable synchronization.
+
+============================================================
+FIELD MAPPINGS
+============================================================
+
+Some integrations require field/category mappings.
+
+Examples:
+
+Business Central Dimensions
+↔ Construct Lifecycle Project Fields
+
+MeasureSquare Product Categories
+↔ Construct Lifecycle Product Categories
+
+STACK Estimate Categories
+↔ Construct Lifecycle Estimate Categories
+
+Mappings must be:
+
+- Tenant scoped
+- Environment scoped
+- Audited
+- Versioned where appropriate
+
+Do not overbuild a universal mapping engine prematurely.
+
+Use provider-specific mappings behind a common interface first.
+
+============================================================
+SYSTEM-OF-RECORD UI
+============================================================
+
+For advanced customers, provide:
+
+Administration
+→ Integrations
+→ Data Ownership
+
+Example:
+
+DOMAIN                      SYSTEM OF RECORD
+
+Project Lifecycle           Construct Lifecycle
+Customers                   Construct Lifecycle
+Product Master              Perfion
+Inventory                   Business Central
+Accounting                  Business Central
+Payments                    Business Central
+Flooring Takeoff            MeasureSquare
+General Takeoff             STACK
+
+Provide sensible defaults.
+
+Do not require customers to configure every domain manually.
+
+============================================================
+CUSTOMER / PROJECT CREATION AND INTEGRATIONS
+============================================================
+
+When creating a Construct Lifecycle business Customer/Client:
+
+Customer creation may trigger configured synchronization.
+
+Example:
+
+Construct Lifecycle Customer Created
+        ↓
+Configured Policy
+        ↓
+Create Customer in QuickBooks
+
+or:
+
+QuickBooks Customer Created
+        ↓
+Sync
+        ↓
+Create/update Construct Lifecycle Customer
+
+Use System of Record rules.
+
+Do not blindly create duplicates.
+
+When creating a Project:
+
+Project creation may trigger configured external records.
+
+Example:
+
+Construct Lifecycle Project
+        ↓
+Business Central Job
+        ↓
+STACK Project
+        ↓
+MeasureSquare Project
+
+Only where enabled/configured.
+
+External integrations must NOT be required for Construct Lifecycle project creation.
+
+============================================================
+RESILIENCY
+============================================================
+
+External-provider downtime must not make Construct Lifecycle unusable.
+
+Use appropriate:
+
+- Background queues
+- Retry logic
+- Dead-letter handling
+- Error states
+- Sync status
+- Idempotency
+- Monitoring
+
+Example:
+
+If QuickBooks is unavailable:
+
+User can still:
+
+- Open project
+- Update lifecycle
+- Add follow-up
+- Work with project data
+
+QuickBooks sync remains Pending/Failed until retried.
+
+============================================================
+INTEGRATION AUDIT
+============================================================
+
+Audit important actions:
+
+Integration Entitlement Enabled
+Integration Entitlement Disabled
+Connection Created
+Connection Revoked
+Credentials Rotated
+Connection Tested
+Sync Enabled
+Sync Disabled
+Sync Direction Changed
+System of Record Changed
+Mapping Changed
+API Application Created
+API Application Revoked
+Webhook Created
+Webhook Disabled
+Manual Retry
+Exception Dismissed
+
+Record:
+
+Customer
+Environment
+Provider
+User
+Timestamp
+Action
+Previous State
+New State
+
+============================================================
+CLC ADMIN CROSS-CUSTOMER OPERATIONS
+============================================================
+
+CLC Admin should have an operational view such as:
+
+CLC Administration
+→ Integrations
+
+Columns:
+
+Customer
+Provider
+Environment
+Status
+Last Sync
+Errors
+Version/Connection where useful
+
+Purpose:
+
+- Support
+- Troubleshooting
+- Detect degraded connections
+- Review integration health
+
+Do not expose unnecessary customer business data.
+
+============================================================
+FUTURE GLOBAL INTEGRATION HEALTH
+============================================================
+
+Architect for future platform monitoring:
+
+Business Central
+2 connections degraded
+
+QuickBooks
+Healthy
+
+STACK
+Healthy
+
+MeasureSquare
+1 warning
+
+Public API
+Healthy
+
+This is operational monitoring, not business-data aggregation.
+
+============================================================
+FUTURE CONNECTOR CATALOG
+============================================================
+
+Architect for a future connector catalog or marketplace.
+
+Do NOT build a marketplace now.
+
+New providers should be addable without redesigning the core Construct Lifecycle data model.
+
+============================================================
+NO DCS-SPECIFIC LOCK-IN
+============================================================
+
+Do not design Construct Lifecycle around only the DCS technology stack.
+
+Example Customer A may use:
+
+Business Central
+STACK
+MeasureSquare
+Perfion
+Shopify
+
+Customer B may use:
+
+QuickBooks
+No PIM
+Different takeoff system
+
+Customer C may use:
+
+NetSuite
+Procore
+Custom middleware
+
+All customers should use the same core Construct Lifecycle project model.
+
+============================================================
+TARGET ARCHITECTURE
+============================================================
+
+                    CONSTRUCT LIFECYCLE UI
+                            │
+                    PUBLIC REST API
+                            │
+                     NATIVE CONNECTORS
+                            │
+                       WEBHOOKS
+                            │
+                  BACKGROUND WORKERS
+                            ↓
+
+                 SHARED APPLICATION SERVICES
+
+                            ↓
+
+                 CANONICAL DOMAIN MODEL
+
+Customer
+Project
+Opportunity
+Estimate
+Proposal
+Contract
+Products
+Procurement
+Purchase Orders
+Delivery
+Invoices
+Payments
+Change Orders
+Documents
+Tasks
+Follow-ups
+Closeout
+
+                            ↓
+
+               DATA / AUDIT / AUTHORIZATION
+
+                            ↑
+
+       ┌────────────────────┼─────────────────────┐
+       │                    │                     │
+ACCOUNTING / ERP     TAKEOFF / ESTIMATING      PRODUCT / PIM
+
+Business Central     STACK                     Perfion
+QuickBooks           MeasureSquare             Akeneo
+Future ERP           Future Tools              Plytix
+                                               Future PIM
+
+       │                    │                     │
+       └────────────────────┼─────────────────────┘
+                            │
+
+                         OTHER
+
+Shopify
+CRM
+Documents
+Custom Applications
+Middleware
+Customer-built Integrations
+
+============================================================
+ACCEPTANCE TEST — ENTITLEMENTS
+============================================================
+
+Customer A:
+
+Business Central       ON
+MeasureSquare          ON
+Public API             ON
+QuickBooks             OFF
+
+Verify:
+
+Customer A sees only enabled integrations.
+
+QuickBooks is hidden.
+
+Direct access to QuickBooks configuration is denied.
+
+Customer B with different entitlements sees only its own enabled integrations.
+
+============================================================
+ACCEPTANCE TEST — ENVIRONMENT ISOLATION
+============================================================
+
+Customer A Production:
+
+Business Central Production
+
+Customer A D/T/D:
+
+Business Central Sandbox
+
+Verify:
+
+D/T/D cannot write to Production external systems.
+
+Production credential cannot read/write D/T/D.
+
+D/T/D credential cannot read/write Production.
+
+============================================================
+ACCEPTANCE TEST — QUICKBOOKS PAYMENT
+============================================================
+
+Configure QuickBooks as Payment System of Record.
+
+Receive payment in QuickBooks.
+
+Verify:
+
+Payment
+→ synchronized
+→ correct Construct Lifecycle Customer
+→ correct Invoice
+→ correct Project
+→ Received to Date
+
+Verify dashboard total reconciles exactly to synchronized payment transactions.
+
+============================================================
+ACCEPTANCE TEST — BUSINESS CENTRAL
+============================================================
+
+Configure Business Central as ERP/accounting System of Record.
+
+Create project in Construct Lifecycle.
+
+If configured:
+
+ProjectCreated event
+→ background sync
+→ Business Central Job created/associated
+
+Verify external mapping is saved.
+
+Business Central downtime should not prevent project creation.
+
+============================================================
+ACCEPTANCE TEST — MEASURESQUARE
+============================================================
+
+Create flooring project.
+
+Associate with MeasureSquare.
+
+Import/sync supported takeoff quantities.
+
+Verify quantities map into Construct Lifecycle project product/estimate structure.
+
+Disable MeasureSquare.
+
+Verify flooring project can still be worked manually.
+
+============================================================
+ACCEPTANCE TEST — STACK
+============================================================
+
+Create project.
+
+Send/associate project with STACK where configured.
+
+Sync supported takeoff/estimate data.
+
+Verify Project lifecycle remains controlled by Construct Lifecycle.
+
+============================================================
+ACCEPTANCE TEST — API SECURITY
+============================================================
+
+Create API credential for:
+
+Customer A
+Development / Test / Demo
+
+Scopes:
+
+customers.read
+projects.read
+projects.write
+
+Verify:
+
+Customer A D/T/D resources accessible.
+
+Customer A Production:
+DENIED
+
+Customer B:
+DENIED
+
+Financial write endpoint without financial.write:
+DENIED
+
+============================================================
+ACCEPTANCE TEST — WEBHOOK
+============================================================
+
+Subscribe to:
+
+project.stage_changed
+
+Move project:
+
+Contracted
+→ Pre-Construction
+
+Verify:
+
+- Event emitted.
+- Correct tenant.
+- Correct environment.
+- Signed webhook sent.
+- Delivery logged.
+- Failure can be retried.
+
+============================================================
+ACCEPTANCE TEST — SHARED DOMAIN SERVICE
+============================================================
+
+Create a project through UI.
+
+Create another project through Public API.
+
+Verify both use the same validation rules and canonical Project service.
+
+Verify:
+
+- Same required fields.
+- Same customer relationship rules.
+- Same lifecycle initialization.
+- Same auditing.
+- Same tenant/environment isolation.
+- Same integration event behavior.
+
+============================================================
+ACCEPTANCE TEST — SYSTEM OF RECORD
+============================================================
+
+Set:
+
+Payments
+→ Business Central
+
+Attempt to change:
+
+Payments
+→ QuickBooks
+
+Verify explicit confirmation is required.
+
+Verify change is audited.
+
+Verify only one provider is authoritative for the Payments domain after change.
+
+============================================================
+FINAL ACCEPTANCE CRITERIA
+============================================================
+
+[ ] Native integrations and Public API share the same domain/application services.
+
+[ ] Integration providers do not directly implement independent business logic.
+
+[ ] Construct Lifecycle uses a canonical data model.
+
+[ ] Business Central is supported as an ERP/accounting provider.
+
+[ ] QuickBooks is supported as an accounting provider.
+
+[ ] MeasureSquare is supported as a specialized flooring integration.
+
+[ ] STACK is supported as a specialized takeoff/estimating integration.
+
+[ ] Shopify architecture is supported.
+
+[ ] PIM integrations are supported.
+
+[ ] New connectors can be added without redesigning the core application.
+
+[ ] Integrations are tenant/customer scoped.
+
+[ ] Integrations are environment scoped.
+
+[ ] Production and D/T/D integrations remain isolated.
+
+[ ] CLC Admin controls integration entitlements.
+
+[ ] Disabled integrations are hidden from customer UI.
+
+[ ] Customer user roles further restrict integration management.
+
+[ ] Accounting/ERP System of Record can be configured.
+
+[ ] Domain-level System of Record architecture is supported.
+
+[ ] Multiple connected ERP/accounting providers may coexist without ambiguous ownership.
+
+[ ] Construct Lifecycle remains authoritative for project lifecycle.
+
+[ ] External mappings use stable IDs, not display names.
+
+[ ] Public API is versioned.
+
+[ ] Public API credentials are scoped and revocable.
+
+[ ] Public API uses the same business rules as the UI.
+
+[ ] Public API enforces tenant and environment isolation.
+
+[ ] API rate limiting is supported.
+
+[ ] Idempotent transactional operations are supported where needed.
+
+[ ] Webhook architecture is supported.
+
+[ ] Webhooks are signed and environment scoped.
+
+[ ] Background integration processing is supported.
+
+[ ] Integration failures support retries.
+
+[ ] Repeated failures can enter manual-review state.
+
+[ ] Integration health is visible.
+
+[ ] Integration error counts are drillable.
+
+[ ] Sync exceptions are actionable.
+
+[ ] System-of-record changes are audited.
+
+[ ] Integration configuration changes are audited.
+
+[ ] Third-party outages do not prevent normal Construct Lifecycle project work.
+
+[ ] Existing Construct Lifecycle UI/UX remains intact.
+
+============================================================
+FINAL IMPLEMENTATION RULE
+============================================================
+
+Do NOT build Construct Lifecycle as a collection of point-to-point integrations.
+
+Build:
+
+CONSTRUCT LIFECYCLE CANONICAL PLATFORM
++
+SHARED APPLICATION / DOMAIN SERVICES
++
+CONNECTOR ADAPTER FRAMEWORK
++
+PUBLIC VERSIONED API
++
+DOMAIN EVENTS
++
+WEBHOOK FRAMEWORK
++
+ASYNC SYNCHRONIZATION
++
+SYSTEM-OF-RECORD CONTROL
+
+External systems plug into Construct Lifecycle.
+
+Construct Lifecycle's core application architecture must not need to be redesigned every time another ERP, accounting system, takeoff tool, PIM, ecommerce platform, CRM, or custom application is added.
