@@ -17,8 +17,8 @@ const seed = async () => {
   }
   const [tenant] = await db
     .insert(tenantsTable)
-    .values({ name: "Construct LC Demo", slug: "construct-lc-demo" })
-    .onConflictDoUpdate({ target: tenantsTable.slug, set: { name: "Construct LC Demo" } })
+    .values({ name: "Construct Lifecycle Demo", slug: "construct-lc-demo" })
+    .onConflictDoUpdate({ target: tenantsTable.slug, set: { name: "Construct Lifecycle Demo" } })
     .returning();
   const tenantId = tenant.id;
   for (const environment of [

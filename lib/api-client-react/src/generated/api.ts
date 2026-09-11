@@ -2937,7 +2937,7 @@ export const getResetBrandingUrl = () => {
 }
 
 /**
- * @summary Reset branding draft to Construct LC defaults
+ * @summary Reset branding draft to Construct Lifecycle defaults
  */
 export const resetBranding = async ( options?: Parameters<typeof customFetch>[1]): Promise<BrandingContext> => {
 
@@ -2986,7 +2986,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ResetBrandingMutationError = ErrorType<unknown>
 
     /**
- * @summary Reset branding draft to Construct LC defaults
+ * @summary Reset branding draft to Construct Lifecycle defaults
  */
 export const useResetBranding = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetBranding>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}

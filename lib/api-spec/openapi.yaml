@@ -659,7 +659,7 @@ paths:
     post:
       operationId: resetBranding
       tags: [branding]
-      summary: Reset branding draft to Construct LC defaults
+      summary: Reset branding draft to Construct Lifecycle defaults
       responses:
         "200":
           description: Reset draft

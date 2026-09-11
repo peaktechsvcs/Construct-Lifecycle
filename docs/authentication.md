@@ -1,6 +1,6 @@
-# Construct LC authentication and access administration
+# Construct Lifecycle authentication and access administration
 
-Construct LC uses the Replit-managed Clerk tenant for all authentication. The
+Construct Lifecycle uses the Replit-managed Clerk tenant for all authentication. The
 application does not create a second auth system, store passwords, or store
 Clerk credentials in the repository.
 

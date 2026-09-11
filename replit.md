@@ -1,6 +1,6 @@
-# Construct LC
+# Construct Lifecycle
 
-Construct LC — The Construction Lifecycle Platform is a responsive, multi-tenant workspace for construction suppliers and teams managing work from opportunity through closeout.
+Construct Lifecycle — The Construction Lifecycle Platform is a responsive, multi-tenant workspace for construction suppliers and teams managing work from opportunity through closeout.
 
 ## Run & Operate
 
@@ -37,7 +37,7 @@ Construct LC — The Construction Lifecycle Platform is a responsive, multi-tena
 - Dashboard totals and activity are computed from the same project records used by the project book and detail workspace.
 - The app uses the shared API server and PostgreSQL database; the generated OpenAPI client is the frontend data access layer.
 - Clerk authenticates users; PostgreSQL memberships and the validated active-tenant context authorize every tenant-owned request.
-- Construct LC defaults and published tenant branding are applied through semantic CSS tokens. Draft themes remain inactive until publish.
+- Construct Lifecycle defaults and published tenant branding are applied through semantic CSS tokens. Draft themes remain inactive until publish.
 
 ## Product
 

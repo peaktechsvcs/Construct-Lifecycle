@@ -10,7 +10,7 @@ import {
   usersTable,
 } from "@workspace/db";
 
-const DEFAULT_TENANT = { name: "Construct LC Demo", slug: "construct-lc-demo" };
+const DEFAULT_TENANT = { name: "Construct Lifecycle Demo", slug: "construct-lc-demo" };
 const APP_ENV = process.env.APP_ENV ?? "development";
 if (!["development", "demo", "production"].includes(APP_ENV)) {
   throw new Error("APP_ENV must be one of development, demo, or production");

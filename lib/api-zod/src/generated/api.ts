@@ -1221,7 +1221,7 @@ export const RollbackBrandingResponse = zod.object({
 
 
 /**
- * @summary Reset branding draft to Construct LC defaults
+ * @summary Reset branding draft to Construct Lifecycle defaults
  */
 export const ResetBrandingResponse = zod.object({
   "draft": zod.object({

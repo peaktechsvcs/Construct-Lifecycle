@@ -20,7 +20,7 @@ export function OverviewPage() {
       <section className="rounded-xl border bg-card p-6">
         <img src={`${import.meta.env.BASE_URL}logo-full.png`} alt="Construct Lifecycle" className="mb-6 h-12 w-auto object-contain object-left dark:brightness-0 dark:invert" />
         <p className="font-mono text-[10px] uppercase tracking-[.18em] text-primary">Construct Lifecycle</p>
-        <h2 className="mt-2 text-3xl font-bold tracking-[-.04em]">Operational clarity from bid to closeout.</h2>
+        <h2 className="mt-2 text-3xl font-bold tracking-[-.04em]">From Bid to Closeout.</h2>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">A compact, project-centered system for construction suppliers and their teams.</p>
         <div className="mt-5 grid grid-cols-3 gap-3">{CORE_SWATCHES.map((item) => <Swatch key={item.name} {...item} />)}</div>
       </section>

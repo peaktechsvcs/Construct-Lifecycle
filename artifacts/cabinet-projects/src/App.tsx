@@ -256,8 +256,8 @@ function App() {
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
       localization={{
-        signIn: { start: { title: "Welcome back", subtitle: "Construct LC — The Construction Lifecycle Platform" } },
-        signUp: { start: { title: "Create your account", subtitle: "Construct LC — The Construction Lifecycle Platform" } },
+        signIn: { start: { title: "Welcome back", subtitle: "Construct Lifecycle — The Construction Lifecycle Platform" } },
+        signUp: { start: { title: "Create your account", subtitle: "Construct Lifecycle — The Construction Lifecycle Platform" } },
       }}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
