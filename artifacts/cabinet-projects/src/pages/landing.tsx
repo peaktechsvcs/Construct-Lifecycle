@@ -7,11 +7,11 @@ export function LandingPage() {
       <div className="animate-rise max-w-md">
         <img 
           src={`${basePath}/logo-full.png`} 
-          alt="Construct Lifecycle — The Construction Lifecycle Platform"
+          alt="Construct Lifecycle — From Bid to Closeout"
           className="mx-auto mb-8 h-20 object-contain drop-shadow-sm" 
         />
         <h1 className="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Construct Lifecycle — The Construction Lifecycle Platform
+          Construct Lifecycle
         </h1>
         <p className="mb-10 text-base text-muted-foreground">
           From Bid to Closeout.
