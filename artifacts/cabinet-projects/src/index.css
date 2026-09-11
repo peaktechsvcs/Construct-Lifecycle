@@ -118,5 +118,9 @@
   background-image: linear-gradient(to right, hsl(var(--border) / .34) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border) / .34) 1px, transparent 1px);
   background-size: 28px 28px;
 }
+.auth-grid {
+  background-image: linear-gradient(to right, hsl(var(--border) / .28) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border) / .28) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
 .mono { font-family: var(--app-font-mono); }
 .ink-rule { border-top: 2px solid hsl(var(--primary)); }
