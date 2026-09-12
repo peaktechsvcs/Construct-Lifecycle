@@ -1457,7 +1457,7 @@ components:
         displayName: { type: ["string", "null"] }
     Opportunity:
       type: object
-      required: [id, environmentId, opportunityNumber, businessCustomerId, customerName, name, stage, estimatedValue, expectedCloseDate, ownerUserId, owner, crmProviderKey, crmIntegrationStatus, crmExternalReference, crmLastSyncedAt, createdAt, updatedAt]
+      required: [id, environmentId, opportunityNumber, businessCustomerId, customerName, name, stage, estimatedValue, expectedCloseDate, ownerUserId, owner, leadSource, contactName, contactEmail, contactPhone, qualification, nextAction, nextActionDate, lastContactedAt, crmProviderKey, crmIntegrationStatus, crmExternalReference, crmLastSyncedAt, createdAt, updatedAt]
       properties:
         id: { type: integer }
         environmentId: { type: integer }
@@ -1471,6 +1471,14 @@ components:
         expectedCloseDate: { type: ["string", "null"], format: date }
         ownerUserId: { type: ["integer", "null"] }
         owner: { oneOf: [{ $ref: "#/components/schemas/OpportunityOwner" }, { type: "null" }] }
+        leadSource: { type: ["string", "null"] }
+        contactName: { type: ["string", "null"] }
+        contactEmail: { type: ["string", "null"], format: email }
+        contactPhone: { type: ["string", "null"] }
+        qualification: { $ref: "#/components/schemas/OpportunityQualification" }
+        nextAction: { type: ["string", "null"] }
+        nextActionDate: { type: ["string", "null"], format: date }
+        lastContactedAt: { type: ["string", "null"], format: date-time }
         crmProviderKey: { type: ["string", "null"] }
         crmIntegrationStatus: { $ref: "#/components/schemas/ProposalIntegrationStatus" }
         crmExternalReference: { type: ["string", "null"] }
@@ -1488,6 +1496,14 @@ components:
         estimatedValue: { type: number, minimum: 0, maximum: 999999999999 }
         expectedCloseDate: { type: string, format: date }
         ownerUserId: { type: integer, minimum: 1 }
+        leadSource: { type: string, maxLength: 120 }
+        contactName: { type: string, maxLength: 160 }
+        contactEmail: { type: string, format: email, maxLength: 320 }
+        contactPhone: { type: string, maxLength: 40 }
+        qualification: { $ref: "#/components/schemas/OpportunityQualification" }
+        nextAction: { type: string, maxLength: 240 }
+        nextActionDate: { type: string, format: date }
+        lastContactedAt: { type: string, format: date-time }
         crmProviderKey: { type: string, maxLength: 80, pattern: "^[a-z][a-z0-9_]{1,63}$" }
         crmIntegrationStatus: { $ref: "#/components/schemas/ProposalIntegrationStatus" }
         crmExternalReference: { type: string, maxLength: 180 }
@@ -1501,9 +1517,20 @@ components:
         estimatedValue: { type: number, minimum: 0, maximum: 999999999999 }
         expectedCloseDate: { type: ["string", "null"], format: date }
         ownerUserId: { type: ["integer", "null"], minimum: 1 }
+        leadSource: { type: ["string", "null"], maxLength: 120 }
+        contactName: { type: ["string", "null"], maxLength: 160 }
+        contactEmail: { type: ["string", "null"], format: email, maxLength: 320 }
+        contactPhone: { type: ["string", "null"], maxLength: 40 }
+        qualification: { $ref: "#/components/schemas/OpportunityQualification" }
+        nextAction: { type: ["string", "null"], maxLength: 240 }
+        nextActionDate: { type: ["string", "null"], format: date }
+        lastContactedAt: { type: ["string", "null"], format: date-time }
         crmProviderKey: { type: ["string", "null"], maxLength: 80, pattern: "^[a-z][a-z0-9_]{1,63}$" }
         crmIntegrationStatus: { $ref: "#/components/schemas/ProposalIntegrationStatus" }
         crmExternalReference: { type: ["string", "null"], maxLength: 180 }
+    OpportunityQualification:
+      type: string
+      enum: [unqualified, qualified, disqualified]
     BidStage:
       type: string
       enum: [invited, qualifying, takeoff, estimating, review, submitted, awarded, lost]
