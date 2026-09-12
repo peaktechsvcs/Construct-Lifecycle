@@ -1,8 +1,11 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { ClipboardCheck, ExternalLink, FileText, Link2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ClipboardCheck, Download, ExternalLink, FileText, Layers3, Link2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import {
+  buildSubmittalPackageAssembly,
+  reorderSubmittalDocumentPages,
+  reorderSubmittalItems,
   SubmittalCoordination,
   SubmittalCoordinationStatus,
   SubmittalCoordinationType,
@@ -326,9 +329,89 @@ function DocumentLink({ document, canEdit, onChanged }: { document: SubmittalDoc
     {document.status === 'uploaded'
       ? <a className="inline-flex min-w-0 items-center gap-1 text-accent hover:underline" href={document.downloadUrl} target="_blank" rel="noreferrer"><span className="truncate">V{document.version} · {document.originalName}</span><ExternalLink size={12} /></a>
       : <span className={document.status === 'rejected' ? 'text-destructive' : 'text-muted-foreground'}>{document.originalName} · {statusLabel}</span>}
-    <span className="mono text-[10px] text-muted-foreground">{Math.ceil(document.size / 1024)} KB</span>
+     <span className="mono text-[10px] text-muted-foreground">{Math.ceil(document.size / 1024)} KB{document.pageCount ? ` · ${document.pageCount} pages` : ''}</span>
     {canEdit && <Button variant="ghost" className="p-1 text-muted-foreground" aria-label={`Delete ${document.originalName}`} onClick={() => remove.mutate({ documentId: document.id }, { onSuccess: onChanged })}><Trash2 size={13} /></Button>}
   </div>;
+}
+
+type BuilderEntry = {
+  itemId: number;
+  documentId: number | null;
+  pageOrder: string;
+};
+
+const pageOrderText = (document?: SubmittalDocument) =>
+  document?.pageOrder?.join(', ') || (document?.pageCount ? Array.from({ length: document.pageCount }, (_, index) => index + 1).join(', ') : '');
+
+function PackageBuilder({ pkg, onClose, onSaved }: { pkg: SubmittalPackage; onClose: () => void; onSaved: () => void }) {
+  const initialEntries = pkg.items.map((item) => {
+    const pdf = item.documents?.find((document) => document.status === 'uploaded' && document.contentType === 'application/pdf');
+    return { itemId: item.id, documentId: pdf?.id ?? null, pageOrder: pageOrderText(pdf) };
+  });
+  const [order, setOrder] = useState<number[]>(() => pkg.items.map((item) => item.id));
+  const [entries, setEntries] = useState<BuilderEntry[]>(initialEntries);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const itemById = new Map(pkg.items.map((item) => [item.id, item]));
+  const entryByItemId = new Map(entries.map((entry) => [entry.itemId, entry]));
+  const parsePageOrder = (entry: BuilderEntry, itemName: string) => {
+    if (!entry.documentId) throw new Error(`${itemName} needs an uploaded PDF before it can be assembled.`);
+    const pages = entry.pageOrder.split(',').map((value) => Number(value.trim())).filter((value) => Number.isInteger(value) && value > 0);
+    if (pages.length === 0 || new Set(pages).size !== pages.length) throw new Error(`${itemName} has an invalid page order.`);
+    return pages;
+  };
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setBusy(true);
+    try {
+      const packageItems = order.map((itemId) => itemById.get(itemId)!);
+      const assemblyItems = packageItems.map((item) => {
+        const entry = entryByItemId.get(item.id)!;
+        return { itemId: item.id, documentId: entry.documentId!, pageOrder: parsePageOrder(entry, item.name) };
+      });
+      await reorderSubmittalItems(pkg.id, { itemIds: order });
+      await Promise.all(assemblyItems.map((entry) => reorderSubmittalDocumentPages(entry.documentId, { pageOrder: entry.pageOrder })));
+      await buildSubmittalPackageAssembly(pkg.id, { items: assemblyItems });
+      onSaved();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to build the package.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const move = (itemId: number, direction: -1 | 1) => {
+    setOrder((current) => {
+      const index = current.indexOf(itemId);
+      const nextIndex = index + direction;
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.length) return current;
+      const next = [...current];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
+  };
+  return <Modal title="Build submittal package" onClose={onClose}>
+    <form className="space-y-4" onSubmit={submit}>
+      <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm"><p className="font-semibold">Assemble this package inside Construct Lifecycle</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Reorder the package items, set the page sequence for each PDF, and generate a protected versioned PDF. The source documents stay unchanged.</p></div>
+      <div className="space-y-3">
+        {order.map((itemId, index) => {
+          const item = itemById.get(itemId)!;
+          const entry = entryByItemId.get(itemId)!;
+          const pdfs = item.documents?.filter((document) => document.status === 'uploaded' && document.contentType === 'application/pdf') ?? [];
+          return <div key={item.id} className="rounded-lg border border-border bg-secondary/20 p-3">
+            <div className="flex items-start gap-2"><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{index + 1}. {item.name}</p><p className="text-xs text-muted-foreground">{label(itemTypes, item.itemType)}</p></div><div className="flex gap-1"><Button type="button" variant="ghost" className="p-1" aria-label={`Move ${item.name} up`} disabled={index === 0} onClick={() => move(item.id, -1)}><ArrowUp size={14} /></Button><Button type="button" variant="ghost" className="p-1" aria-label={`Move ${item.name} down`} disabled={index === order.length - 1} onClick={() => move(item.id, 1)}><ArrowDown size={14} /></Button></div></div>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Source PDF</span><Select value={entry.documentId ? String(entry.documentId) : 'none'} onValueChange={(value) => setEntries((current) => current.map((candidate) => candidate.itemId === item.id ? { ...candidate, documentId: value === 'none' ? null : Number(value), pageOrder: pageOrderText(pdfs.find((document) => document.id === Number(value))) } : candidate))}><SelectTrigger aria-label={`Source PDF for ${item.name}`}><SelectValue placeholder="Select PDF" /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="none">Select a PDF</SelectItem>{pdfs.map((document) => <SelectItem key={document.id} value={String(document.id)}>V{document.version} · {document.originalName}</SelectItem>)}</SelectContent></Select></label>
+              <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Page order</span><Input value={entry.pageOrder} disabled={!entry.documentId} onChange={(event) => setEntries((current) => current.map((candidate) => candidate.itemId === item.id ? { ...candidate, pageOrder: event.target.value } : candidate))} placeholder="1, 2, 3" aria-label={`Page order for ${item.name}`} /></label>
+            </div>
+            {pdfs.length === 0 && <p className="mt-2 text-xs text-amber-700">Upload a PDF for this item to include it in the assembled package.</p>}
+          </div>;
+        })}
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={onClose}>Cancel</Button><Button type="submit" disabled={busy || !order.length}>{busy ? 'Building…' : 'Build PDF package'}</Button></div>
+    </form>
+  </Modal>;
 }
 
 function PackageDetail({ id }: { id: number }) {
@@ -340,6 +423,7 @@ function PackageDetail({ id }: { id: number }) {
   const [showEdit, setShowEdit] = useState(false);
   const [showItem, setShowItem] = useState(false);
   const [showRevision, setShowRevision] = useState(false);
+  const [showBuilder, setShowBuilder] = useState(false);
   const removeItem = useDeleteSubmittalItem();
   const removePackage = useDeleteSubmittalPackage();
   const pkg = query.data;
@@ -347,7 +431,7 @@ function PackageDetail({ id }: { id: number }) {
   if (query.isLoading) return <LoadingPanel lines={8} />;
   if (query.isError || !pkg) return <ErrorPanel onRetry={() => query.refetch()} />;
   return <div className="animate-rise">
-    <PageTitle eyebrow={`Submittals / ${pkg.packageNumber}`} title={pkg.name} description={`${pkg.projectNumber} · ${pkg.projectName} · ${pkg.customerName}`} action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => navigate('/submittals')}>Back to packages</Button>{canEdit && <Button onClick={() => setShowEdit(true)}><Pencil size={15} /> Edit package</Button>}</div>} />
+     <PageTitle eyebrow={`Submittals / ${pkg.packageNumber}`} title={pkg.name} description={`${pkg.projectNumber} · ${pkg.projectName} · ${pkg.customerName}`} action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => navigate('/submittals')}>Back to packages</Button>{canEdit && <><Button variant="outline" onClick={() => setShowBuilder(true)}><Layers3 size={15} /> Build package</Button><Button onClick={() => setShowEdit(true)}><Pencil size={15} /> Edit package</Button></>}</div>} />
     <div className="mb-5 grid gap-3 md:grid-cols-4">
       <div className="rounded-xl border border-border bg-card p-4"><p className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Disposition</p><div className="mt-2"><Badge tone={tone(pkg.status)}>{label(packageStatuses, pkg.status)}</Badge></div></div>
       <div className="rounded-xl border border-border bg-card p-4"><p className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Revision</p><p className="mono mt-2 text-2xl font-semibold">R{pkg.revision}</p></div>
@@ -362,13 +446,14 @@ function PackageDetail({ id }: { id: number }) {
       <div className="space-y-5">
         <CoordinationPanel packageId={pkg.id} revisions={pkg.revisions} canEdit={canEdit} onChanged={refresh} />
         <section className="rounded-xl border border-border bg-card p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="text-base font-bold">Review history</h2><p className="mt-1 text-xs text-muted-foreground">Every disposition creates an immutable revision record.</p></div>{canEdit && <Button variant="outline" onClick={() => setShowRevision(true)}><Plus size={15} /> Revision</Button>}</div><div className="mt-4 space-y-4">{pkg.revisions.length === 0 ? <p className="text-sm text-muted-foreground">No formal review recorded yet.</p> : pkg.revisions.map((revision) => <div key={revision.id} className="border-l-2 border-primary/25 pl-3"><div className="flex flex-wrap items-center gap-2"><span className="mono text-[10px] text-muted-foreground">R{revision.revision}</span><Badge tone={tone(revision.status)}>{label(packageStatuses, revision.status)}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{revision.reviewerName || 'Team review'} · {shortDate(revision.createdAt)}</p>{revision.reviewComments && <p className="mt-2 text-sm">{revision.reviewComments}</p>}</div>)}</div></section>
-        <section className="rounded-xl border border-border bg-card p-5"><h2 className="text-base font-bold">Package context</h2><dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Origin</dt><dd className="text-right font-semibold">{label(originTypes, pkg.originType)}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Specification</dt><dd className="text-right font-semibold">{pkg.specificationSection || 'Not assigned'}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Responsible party</dt><dd className="text-right font-semibold">{pkg.responsibleParty || 'Not assigned'}</dd></div>{pkg.sourceBidNumber && <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Source bid</dt><dd className="text-right font-semibold">{pkg.sourceBidNumber}</dd></div>}</dl>{pkg.description && <p className="mt-4 border-t border-border pt-4 text-sm leading-6 text-muted-foreground">{pkg.description}</p>}</section>
+         <section className="rounded-xl border border-border bg-card p-5"><h2 className="text-base font-bold">Package context</h2><dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Origin</dt><dd className="text-right font-semibold">{label(originTypes, pkg.originType)}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Specification</dt><dd className="text-right font-semibold">{pkg.specificationSection || 'Not assigned'}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Responsible party</dt><dd className="text-right font-semibold">{pkg.responsibleParty || 'Not assigned'}</dd></div>{pkg.sourceBidNumber && <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Source bid</dt><dd className="text-right font-semibold">{pkg.sourceBidNumber}</dd></div>}</dl>{pkg.description && <p className="mt-4 border-t border-border pt-4 text-sm leading-6 text-muted-foreground">{pkg.description}</p>}{pkg.assemblies.length > 0 && <div className="mt-5 border-t border-border pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Built versions</p><div className="mt-3 space-y-2">{pkg.assemblies.map((assembly) => <a key={assembly.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/20 px-3 py-2 text-xs hover:bg-secondary/40" href={assembly.downloadUrl} target="_blank" rel="noreferrer"><span><span className="font-semibold">Version {assembly.version}</span><span className="ml-2 text-muted-foreground">{Math.ceil(assembly.size / 1024)} KB · {shortDate(assembly.createdAt)}</span></span><Download size={14} className="text-accent" /></a>)}</div></div>}</section>
         {activeRole === 'owner' || activeRole === 'admin' ? <Button variant="danger" className="w-full justify-center" onClick={() => { if (window.confirm(`Delete ${pkg.name}?`)) removePackage.mutate({ submittalId: pkg.id }, { onSuccess: () => navigate('/submittals') }); }}>Delete package</Button> : null}
       </div>
     </div>
     {showEdit && <PackageForm item={pkg} onClose={() => setShowEdit(false)} onSaved={() => { setShowEdit(false); refresh(); }} />}
     {showItem && <ItemForm packageId={pkg.id} onClose={() => setShowItem(false)} onSaved={() => { setShowItem(false); refresh(); }} />}
     {showRevision && <RevisionForm packageId={pkg.id} onClose={() => setShowRevision(false)} onSaved={() => { setShowRevision(false); refresh(); }} />}
+     {showBuilder && <PackageBuilder pkg={pkg} onClose={() => setShowBuilder(false)} onSaved={() => { setShowBuilder(false); refresh(); }} />}
   </div>;
 }
 

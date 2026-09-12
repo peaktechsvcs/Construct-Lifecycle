@@ -13,6 +13,8 @@ export interface SubmittalItem {
   id: number;
   packageId: number;
   itemNumber: string;
+  /** @minimum 0 */
+  sortOrder: number;
   itemType: SubmittalItemType;
   name: string;
   /** @nullable */

@@ -1430,7 +1430,14 @@ export const ListSubmittalPackagesQueryParams = zod.object({
   "projectId": zod.coerce.number().int().min(1).optional()
 })
 
+export const listSubmittalPackagesResponseItemsItemSortOrderMin = 0;
+
 export const listSubmittalPackagesResponseItemsItemDocumentUrlMax = 2000;
+
+
+
+
+
 
 
 
@@ -1462,6 +1469,7 @@ export const ListSubmittalPackagesResponseItem = zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
   "itemNumber": zod.string(),
+  "sortOrder": zod.number().int().min(listSubmittalPackagesResponseItemsItemSortOrderMin),
   "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
   "name": zod.string(),
   "description": zod.string().nullable(),
@@ -1474,6 +1482,8 @@ export const ListSubmittalPackagesResponseItem = zod.object({
   "originalName": zod.string(),
   "contentType": zod.string(),
   "size": zod.number().int(),
+  "pageCount": zod.number().int().min(1).nullable(),
+  "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
@@ -1494,6 +1504,23 @@ export const ListSubmittalPackagesResponseItem = zod.object({
   "submittedAt": zod.coerce.date().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
+})),
+  "assemblies": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['ready', 'failed']),
+  "originalFileName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "itemOrder": zod.array(zod.number().int().min(1)),
+  "pagePlan": zod.array(zod.object({
+  "itemId": zod.number().int(),
+  "documentId": zod.number().int(),
+  "pageOrder": zod.array(zod.number().int().min(1))
+})),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
 })),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1528,7 +1555,14 @@ export const CreateSubmittalPackageBody = zod.object({
   "dueDate": zod.coerce.date().optional()
 })
 
+export const createSubmittalPackageResponseItemsItemSortOrderMin = 0;
+
 export const createSubmittalPackageResponseItemsItemDocumentUrlMax = 2000;
+
+
+
+
+
 
 
 
@@ -1560,6 +1594,7 @@ export const CreateSubmittalPackageResponse = zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
   "itemNumber": zod.string(),
+  "sortOrder": zod.number().int().min(createSubmittalPackageResponseItemsItemSortOrderMin),
   "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
   "name": zod.string(),
   "description": zod.string().nullable(),
@@ -1572,6 +1607,8 @@ export const CreateSubmittalPackageResponse = zod.object({
   "originalName": zod.string(),
   "contentType": zod.string(),
   "size": zod.number().int(),
+  "pageCount": zod.number().int().min(1).nullable(),
+  "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
@@ -1593,6 +1630,23 @@ export const CreateSubmittalPackageResponse = zod.object({
   "reviewedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
 })),
+  "assemblies": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['ready', 'failed']),
+  "originalFileName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "itemOrder": zod.array(zod.number().int().min(1)),
+  "pagePlan": zod.array(zod.object({
+  "itemId": zod.number().int(),
+  "documentId": zod.number().int(),
+  "pageOrder": zod.array(zod.number().int().min(1))
+})),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -1605,7 +1659,14 @@ export const GetSubmittalPackageParams = zod.object({
   "submittalId": zod.coerce.number().int()
 })
 
+export const getSubmittalPackageResponseItemsItemSortOrderMin = 0;
+
 export const getSubmittalPackageResponseItemsItemDocumentUrlMax = 2000;
+
+
+
+
+
 
 
 
@@ -1637,6 +1698,7 @@ export const GetSubmittalPackageResponse = zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
   "itemNumber": zod.string(),
+  "sortOrder": zod.number().int().min(getSubmittalPackageResponseItemsItemSortOrderMin),
   "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
   "name": zod.string(),
   "description": zod.string().nullable(),
@@ -1649,6 +1711,8 @@ export const GetSubmittalPackageResponse = zod.object({
   "originalName": zod.string(),
   "contentType": zod.string(),
   "size": zod.number().int(),
+  "pageCount": zod.number().int().min(1).nullable(),
+  "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
@@ -1669,6 +1733,23 @@ export const GetSubmittalPackageResponse = zod.object({
   "submittedAt": zod.coerce.date().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
+})),
+  "assemblies": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['ready', 'failed']),
+  "originalFileName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "itemOrder": zod.array(zod.number().int().min(1)),
+  "pagePlan": zod.array(zod.object({
+  "itemId": zod.number().int(),
+  "documentId": zod.number().int(),
+  "pageOrder": zod.array(zod.number().int().min(1))
+})),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
 })),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1710,7 +1791,14 @@ export const UpdateSubmittalPackageBody = zod.object({
   "reviewComments": zod.string().max(updateSubmittalPackageBodyReviewCommentsMax).nullish()
 })
 
+export const updateSubmittalPackageResponseItemsItemSortOrderMin = 0;
+
 export const updateSubmittalPackageResponseItemsItemDocumentUrlMax = 2000;
+
+
+
+
+
 
 
 
@@ -1742,6 +1830,7 @@ export const UpdateSubmittalPackageResponse = zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
   "itemNumber": zod.string(),
+  "sortOrder": zod.number().int().min(updateSubmittalPackageResponseItemsItemSortOrderMin),
   "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
   "name": zod.string(),
   "description": zod.string().nullable(),
@@ -1754,6 +1843,8 @@ export const UpdateSubmittalPackageResponse = zod.object({
   "originalName": zod.string(),
   "contentType": zod.string(),
   "size": zod.number().int(),
+  "pageCount": zod.number().int().min(1).nullable(),
+  "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
@@ -1774,6 +1865,23 @@ export const UpdateSubmittalPackageResponse = zod.object({
   "submittedAt": zod.coerce.date().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
+})),
+  "assemblies": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['ready', 'failed']),
+  "originalFileName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "itemOrder": zod.array(zod.number().int().min(1)),
+  "pagePlan": zod.array(zod.object({
+  "itemId": zod.number().int(),
+  "documentId": zod.number().int(),
+  "pageOrder": zod.array(zod.number().int().min(1))
+})),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
 })),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1816,7 +1924,11 @@ export const CreateSubmittalItemBody = zod.object({
   "documentUrl": zod.string().max(createSubmittalItemBodyDocumentUrlMax).optional()
 })
 
+export const createSubmittalItemResponseSortOrderMin = 0;
+
 export const createSubmittalItemResponseDocumentUrlMax = 2000;
+
+
 
 
 
@@ -1825,6 +1937,7 @@ export const CreateSubmittalItemResponse = zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
   "itemNumber": zod.string(),
+  "sortOrder": zod.number().int().min(createSubmittalItemResponseSortOrderMin),
   "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
   "name": zod.string(),
   "description": zod.string().nullable(),
@@ -1837,6 +1950,8 @@ export const CreateSubmittalItemResponse = zod.object({
   "originalName": zod.string(),
   "contentType": zod.string(),
   "size": zod.number().int(),
+  "pageCount": zod.number().int().min(1).nullable(),
+  "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
@@ -1844,6 +1959,119 @@ export const CreateSubmittalItemResponse = zod.object({
   "downloadUrl": zod.string()
 })).optional(),
   "revision": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Persist the document order inside a submittal package
+ */
+export const ReorderSubmittalItemsParams = zod.object({
+  "submittalId": zod.coerce.number().int()
+})
+
+
+export const reorderSubmittalItemsBodyItemIdsMax = 200;
+
+
+
+export const ReorderSubmittalItemsBody = zod.object({
+  "itemIds": zod.array(zod.number().int().min(1)).min(1).max(reorderSubmittalItemsBodyItemIdsMax)
+})
+
+export const reorderSubmittalItemsResponseItemsItemSortOrderMin = 0;
+
+export const reorderSubmittalItemsResponseItemsItemDocumentUrlMax = 2000;
+
+
+
+
+
+
+
+
+
+export const ReorderSubmittalItemsResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "packageNumber": zod.string(),
+  "projectId": zod.number().int(),
+  "projectNumber": zod.string(),
+  "projectName": zod.string(),
+  "customerName": zod.string(),
+  "sourceBidId": zod.number().int().nullable(),
+  "sourceBidNumber": zod.string().nullable(),
+  "originType": zod.enum(['contract', 'accepted_substitution', 'accepted_alternate', 'early_procurement']),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "specificationSection": zod.string().nullable(),
+  "responsibleParty": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']),
+  "dueDate": zod.coerce.date().nullable(),
+  "revision": zod.number().int(),
+  "reviewerName": zod.string().nullable(),
+  "reviewComments": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "itemCount": zod.number().int(),
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "itemNumber": zod.string(),
+  "sortOrder": zod.number().int().min(reorderSubmittalItemsResponseItemsItemSortOrderMin),
+  "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
+  "documentName": zod.string().nullable(),
+  "documentUrl": zod.string().max(reorderSubmittalItemsResponseItemsItemDocumentUrlMax).nullable(),
+  "documents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "itemId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "pageCount": zod.number().int().min(1).nullable(),
+  "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "uploadedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})).optional(),
+  "revision": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "revisions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "revision": zod.number().int(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']),
+  "reviewerName": zod.string().nullable(),
+  "reviewComments": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "assemblies": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['ready', 'failed']),
+  "originalFileName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "itemOrder": zod.array(zod.number().int().min(1)),
+  "pagePlan": zod.array(zod.object({
+  "itemId": zod.number().int(),
+  "documentId": zod.number().int(),
+  "pageOrder": zod.array(zod.number().int().min(1))
+})),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -1875,7 +2103,11 @@ export const UpdateSubmittalItemBody = zod.object({
   "documentUrl": zod.string().max(updateSubmittalItemBodyDocumentUrlMax).nullish()
 })
 
+export const updateSubmittalItemResponseSortOrderMin = 0;
+
 export const updateSubmittalItemResponseDocumentUrlMax = 2000;
+
+
 
 
 
@@ -1884,6 +2116,7 @@ export const UpdateSubmittalItemResponse = zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
   "itemNumber": zod.string(),
+  "sortOrder": zod.number().int().min(updateSubmittalItemResponseSortOrderMin),
   "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
   "name": zod.string(),
   "description": zod.string().nullable(),
@@ -1896,6 +2129,8 @@ export const UpdateSubmittalItemResponse = zod.object({
   "originalName": zod.string(),
   "contentType": zod.string(),
   "size": zod.number().int(),
+  "pageCount": zod.number().int().min(1).nullable(),
+  "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
@@ -1942,12 +2177,16 @@ export const RequestSubmittalDocumentUploadBody = zod.object({
 
 
 
+
+
 export const RequestSubmittalDocumentUploadResponse = zod.object({
   "id": zod.number().int(),
   "itemId": zod.number().int(),
   "originalName": zod.string(),
   "contentType": zod.string(),
   "size": zod.number().int(),
+  "pageCount": zod.number().int().min(1).nullable(),
+  "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
@@ -1968,12 +2207,16 @@ export const CompleteSubmittalDocumentUploadParams = zod.object({
 
 
 
+
+
 export const CompleteSubmittalDocumentUploadResponse = zod.object({
   "id": zod.number().int(),
   "itemId": zod.number().int(),
   "originalName": zod.string(),
   "contentType": zod.string(),
   "size": zod.number().int(),
+  "pageCount": zod.number().int().min(1).nullable(),
+  "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
@@ -2000,6 +2243,101 @@ export const DeleteSubmittalDocumentParams = zod.object({
 })
 
 export const DeleteSubmittalDocumentResponse = zod.void()
+
+
+/**
+ * @summary Persist the page order inside an uploaded PDF
+ */
+export const ReorderSubmittalDocumentPagesParams = zod.object({
+  "documentId": zod.coerce.number().int()
+})
+
+
+export const reorderSubmittalDocumentPagesBodyPageOrderMax = 500;
+
+
+
+export const ReorderSubmittalDocumentPagesBody = zod.object({
+  "pageOrder": zod.array(zod.number().int().min(1)).min(1).max(reorderSubmittalDocumentPagesBodyPageOrderMax)
+})
+
+
+
+
+
+
+export const ReorderSubmittalDocumentPagesResponse = zod.object({
+  "id": zod.number().int(),
+  "itemId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "pageCount": zod.number().int().min(1).nullable(),
+  "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "uploadedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})
+
+
+/**
+ * @summary Build a protected PDF package from selected submittal documents
+ */
+export const BuildSubmittalPackageAssemblyParams = zod.object({
+  "submittalId": zod.coerce.number().int()
+})
+
+
+
+
+export const buildSubmittalPackageAssemblyBodyItemsItemPageOrderMax = 500;
+
+export const buildSubmittalPackageAssemblyBodyItemsMax = 200;
+
+
+
+export const BuildSubmittalPackageAssemblyBody = zod.object({
+  "items": zod.array(zod.object({
+  "itemId": zod.number().int().min(1),
+  "documentId": zod.number().int().min(1),
+  "pageOrder": zod.array(zod.number().int().min(1)).min(1).max(buildSubmittalPackageAssemblyBodyItemsItemPageOrderMax).optional()
+})).min(1).max(buildSubmittalPackageAssemblyBodyItemsMax)
+})
+
+
+
+
+
+
+export const BuildSubmittalPackageAssemblyResponse = zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['ready', 'failed']),
+  "originalFileName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "itemOrder": zod.array(zod.number().int().min(1)),
+  "pagePlan": zod.array(zod.object({
+  "itemId": zod.number().int(),
+  "documentId": zod.number().int(),
+  "pageOrder": zod.array(zod.number().int().min(1))
+})),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})
+
+
+/**
+ * @summary Download a protected assembled submittal package
+ */
+export const GetSubmittalPackageAssemblyParams = zod.object({
+  "assemblyId": zod.coerce.number().int()
+})
+
+export const GetSubmittalPackageAssemblyResponse = zod.unknown()
 
 
 /**

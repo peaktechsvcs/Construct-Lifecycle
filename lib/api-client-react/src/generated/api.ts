@@ -89,6 +89,8 @@ import type {
   ProposalInput,
   ProposalUpdate,
   PublishedBrandingContext,
+  SubmittalAssembly,
+  SubmittalAssemblyInput,
   SubmittalCoordination,
   SubmittalCoordinationInput,
   SubmittalCoordinationUpdate,
@@ -97,10 +99,12 @@ import type {
   SubmittalDocumentUploadInput,
   SubmittalItem,
   SubmittalItemInput,
+  SubmittalItemOrderInput,
   SubmittalItemUpdate,
   SubmittalPackage,
   SubmittalPackageInput,
   SubmittalPackageUpdate,
+  SubmittalPageOrderInput,
   SubmittalRevision,
   SubmittalRevisionInput,
   SwitchEnvironmentInput,
@@ -2542,6 +2546,78 @@ export const useCreateSubmittalItem = <TError = ErrorType<unknown>,
       return useMutation(getCreateSubmittalItemMutationOptions(options));
     }
 
+export const getReorderSubmittalItemsUrl = (submittalId: number,) => {
+
+
+
+
+  return `/api/submittals/${submittalId}/items/reorder`
+}
+
+/**
+ * @summary Persist the document order inside a submittal package
+ */
+export const reorderSubmittalItems = async (submittalId: number,
+    submittalItemOrderInput: SubmittalItemOrderInput, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalPackage> => {
+
+  return customFetch<SubmittalPackage>(getReorderSubmittalItemsUrl(submittalId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalItemOrderInput)
+  }
+);}
+
+
+
+
+
+export const getReorderSubmittalItemsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderSubmittalItems>>, TError,{submittalId: number;data: BodyType<SubmittalItemOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reorderSubmittalItems>>, TError,{submittalId: number;data: BodyType<SubmittalItemOrderInput>}, TContext> => {
+
+const mutationKey = ['reorderSubmittalItems'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reorderSubmittalItems>>, {submittalId: number;data: BodyType<SubmittalItemOrderInput>}> = (props) => {
+          const {submittalId,data} = props ?? {};
+
+          return  reorderSubmittalItems(submittalId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReorderSubmittalItemsMutationResult = NonNullable<Awaited<ReturnType<typeof reorderSubmittalItems>>>
+    export type ReorderSubmittalItemsMutationBody = BodyType<SubmittalItemOrderInput>
+    export type ReorderSubmittalItemsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Persist the document order inside a submittal package
+ */
+export const useReorderSubmittalItems = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderSubmittalItems>>, TError,{submittalId: number;data: BodyType<SubmittalItemOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reorderSubmittalItems>>,
+        TError,
+        {submittalId: number;data: BodyType<SubmittalItemOrderInput>},
+        TContext
+      > => {
+      return useMutation(getReorderSubmittalItemsMutationOptions(options));
+    }
+
 export const getUpdateSubmittalItemUrl = (itemId: number,) => {
 
 
@@ -2975,6 +3051,227 @@ export const useDeleteSubmittalDocument = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getDeleteSubmittalDocumentMutationOptions(options));
     }
+
+export const getReorderSubmittalDocumentPagesUrl = (documentId: number,) => {
+
+
+
+
+  return `/api/submittal-documents/${documentId}/pages`
+}
+
+/**
+ * @summary Persist the page order inside an uploaded PDF
+ */
+export const reorderSubmittalDocumentPages = async (documentId: number,
+    submittalPageOrderInput: SubmittalPageOrderInput, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalDocument> => {
+
+  return customFetch<SubmittalDocument>(getReorderSubmittalDocumentPagesUrl(documentId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalPageOrderInput)
+  }
+);}
+
+
+
+
+
+export const getReorderSubmittalDocumentPagesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderSubmittalDocumentPages>>, TError,{documentId: number;data: BodyType<SubmittalPageOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reorderSubmittalDocumentPages>>, TError,{documentId: number;data: BodyType<SubmittalPageOrderInput>}, TContext> => {
+
+const mutationKey = ['reorderSubmittalDocumentPages'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reorderSubmittalDocumentPages>>, {documentId: number;data: BodyType<SubmittalPageOrderInput>}> = (props) => {
+          const {documentId,data} = props ?? {};
+
+          return  reorderSubmittalDocumentPages(documentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReorderSubmittalDocumentPagesMutationResult = NonNullable<Awaited<ReturnType<typeof reorderSubmittalDocumentPages>>>
+    export type ReorderSubmittalDocumentPagesMutationBody = BodyType<SubmittalPageOrderInput>
+    export type ReorderSubmittalDocumentPagesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Persist the page order inside an uploaded PDF
+ */
+export const useReorderSubmittalDocumentPages = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderSubmittalDocumentPages>>, TError,{documentId: number;data: BodyType<SubmittalPageOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reorderSubmittalDocumentPages>>,
+        TError,
+        {documentId: number;data: BodyType<SubmittalPageOrderInput>},
+        TContext
+      > => {
+      return useMutation(getReorderSubmittalDocumentPagesMutationOptions(options));
+    }
+
+export const getBuildSubmittalPackageAssemblyUrl = (submittalId: number,) => {
+
+
+
+
+  return `/api/submittals/${submittalId}/assemblies`
+}
+
+/**
+ * @summary Build a protected PDF package from selected submittal documents
+ */
+export const buildSubmittalPackageAssembly = async (submittalId: number,
+    submittalAssemblyInput: SubmittalAssemblyInput, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalAssembly> => {
+
+  return customFetch<SubmittalAssembly>(getBuildSubmittalPackageAssemblyUrl(submittalId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalAssemblyInput)
+  }
+);}
+
+
+
+
+
+export const getBuildSubmittalPackageAssemblyMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof buildSubmittalPackageAssembly>>, TError,{submittalId: number;data: BodyType<SubmittalAssemblyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof buildSubmittalPackageAssembly>>, TError,{submittalId: number;data: BodyType<SubmittalAssemblyInput>}, TContext> => {
+
+const mutationKey = ['buildSubmittalPackageAssembly'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof buildSubmittalPackageAssembly>>, {submittalId: number;data: BodyType<SubmittalAssemblyInput>}> = (props) => {
+          const {submittalId,data} = props ?? {};
+
+          return  buildSubmittalPackageAssembly(submittalId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BuildSubmittalPackageAssemblyMutationResult = NonNullable<Awaited<ReturnType<typeof buildSubmittalPackageAssembly>>>
+    export type BuildSubmittalPackageAssemblyMutationBody = BodyType<SubmittalAssemblyInput>
+    export type BuildSubmittalPackageAssemblyMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Build a protected PDF package from selected submittal documents
+ */
+export const useBuildSubmittalPackageAssembly = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof buildSubmittalPackageAssembly>>, TError,{submittalId: number;data: BodyType<SubmittalAssemblyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof buildSubmittalPackageAssembly>>,
+        TError,
+        {submittalId: number;data: BodyType<SubmittalAssemblyInput>},
+        TContext
+      > => {
+      return useMutation(getBuildSubmittalPackageAssemblyMutationOptions(options));
+    }
+
+export const getGetSubmittalPackageAssemblyUrl = (assemblyId: number,) => {
+
+
+
+
+  return `/api/submittal-assemblies/${assemblyId}`
+}
+
+/**
+ * @summary Download a protected assembled submittal package
+ */
+export const getSubmittalPackageAssembly = async (assemblyId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getGetSubmittalPackageAssemblyUrl(assemblyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSubmittalPackageAssemblyQueryKey = (assemblyId: number,) => {
+    return [
+    `/api/submittal-assemblies/${assemblyId}`
+    ] as const;
+    }
+
+
+export const getGetSubmittalPackageAssemblyQueryOptions = <TData = Awaited<ReturnType<typeof getSubmittalPackageAssembly>>, TError = ErrorType<unknown>>(assemblyId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubmittalPackageAssembly>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSubmittalPackageAssemblyQueryKey(assemblyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSubmittalPackageAssembly>>> = ({ signal }) => getSubmittalPackageAssembly(assemblyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: assemblyId !== null && assemblyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSubmittalPackageAssembly>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSubmittalPackageAssemblyQueryResult = NonNullable<Awaited<ReturnType<typeof getSubmittalPackageAssembly>>>
+export type GetSubmittalPackageAssemblyQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download a protected assembled submittal package
+ */
+
+export function useGetSubmittalPackageAssembly<TData = Awaited<ReturnType<typeof getSubmittalPackageAssembly>>, TError = ErrorType<unknown>>(
+ assemblyId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubmittalPackageAssembly>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSubmittalPackageAssemblyQueryOptions(assemblyId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getCreateSubmittalRevisionUrl = (submittalId: number,) => {
 

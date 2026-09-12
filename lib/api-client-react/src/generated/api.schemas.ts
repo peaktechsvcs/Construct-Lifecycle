@@ -838,6 +838,16 @@ export interface SubmittalDocument {
   originalName: string;
   contentType: string;
   size: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  pageCount: number | null;
+  /**
+     * @nullable
+     * @items.minimum 1
+     */
+  pageOrder: number[] | null;
   /** @minimum 1 */
   version: number;
   status: SubmittalDocumentStatus;
@@ -851,6 +861,8 @@ export interface SubmittalItem {
   id: number;
   packageId: number;
   itemNumber: string;
+  /** @minimum 0 */
+  sortOrder: number;
   itemType: SubmittalItemType;
   name: string;
   /** @nullable */
@@ -997,6 +1009,37 @@ export interface SubmittalCoordinationUpdate {
   failureReason?: string | null;
 }
 
+export type SubmittalAssemblyStatus = typeof SubmittalAssemblyStatus[keyof typeof SubmittalAssemblyStatus];
+
+
+export const SubmittalAssemblyStatus = {
+  ready: 'ready',
+  failed: 'failed',
+} as const;
+
+export type SubmittalAssemblyPagePlanItem = {
+  itemId: number;
+  documentId: number;
+  /** @items.minimum 1 */
+  pageOrder: number[];
+};
+
+export interface SubmittalAssembly {
+  id: number;
+  packageId: number;
+  /** @minimum 1 */
+  version: number;
+  status: SubmittalAssemblyStatus;
+  originalFileName: string;
+  contentType: string;
+  size: number;
+  /** @items.minimum 1 */
+  itemOrder: number[];
+  pagePlan: SubmittalAssemblyPagePlanItem[];
+  createdAt: string;
+  downloadUrl: string;
+}
+
 export interface SubmittalPackage {
   id: number;
   environmentId: number;
@@ -1032,6 +1075,7 @@ export interface SubmittalPackage {
   itemCount: number;
   items: SubmittalItem[];
   revisions: SubmittalRevision[];
+  assemblies: SubmittalAssembly[];
   createdAt: string;
   updatedAt: string;
 }
@@ -1138,6 +1182,45 @@ export interface SubmittalItemUpdate {
      * @nullable
      */
   documentUrl?: string | null;
+}
+
+export interface SubmittalItemOrderInput {
+  /**
+     * @minItems 1
+     * @maxItems 200
+     * @items.minimum 1
+     */
+  itemIds: number[];
+}
+
+export interface SubmittalPageOrderInput {
+  /**
+     * @minItems 1
+     * @maxItems 500
+     * @items.minimum 1
+     */
+  pageOrder: number[];
+}
+
+export type SubmittalAssemblyInputItemsItem = {
+  /** @minimum 1 */
+  itemId: number;
+  /** @minimum 1 */
+  documentId: number;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     * @items.minimum 1
+     */
+  pageOrder?: number[];
+};
+
+export interface SubmittalAssemblyInput {
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  items: SubmittalAssemblyInputItemsItem[];
 }
 
 export interface SubmittalRevisionInput {

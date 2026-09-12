@@ -9,6 +9,8 @@ export const submittalDocumentsTable = pgTable("submittal_documents", {
   objectPath: text("object_path").notNull().unique(),
   contentType: text("content_type").notNull(),
   size: integer("size").notNull(),
+  pageCount: integer("page_count"),
+  pageOrder: text("page_order"),
   version: integer("version").notNull().default(1),
   status: text("status").notNull().default("pending"),
   uploadedByUserId: integer("uploaded_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),

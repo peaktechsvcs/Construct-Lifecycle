@@ -42,6 +42,7 @@ export const submittalItemsTable = pgTable("submittal_items", {
   id: serial("id").primaryKey(),
   packageId: integer("package_id").notNull().references(() => submittalPackagesTable.id, { onDelete: "cascade" }),
   itemNumber: text("item_number").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
   itemType: text("item_type").notNull().default("product_data"),
   name: text("name").notNull(),
   description: text("description"),

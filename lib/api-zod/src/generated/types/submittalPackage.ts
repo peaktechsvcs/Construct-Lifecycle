@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SubmittalAssembly } from './submittalAssembly';
 import type { SubmittalItem } from './submittalItem';
 import type { SubmittalOriginType } from './submittalOriginType';
 import type { SubmittalPackageStatus } from './submittalPackageStatus';
@@ -45,6 +46,7 @@ export interface SubmittalPackage {
   itemCount: number;
   items: SubmittalItem[];
   revisions: SubmittalRevision[];
+  assemblies: SubmittalAssembly[];
   createdAt: Date;
   updatedAt: Date;
 }

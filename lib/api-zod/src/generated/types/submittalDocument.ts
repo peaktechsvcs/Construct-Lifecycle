@@ -13,6 +13,16 @@ export interface SubmittalDocument {
   originalName: string;
   contentType: string;
   size: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  pageCount: number | null;
+  /**
+     * @nullable
+     * @items.minimum 1
+     */
+  pageOrder: number[] | null;
   /** @minimum 1 */
   version: number;
   status: SubmittalDocumentStatus;
