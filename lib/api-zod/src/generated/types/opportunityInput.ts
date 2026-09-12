@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { OpportunityStage } from './opportunityStage';
+import type { ProposalIntegrationStatus } from './proposalIntegrationStatus';
 
 export interface OpportunityInput {
   /** @minimum 1 */
@@ -26,4 +27,12 @@ export interface OpportunityInput {
   expectedCloseDate?: Date;
   /** @minimum 1 */
   ownerUserId?: number;
+  /**
+     * @maxLength 80
+     * @pattern ^[a-z][a-z0-9_]{1,63}$
+     */
+  crmProviderKey?: string;
+  crmIntegrationStatus?: ProposalIntegrationStatus;
+  /** @maxLength 180 */
+  crmExternalReference?: string;
 }

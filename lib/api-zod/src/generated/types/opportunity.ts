@@ -7,6 +7,7 @@
  */
 import type { OpportunityOwner } from './opportunityOwner';
 import type { OpportunityStage } from './opportunityStage';
+import type { ProposalIntegrationStatus } from './proposalIntegrationStatus';
 
 export interface Opportunity {
   id: number;
@@ -24,6 +25,13 @@ export interface Opportunity {
   /** @nullable */
   ownerUserId: number | null;
   owner: OpportunityOwner | null;
+  /** @nullable */
+  crmProviderKey: string | null;
+  crmIntegrationStatus: ProposalIntegrationStatus;
+  /** @nullable */
+  crmExternalReference: string | null;
+  /** @nullable */
+  crmLastSyncedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

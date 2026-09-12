@@ -81,6 +81,16 @@ export interface OpportunityOwner {
   displayName: string | null;
 }
 
+export type ProposalIntegrationStatus = typeof ProposalIntegrationStatus[keyof typeof ProposalIntegrationStatus];
+
+
+export const ProposalIntegrationStatus = {
+  manual: 'manual',
+  pending: 'pending',
+  synced: 'synced',
+  error: 'error',
+} as const;
+
 export interface Opportunity {
   id: number;
   environmentId: number;
@@ -97,6 +107,13 @@ export interface Opportunity {
   /** @nullable */
   ownerUserId: number | null;
   owner: OpportunityOwner | null;
+  /** @nullable */
+  crmProviderKey: string | null;
+  crmIntegrationStatus: ProposalIntegrationStatus;
+  /** @nullable */
+  crmExternalReference: string | null;
+  /** @nullable */
+  crmLastSyncedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -120,6 +137,14 @@ export interface OpportunityInput {
   expectedCloseDate?: string;
   /** @minimum 1 */
   ownerUserId?: number;
+  /**
+     * @maxLength 80
+     * @pattern ^[a-z][a-z0-9_]{1,63}$
+     */
+  crmProviderKey?: string;
+  crmIntegrationStatus?: ProposalIntegrationStatus;
+  /** @maxLength 180 */
+  crmExternalReference?: string;
 }
 
 export interface OpportunityUpdate {
@@ -148,6 +173,18 @@ export interface OpportunityUpdate {
      * @nullable
      */
   ownerUserId?: number | null;
+  /**
+     * @maxLength 80
+     * @nullable
+     * @pattern ^[a-z][a-z0-9_]{1,63}$
+     */
+  crmProviderKey?: string | null;
+  crmIntegrationStatus?: ProposalIntegrationStatus;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  crmExternalReference?: string | null;
 }
 
 export type BidStage = typeof BidStage[keyof typeof BidStage];
@@ -526,16 +563,6 @@ export const ProposalIntegrationKind = {
   accounting: 'accounting',
   e_signature: 'e_signature',
   other: 'other',
-} as const;
-
-export type ProposalIntegrationStatus = typeof ProposalIntegrationStatus[keyof typeof ProposalIntegrationStatus];
-
-
-export const ProposalIntegrationStatus = {
-  manual: 'manual',
-  pending: 'pending',
-  synced: 'synced',
-  error: 'error',
 } as const;
 
 export interface Proposal {
