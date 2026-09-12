@@ -15,3 +15,4 @@
 - [Estimates model](estimates-model.md) — estimates use normalized cost components and vendor-neutral sync metadata.
 - [Submittals model](submittals-model.md) — formal submittals are post-award packages; bid-stage substitutions and alternates remain linked source records.
 - [Signature foundation](signature-foundation.md) — preparation is provider-neutral; legal sending requires a connected, entitled adapter.
+- [Subcontractor compliance gates](subcontractor-compliance-gates.md) — project requirements independently block award, mobilization, billing, or closeout.

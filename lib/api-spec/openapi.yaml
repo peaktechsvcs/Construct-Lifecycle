@@ -42,6 +42,8 @@ tags:
     description: Tenant-configurable project lifecycle states, statuses, and transitions
   - name: submittals
     description: Bid-linked and post-award construction submittal packages
+  - name: subcontractor-compliance
+    description: Trade partner qualification, compliance gates, subcontracts, and payment rights
 paths:
   /healthz:
     get:
@@ -458,6 +460,300 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProjectCloseoutRequirement" }
+  /trade-partners:
+    get:
+      operationId: listTradePartners
+      tags: [subcontractor-compliance]
+      summary: List trade partners with compliance gates
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 120 }
+        - in: query
+          name: status
+          schema: { type: string, enum: [active, archived] }
+      responses:
+        "200":
+          description: Trade partners
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TradePartner" }
+    post:
+      operationId: createTradePartner
+      tags: [subcontractor-compliance]
+      summary: Create a trade partner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TradePartnerInput" }
+      responses:
+        "201":
+          description: Trade partner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TradePartner" }
+  /trade-partners/{tradePartnerId}:
+    get:
+      operationId: getTradePartner
+      tags: [subcontractor-compliance]
+      summary: Get a trade partner with compliance history
+      parameters:
+        - $ref: "#/components/parameters/TradePartnerId"
+      responses:
+        "200":
+          description: Trade partner detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TradePartnerDetail" }
+    patch:
+      operationId: updateTradePartner
+      tags: [subcontractor-compliance]
+      summary: Update trade partner qualification
+      parameters:
+        - $ref: "#/components/parameters/TradePartnerId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TradePartnerUpdate" }
+      responses:
+        "200":
+          description: Trade partner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TradePartner" }
+  /trade-partners/{tradePartnerId}/compliance-documents:
+    post:
+      operationId: createTradePartnerComplianceDocument
+      tags: [subcontractor-compliance]
+      summary: Request or submit a trade partner compliance document
+      parameters:
+        - $ref: "#/components/parameters/TradePartnerId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComplianceDocumentInput" }
+      responses:
+        "201":
+          description: Compliance document
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComplianceDocument" }
+  /trade-partners/{tradePartnerId}/compliance-documents/{documentId}:
+    patch:
+      operationId: updateTradePartnerComplianceDocument
+      tags: [subcontractor-compliance]
+      summary: Review a trade partner compliance document
+      parameters:
+        - $ref: "#/components/parameters/TradePartnerId"
+        - $ref: "#/components/parameters/ComplianceDocumentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComplianceDocumentUpdate" }
+      responses:
+        "200":
+          description: Compliance document
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComplianceDocument" }
+  /projects/{projectId}/compliance-requirements:
+    get:
+      operationId: listProjectComplianceRequirements
+      tags: [subcontractor-compliance]
+      summary: List project compliance requirements
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project compliance requirements
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProjectComplianceRequirement" }
+    post:
+      operationId: createProjectComplianceRequirement
+      tags: [subcontractor-compliance]
+      summary: Configure a project compliance gate
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectComplianceRequirementInput" }
+      responses:
+        "201":
+          description: Project compliance requirement
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectComplianceRequirement" }
+  /projects/{projectId}/compliance-requirements/{requirementId}:
+    patch:
+      operationId: updateProjectComplianceRequirement
+      tags: [subcontractor-compliance]
+      summary: Update a project compliance gate
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/ProjectComplianceRequirementId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectComplianceRequirementUpdate" }
+      responses:
+        "200":
+          description: Project compliance requirement
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectComplianceRequirement" }
+  /subcontract-agreements:
+    get:
+      operationId: listSubcontractAgreements
+      tags: [subcontractor-compliance]
+      summary: List subcontract agreements
+      parameters:
+        - in: query
+          name: projectId
+          schema: { type: integer }
+        - in: query
+          name: tradePartnerId
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Subcontract agreements
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SubcontractAgreement" }
+  /projects/{projectId}/subcontract-agreements:
+    post:
+      operationId: createSubcontractAgreement
+      tags: [subcontractor-compliance]
+      summary: Create a subcontract agreement
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubcontractAgreementInput" }
+      responses:
+        "201":
+          description: Subcontract agreement
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubcontractAgreementDetail" }
+  /subcontract-agreements/{agreementId}:
+    get:
+      operationId: getSubcontractAgreement
+      tags: [subcontractor-compliance]
+      summary: Get a subcontract agreement with payment and closeout history
+      parameters:
+        - $ref: "#/components/parameters/SubcontractAgreementId"
+      responses:
+        "200":
+          description: Subcontract agreement detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubcontractAgreementDetail" }
+  /subcontract-agreements/{agreementId}/schedule-of-values:
+    post:
+      operationId: createSubcontractScheduleOfValue
+      tags: [subcontractor-compliance]
+      summary: Add a subcontract schedule-of-values line
+      parameters:
+        - $ref: "#/components/parameters/SubcontractAgreementId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubcontractScheduleOfValueInput" }
+      responses:
+        "201":
+          description: Schedule-of-values line
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubcontractScheduleOfValue" }
+  /subcontract-agreements/{agreementId}/change-orders:
+    post:
+      operationId: createSubcontractChangeOrder
+      tags: [subcontractor-compliance]
+      summary: Submit a subcontract change order
+      parameters:
+        - $ref: "#/components/parameters/SubcontractAgreementId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubcontractChangeOrderInput" }
+      responses:
+        "201":
+          description: Subcontract change order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubcontractChangeOrder" }
+  /subcontract-agreements/{agreementId}/pay-applications:
+    post:
+      operationId: createSubcontractPayApplication
+      tags: [subcontractor-compliance]
+      summary: Submit a subcontract progress pay application
+      parameters:
+        - $ref: "#/components/parameters/SubcontractAgreementId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubcontractPayApplicationInput" }
+      responses:
+        "201":
+          description: Subcontract pay application
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubcontractPayApplication" }
+  /subcontract-pay-applications/{applicationId}/waivers:
+    post:
+      operationId: createSubcontractWaiver
+      tags: [subcontractor-compliance]
+      summary: Record a conditional, unconditional, or final waiver
+      parameters:
+        - $ref: "#/components/parameters/SubcontractPayApplicationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubcontractWaiverInput" }
+      responses:
+        "201":
+          description: Waiver
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubcontractWaiver" }
+  /subcontract-agreements/{agreementId}/closeout-items:
+    post:
+      operationId: createSubcontractCloseoutItem
+      tags: [subcontractor-compliance]
+      summary: Add a warranty, as-built, O&M, or final release requirement
+      parameters:
+        - $ref: "#/components/parameters/SubcontractAgreementId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubcontractCloseoutItemInput" }
+      responses:
+        "201":
+          description: Subcontract closeout item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubcontractCloseoutItem" }
   /dashboard/project-controls:
     get:
       operationId: getProjectControlsDashboard
@@ -2202,6 +2498,36 @@ components:
     SubmittalCoordinationId:
       in: path
       name: coordinationId
+      required: true
+      schema:
+        type: integer
+    TradePartnerId:
+      in: path
+      name: tradePartnerId
+      required: true
+      schema:
+        type: integer
+    ComplianceDocumentId:
+      in: path
+      name: documentId
+      required: true
+      schema:
+        type: integer
+    ProjectComplianceRequirementId:
+      in: path
+      name: requirementId
+      required: true
+      schema:
+        type: integer
+    SubcontractAgreementId:
+      in: path
+      name: agreementId
+      required: true
+      schema:
+        type: integer
+    SubcontractPayApplicationId:
+      in: path
+      name: applicationId
       required: true
       schema:
         type: integer
@@ -4350,4 +4676,364 @@ components:
               warningFields:
                 type: array
                 items: { type: string }
+
+    TradePartner:
+      type: object
+      required: [id, companyName, tradeCapabilities, serviceAreas, primaryContact, email, phone, qualificationStatus, status, complianceCounts, gates, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        companyName: { type: string }
+        tradeCapabilities:
+          type: array
+          items: { type: string }
+        serviceAreas:
+          type: array
+          items: { type: string }
+        primaryContact: { type: ["string", "null"] }
+        email: { type: ["string", "null"], format: email }
+        phone: { type: ["string", "null"] }
+        qualificationStatus: { type: string, enum: [pending, approved, rejected, expired] }
+        qualificationReviewedAt: { type: ["string", "null"], format: date-time }
+        status: { type: string, enum: [active, archived] }
+        complianceCounts:
+          type: object
+          required: [total, approved, pending, expired]
+          properties:
+            total: { type: integer }
+            approved: { type: integer }
+            pending: { type: integer }
+            expired: { type: integer }
+        gates:
+          type: object
+          required: [award, mobilization, billing, closeout, blockers]
+          properties:
+            award: { type: boolean }
+            mobilization: { type: boolean }
+            billing: { type: boolean }
+            closeout: { type: boolean }
+            blockers:
+              type: array
+              items: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TradePartnerDetail:
+      type: object
+      required: [partner, complianceDocuments, requirements, agreements]
+      properties:
+        partner: { $ref: "#/components/schemas/TradePartner" }
+        complianceDocuments:
+          type: array
+          items: { $ref: "#/components/schemas/ComplianceDocument" }
+        requirements:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectComplianceRequirement" }
+        agreements:
+          type: array
+          items: { $ref: "#/components/schemas/SubcontractAgreement" }
+    TradePartnerInput:
+      type: object
+      required: [companyName]
+      properties:
+        companyName: { type: string, minLength: 1, maxLength: 180 }
+        tradeCapabilities:
+          type: array
+          maxItems: 30
+          items: { type: string, minLength: 1, maxLength: 80 }
+        serviceAreas:
+          type: array
+          maxItems: 50
+          items: { type: string, minLength: 1, maxLength: 120 }
+        primaryContact: { type: string, maxLength: 180 }
+        email: { type: string, format: email, maxLength: 320 }
+        phone: { type: string, maxLength: 40 }
+        qualificationStatus: { type: string, enum: [pending, approved, rejected, expired] }
+        qualificationNotes: { type: string, maxLength: 5000 }
+    TradePartnerUpdate:
+      type: object
+      properties:
+        companyName: { type: string, minLength: 1, maxLength: 180 }
+        tradeCapabilities:
+          type: array
+          maxItems: 30
+          items: { type: string, minLength: 1, maxLength: 80 }
+        serviceAreas:
+          type: array
+          maxItems: 50
+          items: { type: string, minLength: 1, maxLength: 120 }
+        primaryContact: { type: ["string", "null"], maxLength: 180 }
+        email: { type: ["string", "null"], format: email, maxLength: 320 }
+        phone: { type: ["string", "null"], maxLength: 40 }
+        qualificationStatus: { type: string, enum: [pending, approved, rejected, expired] }
+        qualificationNotes: { type: ["string", "null"], maxLength: 5000 }
+        status: { type: string, enum: [active, archived] }
+    ComplianceDocument:
+      type: object
+      required: [id, tradePartnerId, projectId, documentType, title, documentNumber, issuer, expiresOn, status, objectPath, reviewedAt, reviewNotes, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        tradePartnerId: { type: integer }
+        projectId: { type: ["integer", "null"] }
+        documentType: { type: string }
+        title: { type: string }
+        documentNumber: { type: ["string", "null"] }
+        issuer: { type: ["string", "null"] }
+        expiresOn: { type: ["string", "null"], format: date }
+        status: { type: string, enum: [requested, submitted, approved, rejected, expired] }
+        objectPath: { type: ["string", "null"] }
+        reviewedAt: { type: ["string", "null"], format: date-time }
+        reviewNotes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ComplianceDocumentInput:
+      type: object
+      required: [documentType, title]
+      properties:
+        projectId: { type: integer }
+        documentType: { type: string, minLength: 1, maxLength: 80 }
+        title: { type: string, minLength: 1, maxLength: 240 }
+        documentNumber: { type: string, maxLength: 120 }
+        issuer: { type: string, maxLength: 180 }
+        expiresOn: { type: string, format: date }
+        status: { type: string, enum: [requested, submitted] }
+        objectPath: { type: string, pattern: "^/objects/" }
+    ComplianceDocumentUpdate:
+      type: object
+      properties:
+        status: { type: string, enum: [requested, submitted, approved, rejected, expired] }
+        documentNumber: { type: ["string", "null"], maxLength: 120 }
+        issuer: { type: ["string", "null"], maxLength: 180 }
+        expiresOn: { type: ["string", "null"], format: date }
+        objectPath: { type: ["string", "null"], pattern: "^/objects/" }
+        reviewNotes: { type: ["string", "null"], maxLength: 5000 }
+    ProjectComplianceRequirement:
+      type: object
+      required: [id, projectId, tradePartnerId, requirementType, title, status, dueDate, blocksAward, blocksMobilization, blocksBilling, blocksCloseout, complianceDocumentId, notes, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        tradePartnerId: { type: integer }
+        requirementType: { type: string }
+        title: { type: string }
+        status: { type: string, enum: [open, submitted, approved, rejected, waived, expired] }
+        dueDate: { type: ["string", "null"], format: date }
+        blocksAward: { type: boolean }
+        blocksMobilization: { type: boolean }
+        blocksBilling: { type: boolean }
+        blocksCloseout: { type: boolean }
+        complianceDocumentId: { type: ["integer", "null"] }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectComplianceRequirementInput:
+      type: object
+      required: [tradePartnerId, requirementType, title]
+      properties:
+        tradePartnerId: { type: integer }
+        requirementType: { type: string, minLength: 1, maxLength: 80 }
+        title: { type: string, minLength: 1, maxLength: 240 }
+        status: { type: string, enum: [open, submitted, approved, rejected, waived, expired] }
+        dueDate: { type: string, format: date }
+        blocksAward: { type: boolean }
+        blocksMobilization: { type: boolean }
+        blocksBilling: { type: boolean }
+        blocksCloseout: { type: boolean }
+        complianceDocumentId: { type: integer }
+        notes: { type: string, maxLength: 5000 }
+    ProjectComplianceRequirementUpdate:
+      type: object
+      properties:
+        status: { type: string, enum: [open, submitted, approved, rejected, waived, expired] }
+        title: { type: string, minLength: 1, maxLength: 240 }
+        dueDate: { type: ["string", "null"], format: date }
+        blocksAward: { type: boolean }
+        blocksMobilization: { type: boolean }
+        blocksBilling: { type: boolean }
+        blocksCloseout: { type: boolean }
+        complianceDocumentId: { type: ["integer", "null"] }
+        notes: { type: ["string", "null"], maxLength: 5000 }
+    SubcontractAgreement:
+      type: object
+      required: [id, projectId, tradePartnerId, tradePartnerName, agreementNumber, scope, originalValue, currentValue, contractStart, contractEnd, paymentTerms, retainagePercent, approvalStatus, status, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        tradePartnerId: { type: integer }
+        tradePartnerName: { type: string }
+        agreementNumber: { type: string }
+        scope: { type: string }
+        originalValue: { type: number }
+        currentValue: { type: number }
+        contractStart: { type: ["string", "null"], format: date }
+        contractEnd: { type: ["string", "null"], format: date }
+        paymentTerms: { type: ["string", "null"] }
+        retainagePercent: { type: number }
+        approvalStatus: { type: string, enum: [draft, pending, approved, rejected] }
+        status: { type: string, enum: [active, suspended, complete] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SubcontractAgreementInput:
+      type: object
+      required: [tradePartnerId, agreementNumber, scope, originalValue]
+      properties:
+        tradePartnerId: { type: integer }
+        agreementNumber: { type: string, minLength: 1, maxLength: 120 }
+        scope: { type: string, minLength: 1, maxLength: 5000 }
+        originalValue: { type: number, minimum: 0 }
+        currentValue: { type: number, minimum: 0 }
+        contractStart: { type: string, format: date }
+        contractEnd: { type: string, format: date }
+        paymentTerms: { type: string, maxLength: 1000 }
+        retainagePercent: { type: number, minimum: 0, maximum: 100 }
+        approvalStatus: { type: string, enum: [draft, pending] }
+    SubcontractAgreementDetail:
+      allOf:
+        - $ref: "#/components/schemas/SubcontractAgreement"
+        - type: object
+          required: [scheduleOfValues, changeOrders, payApplications, closeoutItems]
+          properties:
+            scheduleOfValues:
+              type: array
+              items: { $ref: "#/components/schemas/SubcontractScheduleOfValue" }
+            changeOrders:
+              type: array
+              items: { $ref: "#/components/schemas/SubcontractChangeOrder" }
+            payApplications:
+              type: array
+              items: { $ref: "#/components/schemas/SubcontractPayApplication" }
+            closeoutItems:
+              type: array
+              items: { $ref: "#/components/schemas/SubcontractCloseoutItem" }
+    SubcontractScheduleOfValue:
+      type: object
+      required: [id, agreementId, lineNumber, description, scheduledValue, approvedValue, billedToDate, percentComplete, retentionHeld, status]
+      properties:
+        id: { type: integer }
+        agreementId: { type: integer }
+        lineNumber: { type: string }
+        description: { type: string }
+        scheduledValue: { type: number }
+        approvedValue: { type: number }
+        billedToDate: { type: number }
+        percentComplete: { type: number }
+        retentionHeld: { type: number }
+        status: { type: string, enum: [draft, submitted, approved] }
+    SubcontractScheduleOfValueInput:
+      type: object
+      required: [lineNumber, description, scheduledValue]
+      properties:
+        lineNumber: { type: string, minLength: 1, maxLength: 30 }
+        description: { type: string, minLength: 1, maxLength: 240 }
+        scheduledValue: { type: number, minimum: 0 }
+        approvedValue: { type: number, minimum: 0 }
+        billedToDate: { type: number, minimum: 0 }
+        percentComplete: { type: number, minimum: 0, maximum: 100 }
+        retentionHeld: { type: number, minimum: 0 }
+        status: { type: string, enum: [draft, submitted, approved] }
+    SubcontractChangeOrder:
+      type: object
+      required: [id, agreementId, changeNumber, title, proposedValue, approvedValue, approvalStatus, scheduleImpactDays, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        agreementId: { type: integer }
+        changeNumber: { type: string }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        proposedValue: { type: number }
+        approvedValue: { type: number }
+        approvalStatus: { type: string, enum: [pending, approved, rejected] }
+        scheduleImpactDays: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SubcontractChangeOrderInput:
+      type: object
+      required: [changeNumber, title, proposedValue]
+      properties:
+        changeNumber: { type: string, minLength: 1, maxLength: 80 }
+        title: { type: string, minLength: 1, maxLength: 240 }
+        description: { type: string, maxLength: 5000 }
+        proposedValue: { type: number, minimum: 0 }
+        scheduleImpactDays: { type: integer, minimum: 0, maximum: 3650 }
+    SubcontractPayApplication:
+      type: object
+      required: [id, agreementId, applicationNumber, periodStart, periodEnd, grossAmount, retainageAmount, netAmount, storedMaterialsAmount, status, waiverStatus, rejectionReason, supportingDocumentPaths, submittedAt, approvedAt, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        agreementId: { type: integer }
+        applicationNumber: { type: string }
+        periodStart: { type: ["string", "null"], format: date }
+        periodEnd: { type: ["string", "null"], format: date }
+        grossAmount: { type: number }
+        retainageAmount: { type: number }
+        netAmount: { type: number }
+        storedMaterialsAmount: { type: number }
+        status: { type: string, enum: [draft, submitted, approved, rejected, paid] }
+        waiverStatus: { type: string, enum: [missing, conditional, unconditional, final] }
+        rejectionReason: { type: ["string", "null"] }
+        supportingDocumentPaths:
+          type: array
+          items: { type: string, pattern: "^/objects/" }
+        submittedAt: { type: ["string", "null"], format: date-time }
+        approvedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SubcontractPayApplicationInput:
+      type: object
+      required: [applicationNumber, grossAmount]
+      properties:
+        applicationNumber: { type: string, minLength: 1, maxLength: 80 }
+        periodStart: { type: string, format: date }
+        periodEnd: { type: string, format: date }
+        grossAmount: { type: number, minimum: 0 }
+        retainageAmount: { type: number, minimum: 0 }
+        storedMaterialsAmount: { type: number, minimum: 0 }
+        supportingDocumentPaths:
+          type: array
+          maxItems: 20
+          items: { type: string, pattern: "^/objects/" }
+    SubcontractWaiver:
+      type: object
+      required: [id, payApplicationId, waiverType, status, objectPath, receivedAt, reviewedAt, notes, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        payApplicationId: { type: integer }
+        waiverType: { type: string, enum: [conditional, unconditional, final] }
+        status: { type: string, enum: [missing, submitted, approved, rejected] }
+        objectPath: { type: ["string", "null"] }
+        receivedAt: { type: ["string", "null"], format: date-time }
+        reviewedAt: { type: ["string", "null"], format: date-time }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SubcontractWaiverInput:
+      type: object
+      required: [waiverType]
+      properties:
+        waiverType: { type: string, enum: [conditional, unconditional, final] }
+        status: { type: string, enum: [missing, submitted, approved, rejected] }
+        objectPath: { type: string, pattern: "^/objects/" }
+        notes: { type: string, maxLength: 5000 }
+    SubcontractCloseoutItem:
+      type: object
+      required: [id, agreementId, itemType, title, status, dueDate, objectPath, notes, completedAt, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        agreementId: { type: integer }
+        itemType: { type: string, enum: [warranty, as_built, operations_manual, final_release, other] }
+        title: { type: string }
+        status: { type: string, enum: [open, submitted, approved, rejected, waived] }
+        dueDate: { type: ["string", "null"], format: date }
+        objectPath: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        completedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SubcontractCloseoutItemInput:
+      type: object
+      required: [itemType, title]
+      properties:
+        itemType: { type: string, enum: [warranty, as_built, operations_manual, final_release, other] }
+        title: { type: string, minLength: 1, maxLength: 240 }
+        dueDate: { type: string, format: date }
+        objectPath: { type: string, pattern: "^/objects/" }
+        notes: { type: string, maxLength: 5000 }
 

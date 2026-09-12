@@ -1424,6 +1424,928 @@ export const UpdateProjectCloseoutRequirementResponse = zod.object({
 
 
 /**
+ * @summary List trade partners with compliance gates
+ */
+export const listTradePartnersQuerySearchMax = 120;
+
+
+
+export const ListTradePartnersQueryParams = zod.object({
+  "search": zod.coerce.string().max(listTradePartnersQuerySearchMax).optional(),
+  "status": zod.enum(['active', 'archived']).optional()
+})
+
+export const ListTradePartnersResponseItem = zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "tradeCapabilities": zod.array(zod.string()),
+  "serviceAreas": zod.array(zod.string()),
+  "primaryContact": zod.string().nullable(),
+  "email": zod.string().email().nullable(),
+  "phone": zod.string().nullable(),
+  "qualificationStatus": zod.enum(['pending', 'approved', 'rejected', 'expired']),
+  "qualificationReviewedAt": zod.coerce.date().nullish(),
+  "status": zod.enum(['active', 'archived']),
+  "complianceCounts": zod.object({
+  "total": zod.number().int(),
+  "approved": zod.number().int(),
+  "pending": zod.number().int(),
+  "expired": zod.number().int()
+}),
+  "gates": zod.object({
+  "award": zod.boolean(),
+  "mobilization": zod.boolean(),
+  "billing": zod.boolean(),
+  "closeout": zod.boolean(),
+  "blockers": zod.array(zod.string())
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListTradePartnersResponse = zod.array(ListTradePartnersResponseItem)
+
+
+/**
+ * @summary Create a trade partner
+ */
+export const createTradePartnerBodyCompanyNameMax = 180;
+
+export const createTradePartnerBodyTradeCapabilitiesItemMax = 80;
+
+export const createTradePartnerBodyTradeCapabilitiesMax = 30;
+
+export const createTradePartnerBodyServiceAreasItemMax = 120;
+
+export const createTradePartnerBodyServiceAreasMax = 50;
+
+export const createTradePartnerBodyPrimaryContactMax = 180;
+
+export const createTradePartnerBodyEmailMax = 320;
+
+export const createTradePartnerBodyPhoneMax = 40;
+
+export const createTradePartnerBodyQualificationNotesMax = 5000;
+
+
+
+export const CreateTradePartnerBody = zod.object({
+  "companyName": zod.string().min(1).max(createTradePartnerBodyCompanyNameMax),
+  "tradeCapabilities": zod.array(zod.string().min(1).max(createTradePartnerBodyTradeCapabilitiesItemMax)).max(createTradePartnerBodyTradeCapabilitiesMax).optional(),
+  "serviceAreas": zod.array(zod.string().min(1).max(createTradePartnerBodyServiceAreasItemMax)).max(createTradePartnerBodyServiceAreasMax).optional(),
+  "primaryContact": zod.string().max(createTradePartnerBodyPrimaryContactMax).optional(),
+  "email": zod.string().email().max(createTradePartnerBodyEmailMax).optional(),
+  "phone": zod.string().max(createTradePartnerBodyPhoneMax).optional(),
+  "qualificationStatus": zod.enum(['pending', 'approved', 'rejected', 'expired']).optional(),
+  "qualificationNotes": zod.string().max(createTradePartnerBodyQualificationNotesMax).optional()
+})
+
+export const CreateTradePartnerResponse = zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "tradeCapabilities": zod.array(zod.string()),
+  "serviceAreas": zod.array(zod.string()),
+  "primaryContact": zod.string().nullable(),
+  "email": zod.string().email().nullable(),
+  "phone": zod.string().nullable(),
+  "qualificationStatus": zod.enum(['pending', 'approved', 'rejected', 'expired']),
+  "qualificationReviewedAt": zod.coerce.date().nullish(),
+  "status": zod.enum(['active', 'archived']),
+  "complianceCounts": zod.object({
+  "total": zod.number().int(),
+  "approved": zod.number().int(),
+  "pending": zod.number().int(),
+  "expired": zod.number().int()
+}),
+  "gates": zod.object({
+  "award": zod.boolean(),
+  "mobilization": zod.boolean(),
+  "billing": zod.boolean(),
+  "closeout": zod.boolean(),
+  "blockers": zod.array(zod.string())
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a trade partner with compliance history
+ */
+export const GetTradePartnerParams = zod.object({
+  "tradePartnerId": zod.coerce.number().int()
+})
+
+export const GetTradePartnerResponse = zod.object({
+  "partner": zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "tradeCapabilities": zod.array(zod.string()),
+  "serviceAreas": zod.array(zod.string()),
+  "primaryContact": zod.string().nullable(),
+  "email": zod.string().email().nullable(),
+  "phone": zod.string().nullable(),
+  "qualificationStatus": zod.enum(['pending', 'approved', 'rejected', 'expired']),
+  "qualificationReviewedAt": zod.coerce.date().nullish(),
+  "status": zod.enum(['active', 'archived']),
+  "complianceCounts": zod.object({
+  "total": zod.number().int(),
+  "approved": zod.number().int(),
+  "pending": zod.number().int(),
+  "expired": zod.number().int()
+}),
+  "gates": zod.object({
+  "award": zod.boolean(),
+  "mobilization": zod.boolean(),
+  "billing": zod.boolean(),
+  "closeout": zod.boolean(),
+  "blockers": zod.array(zod.string())
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "complianceDocuments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "projectId": zod.number().int().nullable(),
+  "documentType": zod.string(),
+  "title": zod.string(),
+  "documentNumber": zod.string().nullable(),
+  "issuer": zod.string().nullable(),
+  "expiresOn": zod.coerce.date().nullable(),
+  "status": zod.enum(['requested', 'submitted', 'approved', 'rejected', 'expired']),
+  "objectPath": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewNotes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "requirements": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "requirementType": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['open', 'submitted', 'approved', 'rejected', 'waived', 'expired']),
+  "dueDate": zod.coerce.date().nullable(),
+  "blocksAward": zod.boolean(),
+  "blocksMobilization": zod.boolean(),
+  "blocksBilling": zod.boolean(),
+  "blocksCloseout": zod.boolean(),
+  "complianceDocumentId": zod.number().int().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "agreements": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "tradePartnerName": zod.string(),
+  "agreementNumber": zod.string(),
+  "scope": zod.string(),
+  "originalValue": zod.number(),
+  "currentValue": zod.number(),
+  "contractStart": zod.coerce.date().nullable(),
+  "contractEnd": zod.coerce.date().nullable(),
+  "paymentTerms": zod.string().nullable(),
+  "retainagePercent": zod.number(),
+  "approvalStatus": zod.enum(['draft', 'pending', 'approved', 'rejected']),
+  "status": zod.enum(['active', 'suspended', 'complete']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Update trade partner qualification
+ */
+export const UpdateTradePartnerParams = zod.object({
+  "tradePartnerId": zod.coerce.number().int()
+})
+
+export const updateTradePartnerBodyCompanyNameMax = 180;
+
+export const updateTradePartnerBodyTradeCapabilitiesItemMax = 80;
+
+export const updateTradePartnerBodyTradeCapabilitiesMax = 30;
+
+export const updateTradePartnerBodyServiceAreasItemMax = 120;
+
+export const updateTradePartnerBodyServiceAreasMax = 50;
+
+export const updateTradePartnerBodyPrimaryContactMax = 180;
+
+export const updateTradePartnerBodyEmailMax = 320;
+
+export const updateTradePartnerBodyPhoneMax = 40;
+
+export const updateTradePartnerBodyQualificationNotesMax = 5000;
+
+
+
+export const UpdateTradePartnerBody = zod.object({
+  "companyName": zod.string().min(1).max(updateTradePartnerBodyCompanyNameMax).optional(),
+  "tradeCapabilities": zod.array(zod.string().min(1).max(updateTradePartnerBodyTradeCapabilitiesItemMax)).max(updateTradePartnerBodyTradeCapabilitiesMax).optional(),
+  "serviceAreas": zod.array(zod.string().min(1).max(updateTradePartnerBodyServiceAreasItemMax)).max(updateTradePartnerBodyServiceAreasMax).optional(),
+  "primaryContact": zod.string().max(updateTradePartnerBodyPrimaryContactMax).nullish(),
+  "email": zod.string().email().max(updateTradePartnerBodyEmailMax).nullish(),
+  "phone": zod.string().max(updateTradePartnerBodyPhoneMax).nullish(),
+  "qualificationStatus": zod.enum(['pending', 'approved', 'rejected', 'expired']).optional(),
+  "qualificationNotes": zod.string().max(updateTradePartnerBodyQualificationNotesMax).nullish(),
+  "status": zod.enum(['active', 'archived']).optional()
+})
+
+export const UpdateTradePartnerResponse = zod.object({
+  "id": zod.number().int(),
+  "companyName": zod.string(),
+  "tradeCapabilities": zod.array(zod.string()),
+  "serviceAreas": zod.array(zod.string()),
+  "primaryContact": zod.string().nullable(),
+  "email": zod.string().email().nullable(),
+  "phone": zod.string().nullable(),
+  "qualificationStatus": zod.enum(['pending', 'approved', 'rejected', 'expired']),
+  "qualificationReviewedAt": zod.coerce.date().nullish(),
+  "status": zod.enum(['active', 'archived']),
+  "complianceCounts": zod.object({
+  "total": zod.number().int(),
+  "approved": zod.number().int(),
+  "pending": zod.number().int(),
+  "expired": zod.number().int()
+}),
+  "gates": zod.object({
+  "award": zod.boolean(),
+  "mobilization": zod.boolean(),
+  "billing": zod.boolean(),
+  "closeout": zod.boolean(),
+  "blockers": zod.array(zod.string())
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Request or submit a trade partner compliance document
+ */
+export const CreateTradePartnerComplianceDocumentParams = zod.object({
+  "tradePartnerId": zod.coerce.number().int()
+})
+
+export const createTradePartnerComplianceDocumentBodyDocumentTypeMax = 80;
+
+export const createTradePartnerComplianceDocumentBodyTitleMax = 240;
+
+export const createTradePartnerComplianceDocumentBodyDocumentNumberMax = 120;
+
+export const createTradePartnerComplianceDocumentBodyIssuerMax = 180;
+
+export const createTradePartnerComplianceDocumentBodyObjectPathRegExp = new RegExp('^/objects');
+
+
+export const CreateTradePartnerComplianceDocumentBody = zod.object({
+  "projectId": zod.number().int().optional(),
+  "documentType": zod.string().min(1).max(createTradePartnerComplianceDocumentBodyDocumentTypeMax),
+  "title": zod.string().min(1).max(createTradePartnerComplianceDocumentBodyTitleMax),
+  "documentNumber": zod.string().max(createTradePartnerComplianceDocumentBodyDocumentNumberMax).optional(),
+  "issuer": zod.string().max(createTradePartnerComplianceDocumentBodyIssuerMax).optional(),
+  "expiresOn": zod.coerce.date().optional(),
+  "status": zod.enum(['requested', 'submitted']).optional(),
+  "objectPath": zod.string().regex(createTradePartnerComplianceDocumentBodyObjectPathRegExp).optional()
+})
+
+export const CreateTradePartnerComplianceDocumentResponse = zod.object({
+  "id": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "projectId": zod.number().int().nullable(),
+  "documentType": zod.string(),
+  "title": zod.string(),
+  "documentNumber": zod.string().nullable(),
+  "issuer": zod.string().nullable(),
+  "expiresOn": zod.coerce.date().nullable(),
+  "status": zod.enum(['requested', 'submitted', 'approved', 'rejected', 'expired']),
+  "objectPath": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewNotes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Review a trade partner compliance document
+ */
+export const UpdateTradePartnerComplianceDocumentParams = zod.object({
+  "tradePartnerId": zod.coerce.number().int(),
+  "documentId": zod.coerce.number().int()
+})
+
+export const updateTradePartnerComplianceDocumentBodyDocumentNumberMax = 120;
+
+export const updateTradePartnerComplianceDocumentBodyIssuerMax = 180;
+
+export const updateTradePartnerComplianceDocumentBodyObjectPathRegExp = new RegExp('^/objects');
+export const updateTradePartnerComplianceDocumentBodyReviewNotesMax = 5000;
+
+
+
+export const UpdateTradePartnerComplianceDocumentBody = zod.object({
+  "status": zod.enum(['requested', 'submitted', 'approved', 'rejected', 'expired']).optional(),
+  "documentNumber": zod.string().max(updateTradePartnerComplianceDocumentBodyDocumentNumberMax).nullish(),
+  "issuer": zod.string().max(updateTradePartnerComplianceDocumentBodyIssuerMax).nullish(),
+  "expiresOn": zod.coerce.date().nullish(),
+  "objectPath": zod.string().regex(updateTradePartnerComplianceDocumentBodyObjectPathRegExp).nullish(),
+  "reviewNotes": zod.string().max(updateTradePartnerComplianceDocumentBodyReviewNotesMax).nullish()
+})
+
+export const UpdateTradePartnerComplianceDocumentResponse = zod.object({
+  "id": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "projectId": zod.number().int().nullable(),
+  "documentType": zod.string(),
+  "title": zod.string(),
+  "documentNumber": zod.string().nullable(),
+  "issuer": zod.string().nullable(),
+  "expiresOn": zod.coerce.date().nullable(),
+  "status": zod.enum(['requested', 'submitted', 'approved', 'rejected', 'expired']),
+  "objectPath": zod.string().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewNotes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List project compliance requirements
+ */
+export const ListProjectComplianceRequirementsParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const ListProjectComplianceRequirementsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "requirementType": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['open', 'submitted', 'approved', 'rejected', 'waived', 'expired']),
+  "dueDate": zod.coerce.date().nullable(),
+  "blocksAward": zod.boolean(),
+  "blocksMobilization": zod.boolean(),
+  "blocksBilling": zod.boolean(),
+  "blocksCloseout": zod.boolean(),
+  "complianceDocumentId": zod.number().int().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListProjectComplianceRequirementsResponse = zod.array(ListProjectComplianceRequirementsResponseItem)
+
+
+/**
+ * @summary Configure a project compliance gate
+ */
+export const CreateProjectComplianceRequirementParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const createProjectComplianceRequirementBodyRequirementTypeMax = 80;
+
+export const createProjectComplianceRequirementBodyTitleMax = 240;
+
+export const createProjectComplianceRequirementBodyNotesMax = 5000;
+
+
+
+export const CreateProjectComplianceRequirementBody = zod.object({
+  "tradePartnerId": zod.number().int(),
+  "requirementType": zod.string().min(1).max(createProjectComplianceRequirementBodyRequirementTypeMax),
+  "title": zod.string().min(1).max(createProjectComplianceRequirementBodyTitleMax),
+  "status": zod.enum(['open', 'submitted', 'approved', 'rejected', 'waived', 'expired']).optional(),
+  "dueDate": zod.coerce.date().optional(),
+  "blocksAward": zod.boolean().optional(),
+  "blocksMobilization": zod.boolean().optional(),
+  "blocksBilling": zod.boolean().optional(),
+  "blocksCloseout": zod.boolean().optional(),
+  "complianceDocumentId": zod.number().int().optional(),
+  "notes": zod.string().max(createProjectComplianceRequirementBodyNotesMax).optional()
+})
+
+export const CreateProjectComplianceRequirementResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "requirementType": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['open', 'submitted', 'approved', 'rejected', 'waived', 'expired']),
+  "dueDate": zod.coerce.date().nullable(),
+  "blocksAward": zod.boolean(),
+  "blocksMobilization": zod.boolean(),
+  "blocksBilling": zod.boolean(),
+  "blocksCloseout": zod.boolean(),
+  "complianceDocumentId": zod.number().int().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a project compliance gate
+ */
+export const UpdateProjectComplianceRequirementParams = zod.object({
+  "projectId": zod.coerce.number().int(),
+  "requirementId": zod.coerce.number().int()
+})
+
+export const updateProjectComplianceRequirementBodyTitleMax = 240;
+
+export const updateProjectComplianceRequirementBodyNotesMax = 5000;
+
+
+
+export const UpdateProjectComplianceRequirementBody = zod.object({
+  "status": zod.enum(['open', 'submitted', 'approved', 'rejected', 'waived', 'expired']).optional(),
+  "title": zod.string().min(1).max(updateProjectComplianceRequirementBodyTitleMax).optional(),
+  "dueDate": zod.coerce.date().nullish(),
+  "blocksAward": zod.boolean().optional(),
+  "blocksMobilization": zod.boolean().optional(),
+  "blocksBilling": zod.boolean().optional(),
+  "blocksCloseout": zod.boolean().optional(),
+  "complianceDocumentId": zod.number().int().nullish(),
+  "notes": zod.string().max(updateProjectComplianceRequirementBodyNotesMax).nullish()
+})
+
+export const UpdateProjectComplianceRequirementResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "requirementType": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['open', 'submitted', 'approved', 'rejected', 'waived', 'expired']),
+  "dueDate": zod.coerce.date().nullable(),
+  "blocksAward": zod.boolean(),
+  "blocksMobilization": zod.boolean(),
+  "blocksBilling": zod.boolean(),
+  "blocksCloseout": zod.boolean(),
+  "complianceDocumentId": zod.number().int().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List subcontract agreements
+ */
+export const ListSubcontractAgreementsQueryParams = zod.object({
+  "projectId": zod.coerce.number().int().optional(),
+  "tradePartnerId": zod.coerce.number().int().optional()
+})
+
+export const ListSubcontractAgreementsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "tradePartnerName": zod.string(),
+  "agreementNumber": zod.string(),
+  "scope": zod.string(),
+  "originalValue": zod.number(),
+  "currentValue": zod.number(),
+  "contractStart": zod.coerce.date().nullable(),
+  "contractEnd": zod.coerce.date().nullable(),
+  "paymentTerms": zod.string().nullable(),
+  "retainagePercent": zod.number(),
+  "approvalStatus": zod.enum(['draft', 'pending', 'approved', 'rejected']),
+  "status": zod.enum(['active', 'suspended', 'complete']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListSubcontractAgreementsResponse = zod.array(ListSubcontractAgreementsResponseItem)
+
+
+/**
+ * @summary Create a subcontract agreement
+ */
+export const CreateSubcontractAgreementParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const createSubcontractAgreementBodyAgreementNumberMax = 120;
+
+export const createSubcontractAgreementBodyScopeMax = 5000;
+
+export const createSubcontractAgreementBodyOriginalValueMin = 0;
+
+export const createSubcontractAgreementBodyCurrentValueMin = 0;
+
+export const createSubcontractAgreementBodyPaymentTermsMax = 1000;
+
+export const createSubcontractAgreementBodyRetainagePercentMin = 0;
+export const createSubcontractAgreementBodyRetainagePercentMax = 100;
+
+
+
+export const CreateSubcontractAgreementBody = zod.object({
+  "tradePartnerId": zod.number().int(),
+  "agreementNumber": zod.string().min(1).max(createSubcontractAgreementBodyAgreementNumberMax),
+  "scope": zod.string().min(1).max(createSubcontractAgreementBodyScopeMax),
+  "originalValue": zod.number().min(createSubcontractAgreementBodyOriginalValueMin),
+  "currentValue": zod.number().min(createSubcontractAgreementBodyCurrentValueMin).optional(),
+  "contractStart": zod.coerce.date().optional(),
+  "contractEnd": zod.coerce.date().optional(),
+  "paymentTerms": zod.string().max(createSubcontractAgreementBodyPaymentTermsMax).optional(),
+  "retainagePercent": zod.number().min(createSubcontractAgreementBodyRetainagePercentMin).max(createSubcontractAgreementBodyRetainagePercentMax).optional(),
+  "approvalStatus": zod.enum(['draft', 'pending']).optional()
+})
+
+export const createSubcontractAgreementResponseTwoPayApplicationsItemSupportingDocumentPathsItemRegExp = new RegExp('^/objects');
+
+
+export const CreateSubcontractAgreementResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "tradePartnerName": zod.string(),
+  "agreementNumber": zod.string(),
+  "scope": zod.string(),
+  "originalValue": zod.number(),
+  "currentValue": zod.number(),
+  "contractStart": zod.coerce.date().nullable(),
+  "contractEnd": zod.coerce.date().nullable(),
+  "paymentTerms": zod.string().nullable(),
+  "retainagePercent": zod.number(),
+  "approvalStatus": zod.enum(['draft', 'pending', 'approved', 'rejected']),
+  "status": zod.enum(['active', 'suspended', 'complete']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "scheduleOfValues": zod.array(zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "lineNumber": zod.string(),
+  "description": zod.string(),
+  "scheduledValue": zod.number(),
+  "approvedValue": zod.number(),
+  "billedToDate": zod.number(),
+  "percentComplete": zod.number(),
+  "retentionHeld": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved'])
+})),
+  "changeOrders": zod.array(zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "changeNumber": zod.string(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "proposedValue": zod.number(),
+  "approvedValue": zod.number(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "scheduleImpactDays": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "payApplications": zod.array(zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "applicationNumber": zod.string(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "grossAmount": zod.number(),
+  "retainageAmount": zod.number(),
+  "netAmount": zod.number(),
+  "storedMaterialsAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'rejected', 'paid']),
+  "waiverStatus": zod.enum(['missing', 'conditional', 'unconditional', 'final']),
+  "rejectionReason": zod.string().nullable(),
+  "supportingDocumentPaths": zod.array(zod.string().regex(createSubcontractAgreementResponseTwoPayApplicationsItemSupportingDocumentPathsItemRegExp)),
+  "submittedAt": zod.coerce.date().nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "closeoutItems": zod.array(zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "itemType": zod.enum(['warranty', 'as_built', 'operations_manual', 'final_release', 'other']),
+  "title": zod.string(),
+  "status": zod.enum(['open', 'submitted', 'approved', 'rejected', 'waived']),
+  "dueDate": zod.coerce.date().nullable(),
+  "objectPath": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Get a subcontract agreement with payment and closeout history
+ */
+export const GetSubcontractAgreementParams = zod.object({
+  "agreementId": zod.coerce.number().int()
+})
+
+export const getSubcontractAgreementResponseTwoPayApplicationsItemSupportingDocumentPathsItemRegExp = new RegExp('^/objects');
+
+
+export const GetSubcontractAgreementResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "tradePartnerName": zod.string(),
+  "agreementNumber": zod.string(),
+  "scope": zod.string(),
+  "originalValue": zod.number(),
+  "currentValue": zod.number(),
+  "contractStart": zod.coerce.date().nullable(),
+  "contractEnd": zod.coerce.date().nullable(),
+  "paymentTerms": zod.string().nullable(),
+  "retainagePercent": zod.number(),
+  "approvalStatus": zod.enum(['draft', 'pending', 'approved', 'rejected']),
+  "status": zod.enum(['active', 'suspended', 'complete']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "scheduleOfValues": zod.array(zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "lineNumber": zod.string(),
+  "description": zod.string(),
+  "scheduledValue": zod.number(),
+  "approvedValue": zod.number(),
+  "billedToDate": zod.number(),
+  "percentComplete": zod.number(),
+  "retentionHeld": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved'])
+})),
+  "changeOrders": zod.array(zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "changeNumber": zod.string(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "proposedValue": zod.number(),
+  "approvedValue": zod.number(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "scheduleImpactDays": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "payApplications": zod.array(zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "applicationNumber": zod.string(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "grossAmount": zod.number(),
+  "retainageAmount": zod.number(),
+  "netAmount": zod.number(),
+  "storedMaterialsAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'rejected', 'paid']),
+  "waiverStatus": zod.enum(['missing', 'conditional', 'unconditional', 'final']),
+  "rejectionReason": zod.string().nullable(),
+  "supportingDocumentPaths": zod.array(zod.string().regex(getSubcontractAgreementResponseTwoPayApplicationsItemSupportingDocumentPathsItemRegExp)),
+  "submittedAt": zod.coerce.date().nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "closeoutItems": zod.array(zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "itemType": zod.enum(['warranty', 'as_built', 'operations_manual', 'final_release', 'other']),
+  "title": zod.string(),
+  "status": zod.enum(['open', 'submitted', 'approved', 'rejected', 'waived']),
+  "dueDate": zod.coerce.date().nullable(),
+  "objectPath": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Add a subcontract schedule-of-values line
+ */
+export const CreateSubcontractScheduleOfValueParams = zod.object({
+  "agreementId": zod.coerce.number().int()
+})
+
+export const createSubcontractScheduleOfValueBodyLineNumberMax = 30;
+
+export const createSubcontractScheduleOfValueBodyDescriptionMax = 240;
+
+export const createSubcontractScheduleOfValueBodyScheduledValueMin = 0;
+
+export const createSubcontractScheduleOfValueBodyApprovedValueMin = 0;
+
+export const createSubcontractScheduleOfValueBodyBilledToDateMin = 0;
+
+export const createSubcontractScheduleOfValueBodyPercentCompleteMin = 0;
+export const createSubcontractScheduleOfValueBodyPercentCompleteMax = 100;
+
+export const createSubcontractScheduleOfValueBodyRetentionHeldMin = 0;
+
+
+
+export const CreateSubcontractScheduleOfValueBody = zod.object({
+  "lineNumber": zod.string().min(1).max(createSubcontractScheduleOfValueBodyLineNumberMax),
+  "description": zod.string().min(1).max(createSubcontractScheduleOfValueBodyDescriptionMax),
+  "scheduledValue": zod.number().min(createSubcontractScheduleOfValueBodyScheduledValueMin),
+  "approvedValue": zod.number().min(createSubcontractScheduleOfValueBodyApprovedValueMin).optional(),
+  "billedToDate": zod.number().min(createSubcontractScheduleOfValueBodyBilledToDateMin).optional(),
+  "percentComplete": zod.number().min(createSubcontractScheduleOfValueBodyPercentCompleteMin).max(createSubcontractScheduleOfValueBodyPercentCompleteMax).optional(),
+  "retentionHeld": zod.number().min(createSubcontractScheduleOfValueBodyRetentionHeldMin).optional(),
+  "status": zod.enum(['draft', 'submitted', 'approved']).optional()
+})
+
+export const CreateSubcontractScheduleOfValueResponse = zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "lineNumber": zod.string(),
+  "description": zod.string(),
+  "scheduledValue": zod.number(),
+  "approvedValue": zod.number(),
+  "billedToDate": zod.number(),
+  "percentComplete": zod.number(),
+  "retentionHeld": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved'])
+})
+
+
+/**
+ * @summary Submit a subcontract change order
+ */
+export const CreateSubcontractChangeOrderParams = zod.object({
+  "agreementId": zod.coerce.number().int()
+})
+
+export const createSubcontractChangeOrderBodyChangeNumberMax = 80;
+
+export const createSubcontractChangeOrderBodyTitleMax = 240;
+
+export const createSubcontractChangeOrderBodyDescriptionMax = 5000;
+
+export const createSubcontractChangeOrderBodyProposedValueMin = 0;
+
+export const createSubcontractChangeOrderBodyScheduleImpactDaysMin = 0;
+export const createSubcontractChangeOrderBodyScheduleImpactDaysMax = 3650;
+
+
+
+export const CreateSubcontractChangeOrderBody = zod.object({
+  "changeNumber": zod.string().min(1).max(createSubcontractChangeOrderBodyChangeNumberMax),
+  "title": zod.string().min(1).max(createSubcontractChangeOrderBodyTitleMax),
+  "description": zod.string().max(createSubcontractChangeOrderBodyDescriptionMax).optional(),
+  "proposedValue": zod.number().min(createSubcontractChangeOrderBodyProposedValueMin),
+  "scheduleImpactDays": zod.number().int().min(createSubcontractChangeOrderBodyScheduleImpactDaysMin).max(createSubcontractChangeOrderBodyScheduleImpactDaysMax).optional()
+})
+
+export const CreateSubcontractChangeOrderResponse = zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "changeNumber": zod.string(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "proposedValue": zod.number(),
+  "approvedValue": zod.number(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "scheduleImpactDays": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Submit a subcontract progress pay application
+ */
+export const CreateSubcontractPayApplicationParams = zod.object({
+  "agreementId": zod.coerce.number().int()
+})
+
+export const createSubcontractPayApplicationBodyApplicationNumberMax = 80;
+
+export const createSubcontractPayApplicationBodyGrossAmountMin = 0;
+
+export const createSubcontractPayApplicationBodyRetainageAmountMin = 0;
+
+export const createSubcontractPayApplicationBodyStoredMaterialsAmountMin = 0;
+
+export const createSubcontractPayApplicationBodySupportingDocumentPathsItemRegExp = new RegExp('^/objects');
+export const createSubcontractPayApplicationBodySupportingDocumentPathsMax = 20;
+
+
+
+export const CreateSubcontractPayApplicationBody = zod.object({
+  "applicationNumber": zod.string().min(1).max(createSubcontractPayApplicationBodyApplicationNumberMax),
+  "periodStart": zod.coerce.date().optional(),
+  "periodEnd": zod.coerce.date().optional(),
+  "grossAmount": zod.number().min(createSubcontractPayApplicationBodyGrossAmountMin),
+  "retainageAmount": zod.number().min(createSubcontractPayApplicationBodyRetainageAmountMin).optional(),
+  "storedMaterialsAmount": zod.number().min(createSubcontractPayApplicationBodyStoredMaterialsAmountMin).optional(),
+  "supportingDocumentPaths": zod.array(zod.string().regex(createSubcontractPayApplicationBodySupportingDocumentPathsItemRegExp)).max(createSubcontractPayApplicationBodySupportingDocumentPathsMax).optional()
+})
+
+export const createSubcontractPayApplicationResponseSupportingDocumentPathsItemRegExp = new RegExp('^/objects');
+
+
+export const CreateSubcontractPayApplicationResponse = zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "applicationNumber": zod.string(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "grossAmount": zod.number(),
+  "retainageAmount": zod.number(),
+  "netAmount": zod.number(),
+  "storedMaterialsAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'rejected', 'paid']),
+  "waiverStatus": zod.enum(['missing', 'conditional', 'unconditional', 'final']),
+  "rejectionReason": zod.string().nullable(),
+  "supportingDocumentPaths": zod.array(zod.string().regex(createSubcontractPayApplicationResponseSupportingDocumentPathsItemRegExp)),
+  "submittedAt": zod.coerce.date().nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Record a conditional, unconditional, or final waiver
+ */
+export const CreateSubcontractWaiverParams = zod.object({
+  "applicationId": zod.coerce.number().int()
+})
+
+export const createSubcontractWaiverBodyObjectPathRegExp = new RegExp('^/objects');
+export const createSubcontractWaiverBodyNotesMax = 5000;
+
+
+
+export const CreateSubcontractWaiverBody = zod.object({
+  "waiverType": zod.enum(['conditional', 'unconditional', 'final']),
+  "status": zod.enum(['missing', 'submitted', 'approved', 'rejected']).optional(),
+  "objectPath": zod.string().regex(createSubcontractWaiverBodyObjectPathRegExp).optional(),
+  "notes": zod.string().max(createSubcontractWaiverBodyNotesMax).optional()
+})
+
+export const CreateSubcontractWaiverResponse = zod.object({
+  "id": zod.number().int(),
+  "payApplicationId": zod.number().int(),
+  "waiverType": zod.enum(['conditional', 'unconditional', 'final']),
+  "status": zod.enum(['missing', 'submitted', 'approved', 'rejected']),
+  "objectPath": zod.string().nullable(),
+  "receivedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Add a warranty, as-built, O&M, or final release requirement
+ */
+export const CreateSubcontractCloseoutItemParams = zod.object({
+  "agreementId": zod.coerce.number().int()
+})
+
+export const createSubcontractCloseoutItemBodyTitleMax = 240;
+
+export const createSubcontractCloseoutItemBodyObjectPathRegExp = new RegExp('^/objects');
+export const createSubcontractCloseoutItemBodyNotesMax = 5000;
+
+
+
+export const CreateSubcontractCloseoutItemBody = zod.object({
+  "itemType": zod.enum(['warranty', 'as_built', 'operations_manual', 'final_release', 'other']),
+  "title": zod.string().min(1).max(createSubcontractCloseoutItemBodyTitleMax),
+  "dueDate": zod.coerce.date().optional(),
+  "objectPath": zod.string().regex(createSubcontractCloseoutItemBodyObjectPathRegExp).optional(),
+  "notes": zod.string().max(createSubcontractCloseoutItemBodyNotesMax).optional()
+})
+
+export const CreateSubcontractCloseoutItemResponse = zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "itemType": zod.enum(['warranty', 'as_built', 'operations_manual', 'final_release', 'other']),
+  "title": zod.string(),
+  "status": zod.enum(['open', 'submitted', 'approved', 'rejected', 'waived']),
+  "dueDate": zod.coerce.date().nullable(),
+  "objectPath": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Get project controls rollups for the dashboard
  */
 export const GetProjectControlsDashboardResponse = zod.object({

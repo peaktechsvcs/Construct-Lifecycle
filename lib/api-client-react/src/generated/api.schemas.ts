@@ -3695,9 +3695,779 @@ export interface WorkflowConfigInput {
   transitions: WorkflowConfigInputTransitionsItem[];
 }
 
+export type TradePartnerQualificationStatus = typeof TradePartnerQualificationStatus[keyof typeof TradePartnerQualificationStatus];
+
+
+export const TradePartnerQualificationStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+  expired: 'expired',
+} as const;
+
+export type TradePartnerStatus = typeof TradePartnerStatus[keyof typeof TradePartnerStatus];
+
+
+export const TradePartnerStatus = {
+  active: 'active',
+  archived: 'archived',
+} as const;
+
+export type TradePartnerComplianceCounts = {
+  total: number;
+  approved: number;
+  pending: number;
+  expired: number;
+};
+
+export type TradePartnerGates = {
+  award: boolean;
+  mobilization: boolean;
+  billing: boolean;
+  closeout: boolean;
+  blockers: string[];
+};
+
+export interface TradePartner {
+  id: number;
+  companyName: string;
+  tradeCapabilities: string[];
+  serviceAreas: string[];
+  /** @nullable */
+  primaryContact: string | null;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  phone: string | null;
+  qualificationStatus: TradePartnerQualificationStatus;
+  /** @nullable */
+  qualificationReviewedAt?: string | null;
+  status: TradePartnerStatus;
+  complianceCounts: TradePartnerComplianceCounts;
+  gates: TradePartnerGates;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ComplianceDocumentStatus = typeof ComplianceDocumentStatus[keyof typeof ComplianceDocumentStatus];
+
+
+export const ComplianceDocumentStatus = {
+  requested: 'requested',
+  submitted: 'submitted',
+  approved: 'approved',
+  rejected: 'rejected',
+  expired: 'expired',
+} as const;
+
+export interface ComplianceDocument {
+  id: number;
+  tradePartnerId: number;
+  /** @nullable */
+  projectId: number | null;
+  documentType: string;
+  title: string;
+  /** @nullable */
+  documentNumber: string | null;
+  /** @nullable */
+  issuer: string | null;
+  /** @nullable */
+  expiresOn: string | null;
+  status: ComplianceDocumentStatus;
+  /** @nullable */
+  objectPath: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  /** @nullable */
+  reviewNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProjectComplianceRequirementStatus = typeof ProjectComplianceRequirementStatus[keyof typeof ProjectComplianceRequirementStatus];
+
+
+export const ProjectComplianceRequirementStatus = {
+  open: 'open',
+  submitted: 'submitted',
+  approved: 'approved',
+  rejected: 'rejected',
+  waived: 'waived',
+  expired: 'expired',
+} as const;
+
+export interface ProjectComplianceRequirement {
+  id: number;
+  projectId: number;
+  tradePartnerId: number;
+  requirementType: string;
+  title: string;
+  status: ProjectComplianceRequirementStatus;
+  /** @nullable */
+  dueDate: string | null;
+  blocksAward: boolean;
+  blocksMobilization: boolean;
+  blocksBilling: boolean;
+  blocksCloseout: boolean;
+  /** @nullable */
+  complianceDocumentId: number | null;
+  /** @nullable */
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SubcontractAgreementApprovalStatus = typeof SubcontractAgreementApprovalStatus[keyof typeof SubcontractAgreementApprovalStatus];
+
+
+export const SubcontractAgreementApprovalStatus = {
+  draft: 'draft',
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type SubcontractAgreementStatus = typeof SubcontractAgreementStatus[keyof typeof SubcontractAgreementStatus];
+
+
+export const SubcontractAgreementStatus = {
+  active: 'active',
+  suspended: 'suspended',
+  complete: 'complete',
+} as const;
+
+export interface SubcontractAgreement {
+  id: number;
+  projectId: number;
+  tradePartnerId: number;
+  tradePartnerName: string;
+  agreementNumber: string;
+  scope: string;
+  originalValue: number;
+  currentValue: number;
+  /** @nullable */
+  contractStart: string | null;
+  /** @nullable */
+  contractEnd: string | null;
+  /** @nullable */
+  paymentTerms: string | null;
+  retainagePercent: number;
+  approvalStatus: SubcontractAgreementApprovalStatus;
+  status: SubcontractAgreementStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TradePartnerDetail {
+  partner: TradePartner;
+  complianceDocuments: ComplianceDocument[];
+  requirements: ProjectComplianceRequirement[];
+  agreements: SubcontractAgreement[];
+}
+
+export type TradePartnerInputQualificationStatus = typeof TradePartnerInputQualificationStatus[keyof typeof TradePartnerInputQualificationStatus];
+
+
+export const TradePartnerInputQualificationStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+  expired: 'expired',
+} as const;
+
+export interface TradePartnerInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  companyName: string;
+  /**
+     * @maxItems 30
+     * @items.minLength 1
+     * @items.maxLength 80
+     */
+  tradeCapabilities?: string[];
+  /**
+     * @maxItems 50
+     * @items.minLength 1
+     * @items.maxLength 120
+     */
+  serviceAreas?: string[];
+  /** @maxLength 180 */
+  primaryContact?: string;
+  /** @maxLength 320 */
+  email?: string;
+  /** @maxLength 40 */
+  phone?: string;
+  qualificationStatus?: TradePartnerInputQualificationStatus;
+  /** @maxLength 5000 */
+  qualificationNotes?: string;
+}
+
+export type TradePartnerUpdateQualificationStatus = typeof TradePartnerUpdateQualificationStatus[keyof typeof TradePartnerUpdateQualificationStatus];
+
+
+export const TradePartnerUpdateQualificationStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+  expired: 'expired',
+} as const;
+
+export type TradePartnerUpdateStatus = typeof TradePartnerUpdateStatus[keyof typeof TradePartnerUpdateStatus];
+
+
+export const TradePartnerUpdateStatus = {
+  active: 'active',
+  archived: 'archived',
+} as const;
+
+export interface TradePartnerUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  companyName?: string;
+  /**
+     * @maxItems 30
+     * @items.minLength 1
+     * @items.maxLength 80
+     */
+  tradeCapabilities?: string[];
+  /**
+     * @maxItems 50
+     * @items.minLength 1
+     * @items.maxLength 120
+     */
+  serviceAreas?: string[];
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  primaryContact?: string | null;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  email?: string | null;
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  phone?: string | null;
+  qualificationStatus?: TradePartnerUpdateQualificationStatus;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  qualificationNotes?: string | null;
+  status?: TradePartnerUpdateStatus;
+}
+
+export type ComplianceDocumentInputStatus = typeof ComplianceDocumentInputStatus[keyof typeof ComplianceDocumentInputStatus];
+
+
+export const ComplianceDocumentInputStatus = {
+  requested: 'requested',
+  submitted: 'submitted',
+} as const;
+
+export interface ComplianceDocumentInput {
+  projectId?: number;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  documentType: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  title: string;
+  /** @maxLength 120 */
+  documentNumber?: string;
+  /** @maxLength 180 */
+  issuer?: string;
+  expiresOn?: string;
+  status?: ComplianceDocumentInputStatus;
+  /** @pattern ^/objects/ */
+  objectPath?: string;
+}
+
+export type ComplianceDocumentUpdateStatus = typeof ComplianceDocumentUpdateStatus[keyof typeof ComplianceDocumentUpdateStatus];
+
+
+export const ComplianceDocumentUpdateStatus = {
+  requested: 'requested',
+  submitted: 'submitted',
+  approved: 'approved',
+  rejected: 'rejected',
+  expired: 'expired',
+} as const;
+
+export interface ComplianceDocumentUpdate {
+  status?: ComplianceDocumentUpdateStatus;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  documentNumber?: string | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  issuer?: string | null;
+  /** @nullable */
+  expiresOn?: string | null;
+  /**
+     * @nullable
+     * @pattern ^/objects/
+     */
+  objectPath?: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  reviewNotes?: string | null;
+}
+
+export type ProjectComplianceRequirementInputStatus = typeof ProjectComplianceRequirementInputStatus[keyof typeof ProjectComplianceRequirementInputStatus];
+
+
+export const ProjectComplianceRequirementInputStatus = {
+  open: 'open',
+  submitted: 'submitted',
+  approved: 'approved',
+  rejected: 'rejected',
+  waived: 'waived',
+  expired: 'expired',
+} as const;
+
+export interface ProjectComplianceRequirementInput {
+  tradePartnerId: number;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  requirementType: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  title: string;
+  status?: ProjectComplianceRequirementInputStatus;
+  dueDate?: string;
+  blocksAward?: boolean;
+  blocksMobilization?: boolean;
+  blocksBilling?: boolean;
+  blocksCloseout?: boolean;
+  complianceDocumentId?: number;
+  /** @maxLength 5000 */
+  notes?: string;
+}
+
+export type ProjectComplianceRequirementUpdateStatus = typeof ProjectComplianceRequirementUpdateStatus[keyof typeof ProjectComplianceRequirementUpdateStatus];
+
+
+export const ProjectComplianceRequirementUpdateStatus = {
+  open: 'open',
+  submitted: 'submitted',
+  approved: 'approved',
+  rejected: 'rejected',
+  waived: 'waived',
+  expired: 'expired',
+} as const;
+
+export interface ProjectComplianceRequirementUpdate {
+  status?: ProjectComplianceRequirementUpdateStatus;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  title?: string;
+  /** @nullable */
+  dueDate?: string | null;
+  blocksAward?: boolean;
+  blocksMobilization?: boolean;
+  blocksBilling?: boolean;
+  blocksCloseout?: boolean;
+  /** @nullable */
+  complianceDocumentId?: number | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  notes?: string | null;
+}
+
+export type SubcontractAgreementInputApprovalStatus = typeof SubcontractAgreementInputApprovalStatus[keyof typeof SubcontractAgreementInputApprovalStatus];
+
+
+export const SubcontractAgreementInputApprovalStatus = {
+  draft: 'draft',
+  pending: 'pending',
+} as const;
+
+export interface SubcontractAgreementInput {
+  tradePartnerId: number;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  agreementNumber: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  scope: string;
+  /** @minimum 0 */
+  originalValue: number;
+  /** @minimum 0 */
+  currentValue?: number;
+  contractStart?: string;
+  contractEnd?: string;
+  /** @maxLength 1000 */
+  paymentTerms?: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  retainagePercent?: number;
+  approvalStatus?: SubcontractAgreementInputApprovalStatus;
+}
+
+export type SubcontractScheduleOfValueStatus = typeof SubcontractScheduleOfValueStatus[keyof typeof SubcontractScheduleOfValueStatus];
+
+
+export const SubcontractScheduleOfValueStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+} as const;
+
+export interface SubcontractScheduleOfValue {
+  id: number;
+  agreementId: number;
+  lineNumber: string;
+  description: string;
+  scheduledValue: number;
+  approvedValue: number;
+  billedToDate: number;
+  percentComplete: number;
+  retentionHeld: number;
+  status: SubcontractScheduleOfValueStatus;
+}
+
+export type SubcontractChangeOrderApprovalStatus = typeof SubcontractChangeOrderApprovalStatus[keyof typeof SubcontractChangeOrderApprovalStatus];
+
+
+export const SubcontractChangeOrderApprovalStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface SubcontractChangeOrder {
+  id: number;
+  agreementId: number;
+  changeNumber: string;
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  proposedValue: number;
+  approvedValue: number;
+  approvalStatus: SubcontractChangeOrderApprovalStatus;
+  scheduleImpactDays: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SubcontractPayApplicationStatus = typeof SubcontractPayApplicationStatus[keyof typeof SubcontractPayApplicationStatus];
+
+
+export const SubcontractPayApplicationStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+  rejected: 'rejected',
+  paid: 'paid',
+} as const;
+
+export type SubcontractPayApplicationWaiverStatus = typeof SubcontractPayApplicationWaiverStatus[keyof typeof SubcontractPayApplicationWaiverStatus];
+
+
+export const SubcontractPayApplicationWaiverStatus = {
+  missing: 'missing',
+  conditional: 'conditional',
+  unconditional: 'unconditional',
+  final: 'final',
+} as const;
+
+export interface SubcontractPayApplication {
+  id: number;
+  agreementId: number;
+  applicationNumber: string;
+  /** @nullable */
+  periodStart: string | null;
+  /** @nullable */
+  periodEnd: string | null;
+  grossAmount: number;
+  retainageAmount: number;
+  netAmount: number;
+  storedMaterialsAmount: number;
+  status: SubcontractPayApplicationStatus;
+  waiverStatus: SubcontractPayApplicationWaiverStatus;
+  /** @nullable */
+  rejectionReason: string | null;
+  /** @items.pattern ^/objects/ */
+  supportingDocumentPaths: string[];
+  /** @nullable */
+  submittedAt: string | null;
+  /** @nullable */
+  approvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SubcontractCloseoutItemItemType = typeof SubcontractCloseoutItemItemType[keyof typeof SubcontractCloseoutItemItemType];
+
+
+export const SubcontractCloseoutItemItemType = {
+  warranty: 'warranty',
+  as_built: 'as_built',
+  operations_manual: 'operations_manual',
+  final_release: 'final_release',
+  other: 'other',
+} as const;
+
+export type SubcontractCloseoutItemStatus = typeof SubcontractCloseoutItemStatus[keyof typeof SubcontractCloseoutItemStatus];
+
+
+export const SubcontractCloseoutItemStatus = {
+  open: 'open',
+  submitted: 'submitted',
+  approved: 'approved',
+  rejected: 'rejected',
+  waived: 'waived',
+} as const;
+
+export interface SubcontractCloseoutItem {
+  id: number;
+  agreementId: number;
+  itemType: SubcontractCloseoutItemItemType;
+  title: string;
+  status: SubcontractCloseoutItemStatus;
+  /** @nullable */
+  dueDate: string | null;
+  /** @nullable */
+  objectPath: string | null;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SubcontractAgreementDetail = SubcontractAgreement & {
+  scheduleOfValues: SubcontractScheduleOfValue[];
+  changeOrders: SubcontractChangeOrder[];
+  payApplications: SubcontractPayApplication[];
+  closeoutItems: SubcontractCloseoutItem[];
+};
+
+export type SubcontractScheduleOfValueInputStatus = typeof SubcontractScheduleOfValueInputStatus[keyof typeof SubcontractScheduleOfValueInputStatus];
+
+
+export const SubcontractScheduleOfValueInputStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+} as const;
+
+export interface SubcontractScheduleOfValueInput {
+  /**
+     * @minLength 1
+     * @maxLength 30
+     */
+  lineNumber: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  description: string;
+  /** @minimum 0 */
+  scheduledValue: number;
+  /** @minimum 0 */
+  approvedValue?: number;
+  /** @minimum 0 */
+  billedToDate?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  percentComplete?: number;
+  /** @minimum 0 */
+  retentionHeld?: number;
+  status?: SubcontractScheduleOfValueInputStatus;
+}
+
+export interface SubcontractChangeOrderInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  changeNumber: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  title: string;
+  /** @maxLength 5000 */
+  description?: string;
+  /** @minimum 0 */
+  proposedValue: number;
+  /**
+     * @minimum 0
+     * @maximum 3650
+     */
+  scheduleImpactDays?: number;
+}
+
+export interface SubcontractPayApplicationInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  applicationNumber: string;
+  periodStart?: string;
+  periodEnd?: string;
+  /** @minimum 0 */
+  grossAmount: number;
+  /** @minimum 0 */
+  retainageAmount?: number;
+  /** @minimum 0 */
+  storedMaterialsAmount?: number;
+  /**
+     * @maxItems 20
+     * @items.pattern ^/objects/
+     */
+  supportingDocumentPaths?: string[];
+}
+
+export type SubcontractWaiverWaiverType = typeof SubcontractWaiverWaiverType[keyof typeof SubcontractWaiverWaiverType];
+
+
+export const SubcontractWaiverWaiverType = {
+  conditional: 'conditional',
+  unconditional: 'unconditional',
+  final: 'final',
+} as const;
+
+export type SubcontractWaiverStatus = typeof SubcontractWaiverStatus[keyof typeof SubcontractWaiverStatus];
+
+
+export const SubcontractWaiverStatus = {
+  missing: 'missing',
+  submitted: 'submitted',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface SubcontractWaiver {
+  id: number;
+  payApplicationId: number;
+  waiverType: SubcontractWaiverWaiverType;
+  status: SubcontractWaiverStatus;
+  /** @nullable */
+  objectPath: string | null;
+  /** @nullable */
+  receivedAt: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  /** @nullable */
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SubcontractWaiverInputWaiverType = typeof SubcontractWaiverInputWaiverType[keyof typeof SubcontractWaiverInputWaiverType];
+
+
+export const SubcontractWaiverInputWaiverType = {
+  conditional: 'conditional',
+  unconditional: 'unconditional',
+  final: 'final',
+} as const;
+
+export type SubcontractWaiverInputStatus = typeof SubcontractWaiverInputStatus[keyof typeof SubcontractWaiverInputStatus];
+
+
+export const SubcontractWaiverInputStatus = {
+  missing: 'missing',
+  submitted: 'submitted',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface SubcontractWaiverInput {
+  waiverType: SubcontractWaiverInputWaiverType;
+  status?: SubcontractWaiverInputStatus;
+  /** @pattern ^/objects/ */
+  objectPath?: string;
+  /** @maxLength 5000 */
+  notes?: string;
+}
+
+export type SubcontractCloseoutItemInputItemType = typeof SubcontractCloseoutItemInputItemType[keyof typeof SubcontractCloseoutItemInputItemType];
+
+
+export const SubcontractCloseoutItemInputItemType = {
+  warranty: 'warranty',
+  as_built: 'as_built',
+  operations_manual: 'operations_manual',
+  final_release: 'final_release',
+  other: 'other',
+} as const;
+
+export interface SubcontractCloseoutItemInput {
+  itemType: SubcontractCloseoutItemInputItemType;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  title: string;
+  dueDate?: string;
+  /** @pattern ^/objects/ */
+  objectPath?: string;
+  /** @maxLength 5000 */
+  notes?: string;
+}
+
 export type ListProjectsParams = {
 search?: string;
 stage?: ProjectStage;
+};
+
+export type ListTradePartnersParams = {
+/**
+ * @maxLength 120
+ */
+search?: string;
+status?: ListTradePartnersStatus;
+};
+
+export type ListTradePartnersStatus = typeof ListTradePartnersStatus[keyof typeof ListTradePartnersStatus];
+
+
+export const ListTradePartnersStatus = {
+  active: 'active',
+  archived: 'archived',
+} as const;
+
+export type ListSubcontractAgreementsParams = {
+projectId?: number;
+tradePartnerId?: number;
 };
 
 export type ListOpportunitiesParams = {

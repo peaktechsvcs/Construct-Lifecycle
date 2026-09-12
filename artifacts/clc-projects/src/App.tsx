@@ -23,6 +23,7 @@ import { Submittals } from '@/pages/submittals';
 import { ProjectDetail } from '@/pages/project-detail';
 import { Customers } from '@/pages/customers';
 import { CustomerDetail } from '@/pages/customer-detail';
+import { Compliance } from '@/pages/compliance';
 import { FollowUps } from '@/pages/follow-ups';
 import { PlatformCustomers } from '@/pages/platform-customers';
 import { PlatformFeatures } from '@/pages/platform-features';
@@ -242,6 +243,9 @@ function AppRouter() {
         </Route>
         <Route path="/customers/:id">
           <Shell><ProtectedRoute component={CustomerDetail} /></Shell>
+        </Route>
+        <Route path="/compliance">
+          <Shell><ProtectedRoute component={Compliance} /></Shell>
         </Route>
         <Route path="/follow-ups">
           <Shell><ProtectedRoute component={FollowUps} /></Shell>

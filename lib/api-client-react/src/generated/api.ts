@@ -40,6 +40,9 @@ import type {
   BusinessCustomerInput,
   BusinessCustomerSummary,
   BusinessCustomerUpdate,
+  ComplianceDocument,
+  ComplianceDocumentInput,
+  ComplianceDocumentUpdate,
   CreateBillingPlanInput,
   CreateBillingPlanResponse,
   CreatePlatformCustomerInput,
@@ -74,7 +77,9 @@ import type {
   ListOpportunitiesParams,
   ListProjectsParams,
   ListProposalsParams,
+  ListSubcontractAgreementsParams,
   ListSubmittalPackagesParams,
+  ListTradePartnersParams,
   NotificationListResponse,
   NotificationReadInput,
   Opportunity,
@@ -92,6 +97,9 @@ import type {
   ProjectCommitment,
   ProjectCommitmentInput,
   ProjectCommitmentUpdate,
+  ProjectComplianceRequirement,
+  ProjectComplianceRequirementInput,
+  ProjectComplianceRequirementUpdate,
   ProjectContract,
   ProjectContractInput,
   ProjectControlsDashboard,
@@ -116,6 +124,19 @@ import type {
   ScheduleOfValue,
   ScheduleOfValueInput,
   ScheduleOfValueUpdate,
+  SubcontractAgreement,
+  SubcontractAgreementDetail,
+  SubcontractAgreementInput,
+  SubcontractChangeOrder,
+  SubcontractChangeOrderInput,
+  SubcontractCloseoutItem,
+  SubcontractCloseoutItemInput,
+  SubcontractPayApplication,
+  SubcontractPayApplicationInput,
+  SubcontractScheduleOfValue,
+  SubcontractScheduleOfValueInput,
+  SubcontractWaiver,
+  SubcontractWaiverInput,
   SubmittalAssembly,
   SubmittalAssemblyInput,
   SubmittalCoordination,
@@ -143,6 +164,10 @@ import type {
   TenantContext,
   TenantInvitation,
   TenantMember,
+  TradePartner,
+  TradePartnerDetail,
+  TradePartnerInput,
+  TradePartnerUpdate,
   UpdatePlatformCustomerInput,
   UpdateTenantBusinessProfileInput,
   UpdateTenantMemberInput,
@@ -1945,6 +1970,1272 @@ export const useUpdateProjectCloseoutRequirement = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateProjectCloseoutRequirementMutationOptions(options));
+    }
+
+export const getListTradePartnersUrl = (params?: ListTradePartnersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/trade-partners?${stringifiedParams}` : `/api/trade-partners`
+}
+
+/**
+ * @summary List trade partners with compliance gates
+ */
+export const listTradePartners = async (params?: ListTradePartnersParams, options?: Parameters<typeof customFetch>[1]): Promise<TradePartner[]> => {
+
+  return customFetch<TradePartner[]>(getListTradePartnersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTradePartnersQueryKey = (params?: ListTradePartnersParams,) => {
+    return [
+    `/api/trade-partners`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListTradePartnersQueryOptions = <TData = Awaited<ReturnType<typeof listTradePartners>>, TError = ErrorType<unknown>>(params?: ListTradePartnersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTradePartners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTradePartnersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTradePartners>>> = ({ signal }) => listTradePartners(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTradePartners>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTradePartnersQueryResult = NonNullable<Awaited<ReturnType<typeof listTradePartners>>>
+export type ListTradePartnersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List trade partners with compliance gates
+ */
+
+export function useListTradePartners<TData = Awaited<ReturnType<typeof listTradePartners>>, TError = ErrorType<unknown>>(
+ params?: ListTradePartnersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTradePartners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTradePartnersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTradePartnerUrl = () => {
+
+
+
+
+  return `/api/trade-partners`
+}
+
+/**
+ * @summary Create a trade partner
+ */
+export const createTradePartner = async (tradePartnerInput: TradePartnerInput, options?: Parameters<typeof customFetch>[1]): Promise<TradePartner> => {
+
+  return customFetch<TradePartner>(getCreateTradePartnerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(tradePartnerInput)
+  }
+);}
+
+
+
+
+
+export const getCreateTradePartnerMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTradePartner>>, TError,{data: BodyType<TradePartnerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTradePartner>>, TError,{data: BodyType<TradePartnerInput>}, TContext> => {
+
+const mutationKey = ['createTradePartner'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTradePartner>>, {data: BodyType<TradePartnerInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTradePartner(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTradePartnerMutationResult = NonNullable<Awaited<ReturnType<typeof createTradePartner>>>
+    export type CreateTradePartnerMutationBody = BodyType<TradePartnerInput>
+    export type CreateTradePartnerMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a trade partner
+ */
+export const useCreateTradePartner = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTradePartner>>, TError,{data: BodyType<TradePartnerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTradePartner>>,
+        TError,
+        {data: BodyType<TradePartnerInput>},
+        TContext
+      > => {
+      return useMutation(getCreateTradePartnerMutationOptions(options));
+    }
+
+export const getGetTradePartnerUrl = (tradePartnerId: number,) => {
+
+
+
+
+  return `/api/trade-partners/${tradePartnerId}`
+}
+
+/**
+ * @summary Get a trade partner with compliance history
+ */
+export const getTradePartner = async (tradePartnerId: number, options?: Parameters<typeof customFetch>[1]): Promise<TradePartnerDetail> => {
+
+  return customFetch<TradePartnerDetail>(getGetTradePartnerUrl(tradePartnerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTradePartnerQueryKey = (tradePartnerId: number,) => {
+    return [
+    `/api/trade-partners/${tradePartnerId}`
+    ] as const;
+    }
+
+
+export const getGetTradePartnerQueryOptions = <TData = Awaited<ReturnType<typeof getTradePartner>>, TError = ErrorType<unknown>>(tradePartnerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTradePartner>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTradePartnerQueryKey(tradePartnerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTradePartner>>> = ({ signal }) => getTradePartner(tradePartnerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: tradePartnerId !== null && tradePartnerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTradePartner>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTradePartnerQueryResult = NonNullable<Awaited<ReturnType<typeof getTradePartner>>>
+export type GetTradePartnerQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a trade partner with compliance history
+ */
+
+export function useGetTradePartner<TData = Awaited<ReturnType<typeof getTradePartner>>, TError = ErrorType<unknown>>(
+ tradePartnerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTradePartner>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTradePartnerQueryOptions(tradePartnerId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateTradePartnerUrl = (tradePartnerId: number,) => {
+
+
+
+
+  return `/api/trade-partners/${tradePartnerId}`
+}
+
+/**
+ * @summary Update trade partner qualification
+ */
+export const updateTradePartner = async (tradePartnerId: number,
+    tradePartnerUpdate: TradePartnerUpdate, options?: Parameters<typeof customFetch>[1]): Promise<TradePartner> => {
+
+  return customFetch<TradePartner>(getUpdateTradePartnerUrl(tradePartnerId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(tradePartnerUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateTradePartnerMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTradePartner>>, TError,{tradePartnerId: number;data: BodyType<TradePartnerUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTradePartner>>, TError,{tradePartnerId: number;data: BodyType<TradePartnerUpdate>}, TContext> => {
+
+const mutationKey = ['updateTradePartner'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTradePartner>>, {tradePartnerId: number;data: BodyType<TradePartnerUpdate>}> = (props) => {
+          const {tradePartnerId,data} = props ?? {};
+
+          return  updateTradePartner(tradePartnerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTradePartnerMutationResult = NonNullable<Awaited<ReturnType<typeof updateTradePartner>>>
+    export type UpdateTradePartnerMutationBody = BodyType<TradePartnerUpdate>
+    export type UpdateTradePartnerMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update trade partner qualification
+ */
+export const useUpdateTradePartner = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTradePartner>>, TError,{tradePartnerId: number;data: BodyType<TradePartnerUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTradePartner>>,
+        TError,
+        {tradePartnerId: number;data: BodyType<TradePartnerUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateTradePartnerMutationOptions(options));
+    }
+
+export const getCreateTradePartnerComplianceDocumentUrl = (tradePartnerId: number,) => {
+
+
+
+
+  return `/api/trade-partners/${tradePartnerId}/compliance-documents`
+}
+
+/**
+ * @summary Request or submit a trade partner compliance document
+ */
+export const createTradePartnerComplianceDocument = async (tradePartnerId: number,
+    complianceDocumentInput: ComplianceDocumentInput, options?: Parameters<typeof customFetch>[1]): Promise<ComplianceDocument> => {
+
+  return customFetch<ComplianceDocument>(getCreateTradePartnerComplianceDocumentUrl(tradePartnerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(complianceDocumentInput)
+  }
+);}
+
+
+
+
+
+export const getCreateTradePartnerComplianceDocumentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTradePartnerComplianceDocument>>, TError,{tradePartnerId: number;data: BodyType<ComplianceDocumentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTradePartnerComplianceDocument>>, TError,{tradePartnerId: number;data: BodyType<ComplianceDocumentInput>}, TContext> => {
+
+const mutationKey = ['createTradePartnerComplianceDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTradePartnerComplianceDocument>>, {tradePartnerId: number;data: BodyType<ComplianceDocumentInput>}> = (props) => {
+          const {tradePartnerId,data} = props ?? {};
+
+          return  createTradePartnerComplianceDocument(tradePartnerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTradePartnerComplianceDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof createTradePartnerComplianceDocument>>>
+    export type CreateTradePartnerComplianceDocumentMutationBody = BodyType<ComplianceDocumentInput>
+    export type CreateTradePartnerComplianceDocumentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Request or submit a trade partner compliance document
+ */
+export const useCreateTradePartnerComplianceDocument = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTradePartnerComplianceDocument>>, TError,{tradePartnerId: number;data: BodyType<ComplianceDocumentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTradePartnerComplianceDocument>>,
+        TError,
+        {tradePartnerId: number;data: BodyType<ComplianceDocumentInput>},
+        TContext
+      > => {
+      return useMutation(getCreateTradePartnerComplianceDocumentMutationOptions(options));
+    }
+
+export const getUpdateTradePartnerComplianceDocumentUrl = (tradePartnerId: number,
+    documentId: number,) => {
+
+
+
+
+  return `/api/trade-partners/${tradePartnerId}/compliance-documents/${documentId}`
+}
+
+/**
+ * @summary Review a trade partner compliance document
+ */
+export const updateTradePartnerComplianceDocument = async (tradePartnerId: number,
+    documentId: number,
+    complianceDocumentUpdate: ComplianceDocumentUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ComplianceDocument> => {
+
+  return customFetch<ComplianceDocument>(getUpdateTradePartnerComplianceDocumentUrl(tradePartnerId,documentId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(complianceDocumentUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateTradePartnerComplianceDocumentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTradePartnerComplianceDocument>>, TError,{tradePartnerId: number;documentId: number;data: BodyType<ComplianceDocumentUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTradePartnerComplianceDocument>>, TError,{tradePartnerId: number;documentId: number;data: BodyType<ComplianceDocumentUpdate>}, TContext> => {
+
+const mutationKey = ['updateTradePartnerComplianceDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTradePartnerComplianceDocument>>, {tradePartnerId: number;documentId: number;data: BodyType<ComplianceDocumentUpdate>}> = (props) => {
+          const {tradePartnerId,documentId,data} = props ?? {};
+
+          return  updateTradePartnerComplianceDocument(tradePartnerId,documentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTradePartnerComplianceDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof updateTradePartnerComplianceDocument>>>
+    export type UpdateTradePartnerComplianceDocumentMutationBody = BodyType<ComplianceDocumentUpdate>
+    export type UpdateTradePartnerComplianceDocumentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Review a trade partner compliance document
+ */
+export const useUpdateTradePartnerComplianceDocument = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTradePartnerComplianceDocument>>, TError,{tradePartnerId: number;documentId: number;data: BodyType<ComplianceDocumentUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTradePartnerComplianceDocument>>,
+        TError,
+        {tradePartnerId: number;documentId: number;data: BodyType<ComplianceDocumentUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateTradePartnerComplianceDocumentMutationOptions(options));
+    }
+
+export const getListProjectComplianceRequirementsUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/compliance-requirements`
+}
+
+/**
+ * @summary List project compliance requirements
+ */
+export const listProjectComplianceRequirements = async (projectId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProjectComplianceRequirement[]> => {
+
+  return customFetch<ProjectComplianceRequirement[]>(getListProjectComplianceRequirementsUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProjectComplianceRequirementsQueryKey = (projectId: number,) => {
+    return [
+    `/api/projects/${projectId}/compliance-requirements`
+    ] as const;
+    }
+
+
+export const getListProjectComplianceRequirementsQueryOptions = <TData = Awaited<ReturnType<typeof listProjectComplianceRequirements>>, TError = ErrorType<unknown>>(projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjectComplianceRequirements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProjectComplianceRequirementsQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjectComplianceRequirements>>> = ({ signal }) => listProjectComplianceRequirements(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProjectComplianceRequirements>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProjectComplianceRequirementsQueryResult = NonNullable<Awaited<ReturnType<typeof listProjectComplianceRequirements>>>
+export type ListProjectComplianceRequirementsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List project compliance requirements
+ */
+
+export function useListProjectComplianceRequirements<TData = Awaited<ReturnType<typeof listProjectComplianceRequirements>>, TError = ErrorType<unknown>>(
+ projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjectComplianceRequirements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProjectComplianceRequirementsQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateProjectComplianceRequirementUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/compliance-requirements`
+}
+
+/**
+ * @summary Configure a project compliance gate
+ */
+export const createProjectComplianceRequirement = async (projectId: number,
+    projectComplianceRequirementInput: ProjectComplianceRequirementInput, options?: Parameters<typeof customFetch>[1]): Promise<ProjectComplianceRequirement> => {
+
+  return customFetch<ProjectComplianceRequirement>(getCreateProjectComplianceRequirementUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(projectComplianceRequirementInput)
+  }
+);}
+
+
+
+
+
+export const getCreateProjectComplianceRequirementMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProjectComplianceRequirement>>, TError,{projectId: number;data: BodyType<ProjectComplianceRequirementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProjectComplianceRequirement>>, TError,{projectId: number;data: BodyType<ProjectComplianceRequirementInput>}, TContext> => {
+
+const mutationKey = ['createProjectComplianceRequirement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProjectComplianceRequirement>>, {projectId: number;data: BodyType<ProjectComplianceRequirementInput>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  createProjectComplianceRequirement(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProjectComplianceRequirementMutationResult = NonNullable<Awaited<ReturnType<typeof createProjectComplianceRequirement>>>
+    export type CreateProjectComplianceRequirementMutationBody = BodyType<ProjectComplianceRequirementInput>
+    export type CreateProjectComplianceRequirementMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Configure a project compliance gate
+ */
+export const useCreateProjectComplianceRequirement = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProjectComplianceRequirement>>, TError,{projectId: number;data: BodyType<ProjectComplianceRequirementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProjectComplianceRequirement>>,
+        TError,
+        {projectId: number;data: BodyType<ProjectComplianceRequirementInput>},
+        TContext
+      > => {
+      return useMutation(getCreateProjectComplianceRequirementMutationOptions(options));
+    }
+
+export const getUpdateProjectComplianceRequirementUrl = (projectId: number,
+    requirementId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/compliance-requirements/${requirementId}`
+}
+
+/**
+ * @summary Update a project compliance gate
+ */
+export const updateProjectComplianceRequirement = async (projectId: number,
+    requirementId: number,
+    projectComplianceRequirementUpdate: ProjectComplianceRequirementUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ProjectComplianceRequirement> => {
+
+  return customFetch<ProjectComplianceRequirement>(getUpdateProjectComplianceRequirementUrl(projectId,requirementId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(projectComplianceRequirementUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateProjectComplianceRequirementMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProjectComplianceRequirement>>, TError,{projectId: number;requirementId: number;data: BodyType<ProjectComplianceRequirementUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProjectComplianceRequirement>>, TError,{projectId: number;requirementId: number;data: BodyType<ProjectComplianceRequirementUpdate>}, TContext> => {
+
+const mutationKey = ['updateProjectComplianceRequirement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProjectComplianceRequirement>>, {projectId: number;requirementId: number;data: BodyType<ProjectComplianceRequirementUpdate>}> = (props) => {
+          const {projectId,requirementId,data} = props ?? {};
+
+          return  updateProjectComplianceRequirement(projectId,requirementId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProjectComplianceRequirementMutationResult = NonNullable<Awaited<ReturnType<typeof updateProjectComplianceRequirement>>>
+    export type UpdateProjectComplianceRequirementMutationBody = BodyType<ProjectComplianceRequirementUpdate>
+    export type UpdateProjectComplianceRequirementMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a project compliance gate
+ */
+export const useUpdateProjectComplianceRequirement = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProjectComplianceRequirement>>, TError,{projectId: number;requirementId: number;data: BodyType<ProjectComplianceRequirementUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProjectComplianceRequirement>>,
+        TError,
+        {projectId: number;requirementId: number;data: BodyType<ProjectComplianceRequirementUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateProjectComplianceRequirementMutationOptions(options));
+    }
+
+export const getListSubcontractAgreementsUrl = (params?: ListSubcontractAgreementsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/subcontract-agreements?${stringifiedParams}` : `/api/subcontract-agreements`
+}
+
+/**
+ * @summary List subcontract agreements
+ */
+export const listSubcontractAgreements = async (params?: ListSubcontractAgreementsParams, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractAgreement[]> => {
+
+  return customFetch<SubcontractAgreement[]>(getListSubcontractAgreementsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSubcontractAgreementsQueryKey = (params?: ListSubcontractAgreementsParams,) => {
+    return [
+    `/api/subcontract-agreements`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSubcontractAgreementsQueryOptions = <TData = Awaited<ReturnType<typeof listSubcontractAgreements>>, TError = ErrorType<unknown>>(params?: ListSubcontractAgreementsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubcontractAgreements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSubcontractAgreementsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSubcontractAgreements>>> = ({ signal }) => listSubcontractAgreements(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSubcontractAgreements>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSubcontractAgreementsQueryResult = NonNullable<Awaited<ReturnType<typeof listSubcontractAgreements>>>
+export type ListSubcontractAgreementsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List subcontract agreements
+ */
+
+export function useListSubcontractAgreements<TData = Awaited<ReturnType<typeof listSubcontractAgreements>>, TError = ErrorType<unknown>>(
+ params?: ListSubcontractAgreementsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubcontractAgreements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSubcontractAgreementsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSubcontractAgreementUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/subcontract-agreements`
+}
+
+/**
+ * @summary Create a subcontract agreement
+ */
+export const createSubcontractAgreement = async (projectId: number,
+    subcontractAgreementInput: SubcontractAgreementInput, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractAgreementDetail> => {
+
+  return customFetch<SubcontractAgreementDetail>(getCreateSubcontractAgreementUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(subcontractAgreementInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSubcontractAgreementMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubcontractAgreement>>, TError,{projectId: number;data: BodyType<SubcontractAgreementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSubcontractAgreement>>, TError,{projectId: number;data: BodyType<SubcontractAgreementInput>}, TContext> => {
+
+const mutationKey = ['createSubcontractAgreement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubcontractAgreement>>, {projectId: number;data: BodyType<SubcontractAgreementInput>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  createSubcontractAgreement(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSubcontractAgreementMutationResult = NonNullable<Awaited<ReturnType<typeof createSubcontractAgreement>>>
+    export type CreateSubcontractAgreementMutationBody = BodyType<SubcontractAgreementInput>
+    export type CreateSubcontractAgreementMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a subcontract agreement
+ */
+export const useCreateSubcontractAgreement = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubcontractAgreement>>, TError,{projectId: number;data: BodyType<SubcontractAgreementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSubcontractAgreement>>,
+        TError,
+        {projectId: number;data: BodyType<SubcontractAgreementInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSubcontractAgreementMutationOptions(options));
+    }
+
+export const getGetSubcontractAgreementUrl = (agreementId: number,) => {
+
+
+
+
+  return `/api/subcontract-agreements/${agreementId}`
+}
+
+/**
+ * @summary Get a subcontract agreement with payment and closeout history
+ */
+export const getSubcontractAgreement = async (agreementId: number, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractAgreementDetail> => {
+
+  return customFetch<SubcontractAgreementDetail>(getGetSubcontractAgreementUrl(agreementId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSubcontractAgreementQueryKey = (agreementId: number,) => {
+    return [
+    `/api/subcontract-agreements/${agreementId}`
+    ] as const;
+    }
+
+
+export const getGetSubcontractAgreementQueryOptions = <TData = Awaited<ReturnType<typeof getSubcontractAgreement>>, TError = ErrorType<unknown>>(agreementId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubcontractAgreement>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSubcontractAgreementQueryKey(agreementId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSubcontractAgreement>>> = ({ signal }) => getSubcontractAgreement(agreementId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: agreementId !== null && agreementId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSubcontractAgreement>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSubcontractAgreementQueryResult = NonNullable<Awaited<ReturnType<typeof getSubcontractAgreement>>>
+export type GetSubcontractAgreementQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a subcontract agreement with payment and closeout history
+ */
+
+export function useGetSubcontractAgreement<TData = Awaited<ReturnType<typeof getSubcontractAgreement>>, TError = ErrorType<unknown>>(
+ agreementId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubcontractAgreement>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSubcontractAgreementQueryOptions(agreementId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSubcontractScheduleOfValueUrl = (agreementId: number,) => {
+
+
+
+
+  return `/api/subcontract-agreements/${agreementId}/schedule-of-values`
+}
+
+/**
+ * @summary Add a subcontract schedule-of-values line
+ */
+export const createSubcontractScheduleOfValue = async (agreementId: number,
+    subcontractScheduleOfValueInput: SubcontractScheduleOfValueInput, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractScheduleOfValue> => {
+
+  return customFetch<SubcontractScheduleOfValue>(getCreateSubcontractScheduleOfValueUrl(agreementId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(subcontractScheduleOfValueInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSubcontractScheduleOfValueMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubcontractScheduleOfValue>>, TError,{agreementId: number;data: BodyType<SubcontractScheduleOfValueInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSubcontractScheduleOfValue>>, TError,{agreementId: number;data: BodyType<SubcontractScheduleOfValueInput>}, TContext> => {
+
+const mutationKey = ['createSubcontractScheduleOfValue'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubcontractScheduleOfValue>>, {agreementId: number;data: BodyType<SubcontractScheduleOfValueInput>}> = (props) => {
+          const {agreementId,data} = props ?? {};
+
+          return  createSubcontractScheduleOfValue(agreementId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSubcontractScheduleOfValueMutationResult = NonNullable<Awaited<ReturnType<typeof createSubcontractScheduleOfValue>>>
+    export type CreateSubcontractScheduleOfValueMutationBody = BodyType<SubcontractScheduleOfValueInput>
+    export type CreateSubcontractScheduleOfValueMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a subcontract schedule-of-values line
+ */
+export const useCreateSubcontractScheduleOfValue = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubcontractScheduleOfValue>>, TError,{agreementId: number;data: BodyType<SubcontractScheduleOfValueInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSubcontractScheduleOfValue>>,
+        TError,
+        {agreementId: number;data: BodyType<SubcontractScheduleOfValueInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSubcontractScheduleOfValueMutationOptions(options));
+    }
+
+export const getCreateSubcontractChangeOrderUrl = (agreementId: number,) => {
+
+
+
+
+  return `/api/subcontract-agreements/${agreementId}/change-orders`
+}
+
+/**
+ * @summary Submit a subcontract change order
+ */
+export const createSubcontractChangeOrder = async (agreementId: number,
+    subcontractChangeOrderInput: SubcontractChangeOrderInput, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractChangeOrder> => {
+
+  return customFetch<SubcontractChangeOrder>(getCreateSubcontractChangeOrderUrl(agreementId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(subcontractChangeOrderInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSubcontractChangeOrderMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubcontractChangeOrder>>, TError,{agreementId: number;data: BodyType<SubcontractChangeOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSubcontractChangeOrder>>, TError,{agreementId: number;data: BodyType<SubcontractChangeOrderInput>}, TContext> => {
+
+const mutationKey = ['createSubcontractChangeOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubcontractChangeOrder>>, {agreementId: number;data: BodyType<SubcontractChangeOrderInput>}> = (props) => {
+          const {agreementId,data} = props ?? {};
+
+          return  createSubcontractChangeOrder(agreementId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSubcontractChangeOrderMutationResult = NonNullable<Awaited<ReturnType<typeof createSubcontractChangeOrder>>>
+    export type CreateSubcontractChangeOrderMutationBody = BodyType<SubcontractChangeOrderInput>
+    export type CreateSubcontractChangeOrderMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Submit a subcontract change order
+ */
+export const useCreateSubcontractChangeOrder = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubcontractChangeOrder>>, TError,{agreementId: number;data: BodyType<SubcontractChangeOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSubcontractChangeOrder>>,
+        TError,
+        {agreementId: number;data: BodyType<SubcontractChangeOrderInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSubcontractChangeOrderMutationOptions(options));
+    }
+
+export const getCreateSubcontractPayApplicationUrl = (agreementId: number,) => {
+
+
+
+
+  return `/api/subcontract-agreements/${agreementId}/pay-applications`
+}
+
+/**
+ * @summary Submit a subcontract progress pay application
+ */
+export const createSubcontractPayApplication = async (agreementId: number,
+    subcontractPayApplicationInput: SubcontractPayApplicationInput, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractPayApplication> => {
+
+  return customFetch<SubcontractPayApplication>(getCreateSubcontractPayApplicationUrl(agreementId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(subcontractPayApplicationInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSubcontractPayApplicationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubcontractPayApplication>>, TError,{agreementId: number;data: BodyType<SubcontractPayApplicationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSubcontractPayApplication>>, TError,{agreementId: number;data: BodyType<SubcontractPayApplicationInput>}, TContext> => {
+
+const mutationKey = ['createSubcontractPayApplication'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubcontractPayApplication>>, {agreementId: number;data: BodyType<SubcontractPayApplicationInput>}> = (props) => {
+          const {agreementId,data} = props ?? {};
+
+          return  createSubcontractPayApplication(agreementId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSubcontractPayApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof createSubcontractPayApplication>>>
+    export type CreateSubcontractPayApplicationMutationBody = BodyType<SubcontractPayApplicationInput>
+    export type CreateSubcontractPayApplicationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Submit a subcontract progress pay application
+ */
+export const useCreateSubcontractPayApplication = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubcontractPayApplication>>, TError,{agreementId: number;data: BodyType<SubcontractPayApplicationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSubcontractPayApplication>>,
+        TError,
+        {agreementId: number;data: BodyType<SubcontractPayApplicationInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSubcontractPayApplicationMutationOptions(options));
+    }
+
+export const getCreateSubcontractWaiverUrl = (applicationId: number,) => {
+
+
+
+
+  return `/api/subcontract-pay-applications/${applicationId}/waivers`
+}
+
+/**
+ * @summary Record a conditional, unconditional, or final waiver
+ */
+export const createSubcontractWaiver = async (applicationId: number,
+    subcontractWaiverInput: SubcontractWaiverInput, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractWaiver> => {
+
+  return customFetch<SubcontractWaiver>(getCreateSubcontractWaiverUrl(applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(subcontractWaiverInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSubcontractWaiverMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubcontractWaiver>>, TError,{applicationId: number;data: BodyType<SubcontractWaiverInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSubcontractWaiver>>, TError,{applicationId: number;data: BodyType<SubcontractWaiverInput>}, TContext> => {
+
+const mutationKey = ['createSubcontractWaiver'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubcontractWaiver>>, {applicationId: number;data: BodyType<SubcontractWaiverInput>}> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  createSubcontractWaiver(applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSubcontractWaiverMutationResult = NonNullable<Awaited<ReturnType<typeof createSubcontractWaiver>>>
+    export type CreateSubcontractWaiverMutationBody = BodyType<SubcontractWaiverInput>
+    export type CreateSubcontractWaiverMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Record a conditional, unconditional, or final waiver
+ */
+export const useCreateSubcontractWaiver = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubcontractWaiver>>, TError,{applicationId: number;data: BodyType<SubcontractWaiverInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSubcontractWaiver>>,
+        TError,
+        {applicationId: number;data: BodyType<SubcontractWaiverInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSubcontractWaiverMutationOptions(options));
+    }
+
+export const getCreateSubcontractCloseoutItemUrl = (agreementId: number,) => {
+
+
+
+
+  return `/api/subcontract-agreements/${agreementId}/closeout-items`
+}
+
+/**
+ * @summary Add a warranty, as-built, O&M, or final release requirement
+ */
+export const createSubcontractCloseoutItem = async (agreementId: number,
+    subcontractCloseoutItemInput: SubcontractCloseoutItemInput, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractCloseoutItem> => {
+
+  return customFetch<SubcontractCloseoutItem>(getCreateSubcontractCloseoutItemUrl(agreementId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(subcontractCloseoutItemInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSubcontractCloseoutItemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubcontractCloseoutItem>>, TError,{agreementId: number;data: BodyType<SubcontractCloseoutItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSubcontractCloseoutItem>>, TError,{agreementId: number;data: BodyType<SubcontractCloseoutItemInput>}, TContext> => {
+
+const mutationKey = ['createSubcontractCloseoutItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubcontractCloseoutItem>>, {agreementId: number;data: BodyType<SubcontractCloseoutItemInput>}> = (props) => {
+          const {agreementId,data} = props ?? {};
+
+          return  createSubcontractCloseoutItem(agreementId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSubcontractCloseoutItemMutationResult = NonNullable<Awaited<ReturnType<typeof createSubcontractCloseoutItem>>>
+    export type CreateSubcontractCloseoutItemMutationBody = BodyType<SubcontractCloseoutItemInput>
+    export type CreateSubcontractCloseoutItemMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a warranty, as-built, O&M, or final release requirement
+ */
+export const useCreateSubcontractCloseoutItem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubcontractCloseoutItem>>, TError,{agreementId: number;data: BodyType<SubcontractCloseoutItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSubcontractCloseoutItem>>,
+        TError,
+        {agreementId: number;data: BodyType<SubcontractCloseoutItemInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSubcontractCloseoutItemMutationOptions(options));
     }
 
 export const getGetProjectControlsDashboardUrl = () => {

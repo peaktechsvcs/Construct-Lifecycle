@@ -19,6 +19,7 @@ import submittalsRouter from "./submittals";
 import estimatesRouter from "./estimates";
 import proposalsRouter from "./proposals";
 import projectControlsRouter from "./project-controls";
+import subcontractorComplianceRouter from "./subcontractor-compliance";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(integrationsRouter);
 router.use(customersRouter);
 router.use(projectsRouter);
 router.use(projectControlsRouter);
+router.use(subcontractorComplianceRouter);
 
 export default router;

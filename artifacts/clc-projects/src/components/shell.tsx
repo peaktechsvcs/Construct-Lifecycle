@@ -203,6 +203,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     label: 'Operations',
     items: [
       { href: '/coming-soon/vendors', label: 'Vendors', icon: Building2 },
+      { href: '/compliance', label: 'Trade Partner Compliance', icon: ShieldCheck },
       { href: '/coming-soon/products', label: 'Products', icon: Package },
       { href: '/coming-soon/selections', label: 'Selections', icon: ListChecks },
       { href: '/coming-soon/procurement', label: 'Procurement', icon: ShoppingCart },
@@ -254,6 +255,7 @@ function getBreadcrumbLabel(location: string): string {
   if (location.startsWith('/opportunities')) return 'Opportunities';
   if (location.startsWith('/bids')) return 'Bids';
   if (location.startsWith('/customers')) return 'Customers';
+  if (location.startsWith('/compliance')) return 'Trade Partner Compliance';
   if (location.startsWith('/coming-soon/')) {
     return location.slice('/coming-soon/'.length).replace(/-/g, ' ');
   }
