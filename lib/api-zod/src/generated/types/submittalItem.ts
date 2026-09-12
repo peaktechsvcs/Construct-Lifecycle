@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SubmittalDocument } from './submittalDocument';
 import type { SubmittalItemStatus } from './submittalItemStatus';
 import type { SubmittalItemType } from './submittalItemType';
 
@@ -24,6 +25,7 @@ export interface SubmittalItem {
      * @nullable
      */
   documentUrl: string | null;
+  documents?: SubmittalDocument[];
   revision: number;
   createdAt: Date;
   updatedAt: Date;

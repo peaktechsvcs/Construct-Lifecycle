@@ -89,6 +89,9 @@ import type {
   ProposalInput,
   ProposalUpdate,
   PublishedBrandingContext,
+  SubmittalDocument,
+  SubmittalDocumentUpload,
+  SubmittalDocumentUploadInput,
   SubmittalItem,
   SubmittalItemInput,
   SubmittalItemUpdate,
@@ -2677,6 +2680,297 @@ export const useDeleteSubmittalItem = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteSubmittalItemMutationOptions(options));
+    }
+
+export const getRequestSubmittalDocumentUploadUrl = (itemId: number,) => {
+
+
+
+
+  return `/api/submittal-items/${itemId}/documents/request-upload`
+}
+
+/**
+ * @summary Request a protected submittal document upload URL
+ */
+export const requestSubmittalDocumentUpload = async (itemId: number,
+    submittalDocumentUploadInput: SubmittalDocumentUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalDocumentUpload> => {
+
+  return customFetch<SubmittalDocumentUpload>(getRequestSubmittalDocumentUploadUrl(itemId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalDocumentUploadInput)
+  }
+);}
+
+
+
+
+
+export const getRequestSubmittalDocumentUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestSubmittalDocumentUpload>>, TError,{itemId: number;data: BodyType<SubmittalDocumentUploadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestSubmittalDocumentUpload>>, TError,{itemId: number;data: BodyType<SubmittalDocumentUploadInput>}, TContext> => {
+
+const mutationKey = ['requestSubmittalDocumentUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestSubmittalDocumentUpload>>, {itemId: number;data: BodyType<SubmittalDocumentUploadInput>}> = (props) => {
+          const {itemId,data} = props ?? {};
+
+          return  requestSubmittalDocumentUpload(itemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestSubmittalDocumentUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestSubmittalDocumentUpload>>>
+    export type RequestSubmittalDocumentUploadMutationBody = BodyType<SubmittalDocumentUploadInput>
+    export type RequestSubmittalDocumentUploadMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Request a protected submittal document upload URL
+ */
+export const useRequestSubmittalDocumentUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestSubmittalDocumentUpload>>, TError,{itemId: number;data: BodyType<SubmittalDocumentUploadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestSubmittalDocumentUpload>>,
+        TError,
+        {itemId: number;data: BodyType<SubmittalDocumentUploadInput>},
+        TContext
+      > => {
+      return useMutation(getRequestSubmittalDocumentUploadMutationOptions(options));
+    }
+
+export const getCompleteSubmittalDocumentUploadUrl = (documentId: number,) => {
+
+
+
+
+  return `/api/submittal-documents/${documentId}/complete`
+}
+
+/**
+ * @summary Complete a direct submittal document upload
+ */
+export const completeSubmittalDocumentUpload = async (documentId: number, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalDocument> => {
+
+  return customFetch<SubmittalDocument>(getCompleteSubmittalDocumentUploadUrl(documentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCompleteSubmittalDocumentUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeSubmittalDocumentUpload>>, TError,{documentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeSubmittalDocumentUpload>>, TError,{documentId: number}, TContext> => {
+
+const mutationKey = ['completeSubmittalDocumentUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeSubmittalDocumentUpload>>, {documentId: number}> = (props) => {
+          const {documentId} = props ?? {};
+
+          return  completeSubmittalDocumentUpload(documentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteSubmittalDocumentUploadMutationResult = NonNullable<Awaited<ReturnType<typeof completeSubmittalDocumentUpload>>>
+
+    export type CompleteSubmittalDocumentUploadMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Complete a direct submittal document upload
+ */
+export const useCompleteSubmittalDocumentUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeSubmittalDocumentUpload>>, TError,{documentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeSubmittalDocumentUpload>>,
+        TError,
+        {documentId: number},
+        TContext
+      > => {
+      return useMutation(getCompleteSubmittalDocumentUploadMutationOptions(options));
+    }
+
+export const getGetSubmittalDocumentUrl = (documentId: number,) => {
+
+
+
+
+  return `/api/submittal-documents/${documentId}`
+}
+
+/**
+ * @summary Stream a protected submittal document
+ */
+export const getSubmittalDocument = async (documentId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getGetSubmittalDocumentUrl(documentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSubmittalDocumentQueryKey = (documentId: number,) => {
+    return [
+    `/api/submittal-documents/${documentId}`
+    ] as const;
+    }
+
+
+export const getGetSubmittalDocumentQueryOptions = <TData = Awaited<ReturnType<typeof getSubmittalDocument>>, TError = ErrorType<unknown>>(documentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubmittalDocument>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSubmittalDocumentQueryKey(documentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSubmittalDocument>>> = ({ signal }) => getSubmittalDocument(documentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: documentId !== null && documentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSubmittalDocument>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSubmittalDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof getSubmittalDocument>>>
+export type GetSubmittalDocumentQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Stream a protected submittal document
+ */
+
+export function useGetSubmittalDocument<TData = Awaited<ReturnType<typeof getSubmittalDocument>>, TError = ErrorType<unknown>>(
+ documentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubmittalDocument>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSubmittalDocumentQueryOptions(documentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteSubmittalDocumentUrl = (documentId: number,) => {
+
+
+
+
+  return `/api/submittal-documents/${documentId}`
+}
+
+/**
+ * @summary Delete a submittal document
+ */
+export const deleteSubmittalDocument = async (documentId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteSubmittalDocumentUrl(documentId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteSubmittalDocumentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSubmittalDocument>>, TError,{documentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSubmittalDocument>>, TError,{documentId: number}, TContext> => {
+
+const mutationKey = ['deleteSubmittalDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSubmittalDocument>>, {documentId: number}> = (props) => {
+          const {documentId} = props ?? {};
+
+          return  deleteSubmittalDocument(documentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSubmittalDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSubmittalDocument>>>
+
+    export type DeleteSubmittalDocumentMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a submittal document
+ */
+export const useDeleteSubmittalDocument = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSubmittalDocument>>, TError,{documentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSubmittalDocument>>,
+        TError,
+        {documentId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSubmittalDocumentMutationOptions(options));
     }
 
 export const getCreateSubmittalRevisionUrl = (submittalId: number,) => {

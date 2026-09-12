@@ -1,11 +1,13 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { z } from "zod";
 import {
   bidsTable,
   businessCustomersTable,
   db,
   platformAuditEventsTable,
   projectsTable,
+  submittalDocumentsTable,
   submittalItemsTable,
   submittalPackagesTable,
   submittalRevisionsTable,
@@ -27,6 +29,7 @@ import {
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
+import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
 
@@ -34,6 +37,23 @@ const packageStatuses = ["draft", "submitted", "under_review", "approved", "appr
 const originTypes = ["contract", "accepted_substitution", "accepted_alternate", "early_procurement"] as const;
 const itemTypes = ["shop_drawing", "product_data", "sample", "mockup", "calculation", "certificate", "warranty", "closeout", "other"] as const;
 const itemStatuses = ["pending", "included", "needs_revision", "accepted", "superseded"] as const;
+const objectStorage = new ObjectStorageService();
+const maxDocumentSize = 100 * 1024 * 1024;
+const documentRequestBody = z.object({
+  originalName: z.string().trim().min(1).max(255),
+  size: z.number().int().min(1).max(maxDocumentSize),
+  contentType: z.string().trim().min(1).max(160),
+});
+const sanitizeFileName = (value: string) =>
+  value.replace(/[\u0000-\u001f\u007f]/g, "").split(/[\\/]/).pop()?.trim().slice(0, 255) || "submittal-document";
+const isAllowedDocumentType = (contentType: string) =>
+  contentType === "application/pdf"
+  || contentType === "application/octet-stream"
+  || contentType.startsWith("image/")
+  || contentType.startsWith("text/")
+  || contentType.startsWith("audio/")
+  || contentType === "application/zip"
+  || contentType.startsWith("application/vnd.");
 
 const dateString = (value: Date | string | null | undefined) => {
   if (!value) return null;
@@ -79,7 +99,23 @@ const getPackageBase = async (req: TenantRequest, submittalId: number) => {
   return row;
 };
 
-const serializeItem = (item: typeof submittalItemsTable.$inferSelect) => ({
+const serializeDocument = (document: typeof submittalDocumentsTable.$inferSelect) => ({
+  id: document.id,
+  itemId: document.itemId,
+  originalName: document.originalName,
+  contentType: document.contentType,
+  size: document.size,
+  version: document.version,
+  status: document.status,
+  uploadedAt: document.uploadedAt,
+  createdAt: document.createdAt,
+  downloadUrl: `/api/submittal-documents/${document.id}`,
+});
+
+const serializeItem = (
+  item: typeof submittalItemsTable.$inferSelect,
+  documents: typeof submittalDocumentsTable.$inferSelect[] = [],
+) => ({
   id: item.id,
   packageId: item.packageId,
   itemNumber: item.itemNumber,
@@ -89,6 +125,7 @@ const serializeItem = (item: typeof submittalItemsTable.$inferSelect) => ({
   status: item.status,
   documentName: item.documentName,
   documentUrl: item.documentUrl,
+  documents: documents.map(serializeDocument),
   revision: item.revision,
   createdAt: item.createdAt,
   updatedAt: item.updatedAt,
@@ -124,6 +161,21 @@ const serializePackage = async (row: Awaited<ReturnType<typeof getPackageBase>>)
       ))
       .orderBy(desc(submittalRevisionsTable.revision)),
   ]);
+  const documents = items.length
+    ? await db.select().from(submittalDocumentsTable)
+      .where(and(
+        inArray(submittalDocumentsTable.itemId, items.map((item) => item.id)),
+        eq(submittalDocumentsTable.tenantId, row.package.tenantId),
+        eq(submittalDocumentsTable.environmentId, row.package.environmentId),
+      ))
+      .orderBy(desc(submittalDocumentsTable.createdAt))
+    : [];
+  const documentsByItem = new Map<number, typeof documents>();
+  for (const document of documents) {
+    const existing = documentsByItem.get(document.itemId) ?? [];
+    existing.push(document);
+    documentsByItem.set(document.itemId, existing);
+  }
   return {
     id: row.package.id,
     environmentId: row.package.environmentId,
@@ -147,7 +199,7 @@ const serializePackage = async (row: Awaited<ReturnType<typeof getPackageBase>>)
     submittedAt: row.package.submittedAt,
     reviewedAt: row.package.reviewedAt,
     itemCount: items.length,
-    items: items.map(serializeItem),
+    items: items.map((item) => serializeItem(item, documentsByItem.get(item.id))),
     revisions: revisions.map(serializeRevision),
     createdAt: row.package.createdAt,
     updatedAt: row.package.updatedAt,
@@ -179,19 +231,36 @@ router.get("/submittals", async (req: TenantRequest, res) => {
       projectId: submittalPackagesTable.projectId,
       packageNumber: submittalPackagesTable.packageNumber,
       name: submittalPackagesTable.name,
+      description: submittalPackagesTable.description,
+      specificationSection: submittalPackagesTable.specificationSection,
+      responsibleParty: submittalPackagesTable.responsibleParty,
       status: submittalPackagesTable.status,
       dueDate: submittalPackagesTable.dueDate,
       revision: submittalPackagesTable.revision,
+      reviewerName: submittalPackagesTable.reviewerName,
+      reviewComments: submittalPackagesTable.reviewComments,
+      submittedAt: submittalPackagesTable.submittedAt,
+      reviewedAt: submittalPackagesTable.reviewedAt,
+      sourceBidId: submittalPackagesTable.sourceBidId,
+      originType: submittalPackagesTable.originType,
       itemCount: sql<number>`count(${submittalItemsTable.id})::int`,
       projectNumber: projectsTable.projectNumber,
       projectName: projectsTable.projectName,
       customerName: projectsTable.customerName,
+      sourceBidNumber: bidsTable.bidNumber,
+      createdAt: submittalPackagesTable.createdAt,
+      updatedAt: submittalPackagesTable.updatedAt,
     })
     .from(submittalPackagesTable)
     .innerJoin(projectsTable, and(
       eq(submittalPackagesTable.projectId, projectsTable.id),
       eq(projectsTable.tenantId, req.tenantId!),
       eq(projectsTable.environmentId, req.environmentId!),
+    ))
+    .leftJoin(bidsTable, and(
+      eq(submittalPackagesTable.sourceBidId, bidsTable.id),
+      eq(bidsTable.tenantId, req.tenantId!),
+      eq(bidsTable.environmentId, req.environmentId!),
     ))
     .leftJoin(submittalItemsTable, and(
       eq(submittalItemsTable.packageId, submittalPackagesTable.id),
@@ -221,20 +290,8 @@ router.get("/submittals", async (req: TenantRequest, res) => {
   res.json(rows.map((row) => ({
     ...row,
     environmentId: req.environmentId!,
-    sourceBidId: null,
-    sourceBidNumber: null,
-    originType: "contract",
-    description: null,
-    specificationSection: null,
-    responsibleParty: null,
-    reviewerName: null,
-    reviewComments: null,
-    submittedAt: null,
-    reviewedAt: null,
     items: [],
     revisions: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
   })));
 });
 
@@ -437,6 +494,156 @@ router.delete("/submittal-items/:itemId", requireRole("owner", "admin"), async (
     res.status(404).json({ error: "Submittal item not found" });
     return;
   }
+  res.status(204).send();
+});
+
+router.post("/submittal-items/:itemId/documents/request-upload", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const itemId = Number(req.params.itemId);
+  const parsed = documentRequestBody.safeParse(req.body);
+  if (!Number.isInteger(itemId) || itemId < 1 || !parsed.success || !isAllowedDocumentType(parsed.data.contentType)) {
+    res.status(400).json({ error: "Invalid document name, size, or content type" });
+    return;
+  }
+  const [item] = await db.select({ id: submittalItemsTable.id }).from(submittalItemsTable).where(and(
+    eq(submittalItemsTable.id, itemId),
+    eq(submittalItemsTable.tenantId, req.tenantId!),
+    eq(submittalItemsTable.environmentId, req.environmentId!),
+  ));
+  if (!item) {
+    res.status(404).json({ error: "Submittal item not found" });
+    return;
+  }
+  try {
+    const { uploadURL, objectPath } = await objectStorage.requestUpload();
+    const [{ maxVersion }] = await db.select({
+      maxVersion: sql<number | null>`max(${submittalDocumentsTable.version})`,
+    }).from(submittalDocumentsTable).where(and(
+      eq(submittalDocumentsTable.itemId, itemId),
+      eq(submittalDocumentsTable.tenantId, req.tenantId!),
+      eq(submittalDocumentsTable.environmentId, req.environmentId!),
+    ));
+    const [document] = await db.insert(submittalDocumentsTable).values({
+      itemId,
+      originalName: sanitizeFileName(parsed.data.originalName),
+      objectPath,
+      contentType: parsed.data.contentType,
+      size: parsed.data.size,
+      version: Number(maxVersion ?? 0) + 1,
+      uploadedByUserId: req.localUserId!,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    }).returning();
+    res.status(201).json({ ...serializeDocument(document), uploadURL });
+  } catch (error) {
+    req.log.error({ err: error }, "Failed to create submittal document upload");
+    res.status(503).json({ error: "Document storage is temporarily unavailable" });
+  }
+});
+
+router.post("/submittal-documents/:documentId/complete", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const documentId = Number(req.params.documentId);
+  if (!Number.isInteger(documentId) || documentId < 1) {
+    res.status(400).json({ error: "Invalid document id" });
+    return;
+  }
+  const [document] = await db.select().from(submittalDocumentsTable).where(and(
+    eq(submittalDocumentsTable.id, documentId),
+    eq(submittalDocumentsTable.tenantId, req.tenantId!),
+    eq(submittalDocumentsTable.environmentId, req.environmentId!),
+  ));
+  if (!document) {
+    res.status(404).json({ error: "Submittal document not found" });
+    return;
+  }
+  try {
+    const file = await objectStorage.getObjectFile(document.objectPath);
+    const [metadata] = await file.getMetadata();
+    if (Number(metadata.size ?? 0) > document.size) {
+      res.status(413).json({ error: "Uploaded document exceeds the declared size" });
+      return;
+    }
+    const [updated] = await db.update(submittalDocumentsTable).set({
+      status: "uploaded",
+      uploadedAt: new Date(),
+    }).where(and(
+      eq(submittalDocumentsTable.id, document.id),
+      eq(submittalDocumentsTable.tenantId, req.tenantId!),
+      eq(submittalDocumentsTable.environmentId, req.environmentId!),
+    )).returning();
+    res.json(serializeDocument(updated));
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(409).json({ error: "Upload has not completed yet" });
+      return;
+    }
+    req.log.error({ err: error }, "Failed to complete submittal document upload");
+    res.status(503).json({ error: "Document storage is temporarily unavailable" });
+  }
+});
+
+router.get("/submittal-documents/:documentId", async (req: TenantRequest, res) => {
+  const documentId = Number(req.params.documentId);
+  if (!Number.isInteger(documentId) || documentId < 1) {
+    res.status(400).json({ error: "Invalid document id" });
+    return;
+  }
+  const [document] = await db.select().from(submittalDocumentsTable).where(and(
+    eq(submittalDocumentsTable.id, documentId),
+    eq(submittalDocumentsTable.tenantId, req.tenantId!),
+    eq(submittalDocumentsTable.environmentId, req.environmentId!),
+  ));
+  if (!document) {
+    res.status(404).json({ error: "Submittal document not found" });
+    return;
+  }
+  if (document.status !== "uploaded") {
+    res.status(409).json({ error: "Submittal document is not ready" });
+    return;
+  }
+  try {
+    const file = await objectStorage.getObjectFile(document.objectPath);
+    const [metadata] = await file.getMetadata();
+    res.setHeader("Content-Type", metadata.contentType || document.contentType);
+    res.setHeader("Content-Length", String(metadata.size ?? document.size));
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("Content-Disposition", `inline; filename="${document.originalName.replace(/["\r\n]/g, "")}"`);
+    file.createReadStream().on("error", (error) => {
+      req.log.error({ err: error, documentId }, "Failed to stream submittal document");
+      if (!res.headersSent) res.status(500).json({ error: "Failed to read document" });
+    }).pipe(res);
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: "Stored document not found" });
+      return;
+    }
+    req.log.error({ err: error, documentId }, "Failed to open submittal document");
+    res.status(503).json({ error: "Document storage is temporarily unavailable" });
+  }
+});
+
+router.delete("/submittal-documents/:documentId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const documentId = Number(req.params.documentId);
+  const [document] = await db.select().from(submittalDocumentsTable).where(and(
+    eq(submittalDocumentsTable.id, documentId),
+    eq(submittalDocumentsTable.tenantId, req.tenantId!),
+    eq(submittalDocumentsTable.environmentId, req.environmentId!),
+  ));
+  if (!document) {
+    res.status(404).json({ error: "Submittal document not found" });
+    return;
+  }
+  try {
+    await objectStorage.deleteObject(document.objectPath);
+  } catch (error) {
+    if (!(error instanceof ObjectNotFoundError)) {
+      req.log.warn({ err: error, documentId }, "Unable to remove stored submittal object");
+    }
+  }
+  await db.delete(submittalDocumentsTable).where(and(
+    eq(submittalDocumentsTable.id, documentId),
+    eq(submittalDocumentsTable.tenantId, req.tenantId!),
+    eq(submittalDocumentsTable.environmentId, req.environmentId!),
+  ));
   res.status(204).send();
 });
 

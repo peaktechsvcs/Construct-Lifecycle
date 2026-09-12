@@ -823,6 +823,29 @@ export const SubmittalItemStatus = {
   superseded: 'superseded',
 } as const;
 
+export type SubmittalDocumentStatus = typeof SubmittalDocumentStatus[keyof typeof SubmittalDocumentStatus];
+
+
+export const SubmittalDocumentStatus = {
+  pending: 'pending',
+  uploaded: 'uploaded',
+} as const;
+
+export interface SubmittalDocument {
+  id: number;
+  itemId: number;
+  originalName: string;
+  contentType: string;
+  size: number;
+  /** @minimum 1 */
+  version: number;
+  status: SubmittalDocumentStatus;
+  /** @nullable */
+  uploadedAt: string | null;
+  createdAt: string;
+  downloadUrl: string;
+}
+
 export interface SubmittalItem {
   id: number;
   packageId: number;
@@ -839,10 +862,33 @@ export interface SubmittalItem {
      * @nullable
      */
   documentUrl: string | null;
+  documents?: SubmittalDocument[];
   revision: number;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface SubmittalDocumentUploadInput {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  originalName: string;
+  /**
+     * @minimum 1
+     * @maximum 104857600
+     */
+  size: number;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  contentType: string;
+}
+
+export type SubmittalDocumentUpload = SubmittalDocument & {
+  uploadURL: string;
+};
 
 export interface SubmittalRevision {
   id: number;

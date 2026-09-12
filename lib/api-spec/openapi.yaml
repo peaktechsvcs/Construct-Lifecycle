@@ -579,6 +579,54 @@ paths:
         - $ref: "#/components/parameters/SubmittalItemId"
       responses:
         "204": { description: Submittal item deleted }
+  /submittal-items/{itemId}/documents/request-upload:
+    post:
+      operationId: requestSubmittalDocumentUpload
+      tags: [submittals]
+      summary: Request a protected submittal document upload URL
+      parameters:
+        - $ref: "#/components/parameters/SubmittalItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalDocumentUploadInput" }
+      responses:
+        "201":
+          description: Upload URL and pending document metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalDocumentUpload" }
+  /submittal-documents/{documentId}/complete:
+    post:
+      operationId: completeSubmittalDocumentUpload
+      tags: [submittals]
+      summary: Complete a direct submittal document upload
+      parameters:
+        - $ref: "#/components/parameters/SubmittalDocumentId"
+      responses:
+        "200":
+          description: Uploaded submittal document
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalDocument" }
+  /submittal-documents/{documentId}:
+    get:
+      operationId: getSubmittalDocument
+      tags: [submittals]
+      summary: Stream a protected submittal document
+      parameters:
+        - $ref: "#/components/parameters/SubmittalDocumentId"
+      responses:
+        "200": { description: Protected document bytes }
+    delete:
+      operationId: deleteSubmittalDocument
+      tags: [submittals]
+      summary: Delete a submittal document
+      parameters:
+        - $ref: "#/components/parameters/SubmittalDocumentId"
+      responses:
+        "204": { description: Submittal document deleted }
   /submittals/{submittalId}/revisions:
     post:
       operationId: createSubmittalRevision
@@ -1552,6 +1600,12 @@ components:
       required: true
       schema:
         type: integer
+    SubmittalDocumentId:
+      in: path
+      name: documentId
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
@@ -1946,9 +2000,40 @@ components:
         status: { $ref: "#/components/schemas/SubmittalItemStatus" }
         documentName: { type: ["string", "null"] }
         documentUrl: { type: ["string", "null"], maxLength: 2000 }
+        documents:
+          type: array
+          items: { $ref: "#/components/schemas/SubmittalDocument" }
         revision: { type: integer }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    SubmittalDocument:
+      type: object
+      required: [id, itemId, originalName, contentType, size, version, status, uploadedAt, createdAt, downloadUrl]
+      properties:
+        id: { type: integer }
+        itemId: { type: integer }
+        originalName: { type: string }
+        contentType: { type: string }
+        size: { type: integer }
+        version: { type: integer, minimum: 1 }
+        status: { type: string, enum: [pending, uploaded] }
+        uploadedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        downloadUrl: { type: string }
+    SubmittalDocumentUploadInput:
+      type: object
+      required: [originalName, size, contentType]
+      properties:
+        originalName: { type: string, minLength: 1, maxLength: 255 }
+        size: { type: integer, minimum: 1, maximum: 104857600 }
+        contentType: { type: string, minLength: 1, maxLength: 160 }
+    SubmittalDocumentUpload:
+      allOf:
+        - $ref: "#/components/schemas/SubmittalDocument"
+        - type: object
+          required: [uploadURL]
+          properties:
+            uploadURL: { type: string, format: uri }
     SubmittalRevision:
       type: object
       required: [id, packageId, revision, status, reviewerName, reviewComments, submittedAt, reviewedAt, createdAt]

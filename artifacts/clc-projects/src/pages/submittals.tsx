@@ -6,13 +6,17 @@ import {
   SubmittalItemType,
   SubmittalItemStatus,
   SubmittalOriginType,
+  SubmittalDocument,
   SubmittalPackage,
   SubmittalPackageStatus,
   useCreateSubmittalItem,
   useCreateSubmittalPackage,
   useCreateSubmittalRevision,
   useDeleteSubmittalItem,
+  useDeleteSubmittalDocument,
   useDeleteSubmittalPackage,
+  useRequestSubmittalDocumentUpload,
+  useCompleteSubmittalDocumentUpload,
   useGetSubmittalPackage,
   useListBids,
   useListProjects,
@@ -182,6 +186,68 @@ function RevisionForm({ packageId, onClose, onSaved }: { packageId: number; onCl
   </form></Modal>;
 }
 
+function DocumentUpload({ itemId, onUploaded }: { itemId: number; onUploaded: () => void }) {
+  const requestUpload = useRequestSubmittalDocumentUpload();
+  const completeUpload = useCompleteSubmittalDocumentUpload();
+  const [error, setError] = useState('');
+  const [uploadingName, setUploadingName] = useState('');
+  const upload = async (file: File) => {
+    setError('');
+    setUploadingName(file.name);
+    try {
+      const pending = await requestUpload.mutateAsync({
+        itemId,
+        data: {
+          originalName: file.name,
+          size: file.size,
+          contentType: file.type || 'application/octet-stream',
+        },
+      });
+      const stored = await fetch(pending.uploadURL, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+      });
+      if (!stored.ok) throw new Error('The file could not be stored.');
+      await completeUpload.mutateAsync({ documentId: pending.id });
+      onUploaded();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'The file could not be uploaded.');
+    } finally {
+      setUploadingName('');
+    }
+  };
+  return <div className="mt-3 rounded-lg border border-dashed border-border bg-secondary/25 p-3">
+    <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-accent hover:underline">
+      <Plus size={14} />
+      {uploadingName ? `Uploading ${uploadingName}…` : 'Upload document'}
+      <input
+        type="file"
+        className="sr-only"
+        disabled={Boolean(uploadingName)}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) void upload(file);
+        }}
+      />
+    </label>
+    <p className="mt-1 text-[11px] text-muted-foreground">PDFs, images, office files, and other project documents up to 100 MB.</p>
+    {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+  </div>;
+}
+
+function DocumentLink({ document, canEdit, onChanged }: { document: SubmittalDocument; canEdit: boolean; onChanged: () => void }) {
+  const remove = useDeleteSubmittalDocument();
+  return <div className="flex items-center gap-2">
+    {document.status === 'uploaded'
+      ? <a className="inline-flex min-w-0 items-center gap-1 text-accent hover:underline" href={document.downloadUrl} target="_blank" rel="noreferrer"><span className="truncate">V{document.version} · {document.originalName}</span><ExternalLink size={12} /></a>
+      : <span className="text-muted-foreground">{document.originalName} · pending</span>}
+    <span className="mono text-[10px] text-muted-foreground">{Math.ceil(document.size / 1024)} KB</span>
+    {canEdit && <Button variant="ghost" className="p-1 text-muted-foreground" aria-label={`Delete ${document.originalName}`} onClick={() => remove.mutate({ documentId: document.id }, { onSuccess: onChanged })}><Trash2 size={13} /></Button>}
+  </div>;
+}
+
 function PackageDetail({ id }: { id: number }) {
   const [, navigate] = useLocation();
   const qc = useQueryClient();
@@ -208,7 +274,7 @@ function PackageDetail({ id }: { id: number }) {
     <div className="grid gap-5 xl:grid-cols-[1.45fr_.8fr]">
       <section className="rounded-xl border border-border bg-card">
         <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-base font-bold">Package contents</h2><p className="text-xs text-muted-foreground">Coordinate the technical items before release or installation.</p></div>{canEdit && <Button onClick={() => setShowItem(true)}><Plus size={15} /> Add item</Button>}</div>
-        {pkg.items.length === 0 ? <div className="p-5"><EmptyState icon={FileText} title="No items in this package" text="Add shop drawings, product data, samples, or other required documentation." action={canEdit ? <Button onClick={() => setShowItem(true)}><Plus size={15} /> Add first item</Button> : undefined} /></div> : <div className="divide-y divide-border">{pkg.items.map((item) => <div key={item.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="mono text-[10px] text-accent">{item.itemNumber}</span><Badge tone={tone(item.status)}>{label(itemStatuses, item.status)}</Badge></div><p className="mt-1 text-sm font-bold">{item.name}</p><p className="text-xs text-muted-foreground">{label(itemTypes, item.itemType)}{item.description ? ` · ${item.description}` : ''}</p>{item.documentName && <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">{item.documentUrl ? <a className="inline-flex items-center gap-1 text-accent hover:underline" href={item.documentUrl} target="_blank" rel="noreferrer">{item.documentName} <ExternalLink size={12} /></a> : item.documentName}</p>}</div>{canEdit && <Button variant="ghost" className="self-end p-2 sm:self-start" aria-label={`Delete ${item.name}`} onClick={() => { if (window.confirm(`Delete ${item.name}?`)) removeItem.mutate({ itemId: item.id }, { onSuccess: refresh }); }}><Trash2 size={15} /></Button>}</div>)}</div>}
+        {pkg.items.length === 0 ? <div className="p-5"><EmptyState icon={FileText} title="No items in this package" text="Add shop drawings, product data, samples, or other required documentation." action={canEdit ? <Button onClick={() => setShowItem(true)}><Plus size={15} /> Add first item</Button> : undefined} /></div> : <div className="divide-y divide-border">{pkg.items.map((item) => <div key={item.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="mono text-[10px] text-accent">{item.itemNumber}</span><Badge tone={tone(item.status)}>{label(itemStatuses, item.status)}</Badge></div><p className="mt-1 text-sm font-bold">{item.name}</p><p className="text-xs text-muted-foreground">{label(itemTypes, item.itemType)}{item.description ? ` · ${item.description}` : ''}</p>{item.documentName && <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">{item.documentUrl ? <a className="inline-flex items-center gap-1 text-accent hover:underline" href={item.documentUrl} target="_blank" rel="noreferrer">{item.documentName} <ExternalLink size={12} /></a> : item.documentName}</p>}{item.documents && item.documents.length > 0 && <div className="mt-3 space-y-1 text-xs">{item.documents.map((document) => <DocumentLink key={document.id} document={document} canEdit={canEdit} onChanged={refresh} />)}</div>}{canEdit && <DocumentUpload itemId={item.id} onUploaded={refresh} />}</div>{canEdit && <Button variant="ghost" className="self-end p-2 sm:self-start" aria-label={`Delete ${item.name}`} onClick={() => { if (window.confirm(`Delete ${item.name}?`)) removeItem.mutate({ itemId: item.id }, { onSuccess: refresh }); }}><Trash2 size={15} /></Button>}</div>)}</div>}
       </section>
       <div className="space-y-5">
         <section className="rounded-xl border border-border bg-card p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="text-base font-bold">Review history</h2><p className="mt-1 text-xs text-muted-foreground">Every disposition creates an immutable revision record.</p></div>{canEdit && <Button variant="outline" onClick={() => setShowRevision(true)}><Plus size={15} /> Revision</Button>}</div><div className="mt-4 space-y-4">{pkg.revisions.length === 0 ? <p className="text-sm text-muted-foreground">No formal review recorded yet.</p> : pkg.revisions.map((revision) => <div key={revision.id} className="border-l-2 border-primary/25 pl-3"><div className="flex flex-wrap items-center gap-2"><span className="mono text-[10px] text-muted-foreground">R{revision.revision}</span><Badge tone={tone(revision.status)}>{label(packageStatuses, revision.status)}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{revision.reviewerName || 'Team review'} · {shortDate(revision.createdAt)}</p>{revision.reviewComments && <p className="mt-2 text-sm">{revision.reviewComments}</p>}</div>)}</div></section>

@@ -1434,6 +1434,7 @@ export const listSubmittalPackagesResponseItemsItemDocumentUrlMax = 2000;
 
 
 
+
 export const ListSubmittalPackagesResponseItem = zod.object({
   "id": zod.number().int(),
   "environmentId": zod.number().int(),
@@ -1467,6 +1468,18 @@ export const ListSubmittalPackagesResponseItem = zod.object({
   "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
   "documentName": zod.string().nullable(),
   "documentUrl": zod.string().max(listSubmittalPackagesResponseItemsItemDocumentUrlMax).nullable(),
+  "documents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "itemId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'uploaded']),
+  "uploadedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})).optional(),
   "revision": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1519,6 +1532,7 @@ export const createSubmittalPackageResponseItemsItemDocumentUrlMax = 2000;
 
 
 
+
 export const CreateSubmittalPackageResponse = zod.object({
   "id": zod.number().int(),
   "environmentId": zod.number().int(),
@@ -1552,6 +1566,18 @@ export const CreateSubmittalPackageResponse = zod.object({
   "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
   "documentName": zod.string().nullable(),
   "documentUrl": zod.string().max(createSubmittalPackageResponseItemsItemDocumentUrlMax).nullable(),
+  "documents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "itemId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'uploaded']),
+  "uploadedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})).optional(),
   "revision": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1580,6 +1606,7 @@ export const GetSubmittalPackageParams = zod.object({
 })
 
 export const getSubmittalPackageResponseItemsItemDocumentUrlMax = 2000;
+
 
 
 
@@ -1616,6 +1643,18 @@ export const GetSubmittalPackageResponse = zod.object({
   "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
   "documentName": zod.string().nullable(),
   "documentUrl": zod.string().max(getSubmittalPackageResponseItemsItemDocumentUrlMax).nullable(),
+  "documents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "itemId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'uploaded']),
+  "uploadedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})).optional(),
   "revision": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1675,6 +1714,7 @@ export const updateSubmittalPackageResponseItemsItemDocumentUrlMax = 2000;
 
 
 
+
 export const UpdateSubmittalPackageResponse = zod.object({
   "id": zod.number().int(),
   "environmentId": zod.number().int(),
@@ -1708,6 +1748,18 @@ export const UpdateSubmittalPackageResponse = zod.object({
   "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
   "documentName": zod.string().nullable(),
   "documentUrl": zod.string().max(updateSubmittalPackageResponseItemsItemDocumentUrlMax).nullable(),
+  "documents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "itemId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'uploaded']),
+  "uploadedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})).optional(),
   "revision": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1768,6 +1820,7 @@ export const createSubmittalItemResponseDocumentUrlMax = 2000;
 
 
 
+
 export const CreateSubmittalItemResponse = zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
@@ -1778,6 +1831,18 @@ export const CreateSubmittalItemResponse = zod.object({
   "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
   "documentName": zod.string().nullable(),
   "documentUrl": zod.string().max(createSubmittalItemResponseDocumentUrlMax).nullable(),
+  "documents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "itemId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'uploaded']),
+  "uploadedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})).optional(),
   "revision": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1814,6 +1879,7 @@ export const updateSubmittalItemResponseDocumentUrlMax = 2000;
 
 
 
+
 export const UpdateSubmittalItemResponse = zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
@@ -1824,6 +1890,18 @@ export const UpdateSubmittalItemResponse = zod.object({
   "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
   "documentName": zod.string().nullable(),
   "documentUrl": zod.string().max(updateSubmittalItemResponseDocumentUrlMax).nullable(),
+  "documents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "itemId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'uploaded']),
+  "uploadedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})).optional(),
   "revision": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -1838,6 +1916,90 @@ export const DeleteSubmittalItemParams = zod.object({
 })
 
 export const DeleteSubmittalItemResponse = zod.void()
+
+
+/**
+ * @summary Request a protected submittal document upload URL
+ */
+export const RequestSubmittalDocumentUploadParams = zod.object({
+  "itemId": zod.coerce.number().int()
+})
+
+export const requestSubmittalDocumentUploadBodyOriginalNameMax = 255;
+
+export const requestSubmittalDocumentUploadBodySizeMax = 104857600;
+
+export const requestSubmittalDocumentUploadBodyContentTypeMax = 160;
+
+
+
+export const RequestSubmittalDocumentUploadBody = zod.object({
+  "originalName": zod.string().min(1).max(requestSubmittalDocumentUploadBodyOriginalNameMax),
+  "size": zod.number().int().min(1).max(requestSubmittalDocumentUploadBodySizeMax),
+  "contentType": zod.string().min(1).max(requestSubmittalDocumentUploadBodyContentTypeMax)
+})
+
+
+
+
+export const RequestSubmittalDocumentUploadResponse = zod.object({
+  "id": zod.number().int(),
+  "itemId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'uploaded']),
+  "uploadedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+}).and(zod.object({
+  "uploadURL": zod.string().url()
+}))
+
+
+/**
+ * @summary Complete a direct submittal document upload
+ */
+export const CompleteSubmittalDocumentUploadParams = zod.object({
+  "documentId": zod.coerce.number().int()
+})
+
+
+
+
+export const CompleteSubmittalDocumentUploadResponse = zod.object({
+  "id": zod.number().int(),
+  "itemId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'uploaded']),
+  "uploadedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})
+
+
+/**
+ * @summary Stream a protected submittal document
+ */
+export const GetSubmittalDocumentParams = zod.object({
+  "documentId": zod.coerce.number().int()
+})
+
+export const GetSubmittalDocumentResponse = zod.unknown()
+
+
+/**
+ * @summary Delete a submittal document
+ */
+export const DeleteSubmittalDocumentParams = zod.object({
+  "documentId": zod.coerce.number().int()
+})
+
+export const DeleteSubmittalDocumentResponse = zod.void()
 
 
 /**
