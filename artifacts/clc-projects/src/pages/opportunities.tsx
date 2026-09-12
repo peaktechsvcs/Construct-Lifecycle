@@ -52,6 +52,16 @@ type FormState = {
   estimatedValue: string;
   expectedCloseDate: string;
   ownerUserId: string;
+  leadSource: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  qualification: 'unqualified' | 'qualified' | 'disqualified';
+  nextAction: string;
+  nextActionDate: string;
+  crmProviderKey: string;
+  crmIntegrationStatus: 'manual' | 'pending' | 'synced' | 'error';
+  crmExternalReference: string;
 };
 
 const emptyForm: FormState = {
@@ -62,6 +72,16 @@ const emptyForm: FormState = {
   estimatedValue: '',
   expectedCloseDate: '',
   ownerUserId: '',
+  leadSource: '',
+  contactName: '',
+  contactEmail: '',
+  contactPhone: '',
+  qualification: 'unqualified',
+  nextAction: '',
+  nextActionDate: '',
+  crmProviderKey: '',
+  crmIntegrationStatus: 'manual',
+  crmExternalReference: '',
 };
 
 function toForm(opportunity?: Opportunity): FormState {
@@ -74,6 +94,16 @@ function toForm(opportunity?: Opportunity): FormState {
     estimatedValue: opportunity.estimatedValue ? String(opportunity.estimatedValue) : '',
     expectedCloseDate: opportunity.expectedCloseDate?.slice(0, 10) ?? '',
     ownerUserId: opportunity.ownerUserId ? String(opportunity.ownerUserId) : '',
+    leadSource: opportunity.leadSource ?? '',
+    contactName: opportunity.contactName ?? '',
+    contactEmail: opportunity.contactEmail ?? '',
+    contactPhone: opportunity.contactPhone ?? '',
+    qualification: opportunity.qualification,
+    nextAction: opportunity.nextAction ?? '',
+    nextActionDate: opportunity.nextActionDate?.slice(0, 10) ?? '',
+    crmProviderKey: opportunity.crmProviderKey ?? '',
+    crmIntegrationStatus: opportunity.crmIntegrationStatus,
+    crmExternalReference: opportunity.crmExternalReference ?? '',
   };
 }
 
@@ -107,6 +137,16 @@ function OpportunityForm({
       estimatedValue: form.estimatedValue ? Number(form.estimatedValue) : 0,
       expectedCloseDate: form.expectedCloseDate || undefined,
       ownerUserId: form.ownerUserId ? Number(form.ownerUserId) : undefined,
+      leadSource: form.leadSource.trim() || undefined,
+      contactName: form.contactName.trim() || undefined,
+      contactEmail: form.contactEmail.trim() || undefined,
+      contactPhone: form.contactPhone.trim() || undefined,
+      qualification: form.qualification,
+      nextAction: form.nextAction.trim() || undefined,
+      nextActionDate: form.nextActionDate || undefined,
+      crmProviderKey: form.crmProviderKey.trim() || undefined,
+      crmIntegrationStatus: form.crmIntegrationStatus,
+      crmExternalReference: form.crmExternalReference.trim() || undefined,
     };
     if (!base.businessCustomerId || !base.name) return;
     const onSuccess = (saved: Opportunity) => onSaved(saved);
@@ -161,6 +201,47 @@ function OpportunityForm({
             <Input type="date" value={form.expectedCloseDate} onChange={(e) => set('expectedCloseDate', e.target.value)} />
           </label>
         </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Primary contact</span>
+            <Input maxLength={160} value={form.contactName} onChange={(e) => set('contactName', e.target.value)} placeholder="Decision maker" />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Contact email</span>
+            <Input type="email" maxLength={320} value={form.contactEmail} onChange={(e) => set('contactEmail', e.target.value)} placeholder="name@customer.com" />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Contact phone</span>
+            <Input maxLength={40} value={form.contactPhone} onChange={(e) => set('contactPhone', e.target.value)} placeholder="Optional phone" />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Lead source</span>
+            <Input maxLength={120} value={form.leadSource} onChange={(e) => set('leadSource', e.target.value)} placeholder="Referral, website, event…" />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Qualification</span>
+            <Select value={form.qualification} onValueChange={(value) => set('qualification', value as FormState['qualification'])}>
+              <SelectTrigger aria-label="Opportunity qualification"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-popover"><SelectItem value="unqualified">Unqualified</SelectItem><SelectItem value="qualified">Qualified</SelectItem><SelectItem value="disqualified">Disqualified</SelectItem></SelectContent>
+            </Select>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Next action date</span>
+            <Input type="date" value={form.nextActionDate} onChange={(e) => set('nextActionDate', e.target.value)} />
+          </label>
+          <label className="block md:col-span-2">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Next action</span>
+            <Input maxLength={240} value={form.nextAction} onChange={(e) => set('nextAction', e.target.value)} placeholder="Schedule site walk with the customer" />
+          </label>
+        </div>
+        <section className="rounded-lg border border-border bg-secondary/35 p-4">
+          <p className="mono mb-3 text-[10px] uppercase tracking-[.13em] text-muted-foreground">CRM connection</p>
+          <div className="grid gap-4 md:grid-cols-3">
+            <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Provider key</span><Input maxLength={80} value={form.crmProviderKey} onChange={(e) => set('crmProviderKey', e.target.value)} placeholder="hubspot or salesforce" /></label>
+            <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Sync status</span><Select value={form.crmIntegrationStatus} onValueChange={(value) => set('crmIntegrationStatus', value as FormState['crmIntegrationStatus'])}><SelectTrigger aria-label="CRM sync status"><SelectValue /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="manual">Manual</SelectItem><SelectItem value="pending">Ready to connect</SelectItem><SelectItem value="synced">Synced</SelectItem><SelectItem value="error">Sync error</SelectItem></SelectContent></Select></label>
+            <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">External CRM ID</span><Input maxLength={180} value={form.crmExternalReference} onChange={(e) => set('crmExternalReference', e.target.value)} placeholder="Opportunity ID" /></label>
+          </div>
+        </section>
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Description</span>
           <Textarea maxLength={5000} value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="What does the team need to know about this opportunity?" rows={4} />
