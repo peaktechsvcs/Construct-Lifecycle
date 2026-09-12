@@ -40,6 +40,7 @@ export type WorkflowConfig = {
 export type WorkflowConfigInput = {
   name?: string;
   description?: string | null;
+  activeProjectStatusKeys?: string[];
   states: Array<{
     stableKey: string;
     displayName: string;
@@ -111,6 +112,7 @@ export async function ensurePublishedWorkflow(tenantId: number, environmentId: n
       environmentId,
       name: "Default Project Workflow",
       description: "Construct Lifecycle's starting project lifecycle.",
+      activeProjectStatusKeys: ["active", "waiting"],
       status: "published",
       isDefault: true,
       version: 1,
@@ -151,6 +153,7 @@ export function validateWorkflowConfig(input: WorkflowConfigInput) {
   const activeStates = input.states.filter((state) => state.active !== false);
   const stateKeys = new Set(input.states.map((state) => state.stableKey));
   const statusKeys = new Set(input.statuses.map((status) => status.stableKey));
+  const selectedStatusKeys = input.activeProjectStatusKeys ?? ["active", "waiting"];
 
   if (!input.states.length) errors.push("At least one lifecycle state is required.");
   if (!activeStates.some((state) => !input.transitions.some((transition) => transition.active !== false && transition.toStateKey === state.stableKey))) {
@@ -158,6 +161,10 @@ export function validateWorkflowConfig(input: WorkflowConfigInput) {
   }
   if (new Set(input.states.map((state) => state.displayOrder)).size !== input.states.length) errors.push("Lifecycle state display order values must be unique.");
   if (new Set(input.statuses.map((status) => status.displayOrder)).size !== input.statuses.length) errors.push("Status display order values must be unique.");
+  if (!selectedStatusKeys.length) errors.push("Select at least one status for the Active Projects page.");
+  for (const statusKey of selectedStatusKeys) {
+    if (!statusKeys.has(statusKey)) errors.push(`Active Projects references a missing status: ${statusKey}`);
+  }
 
   for (const state of input.states) {
     if (!/^[a-z][a-z0-9_]{1,62}$/.test(state.stableKey)) errors.push(`Invalid stable state key: ${state.stableKey}`);
@@ -189,6 +196,7 @@ export async function clonePublishedWorkflowToDraft(tenantId: number, environmen
       environmentId,
       name: published.template.name,
       description: published.template.description,
+      activeProjectStatusKeys: published.template.activeProjectStatusKeys,
       status: "draft",
       isDefault: published.template.isDefault,
       version: published.template.version + 1,
@@ -209,6 +217,7 @@ export async function replaceDraftWorkflow(draftId: number, input: WorkflowConfi
     await tx.update(workflowTemplatesTable).set({
       ...(input.name ? { name: input.name.trim() } : {}),
       ...(input.description !== undefined ? { description: input.description?.trim() || null } : {}),
+      activeProjectStatusKeys: input.activeProjectStatusKeys ?? ["active", "waiting"],
       updatedAt: new Date(),
     }).where(eq(workflowTemplatesTable.id, draftId));
     await tx.delete(workflowStatesTable).where(eq(workflowStatesTable.workflowTemplateId, draftId));

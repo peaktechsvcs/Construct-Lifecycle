@@ -2489,13 +2489,16 @@ components:
         createdAt: { type: string, format: date-time }
     WorkflowTemplate:
       type: object
-      required: [id, tenantId, environmentId, name, status, isDefault, version, createdAt, updatedAt]
+      required: [id, tenantId, environmentId, name, activeProjectStatusKeys, status, isDefault, version, createdAt, updatedAt]
       properties:
         id: { type: integer }
         tenantId: { type: integer }
         environmentId: { type: integer }
         name: { type: string }
         description: { type: ["string", "null"] }
+        activeProjectStatusKeys:
+          type: array
+          items: { type: string, pattern: "^[a-z][a-z0-9_]{1,62}$" }
         status: { type: string, enum: [draft, published, archived] }
         isDefault: { type: boolean }
         version: { type: integer }
@@ -2599,6 +2602,10 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 160 }
         description: { type: ["string", "null"], maxLength: 1000 }
+        activeProjectStatusKeys:
+          type: array
+          maxItems: 200
+          items: { type: string, pattern: "^[a-z][a-z0-9_]{1,62}$" }
         states:
           type: array
           minItems: 1

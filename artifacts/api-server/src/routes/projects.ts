@@ -53,6 +53,8 @@ const workflowCategory = (workflow: Awaited<ReturnType<typeof ensurePublishedWor
   workflow?.states.find((state) => state.stableKey === stage)?.normalizedCategory ?? null;
 const isPipelineCategory = (category: string | null) => category === "PRE_SALES";
 const isActiveCategory = (category: string | null) => !!category && !["PRE_SALES", "COMPLETED", "CANCELED"].includes(category);
+const activeProjectStatusKeys = (workflow: Awaited<ReturnType<typeof ensurePublishedWorkflow>>) =>
+  new Set(workflow?.template.activeProjectStatusKeys?.length ? workflow.template.activeProjectStatusKeys : ["active", "waiting"]);
 
 const addActivity = async (
   projectId: number,
@@ -484,7 +486,7 @@ router.get("/dashboard/drilldown", async (req: TenantRequest, res) => {
   const matches = type === "active-projects"
     ? projects.filter((p) =>
         isActiveCategory(workflowCategory(workflow, p.stage))
-        && ["active", "waiting"].includes(p.projectStatus?.toLowerCase() ?? ""))
+        && activeProjectStatusKeys(workflow).has(p.projectStatus?.toLowerCase() ?? ""))
     : type === "pipeline-value"
       ? projects.filter((p) => isPipelineCategory(workflowCategory(workflow, p.stage)))
       : type === "stage"
@@ -550,7 +552,7 @@ router.get("/dashboard/summary", async (req: TenantRequest, res) => {
   res.json({
     activeProjects: projects.filter((project) =>
       isActiveCategory(workflowCategory(workflow, project.stage))
-      && ["active", "waiting"].includes(project.projectStatus?.toLowerCase() ?? "")).length,
+      && activeProjectStatusKeys(workflow).has(project.projectStatus?.toLowerCase() ?? "")).length,
     pipelineValue: projects
       .filter((project) => isPipelineCategory(workflowCategory(workflow, project.stage)))
       .reduce((sum, project) => sum + Number(project.contractValue), 0),

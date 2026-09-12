@@ -1439,6 +1439,10 @@ export const ListProjectActivityResponse = zod.array(ListProjectActivityResponse
 /**
  * @summary Get the active tenant workflow configuration
  */
+export const getWorkflowConfigResponsePublishedTemplateActiveProjectStatusKeysItemRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+export const getWorkflowConfigResponseDraftOneTemplateActiveProjectStatusKeysItemRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+
+
 export const GetWorkflowConfigResponse = zod.object({
   "published": zod.object({
   "template": zod.object({
@@ -1447,6 +1451,7 @@ export const GetWorkflowConfigResponse = zod.object({
   "environmentId": zod.number().int(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "activeProjectStatusKeys": zod.array(zod.string().regex(getWorkflowConfigResponsePublishedTemplateActiveProjectStatusKeysItemRegExp)),
   "status": zod.enum(['draft', 'published', 'archived']),
   "isDefault": zod.boolean(),
   "version": zod.number().int(),
@@ -1506,6 +1511,7 @@ export const GetWorkflowConfigResponse = zod.object({
   "environmentId": zod.number().int(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "activeProjectStatusKeys": zod.array(zod.string().regex(getWorkflowConfigResponseDraftOneTemplateActiveProjectStatusKeysItemRegExp)),
   "status": zod.enum(['draft', 'published', 'archived']),
   "isDefault": zod.boolean(),
   "version": zod.number().int(),
@@ -1564,6 +1570,9 @@ export const GetWorkflowConfigResponse = zod.object({
 /**
  * @summary Create a tenant workflow draft from the published configuration
  */
+export const createWorkflowDraftResponseDraftOneTemplateActiveProjectStatusKeysItemRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+
+
 export const CreateWorkflowDraftResponse = zod.object({
   "draft": zod.union([zod.object({
   "template": zod.object({
@@ -1572,6 +1581,7 @@ export const CreateWorkflowDraftResponse = zod.object({
   "environmentId": zod.number().int(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "activeProjectStatusKeys": zod.array(zod.string().regex(createWorkflowDraftResponseDraftOneTemplateActiveProjectStatusKeysItemRegExp)),
   "status": zod.enum(['draft', 'published', 'archived']),
   "isDefault": zod.boolean(),
   "version": zod.number().int(),
@@ -1634,6 +1644,9 @@ export const updateWorkflowDraftBodyNameMax = 160;
 
 export const updateWorkflowDraftBodyDescriptionMax = 1000;
 
+export const updateWorkflowDraftBodyActiveProjectStatusKeysItemRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+export const updateWorkflowDraftBodyActiveProjectStatusKeysMax = 200;
+
 export const updateWorkflowDraftBodyStatesItemStableKeyRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
 export const updateWorkflowDraftBodyStatesItemDisplayNameMax = 120;
 
@@ -1663,6 +1676,7 @@ export const updateWorkflowDraftBodyTransitionsMax = 500;
 export const UpdateWorkflowDraftBody = zod.object({
   "name": zod.string().min(1).max(updateWorkflowDraftBodyNameMax).optional(),
   "description": zod.string().max(updateWorkflowDraftBodyDescriptionMax).nullish(),
+  "activeProjectStatusKeys": zod.array(zod.string().regex(updateWorkflowDraftBodyActiveProjectStatusKeysItemRegExp)).max(updateWorkflowDraftBodyActiveProjectStatusKeysMax).optional(),
   "states": zod.array(zod.object({
   "stableKey": zod.string().regex(updateWorkflowDraftBodyStatesItemStableKeyRegExp),
   "displayName": zod.string().min(1).max(updateWorkflowDraftBodyStatesItemDisplayNameMax),
@@ -1695,6 +1709,10 @@ export const UpdateWorkflowDraftBody = zod.object({
 })).max(updateWorkflowDraftBodyTransitionsMax)
 })
 
+export const updateWorkflowDraftResponsePublishedTemplateActiveProjectStatusKeysItemRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+export const updateWorkflowDraftResponseDraftOneTemplateActiveProjectStatusKeysItemRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+
+
 export const UpdateWorkflowDraftResponse = zod.object({
   "published": zod.object({
   "template": zod.object({
@@ -1703,6 +1721,7 @@ export const UpdateWorkflowDraftResponse = zod.object({
   "environmentId": zod.number().int(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "activeProjectStatusKeys": zod.array(zod.string().regex(updateWorkflowDraftResponsePublishedTemplateActiveProjectStatusKeysItemRegExp)),
   "status": zod.enum(['draft', 'published', 'archived']),
   "isDefault": zod.boolean(),
   "version": zod.number().int(),
@@ -1762,6 +1781,7 @@ export const UpdateWorkflowDraftResponse = zod.object({
   "environmentId": zod.number().int(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "activeProjectStatusKeys": zod.array(zod.string().regex(updateWorkflowDraftResponseDraftOneTemplateActiveProjectStatusKeysItemRegExp)),
   "status": zod.enum(['draft', 'published', 'archived']),
   "isDefault": zod.boolean(),
   "version": zod.number().int(),
@@ -1820,6 +1840,10 @@ export const UpdateWorkflowDraftResponse = zod.object({
 /**
  * @summary Validate and publish the tenant workflow draft
  */
+export const publishWorkflowDraftResponsePublishedTemplateActiveProjectStatusKeysItemRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+export const publishWorkflowDraftResponseDraftOneTemplateActiveProjectStatusKeysItemRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+
+
 export const PublishWorkflowDraftResponse = zod.object({
   "published": zod.object({
   "template": zod.object({
@@ -1828,6 +1852,7 @@ export const PublishWorkflowDraftResponse = zod.object({
   "environmentId": zod.number().int(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "activeProjectStatusKeys": zod.array(zod.string().regex(publishWorkflowDraftResponsePublishedTemplateActiveProjectStatusKeysItemRegExp)),
   "status": zod.enum(['draft', 'published', 'archived']),
   "isDefault": zod.boolean(),
   "version": zod.number().int(),
@@ -1887,6 +1912,7 @@ export const PublishWorkflowDraftResponse = zod.object({
   "environmentId": zod.number().int(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "activeProjectStatusKeys": zod.array(zod.string().regex(publishWorkflowDraftResponseDraftOneTemplateActiveProjectStatusKeysItemRegExp)),
   "status": zod.enum(['draft', 'published', 'archived']),
   "isDefault": zod.boolean(),
   "version": zod.number().int(),

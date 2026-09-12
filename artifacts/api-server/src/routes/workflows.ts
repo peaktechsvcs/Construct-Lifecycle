@@ -51,6 +51,7 @@ const workflowTransitionInput = z.object({
 const workflowConfigInput = z.object({
   name: z.string().trim().min(1).max(160).optional(),
   description: z.string().trim().max(1000).nullable().optional(),
+  activeProjectStatusKeys: z.array(z.string().trim().regex(/^[a-z][a-z0-9_]{1,62}$/)).max(200).optional(),
   states: z.array(workflowStateInput).min(1).max(100),
   statuses: z.array(workflowStatusInput).max(200),
   transitions: z.array(workflowTransitionInput).max(500),

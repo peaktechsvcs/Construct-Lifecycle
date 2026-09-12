@@ -7,6 +7,7 @@ export const workflowTemplatesTable = pgTable("workflow_templates", {
   environmentId: integer("environment_id").notNull().references(() => environmentsTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
+  activeProjectStatusKeys: text("active_project_status_keys").array().notNull().default(["active", "waiting"]),
   status: text("status").notNull().default("published"),
   isDefault: boolean("is_default").notNull().default(true),
   version: integer("version").notNull().default(1),

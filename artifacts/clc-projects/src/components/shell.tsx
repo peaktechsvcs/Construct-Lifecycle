@@ -193,7 +193,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     items: [
       { href: '/customers', label: 'Customers', icon: BriefcaseBusiness },
       { href: '/projects', label: 'All Projects', icon: FolderKanban },
-      { href: '/coming-soon/active-projects', label: 'Active Projects', icon: BriefcaseBusiness },
+      { href: '/dashboard/drilldown/active-projects', label: 'Active Projects', icon: BriefcaseBusiness },
       { href: '/coming-soon/contracts', label: 'Contracts', icon: FileCheck2 },
       { href: '/coming-soon/milestones', label: 'Milestones', icon: Milestone },
     ],

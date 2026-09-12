@@ -14,6 +14,8 @@ export interface WorkflowTemplate {
   name: string;
   /** @nullable */
   description?: string | null;
+  /** @items.pattern ^[a-z][a-z0-9_]{1,62}$ */
+  activeProjectStatusKeys: string[];
   status: WorkflowTemplateStatus;
   isDefault: boolean;
   version: number;

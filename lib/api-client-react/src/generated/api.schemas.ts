@@ -1836,6 +1836,8 @@ export interface WorkflowTemplate {
   name: string;
   /** @nullable */
   description?: string | null;
+  /** @items.pattern ^[a-z][a-z0-9_]{1,62}$ */
+  activeProjectStatusKeys: string[];
   status: WorkflowTemplateStatus;
   isDefault: boolean;
   version: number;
@@ -1987,6 +1989,11 @@ export interface WorkflowConfigInput {
      * @nullable
      */
   description?: string | null;
+  /**
+     * @maxItems 200
+     * @items.pattern ^[a-z][a-z0-9_]{1,62}$
+     */
+  activeProjectStatusKeys?: string[];
   /**
      * @minItems 1
      * @maxItems 100

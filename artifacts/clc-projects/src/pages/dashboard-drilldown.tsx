@@ -478,6 +478,15 @@ export function DashboardDrilldown() {
 
   const showSort = !isFollowUps && !isAttention;
   const showSearch = !isAttention;
+  const selectedActiveProjectStatusKeys = workflow.data?.published.template.activeProjectStatusKeys ?? ['active', 'waiting'];
+  const activeProjectStatuses = workflow.data?.published
+    ? workflow.data.published.statuses
+      .filter((status) => selectedActiveProjectStatusKeys.includes(status.stableKey))
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+    : [
+      { stableKey: 'active', displayName: 'Active', displayOrder: 0 },
+      { stableKey: 'waiting', displayName: 'Waiting', displayOrder: 1 },
+    ];
 
   return (
     <div className="animate-rise">
@@ -574,31 +583,21 @@ export function DashboardDrilldown() {
           )}
           {isActiveProjects ? (
             <div className="space-y-6">
-              {[
-                {
-                  key: 'active',
-                  title: 'Active projects',
-                  description: 'Projects currently moving through delivery.',
-                  projects: data!.projects!.filter((project) => project.projectStatus?.toLowerCase() === 'active'),
-                },
-                {
-                  key: 'waiting',
-                  title: 'Waiting projects',
-                  description: 'Projects waiting on a decision, dependency, or customer action.',
-                  projects: data!.projects!.filter((project) => project.projectStatus?.toLowerCase() === 'waiting'),
-                },
-              ].map((group) => group.projects.length > 0 && (
-                <section key={group.key} aria-labelledby={`active-projects-${group.key}`}>
+              {activeProjectStatuses.map((status) => {
+                const statusProjects = data!.projects!.filter((project) => project.projectStatus?.toLowerCase() === status.stableKey);
+                return statusProjects.length > 0 && (
+                <section key={status.stableKey} aria-labelledby={`active-projects-${status.stableKey}`}>
                   <div className="mb-2 flex items-end justify-between gap-3">
                     <div>
-                      <h2 id={`active-projects-${group.key}`} className="text-base font-bold">{group.title}</h2>
-                      <p className="text-xs text-muted-foreground">{group.description}</p>
+                      <h2 id={`active-projects-${status.stableKey}`} className="text-base font-bold">{status.displayName} projects</h2>
+                      <p className="text-xs text-muted-foreground">Projects currently carrying the {status.displayName} status.</p>
                     </div>
-                    <span className="mono text-xs text-muted-foreground">{group.projects.length}</span>
+                    <span className="mono text-xs text-muted-foreground">{statusProjects.length}</span>
                   </div>
-                  <ProjectsTable projects={group.projects} returnUrl={returnUrl} />
+                  <ProjectsTable projects={statusProjects} returnUrl={returnUrl} />
                 </section>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <ProjectsTable
