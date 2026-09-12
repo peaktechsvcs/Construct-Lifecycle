@@ -366,10 +366,11 @@ function PackageBuilder({ pkg, onClose, onSaved }: { pkg: SubmittalPackage; onCl
     setBusy(true);
     try {
       const packageItems = order.map((itemId) => itemById.get(itemId)!);
-      const assemblyItems = packageItems.map((item) => {
+      const assemblyItems = packageItems.filter((item) => entryByItemId.get(item.id)?.documentId).map((item) => {
         const entry = entryByItemId.get(item.id)!;
         return { itemId: item.id, documentId: entry.documentId!, pageOrder: parsePageOrder(entry, item.name) };
       });
+      if (assemblyItems.length === 0) throw new Error('Add at least one uploaded PDF before building the package.');
       await reorderSubmittalItems(pkg.id, { itemIds: order });
       await Promise.all(assemblyItems.map((entry) => reorderSubmittalDocumentPages(entry.documentId, { pageOrder: entry.pageOrder })));
       await buildSubmittalPackageAssembly(pkg.id, { items: assemblyItems });
