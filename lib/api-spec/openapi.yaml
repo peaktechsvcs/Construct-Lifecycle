@@ -438,6 +438,43 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/TenantContext" }
         "403": { description: User is not authorized for the environment }
+  /features:
+    get:
+      operationId: listFeatureFlags
+      tags: [features]
+      summary: List feature visibility for the current user
+      responses:
+        "200":
+          description: Feature catalog visible to the current user
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FeatureFlag" }
+  /platform/features/{featureKey}:
+    patch:
+      operationId: updateFeatureFlag
+      tags: [platform]
+      summary: Toggle an upcoming feature for tenant visibility
+      parameters:
+        - name: featureKey
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[a-z][a-z0-9-]{1,62}$" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeatureFlagUpdate"
+      responses:
+        "200":
+          description: Updated feature flag
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FeatureFlag" }
+        "400": { description: Invalid feature key or update }
+        "403": { description: Platform administrator permission required }
   /tenant/members:
     get:
       operationId: listTenantMembers
@@ -1292,6 +1329,21 @@ components:
           items: { $ref: "#/components/schemas/Environment" }
         environmentLabel: { type: string, enum: [development, demo, production] }
         isPlatformAdmin: { type: boolean }
+    FeatureFlag:
+      type: object
+      required: [key, label, section, description, route, enabled]
+      properties:
+        key: { type: string }
+        label: { type: string }
+        section: { type: string }
+        description: { type: string }
+        route: { type: string }
+        enabled: { type: boolean }
+    FeatureFlagUpdate:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
     SwitchTenantInput:
       type: object
       required: [tenantId]
