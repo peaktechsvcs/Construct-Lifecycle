@@ -1099,6 +1099,8 @@ export interface DashboardDrilldownProject {
   /** @nullable */
   owner?: string | null;
   stage: ProjectStage;
+  /** @nullable */
+  projectStatus: string | null;
   contractValue: number;
   receivedAmount: number;
   deliveryPercent?: number;

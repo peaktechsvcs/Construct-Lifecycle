@@ -2013,7 +2013,7 @@ components:
       enum: [value_desc, value_asc, updated_desc, due_priority]
     DashboardDrilldownProject:
       type: object
-      required: [id, projectNumber, customerName, projectName, stage, contractValue, receivedAmount, updatedAt]
+      required: [id, projectNumber, customerName, projectName, stage, projectStatus, contractValue, receivedAmount, updatedAt]
       properties:
         id: { type: integer }
         projectNumber: { type: string }
@@ -2021,6 +2021,7 @@ components:
         projectName: { type: string }
         owner: { type: ["string", "null"] }
         stage: { $ref: "#/components/schemas/ProjectStage" }
+        projectStatus: { type: ["string", "null"] }
         contractValue: { type: number }
         receivedAmount: { type: number }
         deliveryPercent: { type: integer }

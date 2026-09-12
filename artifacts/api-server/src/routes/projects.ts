@@ -45,6 +45,7 @@ const projectContribution = (project: typeof projectsTable.$inferSelect) => ({
   contractValue: Number(project.contractValue), receivedAmount: Number(project.receivedAmount),
   deliveryPercent: project.deliveryPercent, contractStart: project.contractStart,
   contractEnd: project.contractEnd, nextFollowUp: project.nextFollowUp,
+  projectStatus: project.projectStatus,
   updatedAt: project.updatedAt, nextAction: project.nextFollowUp ? "Complete scheduled follow-up" : null,
 });
 
@@ -481,7 +482,9 @@ router.get("/dashboard/drilldown", async (req: TenantRequest, res) => {
   const projects = await db.select().from(projectsTable).where(and(...conditions));
   const today = dateToday();
   const matches = type === "active-projects"
-    ? projects.filter((p) => isActiveCategory(workflowCategory(workflow, p.stage)))
+    ? projects.filter((p) =>
+        isActiveCategory(workflowCategory(workflow, p.stage))
+        && ["active", "waiting"].includes(p.projectStatus?.toLowerCase() ?? ""))
     : type === "pipeline-value"
       ? projects.filter((p) => isPipelineCategory(workflowCategory(workflow, p.stage)))
       : type === "stage"
@@ -545,7 +548,9 @@ router.get("/dashboard/summary", async (req: TenantRequest, res) => {
     };
   });
   res.json({
-    activeProjects: projects.filter((project) => isActiveCategory(workflowCategory(workflow, project.stage))).length,
+    activeProjects: projects.filter((project) =>
+      isActiveCategory(workflowCategory(workflow, project.stage))
+      && ["active", "waiting"].includes(project.projectStatus?.toLowerCase() ?? "")).length,
     pipelineValue: projects
       .filter((project) => isPipelineCategory(workflowCategory(workflow, project.stage)))
       .reduce((sum, project) => sum + Number(project.contractValue), 0),

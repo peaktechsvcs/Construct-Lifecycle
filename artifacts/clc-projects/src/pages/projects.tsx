@@ -25,6 +25,77 @@ function stageBadgeTone(stage: string) {
   return 'teal' as const;
 }
 
+function ProjectTable({
+  projects,
+  workflow,
+  onEdit,
+  onDelete,
+}: {
+  projects: Project[];
+  workflow: ReturnType<typeof useWorkflow>;
+  onEdit: (project: Project) => void;
+  onDelete: (project: Project) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="hidden grid-cols-[1.4fr_1fr_140px_130px_105px_44px] gap-4 border-b border-border bg-secondary/45 px-5 py-3 md:grid">
+        <span className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Project</span>
+        <span className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Owner</span>
+        <span className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Stage</span>
+        <span className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Value</span>
+        <span className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Updated</span>
+        <span />
+      </div>
+      <div className="divide-y divide-border">
+        {projects.map((project) => (
+          <div
+            key={project.id}
+            data-testid={`row-project-${project.id}`}
+            className="group grid gap-3 px-5 py-4 transition-colors hover:bg-secondary/35 md:grid-cols-[1.4fr_1fr_140px_130px_105px_44px] md:items-center md:gap-4"
+          >
+            <Link href={`/projects/${project.id}`} data-testid={`link-project-${project.id}`} className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className={`h-2 w-2 shrink-0 rounded-full ${workflowStageColor(workflow.stateByKey.get(project.stage))}`} />
+                <div className="min-w-0">
+                  <p className="mono text-[10px] text-accent">{project.projectNumber}</p>
+                  <p className="truncate text-sm font-bold">{project.projectName}</p>
+                  <p className="truncate text-xs text-muted-foreground">{project.customerName} · {project.category}</p>
+                </div>
+              </div>
+            </Link>
+            <p className="hidden truncate text-xs text-muted-foreground md:block">{project.owner || 'Unassigned'}</p>
+            <div>
+              <Badge tone={stageBadgeTone(workflow.stateByKey.get(project.stage)?.normalizedCategory ?? project.stage)}>
+                {workflow.labels[project.stage] ?? stageLabels[project.stage] ?? project.stage}
+              </Badge>
+            </div>
+            <p className="mono text-sm font-medium">{currency.format(project.contractValue)}</p>
+            <p className="hidden text-xs text-muted-foreground md:block">{shortDate(project.updatedAt)}</p>
+            <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100">
+              <button
+                data-testid={`button-edit-project-${project.id}`}
+                aria-label={`Edit ${project.projectName}`}
+                className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                onClick={() => onEdit(project)}
+              >
+                <Pencil size={15} />
+              </button>
+              <button
+                data-testid={`button-delete-project-${project.id}`}
+                aria-label={`Delete ${project.projectName}`}
+                className="rounded-md p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => onDelete(project)}
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Projects() {
   const [location, setLocation] = useLocation();
   const [showForm, setShowForm] = useState(false);
@@ -82,6 +153,18 @@ export function Projects() {
     value: state.stableKey,
     label: state.displayName,
   }));
+  const handleDelete = (project: Project) => {
+    if (!window.confirm(`Delete ${project.projectName}?`)) return;
+    deleteProject.mutate(
+      { projectId: project.id },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+          qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        },
+      },
+    );
+  };
 
   return (
     <div className="animate-rise">
@@ -152,85 +235,12 @@ export function Projects() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="hidden grid-cols-[1.4fr_1fr_140px_130px_105px_44px] gap-4 border-b border-border bg-secondary/45 px-5 py-3 md:grid">
-            <span className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Project</span>
-            <span className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Owner</span>
-            <span className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Stage</span>
-            <span className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Value</span>
-            <span className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Updated</span>
-            <span />
-          </div>
-          <div className="divide-y divide-border">
-            {projects.map((project) => (
-              <div
-                key={project.id}
-                data-testid={`row-project-${project.id}`}
-                className="group grid gap-3 px-5 py-4 transition-colors hover:bg-secondary/35 md:grid-cols-[1.4fr_1fr_140px_130px_105px_44px] md:items-center md:gap-4"
-              >
-                <Link
-                  href={`/projects/${project.id}`}
-                  data-testid={`link-project-${project.id}`}
-                  className="min-w-0"
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                       className={`h-2 w-2 shrink-0 rounded-full ${workflowStageColor(workflow.stateByKey.get(project.stage))}`}
-                    />
-                    <div className="min-w-0">
-                      <p className="mono text-[10px] text-accent">{project.projectNumber}</p>
-                      <p className="truncate text-sm font-bold">{project.projectName}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {project.customerName} · {project.category}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-                <p className="hidden truncate text-xs text-muted-foreground md:block">
-                  {project.owner || 'Unassigned'}
-                </p>
-                <div>
-                   <Badge tone={stageBadgeTone(workflow.stateByKey.get(project.stage)?.normalizedCategory ?? project.stage)}>{workflow.labels[project.stage] ?? stageLabels[project.stage] ?? project.stage}</Badge>
-                </div>
-                <p className="mono text-sm font-medium">{currency.format(project.contractValue)}</p>
-                <p className="hidden text-xs text-muted-foreground md:block">{shortDate(project.updatedAt)}</p>
-                <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100">
-                  <button
-                    data-testid={`button-edit-project-${project.id}`}
-                    aria-label={`Edit ${project.projectName}`}
-                    className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    onClick={() => {
-                      setEditing(project);
-                      setShowForm(true);
-                    }}
-                  >
-                    <Pencil size={15} />
-                  </button>
-                  <button
-                    data-testid={`button-delete-project-${project.id}`}
-                    aria-label={`Delete ${project.projectName}`}
-                    className="rounded-md p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => {
-                      if (window.confirm(`Delete ${project.projectName}?`)) {
-                        deleteProject.mutate(
-                          { projectId: project.id },
-                          {
-                            onSuccess: () => {
-                              qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
-                              qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-                            },
-                          },
-                        );
-                      }
-                    }}
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <ProjectTable
+          projects={projects}
+          workflow={workflow}
+          onEdit={(project) => { setEditing(project); setShowForm(true); }}
+          onDelete={handleDelete}
+        />
       )}
 
       {showForm && (
