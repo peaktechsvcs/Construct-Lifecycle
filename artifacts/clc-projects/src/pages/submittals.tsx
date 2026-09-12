@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, ClipboardCheck, Download, ExternalLink, FileText, Layers3, Link2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, CheckCircle2, ClipboardCheck, Download, ExternalLink, FileText, Layers3, Link2, Pencil, Plus, Search, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
 import {
   buildSubmittalPackageAssembly,
   reorderSubmittalDocumentPages,
@@ -13,8 +13,11 @@ import {
   SubmittalItemStatus,
   SubmittalOriginType,
   SubmittalDocument,
+  SubmittalAssembly,
   SubmittalPackage,
   SubmittalPackageStatus,
+  SubmittalSignatureRequest,
+  useCreateSubmittalSignatureRequest,
   useCreateSubmittalItem,
   useCreateSubmittalPackage,
   useCreateSubmittalRevision,
@@ -29,6 +32,7 @@ import {
   useListBids,
   useListProjects,
   useListSubmittalPackages,
+  useMarkSubmittalAssemblySignatureReady,
   useUpdateSubmittalPackage,
   useUpdateSubmittalCoordination,
   useDeleteSubmittalCoordination,
@@ -415,6 +419,140 @@ function PackageBuilder({ pkg, onClose, onSaved }: { pkg: SubmittalPackage; onCl
   </Modal>;
 }
 
+type SignatureSignerDraft = {
+  name: string;
+  email: string;
+  role: string;
+  signingOrder: number;
+};
+
+const emptySigner = (signingOrder = 1): SignatureSignerDraft => ({
+  name: '',
+  email: '',
+  role: '',
+  signingOrder,
+});
+
+function SignaturePreparationForm({ pkg, assemblies, onClose, onSaved }: {
+  pkg: SubmittalPackage;
+  assemblies: SubmittalAssembly[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const create = useCreateSubmittalSignatureRequest();
+  const [assemblyId, setAssemblyId] = useState(String(assemblies[0]?.id ?? ''));
+  const [title, setTitle] = useState(`${pkg.name} · Signature request`);
+  const [signers, setSigners] = useState<SignatureSignerDraft[]>([emptySigner()]);
+  const [error, setError] = useState('');
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    const preparedSigners = signers.map((signer) => ({
+      name: signer.name.trim(),
+      email: signer.email.trim(),
+      role: signer.role.trim() || undefined,
+      signingOrder: signer.signingOrder,
+    }));
+    if (!assemblyId || preparedSigners.some((signer) => !signer.name || !signer.email)) {
+      setError('Choose a package version and complete every signer name and email.');
+      return;
+    }
+    try {
+      await create.mutateAsync({
+        submittalId: pkg.id,
+        data: {
+          assemblyId: Number(assemblyId),
+          title: title.trim() || undefined,
+          signers: preparedSigners,
+        },
+      });
+      onSaved();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to prepare the signature request.');
+    }
+  };
+
+  return <Modal title="Prepare signature request" onClose={onClose}>
+    <form className="space-y-4" onSubmit={submit}>
+      <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-sm text-amber-950">
+        <p className="font-semibold">Provider connection required to send</p>
+        <p className="mt-1 text-xs leading-5">This saves the package version and signer list only. It does not send an invitation or create a legally binding signature.</p>
+      </div>
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Package version</span>
+        <Select value={assemblyId} onValueChange={setAssemblyId}>
+          <SelectTrigger aria-label="Package version for signature request"><SelectValue /></SelectTrigger>
+          <SelectContent className="bg-popover">
+            {assemblies.map((assembly) => <SelectItem key={assembly.id} value={String(assembly.id)}>Version {assembly.version} · {Math.ceil(assembly.size / 1024)} KB</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </label>
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Request title</span>
+        <Input value={title} maxLength={240} onChange={(event) => setTitle(event.target.value)} />
+      </label>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div><h3 className="text-sm font-semibold">Signers</h3><p className="text-xs text-muted-foreground">Names and emails stay scoped to this customer environment.</p></div>
+          <Button type="button" variant="outline" onClick={() => setSigners((current) => [...current, emptySigner(current.length + 1)])}><UserPlus size={14} /> Add signer</Button>
+        </div>
+        {signers.map((signer, index) => <div key={index} className="rounded-lg border border-border bg-secondary/20 p-3">
+          <div className="mb-3 flex items-center justify-between gap-3"><p className="text-xs font-semibold">Signer {index + 1}</p>{signers.length > 1 && <Button type="button" variant="ghost" className="p-1 text-muted-foreground" aria-label={`Remove signer ${index + 1}`} onClick={() => setSigners((current) => current.filter((_, candidate) => candidate !== index))}>Remove</Button>}</div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Name</span><Input required maxLength={180} value={signer.name} onChange={(event) => setSigners((current) => current.map((candidate, candidateIndex) => candidateIndex === index ? { ...candidate, name: event.target.value } : candidate))} /></label>
+            <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Email</span><Input required type="email" maxLength={320} value={signer.email} onChange={(event) => setSigners((current) => current.map((candidate, candidateIndex) => candidateIndex === index ? { ...candidate, email: event.target.value } : candidate))} /></label>
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-[1fr_120px]">
+            <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Role (optional)</span><Input maxLength={180} value={signer.role} onChange={(event) => setSigners((current) => current.map((candidate, candidateIndex) => candidateIndex === index ? { ...candidate, role: event.target.value } : candidate))} placeholder="Architect / owner / contractor" /></label>
+            <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Order</span><Input type="number" min={1} max={50} value={signer.signingOrder} onChange={(event) => setSigners((current) => current.map((candidate, candidateIndex) => candidateIndex === index ? { ...candidate, signingOrder: Math.max(1, Number(event.target.value) || 1) } : candidate))} /></label>
+          </div>
+        </div>)}
+      </div>
+      {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+      <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={onClose}>Cancel</Button><Button type="submit" disabled={create.isPending || assemblies.length === 0}>{create.isPending ? 'Preparing…' : 'Save signer list'}</Button></div>
+    </form>
+  </Modal>;
+}
+
+const signatureStatusLabel = (status: string) => ({
+  draft: 'Prepared',
+  ready: 'Ready to send',
+  sent: 'Sent',
+  partially_signed: 'Partially signed',
+  completed: 'Completed',
+  declined: 'Declined',
+  expired: 'Expired',
+  canceled: 'Canceled',
+}[status] ?? status);
+
+function SignaturePanel({ pkg, canEdit, onChanged }: { pkg: SubmittalPackage; canEdit: boolean; onChanged: () => void }) {
+  const markReady = useMarkSubmittalAssemblySignatureReady();
+  const [showForm, setShowForm] = useState(false);
+  const readyAssemblies = pkg.assemblies.filter((assembly) => assembly.status === 'ready' && assembly.signatureReady);
+  const markableAssemblies = pkg.assemblies.filter((assembly) => assembly.status === 'ready' && !assembly.signatureReady);
+  const requests = pkg.signatureRequests ?? [];
+  return <section className="rounded-xl border border-border bg-card p-5">
+    <div className="flex items-start justify-between gap-3">
+      <div><div className="flex items-center gap-2"><ShieldCheck size={15} className="text-primary" /><h2 className="text-base font-bold">Signature preparation</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Lock signer preparation to an immutable assembled package version before a provider is connected.</p></div>
+      {canEdit && <Button variant="outline" disabled={readyAssemblies.length === 0} onClick={() => setShowForm(true)}><UserPlus size={14} /> Prepare signers</Button>}
+    </div>
+    <div className="mt-4 space-y-2">
+      {pkg.assemblies.length === 0 ? <p className="text-sm text-muted-foreground">Build a protected package version before preparing signatures.</p> : pkg.assemblies.map((assembly) => <div key={assembly.id} className="flex flex-col gap-2 rounded-lg border border-border bg-secondary/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold">Version {assembly.version}</span>{assembly.signatureReady ? <Badge tone="green"><CheckCircle2 size={12} /> Signature-ready</Badge> : <Badge tone="neutral">Not prepared</Badge>}</div><p className="mt-1 text-xs text-muted-foreground">{Math.ceil(assembly.size / 1024)} KB · {shortDate(assembly.createdAt)}</p></div>
+        {canEdit && !assembly.signatureReady && assembly.status === 'ready' && <Button type="button" variant="outline" disabled={markReady.isPending} onClick={() => markReady.mutate({ assemblyId: assembly.id }, { onSuccess: onChanged })}>{markReady.isPending ? 'Saving…' : 'Mark ready'}</Button>}
+      </div>)}
+    </div>
+    {markableAssemblies.length > 0 && <p className="mt-3 text-xs text-muted-foreground">Mark a completed version ready before adding signer details.</p>}
+    <div className="mt-4 rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+      <p className="font-semibold">{pkg.signatureProviderAvailable ? 'A signature provider is available.' : 'No e-signature provider is connected yet.'}</p>
+      <p className="mt-1">{pkg.signatureProviderAvailable ? 'Sending will be enabled when a provider adapter is configured for this environment.' : 'You can prepare signer details now. Sending remains disabled until an entitled provider is connected.'}</p>
+    </div>
+    {requests.length > 0 && <div className="mt-5 border-t border-border pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prepared requests</p><div className="mt-3 space-y-3">{requests.map((request: SubmittalSignatureRequest) => <div key={request.id} className="rounded-lg border border-border bg-secondary/20 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{request.title}</p><Badge tone={request.status === 'completed' ? 'green' : request.status === 'declined' || request.status === 'expired' || request.status === 'canceled' ? 'red' : 'neutral'}>{signatureStatusLabel(request.status)}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Version {pkg.assemblies.find((assembly) => assembly.id === request.assemblyId)?.version ?? '—'} · {request.signers.length} signer{request.signers.length === 1 ? '' : 's'}</p><div className="mt-2 space-y-1">{request.signers.map((signer) => <p key={signer.id} className="text-xs">{signer.name} · {signer.email}{signer.role ? ` · ${signer.role}` : ''}</p>)}</div></div>)}</div></div>}
+    {showForm && <SignaturePreparationForm pkg={pkg} assemblies={readyAssemblies} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); onChanged(); }} />}
+  </section>;
+}
+
 function PackageDetail({ id }: { id: number }) {
   const [, navigate] = useLocation();
   const qc = useQueryClient();
@@ -445,6 +583,7 @@ function PackageDetail({ id }: { id: number }) {
         {pkg.items.length === 0 ? <div className="p-5"><EmptyState icon={FileText} title="No items in this package" text="Add shop drawings, product data, samples, or other required documentation." action={canEdit ? <Button onClick={() => setShowItem(true)}><Plus size={15} /> Add first item</Button> : undefined} /></div> : <div className="divide-y divide-border">{pkg.items.map((item) => <div key={item.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="mono text-[10px] text-accent">{item.itemNumber}</span><Badge tone={tone(item.status)}>{label(itemStatuses, item.status)}</Badge></div><p className="mt-1 text-sm font-bold">{item.name}</p><p className="text-xs text-muted-foreground">{label(itemTypes, item.itemType)}{item.description ? ` · ${item.description}` : ''}</p>{item.documentName && <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">{item.documentUrl ? <a className="inline-flex items-center gap-1 text-accent hover:underline" href={item.documentUrl} target="_blank" rel="noreferrer">{item.documentName} <ExternalLink size={12} /></a> : item.documentName}</p>}{item.documents && item.documents.length > 0 && <div className="mt-3 space-y-1 text-xs">{item.documents.map((document) => <DocumentLink key={document.id} document={document} canEdit={canEdit} onChanged={refresh} />)}</div>}{canEdit && <DocumentUpload itemId={item.id} onUploaded={refresh} />}</div>{canEdit && <Button variant="ghost" className="self-end p-2 sm:self-start" aria-label={`Delete ${item.name}`} onClick={() => { if (window.confirm(`Delete ${item.name}?`)) removeItem.mutate({ itemId: item.id }, { onSuccess: refresh }); }}><Trash2 size={15} /></Button>}</div>)}</div>}
       </section>
       <div className="space-y-5">
+         <SignaturePanel pkg={pkg} canEdit={canEdit} onChanged={refresh} />
         <CoordinationPanel packageId={pkg.id} revisions={pkg.revisions} canEdit={canEdit} onChanged={refresh} />
         <section className="rounded-xl border border-border bg-card p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="text-base font-bold">Review history</h2><p className="mt-1 text-xs text-muted-foreground">Every disposition creates an immutable revision record.</p></div>{canEdit && <Button variant="outline" onClick={() => setShowRevision(true)}><Plus size={15} /> Revision</Button>}</div><div className="mt-4 space-y-4">{pkg.revisions.length === 0 ? <p className="text-sm text-muted-foreground">No formal review recorded yet.</p> : pkg.revisions.map((revision) => <div key={revision.id} className="border-l-2 border-primary/25 pl-3"><div className="flex flex-wrap items-center gap-2"><span className="mono text-[10px] text-muted-foreground">R{revision.revision}</span><Badge tone={tone(revision.status)}>{label(packageStatuses, revision.status)}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{revision.reviewerName || 'Team review'} · {shortDate(revision.createdAt)}</p>{revision.reviewComments && <p className="mt-2 text-sm">{revision.reviewComments}</p>}</div>)}</div></section>
          <section className="rounded-xl border border-border bg-card p-5"><h2 className="text-base font-bold">Package context</h2><dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Origin</dt><dd className="text-right font-semibold">{label(originTypes, pkg.originType)}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Specification</dt><dd className="text-right font-semibold">{pkg.specificationSection || 'Not assigned'}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Responsible party</dt><dd className="text-right font-semibold">{pkg.responsibleParty || 'Not assigned'}</dd></div>{pkg.sourceBidNumber && <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Source bid</dt><dd className="text-right font-semibold">{pkg.sourceBidNumber}</dd></div>}</dl>{pkg.description && <p className="mt-4 border-t border-border pt-4 text-sm leading-6 text-muted-foreground">{pkg.description}</p>}{pkg.assemblies.length > 0 && <div className="mt-5 border-t border-border pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Built versions</p><div className="mt-3 space-y-2">{pkg.assemblies.map((assembly) => <a key={assembly.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/20 px-3 py-2 text-xs hover:bg-secondary/40" href={assembly.downloadUrl} target="_blank" rel="noreferrer"><span><span className="font-semibold">Version {assembly.version}</span><span className="ml-2 text-muted-foreground">{Math.ceil(assembly.size / 1024)} KB · {shortDate(assembly.createdAt)}</span></span><Download size={14} className="text-accent" /></a>)}</div></div>}</section>

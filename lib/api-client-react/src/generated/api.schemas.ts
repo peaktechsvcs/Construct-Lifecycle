@@ -1030,6 +1030,9 @@ export interface SubmittalAssembly {
   /** @minimum 1 */
   version: number;
   status: SubmittalAssemblyStatus;
+  signatureReady: boolean;
+  /** @nullable */
+  signatureReadyAt: string | null;
   originalFileName: string;
   contentType: string;
   size: number;
@@ -1038,6 +1041,76 @@ export interface SubmittalAssembly {
   pagePlan: SubmittalAssemblyPagePlanItem[];
   createdAt: string;
   downloadUrl: string;
+}
+
+export type SubmittalSignatureRequestStatus = typeof SubmittalSignatureRequestStatus[keyof typeof SubmittalSignatureRequestStatus];
+
+
+export const SubmittalSignatureRequestStatus = {
+  draft: 'draft',
+  ready: 'ready',
+  sent: 'sent',
+  partially_signed: 'partially_signed',
+  completed: 'completed',
+  declined: 'declined',
+  expired: 'expired',
+  canceled: 'canceled',
+} as const;
+
+export type SubmittalSignatureSignerStatus = typeof SubmittalSignatureSignerStatus[keyof typeof SubmittalSignatureSignerStatus];
+
+
+export const SubmittalSignatureSignerStatus = {
+  pending: 'pending',
+  sent: 'sent',
+  signed: 'signed',
+  declined: 'declined',
+} as const;
+
+export interface SubmittalSignatureSigner {
+  id: number;
+  name: string;
+  email: string;
+  /** @nullable */
+  role: string | null;
+  /** @minimum 1 */
+  signingOrder: number;
+  status: SubmittalSignatureSignerStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SubmittalSignatureEventDetails = { [key: string]: unknown };
+
+export interface SubmittalSignatureEvent {
+  id: number;
+  eventType: string;
+  /** @nullable */
+  fromStatus: string | null;
+  /** @nullable */
+  toStatus: string | null;
+  details: SubmittalSignatureEventDetails;
+  createdAt: string;
+}
+
+export type SubmittalSignatureRequestExternalMetadata = { [key: string]: unknown };
+
+export interface SubmittalSignatureRequest {
+  id: number;
+  packageId: number;
+  assemblyId: number;
+  title: string;
+  status: SubmittalSignatureRequestStatus;
+  /** @nullable */
+  providerKey: string | null;
+  /** @nullable */
+  providerRequestId: string | null;
+  externalMetadata: SubmittalSignatureRequestExternalMetadata;
+  providerAvailable: boolean;
+  signers: SubmittalSignatureSigner[];
+  events: SubmittalSignatureEvent[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface SubmittalPackage {
@@ -1076,6 +1149,8 @@ export interface SubmittalPackage {
   items: SubmittalItem[];
   revisions: SubmittalRevision[];
   assemblies: SubmittalAssembly[];
+  signatureProviderAvailable: boolean;
+  signatureRequests: SubmittalSignatureRequest[];
   createdAt: string;
   updatedAt: string;
 }
@@ -1221,6 +1296,35 @@ export interface SubmittalAssemblyInput {
      * @maxItems 200
      */
   items: SubmittalAssemblyInputItemsItem[];
+}
+
+export interface SubmittalSignatureSignerInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  /** @maxLength 320 */
+  email: string;
+  /** @maxLength 180 */
+  role?: string;
+  /**
+     * @minimum 1
+     * @maximum 50
+     */
+  signingOrder?: number;
+}
+
+export interface SubmittalSignatureRequestInput {
+  /** @minimum 1 */
+  assemblyId: number;
+  /** @maxLength 240 */
+  title?: string;
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  signers: SubmittalSignatureSignerInput[];
 }
 
 export interface SubmittalRevisionInput {

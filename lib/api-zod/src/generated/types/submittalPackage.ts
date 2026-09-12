@@ -10,6 +10,7 @@ import type { SubmittalItem } from './submittalItem';
 import type { SubmittalOriginType } from './submittalOriginType';
 import type { SubmittalPackageStatus } from './submittalPackageStatus';
 import type { SubmittalRevision } from './submittalRevision';
+import type { SubmittalSignatureRequest } from './submittalSignatureRequest';
 
 export interface SubmittalPackage {
   id: number;
@@ -47,6 +48,8 @@ export interface SubmittalPackage {
   items: SubmittalItem[];
   revisions: SubmittalRevision[];
   assemblies: SubmittalAssembly[];
+  signatureProviderAvailable: boolean;
+  signatureRequests: SubmittalSignatureRequest[];
   createdAt: Date;
   updatedAt: Date;
 }

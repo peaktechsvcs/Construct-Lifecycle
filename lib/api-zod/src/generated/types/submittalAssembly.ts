@@ -14,6 +14,9 @@ export interface SubmittalAssembly {
   /** @minimum 1 */
   version: number;
   status: SubmittalAssemblyStatus;
+  signatureReady: boolean;
+  /** @nullable */
+  signatureReadyAt: Date | null;
   originalFileName: string;
   contentType: string;
   size: number;

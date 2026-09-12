@@ -13,3 +13,4 @@
 - [Bids model](bids-model.md) — bids support general or specialty work and independent full/partial takeoff and estimating coverage.
 - [Estimates model](estimates-model.md) — estimates use normalized cost components and vendor-neutral sync metadata.
 - [Submittals model](submittals-model.md) — formal submittals are post-award packages; bid-stage substitutions and alternates remain linked source records.
+- [Signature foundation](signature-foundation.md) — preparation is provider-neutral; legal sending requires a connected, entitled adapter.

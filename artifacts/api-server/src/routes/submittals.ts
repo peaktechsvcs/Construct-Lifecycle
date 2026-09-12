@@ -6,6 +6,8 @@ import {
   bidsTable,
   businessCustomersTable,
   db,
+  integrationEntitlementsTable,
+  integrationsTable,
   platformAuditEventsTable,
   projectsTable,
   submittalPackageAssembliesTable,
@@ -14,8 +16,13 @@ import {
   submittalItemsTable,
   submittalPackagesTable,
   submittalRevisionsTable,
+  submittalSignatureEventsTable,
+  submittalSignatureRequestsTable,
+  submittalSignatureSignersTable,
 } from "@workspace/db";
 import {
+  CreateSubmittalSignatureRequestBody,
+  CreateSubmittalSignatureRequestParams,
   CreateSubmittalItemBody,
   CreateSubmittalItemParams,
   CreateSubmittalPackageBody,
@@ -24,7 +31,9 @@ import {
   DeleteSubmittalItemParams,
   DeleteSubmittalPackageParams,
   GetSubmittalPackageParams,
+  ListSubmittalSignatureRequestsParams,
   ListSubmittalPackagesQueryParams,
+  MarkSubmittalAssemblySignatureReadyParams,
   UpdateSubmittalItemBody,
   UpdateSubmittalItemParams,
   UpdateSubmittalPackageBody,
@@ -34,6 +43,9 @@ import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
 import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 import { screenStoredDocument } from "../lib/documentScreening";
+import { getSignatureProvider, getSignatureProviderAvailability } from "../lib/signatures/provider";
+import { activeSignatureRequestStatuses } from "../lib/signatures/state";
+import { validateAndNormalizeSignatureSigners } from "../lib/signatures/validation";
 
 const router: IRouter = Router();
 
@@ -208,6 +220,8 @@ const serializeAssembly = (assembly: typeof submittalPackageAssembliesTable.$inf
   packageId: assembly.packageId,
   version: assembly.version,
   status: assembly.status,
+  signatureReady: assembly.signatureReady,
+  signatureReadyAt: assembly.signatureReadyAt,
   originalFileName: assembly.originalFileName,
   contentType: assembly.contentType,
   size: assembly.size,
@@ -216,6 +230,110 @@ const serializeAssembly = (assembly: typeof submittalPackageAssembliesTable.$inf
   createdAt: assembly.createdAt,
   downloadUrl: `/api/submittal-assemblies/${assembly.id}`,
 });
+
+const parseObject = (value: string | null | undefined): Record<string, unknown> => {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
+};
+
+const getConnectedSignatureProviderKeys = async (req: TenantRequest) => {
+  const rows = await db.select({ providerKey: integrationsTable.providerKey })
+    .from(integrationsTable)
+    .innerJoin(integrationEntitlementsTable, and(
+      eq(integrationEntitlementsTable.tenantId, integrationsTable.tenantId),
+      eq(integrationEntitlementsTable.capabilityKey, integrationsTable.providerKey),
+      eq(integrationEntitlementsTable.enabled, true),
+    ))
+    .where(and(
+      eq(integrationsTable.tenantId, req.tenantId!),
+      eq(integrationsTable.environmentId, req.environmentId!),
+      eq(integrationsTable.providerCategory, "e_signature"),
+      eq(integrationsTable.status, "connected"),
+    ));
+  return rows.map((row) => row.providerKey);
+};
+
+const serializeSignatureEvent = (event: typeof submittalSignatureEventsTable.$inferSelect) => ({
+  id: event.id,
+  eventType: event.eventType,
+  fromStatus: event.fromStatus,
+  toStatus: event.toStatus,
+  details: parseObject(event.details),
+  createdAt: event.createdAt,
+});
+
+const loadSignatureRequests = async (req: TenantRequest, packageId: number) => {
+  const connectedProviderKeys = await getConnectedSignatureProviderKeys(req);
+  const requests = await db.select().from(submittalSignatureRequestsTable)
+    .where(and(
+      eq(submittalSignatureRequestsTable.packageId, packageId),
+      eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+      eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+    ))
+    .orderBy(desc(submittalSignatureRequestsTable.createdAt));
+  if (requests.length === 0) return [];
+
+  const requestIds = requests.map((request) => request.id);
+  const [signers, events] = await Promise.all([
+    db.select().from(submittalSignatureSignersTable)
+      .where(and(
+        inArray(submittalSignatureSignersTable.requestId, requestIds),
+        eq(submittalSignatureSignersTable.tenantId, req.tenantId!),
+        eq(submittalSignatureSignersTable.environmentId, req.environmentId!),
+      ))
+      .orderBy(submittalSignatureSignersTable.signingOrder, submittalSignatureSignersTable.id),
+    db.select().from(submittalSignatureEventsTable)
+      .where(and(
+        inArray(submittalSignatureEventsTable.requestId, requestIds),
+        eq(submittalSignatureEventsTable.tenantId, req.tenantId!),
+        eq(submittalSignatureEventsTable.environmentId, req.environmentId!),
+      ))
+      .orderBy(submittalSignatureEventsTable.createdAt, submittalSignatureEventsTable.id),
+  ]);
+  const signersByRequest = new Map<number, typeof signers>();
+  const eventsByRequest = new Map<number, typeof events>();
+  for (const signer of signers) {
+    const current = signersByRequest.get(signer.requestId) ?? [];
+    current.push(signer);
+    signersByRequest.set(signer.requestId, current);
+  }
+  for (const event of events) {
+    const current = eventsByRequest.get(event.requestId) ?? [];
+    current.push(event);
+    eventsByRequest.set(event.requestId, current);
+  }
+  return requests.map((request) => ({
+    id: request.id,
+    packageId: request.packageId,
+    assemblyId: request.assemblyId,
+    title: request.title,
+    status: request.status,
+    providerKey: request.providerKey,
+    providerRequestId: request.providerRequestId,
+    externalMetadata: parseObject(request.externalMetadata),
+    providerAvailable: Boolean(request.providerKey && connectedProviderKeys.includes(request.providerKey) && getSignatureProvider(request.providerKey)),
+    signers: (signersByRequest.get(request.id) ?? []).map((signer) => ({
+      id: signer.id,
+      name: signer.name,
+      email: signer.email,
+      role: signer.role,
+      signingOrder: signer.signingOrder,
+      status: signer.status,
+      createdAt: signer.createdAt,
+      updatedAt: signer.updatedAt,
+    })),
+    events: (eventsByRequest.get(request.id) ?? []).map(serializeSignatureEvent),
+    createdAt: request.createdAt,
+    updatedAt: request.updatedAt,
+  }));
+};
 
 const serializeRevision = (revision: typeof submittalRevisionsTable.$inferSelect) => ({
   id: revision.id,
@@ -244,9 +362,9 @@ const serializeCoordination = (record: typeof submittalCoordinationTable.$inferS
   updatedAt: record.updatedAt,
 });
 
-const serializePackage = async (row: Awaited<ReturnType<typeof getPackageBase>>) => {
+const serializePackage = async (req: TenantRequest, row: Awaited<ReturnType<typeof getPackageBase>>) => {
   if (!row) return null;
-  const [items, revisions] = await Promise.all([
+  const [items, revisions, signatureRequests] = await Promise.all([
     db.select().from(submittalItemsTable)
       .where(and(
         eq(submittalItemsTable.packageId, row.package.id),
@@ -261,6 +379,7 @@ const serializePackage = async (row: Awaited<ReturnType<typeof getPackageBase>>)
         eq(submittalRevisionsTable.environmentId, row.package.environmentId),
       ))
       .orderBy(desc(submittalRevisionsTable.revision)),
+    loadSignatureRequests(req, row.package.id),
   ]);
   const assemblies = await db.select().from(submittalPackageAssembliesTable)
     .where(and(
@@ -310,6 +429,8 @@ const serializePackage = async (row: Awaited<ReturnType<typeof getPackageBase>>)
     items: items.map((item) => serializeItem(item, documentsByItem.get(item.id))),
     revisions: revisions.map(serializeRevision),
     assemblies: assemblies.map(serializeAssembly),
+    signatureProviderAvailable: getSignatureProviderAvailability(await getConnectedSignatureProviderKeys(req)).available,
+    signatureRequests,
     createdAt: row.package.createdAt,
     updatedAt: row.package.updatedAt,
   };
@@ -467,7 +588,7 @@ router.post("/submittals", requireRole("owner", "admin", "member"), async (req: 
     action: "submittal_package_created",
     details: JSON.stringify({ submittalId: created.id, environmentId: req.environmentId }),
   });
-  res.status(201).json(await serializePackage(await getPackageBase(req, created.id)));
+  res.status(201).json(await serializePackage(req, await getPackageBase(req, created.id)));
 });
 
 router.get("/submittals/:submittalId", async (req: TenantRequest, res) => {
@@ -481,7 +602,7 @@ router.get("/submittals/:submittalId", async (req: TenantRequest, res) => {
     res.status(404).json({ error: "Submittal package not found" });
     return;
   }
-  res.json(await serializePackage(row));
+  res.json(await serializePackage(req, row));
 });
 
 router.patch("/submittals/:submittalId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
@@ -516,7 +637,7 @@ router.patch("/submittals/:submittalId", requireRole("owner", "admin", "member")
     eq(submittalPackagesTable.tenantId, req.tenantId!),
     eq(submittalPackagesTable.environmentId, req.environmentId!),
   ));
-  res.json(await serializePackage(await getPackageBase(req, params.data.submittalId)));
+  res.json(await serializePackage(req, await getPackageBase(req, params.data.submittalId)));
 });
 
 router.delete("/submittals/:submittalId", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
@@ -648,7 +769,7 @@ router.patch("/submittals/:submittalId/items/reorder", requireRole("owner", "adm
     eq(submittalItemsTable.tenantId, req.tenantId!),
     eq(submittalItemsTable.environmentId, req.environmentId!),
   ))));
-  res.json(await serializePackage(await getPackageBase(req, pkg.id)));
+  res.json(await serializePackage(req, await getPackageBase(req, pkg.id)));
 });
 
 router.post("/submittal-items/:itemId/documents/request-upload", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
@@ -1004,6 +1125,141 @@ router.get("/submittal-assemblies/:assemblyId", async (req: TenantRequest, res) 
     req.log.error({ err: error, assemblyId }, "Failed to open assembled package");
     res.status(503).json({ error: "Package storage is temporarily unavailable" });
   }
+});
+
+router.post("/submittal-assemblies/:assemblyId/signature-ready", requireRole("owner", "admin", "member"), async (req: TenantRequest, res): Promise<void> => {
+  const params = MarkSubmittalAssemblySignatureReadyParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid assembly id" });
+    return;
+  }
+  const [assembly] = await db.select().from(submittalPackageAssembliesTable).where(and(
+    eq(submittalPackageAssembliesTable.id, params.data.assemblyId),
+    eq(submittalPackageAssembliesTable.tenantId, req.tenantId!),
+    eq(submittalPackageAssembliesTable.environmentId, req.environmentId!),
+  ));
+  if (!assembly) {
+    res.status(404).json({ error: "Assembled package not found" });
+    return;
+  }
+  if (assembly.status !== "ready") {
+    res.status(409).json({ error: "Only a completed assembled package can be marked signature-ready" });
+    return;
+  }
+  const [updated] = await db.update(submittalPackageAssembliesTable).set({
+    signatureReady: true,
+    signatureReadyAt: assembly.signatureReadyAt ?? new Date(),
+    signatureReadyByUserId: assembly.signatureReadyByUserId ?? req.localUserId!,
+  }).where(and(
+    eq(submittalPackageAssembliesTable.id, assembly.id),
+    eq(submittalPackageAssembliesTable.tenantId, req.tenantId!),
+    eq(submittalPackageAssembliesTable.environmentId, req.environmentId!),
+  )).returning();
+  req.log.info({ assemblyId: assembly.id, packageId: assembly.packageId }, "Marked submittal assembly signature-ready");
+  res.json(serializeAssembly(updated));
+});
+
+router.get("/submittals/:submittalId/signature-requests", async (req: TenantRequest, res): Promise<void> => {
+  const params = ListSubmittalSignatureRequestsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid submittal package id" });
+    return;
+  }
+  const pkg = await getPackageForMutation(req, params.data.submittalId);
+  if (!pkg) {
+    res.status(404).json({ error: "Submittal package not found" });
+    return;
+  }
+  res.json(await loadSignatureRequests(req, pkg.id));
+});
+
+router.post("/submittals/:submittalId/signature-requests", requireRole("owner", "admin", "member"), async (req: TenantRequest, res): Promise<void> => {
+  const params = CreateSubmittalSignatureRequestParams.safeParse(req.params);
+  const parsed = CreateSubmittalSignatureRequestBody.safeParse(req.body);
+  if (!params.success || !parsed.success) {
+    res.status(400).json({ error: "Invalid signature preparation details" });
+    return;
+  }
+  const pkg = await getPackageForMutation(req, params.data.submittalId);
+  if (!pkg) {
+    res.status(404).json({ error: "Submittal package not found" });
+    return;
+  }
+  const [assembly] = await db.select().from(submittalPackageAssembliesTable).where(and(
+    eq(submittalPackageAssembliesTable.id, parsed.data.assemblyId),
+    eq(submittalPackageAssembliesTable.packageId, pkg.id),
+    eq(submittalPackageAssembliesTable.tenantId, req.tenantId!),
+    eq(submittalPackageAssembliesTable.environmentId, req.environmentId!),
+  ));
+  if (!assembly) {
+    res.status(404).json({ error: "Assembled package not found in this submittal" });
+    return;
+  }
+  if (assembly.status !== "ready" || !assembly.signatureReady) {
+    res.status(409).json({ error: "Mark this assembled package version signature-ready before preparing signers" });
+    return;
+  }
+  const signerValidation = validateAndNormalizeSignatureSigners(parsed.data.signers);
+  if (!signerValidation.ok) {
+    res.status(400).json({ error: signerValidation.error });
+    return;
+  }
+  const [activeRequest] = await db.select({ id: submittalSignatureRequestsTable.id }).from(submittalSignatureRequestsTable).where(and(
+    eq(submittalSignatureRequestsTable.packageId, pkg.id),
+    eq(submittalSignatureRequestsTable.assemblyId, assembly.id),
+    eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+    eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+    inArray(submittalSignatureRequestsTable.status, [...activeSignatureRequestStatuses]),
+  )).limit(1);
+  if (activeRequest) {
+    res.status(409).json({ error: "This assembled package version already has an active signature request" });
+    return;
+  }
+  const title = parsed.data.title?.trim() || `${pkg.name} · Version ${assembly.version}`;
+  const request = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(submittalSignatureRequestsTable).values({
+      packageId: pkg.id,
+      assemblyId: assembly.id,
+      title,
+      status: "draft",
+      providerKey: null,
+      providerRequestId: null,
+      externalMetadata: "{}",
+      createdByUserId: req.localUserId!,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    }).returning();
+    await tx.insert(submittalSignatureSignersTable).values(signerValidation.signers.map((signer) => ({
+      requestId: created.id,
+      name: signer.name,
+      email: signer.email,
+      role: signer.role,
+      signingOrder: signer.signingOrder,
+      status: "pending",
+      providerSignerId: null,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    })));
+    await tx.insert(submittalSignatureEventsTable).values({
+      requestId: created.id,
+      eventType: "request_prepared",
+      fromStatus: null,
+      toStatus: "draft",
+      details: JSON.stringify({ assemblyId: assembly.id, signerCount: parsed.data.signers.length }),
+      actorUserId: req.localUserId!,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    });
+    return created;
+  });
+  req.log.info({ signatureRequestId: request.id, packageId: pkg.id, assemblyId: assembly.id }, "Prepared provider-neutral submittal signature request");
+  const requests = await loadSignatureRequests(req, pkg.id);
+  const response = requests.find((candidate) => candidate.id === request.id);
+  if (!response) {
+    res.status(503).json({ error: "Signature request was created but could not be loaded" });
+    return;
+  }
+  res.status(201).json(response);
 });
 
 router.post("/submittals/:submittalId/revisions", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {

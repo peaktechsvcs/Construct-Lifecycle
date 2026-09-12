@@ -107,6 +107,8 @@ import type {
   SubmittalPageOrderInput,
   SubmittalRevision,
   SubmittalRevisionInput,
+  SubmittalSignatureRequest,
+  SubmittalSignatureRequestInput,
   SwitchEnvironmentInput,
   SwitchTenantInput,
   TenantContext,
@@ -3272,6 +3274,226 @@ export function useGetSubmittalPackageAssembly<TData = Awaited<ReturnType<typeof
 
 
 
+
+export const getMarkSubmittalAssemblySignatureReadyUrl = (assemblyId: number,) => {
+
+
+
+
+  return `/api/submittal-assemblies/${assemblyId}/signature-ready`
+}
+
+/**
+ * @summary Mark an assembled submittal package version ready for future signature
+ */
+export const markSubmittalAssemblySignatureReady = async (assemblyId: number, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalAssembly> => {
+
+  return customFetch<SubmittalAssembly>(getMarkSubmittalAssemblySignatureReadyUrl(assemblyId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkSubmittalAssemblySignatureReadyMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markSubmittalAssemblySignatureReady>>, TError,{assemblyId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markSubmittalAssemblySignatureReady>>, TError,{assemblyId: number}, TContext> => {
+
+const mutationKey = ['markSubmittalAssemblySignatureReady'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markSubmittalAssemblySignatureReady>>, {assemblyId: number}> = (props) => {
+          const {assemblyId} = props ?? {};
+
+          return  markSubmittalAssemblySignatureReady(assemblyId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkSubmittalAssemblySignatureReadyMutationResult = NonNullable<Awaited<ReturnType<typeof markSubmittalAssemblySignatureReady>>>
+
+    export type MarkSubmittalAssemblySignatureReadyMutationError = ErrorType<void>
+
+    /**
+ * @summary Mark an assembled submittal package version ready for future signature
+ */
+export const useMarkSubmittalAssemblySignatureReady = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markSubmittalAssemblySignatureReady>>, TError,{assemblyId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markSubmittalAssemblySignatureReady>>,
+        TError,
+        {assemblyId: number},
+        TContext
+      > => {
+      return useMutation(getMarkSubmittalAssemblySignatureReadyMutationOptions(options));
+    }
+
+export const getListSubmittalSignatureRequestsUrl = (submittalId: number,) => {
+
+
+
+
+  return `/api/submittals/${submittalId}/signature-requests`
+}
+
+/**
+ * @summary List prepared signature requests for a submittal package
+ */
+export const listSubmittalSignatureRequests = async (submittalId: number, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalSignatureRequest[]> => {
+
+  return customFetch<SubmittalSignatureRequest[]>(getListSubmittalSignatureRequestsUrl(submittalId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSubmittalSignatureRequestsQueryKey = (submittalId: number,) => {
+    return [
+    `/api/submittals/${submittalId}/signature-requests`
+    ] as const;
+    }
+
+
+export const getListSubmittalSignatureRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listSubmittalSignatureRequests>>, TError = ErrorType<unknown>>(submittalId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubmittalSignatureRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSubmittalSignatureRequestsQueryKey(submittalId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSubmittalSignatureRequests>>> = ({ signal }) => listSubmittalSignatureRequests(submittalId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: submittalId !== null && submittalId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSubmittalSignatureRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSubmittalSignatureRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listSubmittalSignatureRequests>>>
+export type ListSubmittalSignatureRequestsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List prepared signature requests for a submittal package
+ */
+
+export function useListSubmittalSignatureRequests<TData = Awaited<ReturnType<typeof listSubmittalSignatureRequests>>, TError = ErrorType<unknown>>(
+ submittalId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubmittalSignatureRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSubmittalSignatureRequestsQueryOptions(submittalId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSubmittalSignatureRequestUrl = (submittalId: number,) => {
+
+
+
+
+  return `/api/submittals/${submittalId}/signature-requests`
+}
+
+/**
+ * @summary Prepare a provider-neutral signature request for an assembled package
+ */
+export const createSubmittalSignatureRequest = async (submittalId: number,
+    submittalSignatureRequestInput: SubmittalSignatureRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalSignatureRequest> => {
+
+  return customFetch<SubmittalSignatureRequest>(getCreateSubmittalSignatureRequestUrl(submittalId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalSignatureRequestInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSubmittalSignatureRequestMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmittalSignatureRequest>>, TError,{submittalId: number;data: BodyType<SubmittalSignatureRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSubmittalSignatureRequest>>, TError,{submittalId: number;data: BodyType<SubmittalSignatureRequestInput>}, TContext> => {
+
+const mutationKey = ['createSubmittalSignatureRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubmittalSignatureRequest>>, {submittalId: number;data: BodyType<SubmittalSignatureRequestInput>}> = (props) => {
+          const {submittalId,data} = props ?? {};
+
+          return  createSubmittalSignatureRequest(submittalId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSubmittalSignatureRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createSubmittalSignatureRequest>>>
+    export type CreateSubmittalSignatureRequestMutationBody = BodyType<SubmittalSignatureRequestInput>
+    export type CreateSubmittalSignatureRequestMutationError = ErrorType<void>
+
+    /**
+ * @summary Prepare a provider-neutral signature request for an assembled package
+ */
+export const useCreateSubmittalSignatureRequest = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmittalSignatureRequest>>, TError,{submittalId: number;data: BodyType<SubmittalSignatureRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSubmittalSignatureRequest>>,
+        TError,
+        {submittalId: number;data: BodyType<SubmittalSignatureRequestInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSubmittalSignatureRequestMutationOptions(options));
+    }
 
 export const getCreateSubmittalRevisionUrl = (submittalId: number,) => {
 

@@ -690,6 +690,53 @@ paths:
         - $ref: "#/components/parameters/SubmittalAssemblyId"
       responses:
         "200": { description: Protected assembled PDF bytes }
+  /submittal-assemblies/{assemblyId}/signature-ready:
+    post:
+      operationId: markSubmittalAssemblySignatureReady
+      tags: [submittals]
+      summary: Mark an assembled submittal package version ready for future signature
+      parameters:
+        - $ref: "#/components/parameters/SubmittalAssemblyId"
+      responses:
+        "200":
+          description: Signature-ready assembled package
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalAssembly" }
+        "409": { description: Assembly is not ready for signature preparation }
+  /submittals/{submittalId}/signature-requests:
+    get:
+      operationId: listSubmittalSignatureRequests
+      tags: [submittals]
+      summary: List prepared signature requests for a submittal package
+      parameters:
+        - $ref: "#/components/parameters/SubmittalId"
+      responses:
+        "200":
+          description: Prepared signature requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SubmittalSignatureRequest" }
+    post:
+      operationId: createSubmittalSignatureRequest
+      tags: [submittals]
+      summary: Prepare a provider-neutral signature request for an assembled package
+      parameters:
+        - $ref: "#/components/parameters/SubmittalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalSignatureRequestInput" }
+      responses:
+        "201":
+          description: Prepared signature request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalSignatureRequest" }
+        "409": { description: Package assembly is not signature-ready or already has an active request }
   /submittals/{submittalId}/revisions:
     post:
       operationId: createSubmittalRevision
@@ -2232,12 +2279,14 @@ components:
         failureReason: { type: ["string", "null"], maxLength: 2000 }
     SubmittalAssembly:
       type: object
-      required: [id, packageId, version, status, originalFileName, contentType, size, itemOrder, pagePlan, createdAt, downloadUrl]
+      required: [id, packageId, version, status, signatureReady, signatureReadyAt, originalFileName, contentType, size, itemOrder, pagePlan, createdAt, downloadUrl]
       properties:
         id: { type: integer }
         packageId: { type: integer }
         version: { type: integer, minimum: 1 }
         status: { type: string, enum: [ready, failed] }
+        signatureReady: { type: boolean }
+        signatureReadyAt: { type: ["string", "null"], format: date-time }
         originalFileName: { type: string }
         contentType: { type: string }
         size: { type: integer }
@@ -2259,7 +2308,7 @@ components:
         downloadUrl: { type: string }
     SubmittalPackage:
       type: object
-      required: [id, environmentId, packageNumber, projectId, projectNumber, projectName, customerName, sourceBidId, sourceBidNumber, originType, name, description, specificationSection, responsibleParty, status, dueDate, revision, reviewerName, reviewComments, submittedAt, reviewedAt, itemCount, items, revisions, assemblies, createdAt, updatedAt]
+      required: [id, environmentId, packageNumber, projectId, projectNumber, projectName, customerName, sourceBidId, sourceBidNumber, originType, name, description, specificationSection, responsibleParty, status, dueDate, revision, reviewerName, reviewComments, submittedAt, reviewedAt, itemCount, items, revisions, assemblies, signatureProviderAvailable, signatureRequests, createdAt, updatedAt]
       properties:
         id: { type: integer }
         environmentId: { type: integer }
@@ -2292,6 +2341,10 @@ components:
         assemblies:
           type: array
           items: { $ref: "#/components/schemas/SubmittalAssembly" }
+        signatureProviderAvailable: { type: boolean }
+        signatureRequests:
+          type: array
+          items: { $ref: "#/components/schemas/SubmittalSignatureRequest" }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     SubmittalPackageInput:
@@ -2376,6 +2429,78 @@ components:
                 minItems: 1
                 maxItems: 500
                 items: { type: integer, minimum: 1 }
+    SubmittalSignatureRequestStatus:
+      type: string
+      enum: [draft, ready, sent, partially_signed, completed, declined, expired, canceled]
+    SubmittalSignatureSignerStatus:
+      type: string
+      enum: [pending, sent, signed, declined]
+    SubmittalSignatureEvent:
+      type: object
+      required: [id, eventType, fromStatus, toStatus, details, createdAt]
+      properties:
+        id: { type: integer }
+        eventType: { type: string }
+        fromStatus: { type: ["string", "null"] }
+        toStatus: { type: ["string", "null"] }
+        details:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string, format: date-time }
+    SubmittalSignatureSigner:
+      type: object
+      required: [id, name, email, role, signingOrder, status, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: ["string", "null"] }
+        signingOrder: { type: integer, minimum: 1 }
+        status: { $ref: "#/components/schemas/SubmittalSignatureSignerStatus" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SubmittalSignatureRequest:
+      type: object
+      required: [id, packageId, assemblyId, title, status, providerKey, providerRequestId, externalMetadata, providerAvailable, signers, events, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        packageId: { type: integer }
+        assemblyId: { type: integer }
+        title: { type: string }
+        status: { $ref: "#/components/schemas/SubmittalSignatureRequestStatus" }
+        providerKey: { type: ["string", "null"] }
+        providerRequestId: { type: ["string", "null"] }
+        externalMetadata:
+          type: object
+          additionalProperties: true
+        providerAvailable: { type: boolean }
+        signers:
+          type: array
+          items: { $ref: "#/components/schemas/SubmittalSignatureSigner" }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/SubmittalSignatureEvent" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SubmittalSignatureSignerInput:
+      type: object
+      required: [name, email]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 180 }
+        email: { type: string, format: email, maxLength: 320 }
+        role: { type: string, maxLength: 180 }
+        signingOrder: { type: integer, minimum: 1, maximum: 50 }
+    SubmittalSignatureRequestInput:
+      type: object
+      required: [assemblyId, signers]
+      properties:
+        assemblyId: { type: integer, minimum: 1 }
+        title: { type: string, maxLength: 240 }
+        signers:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { $ref: "#/components/schemas/SubmittalSignatureSignerInput" }
     SubmittalRevisionInput:
       type: object
       required: [status]

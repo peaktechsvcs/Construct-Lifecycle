@@ -1,4 +1,4 @@
-import { index, integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { submittalPackagesTable } from "./submittals";
 import { environmentsTable, tenantsTable, usersTable } from "./tenants";
 
@@ -7,6 +7,9 @@ export const submittalPackageAssembliesTable = pgTable("submittal_package_assemb
   packageId: integer("package_id").notNull().references(() => submittalPackagesTable.id, { onDelete: "cascade" }),
   version: integer("version").notNull().default(1),
   status: text("status").notNull().default("ready"),
+  signatureReady: boolean("signature_ready").notNull().default(false),
+  signatureReadyAt: timestamp("signature_ready_at", { withTimezone: true }),
+  signatureReadyByUserId: integer("signature_ready_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
   originalFileName: text("original_file_name").notNull(),
   objectPath: text("object_path").notNull().unique(),
   contentType: text("content_type").notNull().default("application/pdf"),

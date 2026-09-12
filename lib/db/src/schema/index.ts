@@ -15,3 +15,4 @@ export * from "./submittals";
 export * from "./submittal-documents";
 export * from "./submittal-coordination";
 export * from "./submittal-assemblies";
+export * from "./submittal-signatures";
