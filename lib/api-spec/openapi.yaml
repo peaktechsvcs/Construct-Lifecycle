@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: projects
     description: Project lifecycle operations
+  - name: project-controls
+    description: General contractor contract administration and project controls
   - name: opportunities
     description: Pre-construction opportunity pipeline
   - name: customers
@@ -138,6 +140,335 @@ paths:
       responses:
         "204":
           description: Project deleted
+  /projects/{projectId}/controls:
+    get:
+      operationId: getProjectControls
+      tags: [project-controls]
+      summary: Get the project controls workspace
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project controls summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectControlsSummary" }
+        "404": { description: Project not found }
+  /projects/{projectId}/controls/contract:
+    put:
+      operationId: upsertProjectContract
+      tags: [project-controls]
+      summary: Create or update the primary project contract
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectContractInput" }
+      responses:
+        "200":
+          description: Project contract
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectContract" }
+  /projects/{projectId}/controls/schedule:
+    post:
+      operationId: createProjectScheduleItem
+      tags: [project-controls]
+      summary: Add a project milestone or schedule item
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectScheduleItemInput" }
+      responses:
+        "201":
+          description: Schedule item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectScheduleItem" }
+  /projects/{projectId}/controls/schedule/{itemId}:
+    patch:
+      operationId: updateProjectScheduleItem
+      tags: [project-controls]
+      summary: Update a project milestone or schedule item
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/ProjectScheduleItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectScheduleItemUpdate" }
+      responses:
+        "200":
+          description: Schedule item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectScheduleItem" }
+  /projects/{projectId}/controls/sov:
+    post:
+      operationId: createScheduleOfValue
+      tags: [project-controls]
+      summary: Add a schedule of values line
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScheduleOfValueInput" }
+      responses:
+        "201":
+          description: Schedule of values line
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScheduleOfValue" }
+  /projects/{projectId}/controls/sov/{lineId}:
+    patch:
+      operationId: updateScheduleOfValue
+      tags: [project-controls]
+      summary: Update a schedule of values line
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/ProjectSovLineId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScheduleOfValueUpdate" }
+      responses:
+        "200":
+          description: Schedule of values line
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScheduleOfValue" }
+    delete:
+      operationId: deleteScheduleOfValue
+      tags: [project-controls]
+      summary: Remove a schedule of values line
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/ProjectSovLineId"
+      responses:
+        "204": { description: Schedule of values line deleted }
+  /projects/{projectId}/controls/commitments:
+    post:
+      operationId: createProjectCommitment
+      tags: [project-controls]
+      summary: Add a subcontractor or supplier commitment
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectCommitmentInput" }
+      responses:
+        "201":
+          description: Project commitment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCommitment" }
+  /projects/{projectId}/controls/commitments/{commitmentId}:
+    patch:
+      operationId: updateProjectCommitment
+      tags: [project-controls]
+      summary: Update a project commitment
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/ProjectCommitmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectCommitmentUpdate" }
+      responses:
+        "200":
+          description: Project commitment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCommitment" }
+  /projects/{projectId}/controls/issues:
+    post:
+      operationId: createProjectIssue
+      tags: [project-controls]
+      summary: Create an RFI or project issue
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectIssueInput" }
+      responses:
+        "201":
+          description: Project issue
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectIssue" }
+  /projects/{projectId}/controls/issues/{issueId}:
+    patch:
+      operationId: updateProjectIssue
+      tags: [project-controls]
+      summary: Update an RFI or project issue
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/ProjectIssueId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectIssueUpdate" }
+      responses:
+        "200":
+          description: Project issue
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectIssue" }
+  /projects/{projectId}/controls/change-orders:
+    post:
+      operationId: createProjectChangeOrder
+      tags: [project-controls]
+      summary: Create a change request or change order
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectChangeOrderInput" }
+      responses:
+        "201":
+          description: Project change order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectChangeOrder" }
+  /projects/{projectId}/controls/change-orders/{changeOrderId}:
+    patch:
+      operationId: updateProjectChangeOrder
+      tags: [project-controls]
+      summary: Update or approve a change request or change order
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/ProjectChangeOrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectChangeOrderUpdate" }
+      responses:
+        "200":
+          description: Project change order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectChangeOrder" }
+  /projects/{projectId}/controls/financials:
+    put:
+      operationId: updateProjectFinancials
+      tags: [project-controls]
+      summary: Update project budget and forecast cost controls
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectFinancialsInput" }
+      responses:
+        "200":
+          description: Project financial controls
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectFinancials" }
+  /projects/{projectId}/controls/pay-applications:
+    post:
+      operationId: createProjectPayApplication
+      tags: [project-controls]
+      summary: Create an owner pay application
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectPayApplicationInput" }
+      responses:
+        "201":
+          description: Owner pay application
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectPayApplication" }
+  /projects/{projectId}/controls/pay-applications/{applicationId}:
+    patch:
+      operationId: updateProjectPayApplication
+      tags: [project-controls]
+      summary: Update an owner pay application
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/ProjectPayApplicationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectPayApplicationUpdate" }
+      responses:
+        "200":
+          description: Owner pay application
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectPayApplication" }
+  /projects/{projectId}/controls/closeout-requirements:
+    post:
+      operationId: createProjectCloseoutRequirement
+      tags: [project-controls]
+      summary: Add a project closeout requirement
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectCloseoutRequirementInput" }
+      responses:
+        "201":
+          description: Closeout requirement
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCloseoutRequirement" }
+  /projects/{projectId}/controls/closeout-requirements/{requirementId}:
+    patch:
+      operationId: updateProjectCloseoutRequirement
+      tags: [project-controls]
+      summary: Update a project closeout requirement
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/ProjectCloseoutRequirementId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectCloseoutRequirementUpdate" }
+      responses:
+        "200":
+          description: Closeout requirement
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCloseoutRequirement" }
+  /dashboard/project-controls:
+    get:
+      operationId: getProjectControlsDashboard
+      tags: [dashboard, project-controls]
+      summary: Get project controls rollups for the dashboard
+      responses:
+        "200":
+          description: Project controls dashboard summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectControlsDashboard" }
   /opportunities:
     get:
       operationId: listOpportunities
@@ -1766,6 +2097,48 @@ components:
       required: true
       schema:
         type: integer
+    ProjectScheduleItemId:
+      in: path
+      name: itemId
+      required: true
+      schema:
+        type: integer
+    ProjectSovLineId:
+      in: path
+      name: lineId
+      required: true
+      schema:
+        type: integer
+    ProjectCommitmentId:
+      in: path
+      name: commitmentId
+      required: true
+      schema:
+        type: integer
+    ProjectIssueId:
+      in: path
+      name: issueId
+      required: true
+      schema:
+        type: integer
+    ProjectChangeOrderId:
+      in: path
+      name: changeOrderId
+      required: true
+      schema:
+        type: integer
+    ProjectPayApplicationId:
+      in: path
+      name: applicationId
+      required: true
+      schema:
+        type: integer
+    ProjectCloseoutRequirementId:
+      in: path
+      name: requirementId
+      required: true
+      schema:
+        type: integer
     FollowUpId:
       in: path
       name: followUpId
@@ -2628,6 +3001,481 @@ components:
         nextFollowUp: { type: ["string", "null"], format: date }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    ProjectContract:
+      type: object
+      required: [id, projectId, contractNumber, deliveryMethod, originalValue, currentValue, contractStart, contractEnd, noticeToProceed, paymentTerms, retainagePercent, retainageCap, approvalStatus, status, documentUrl, participants, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        contractNumber: { type: string }
+        deliveryMethod: { type: string }
+        originalValue: { type: number }
+        currentValue: { type: number }
+        contractStart: { type: ["string", "null"], format: date }
+        contractEnd: { type: ["string", "null"], format: date }
+        noticeToProceed: { type: ["string", "null"], format: date }
+        paymentTerms: { type: ["string", "null"] }
+        retainagePercent: { type: number }
+        retainageCap: { type: ["number", "null"] }
+        approvalStatus: { type: string, enum: [draft, pending, approved, rejected] }
+        status: { type: string, enum: [active, suspended, complete] }
+        documentUrl: { type: ["string", "null"] }
+        participants:
+          type: array
+          items: { $ref: "#/components/schemas/ContractParticipant" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectContractInput:
+      type: object
+      required: [contractNumber, deliveryMethod, originalValue, currentValue]
+      properties:
+        contractNumber: { type: string, minLength: 1, maxLength: 120 }
+        deliveryMethod: { type: string, minLength: 1, maxLength: 80 }
+        originalValue: { type: number, minimum: 0 }
+        currentValue: { type: number, minimum: 0 }
+        contractStart: { type: string, format: date }
+        contractEnd: { type: string, format: date }
+        noticeToProceed: { type: string, format: date }
+        paymentTerms: { type: string, maxLength: 1000 }
+        retainagePercent: { type: number, minimum: 0, maximum: 100 }
+        retainageCap: { type: number, minimum: 0 }
+        approvalStatus: { type: string, enum: [draft, pending, approved, rejected] }
+        status: { type: string, enum: [active, suspended, complete] }
+        documentUrl: { type: string, maxLength: 2000 }
+        participants:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/ContractParticipantInput" }
+    ContractParticipant:
+      type: object
+      required: [id, participantType, organizationName, contactName, contactEmail, role]
+      properties:
+        id: { type: integer }
+        participantType: { type: string }
+        organizationName: { type: string }
+        contactName: { type: ["string", "null"] }
+        contactEmail: { type: ["string", "null"], format: email }
+        role: { type: ["string", "null"] }
+    ContractParticipantInput:
+      type: object
+      required: [participantType, organizationName]
+      properties:
+        participantType: { type: string, maxLength: 80 }
+        organizationName: { type: string, minLength: 1, maxLength: 180 }
+        contactName: { type: string, maxLength: 180 }
+        contactEmail: { type: string, format: email, maxLength: 320 }
+        role: { type: string, maxLength: 120 }
+    ProjectScheduleItem:
+      type: object
+      required: [id, projectId, itemNumber, name, itemType, predecessor, plannedStart, plannedEnd, actualStart, actualEnd, status, ownerName, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        itemNumber: { type: string }
+        name: { type: string }
+        itemType: { type: string, enum: [milestone, activity, dependency] }
+        predecessor: { type: ["string", "null"] }
+        plannedStart: { type: ["string", "null"], format: date }
+        plannedEnd: { type: ["string", "null"], format: date }
+        actualStart: { type: ["string", "null"], format: date }
+        actualEnd: { type: ["string", "null"], format: date }
+        status: { type: string, enum: [planned, in_progress, complete, delayed] }
+        ownerName: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectScheduleItemInput:
+      type: object
+      required: [itemNumber, name]
+      properties:
+        itemNumber: { type: string, minLength: 1, maxLength: 30 }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        itemType: { type: string, enum: [milestone, activity, dependency] }
+        predecessor: { type: string, maxLength: 120 }
+        plannedStart: { type: string, format: date }
+        plannedEnd: { type: string, format: date }
+        actualStart: { type: string, format: date }
+        actualEnd: { type: string, format: date }
+        status: { type: string, enum: [planned, in_progress, complete, delayed] }
+        ownerName: { type: string, maxLength: 180 }
+    ProjectScheduleItemUpdate:
+      type: object
+      properties:
+        itemNumber: { type: string, minLength: 1, maxLength: 30 }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        itemType: { type: string, enum: [milestone, activity, dependency] }
+        predecessor: { type: ["string", "null"], maxLength: 120 }
+        plannedStart: { type: ["string", "null"], format: date }
+        plannedEnd: { type: ["string", "null"], format: date }
+        actualStart: { type: ["string", "null"], format: date }
+        actualEnd: { type: ["string", "null"], format: date }
+        status: { type: string, enum: [planned, in_progress, complete, delayed] }
+        ownerName: { type: ["string", "null"], maxLength: 180 }
+    ScheduleOfValue:
+      type: object
+      required: [id, projectId, lineNumber, costCode, description, scheduledValue, approvedValue, billedToDate, percentComplete, retentionHeld, status, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        lineNumber: { type: string }
+        costCode: { type: ["string", "null"] }
+        description: { type: string }
+        scheduledValue: { type: number }
+        approvedValue: { type: number }
+        billedToDate: { type: number }
+        percentComplete: { type: number }
+        retentionHeld: { type: number }
+        status: { type: string, enum: [draft, submitted, approved] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ScheduleOfValueInput:
+      type: object
+      required: [lineNumber, description, scheduledValue]
+      properties:
+        lineNumber: { type: string, minLength: 1, maxLength: 30 }
+        costCode: { type: string, maxLength: 80 }
+        description: { type: string, minLength: 1, maxLength: 240 }
+        scheduledValue: { type: number, minimum: 0 }
+        approvedValue: { type: number, minimum: 0 }
+        billedToDate: { type: number, minimum: 0 }
+        percentComplete: { type: number, minimum: 0, maximum: 100 }
+        retentionHeld: { type: number, minimum: 0 }
+        status: { type: string, enum: [draft, submitted, approved] }
+    ScheduleOfValueUpdate:
+      type: object
+      properties:
+        description: { type: string, minLength: 1, maxLength: 240 }
+        costCode: { type: ["string", "null"], maxLength: 80 }
+        scheduledValue: { type: number, minimum: 0 }
+        approvedValue: { type: number, minimum: 0 }
+        billedToDate: { type: number, minimum: 0 }
+        percentComplete: { type: number, minimum: 0, maximum: 100 }
+        retentionHeld: { type: number, minimum: 0 }
+        status: { type: string, enum: [draft, submitted, approved] }
+    ProjectCommitment:
+      type: object
+      required: [id, projectId, commitmentNumber, commitmentType, vendorName, description, status, committedValue, invoicedValue, paidValue, dueDate, documentUrl, linkedBidId, linkedSubmittalPackageId, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        commitmentNumber: { type: string }
+        commitmentType: { type: string, enum: [subcontract, purchase_order, supplier] }
+        vendorName: { type: string }
+        description: { type: ["string", "null"] }
+        status: { type: string, enum: [draft, pending, executed, complete, closed] }
+        committedValue: { type: number }
+        invoicedValue: { type: number }
+        paidValue: { type: number }
+        dueDate: { type: ["string", "null"], format: date }
+        documentUrl: { type: ["string", "null"] }
+        linkedBidId: { type: ["integer", "null"] }
+        linkedSubmittalPackageId: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectCommitmentInput:
+      type: object
+      required: [commitmentNumber, commitmentType, vendorName, committedValue]
+      properties:
+        commitmentNumber: { type: string, minLength: 1, maxLength: 60 }
+        commitmentType: { type: string, enum: [subcontract, purchase_order, supplier] }
+        vendorName: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: string, maxLength: 2000 }
+        status: { type: string, enum: [draft, pending, executed, complete, closed] }
+        committedValue: { type: number, minimum: 0 }
+        invoicedValue: { type: number, minimum: 0 }
+        paidValue: { type: number, minimum: 0 }
+        dueDate: { type: string, format: date }
+        documentUrl: { type: string, maxLength: 2000 }
+        linkedBidId: { type: integer, minimum: 1 }
+        linkedSubmittalPackageId: { type: integer, minimum: 1 }
+    ProjectCommitmentUpdate:
+      type: object
+      properties:
+        description: { type: ["string", "null"], maxLength: 2000 }
+        status: { type: string, enum: [draft, pending, executed, complete, closed] }
+        invoicedValue: { type: number, minimum: 0 }
+        paidValue: { type: number, minimum: 0 }
+        dueDate: { type: ["string", "null"], format: date }
+        documentUrl: { type: ["string", "null"], maxLength: 2000 }
+    ProjectIssue:
+      type: object
+      required: [id, projectId, issueNumber, issueType, subject, question, ownerUserId, responsibleParty, status, priority, dueDate, response, resolvedAt, documentUrl, costImpact, scheduleImpactDays, linkedSubmittalPackageId, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        issueNumber: { type: string }
+        issueType: { type: string, enum: [rfi, issue] }
+        subject: { type: string }
+        question: { type: string }
+        ownerUserId: { type: ["integer", "null"] }
+        responsibleParty: { type: ["string", "null"] }
+        status: { type: string, enum: [open, pending_response, answered, closed] }
+        priority: { type: string, enum: [low, normal, high, critical] }
+        dueDate: { type: ["string", "null"], format: date }
+        response: { type: ["string", "null"] }
+        resolvedAt: { type: ["string", "null"], format: date-time }
+        documentUrl: { type: ["string", "null"] }
+        costImpact: { type: number }
+        scheduleImpactDays: { type: integer }
+        linkedSubmittalPackageId: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectIssueInput:
+      type: object
+      required: [issueType, subject, question]
+      properties:
+        issueType: { type: string, enum: [rfi, issue] }
+        subject: { type: string, minLength: 1, maxLength: 240 }
+        question: { type: string, minLength: 1, maxLength: 5000 }
+        ownerUserId: { type: integer, minimum: 1 }
+        responsibleParty: { type: string, maxLength: 180 }
+        status: { type: string, enum: [open, pending_response, answered, closed] }
+        priority: { type: string, enum: [low, normal, high, critical] }
+        dueDate: { type: string, format: date }
+        response: { type: string, maxLength: 5000 }
+        documentUrl: { type: string, maxLength: 2000 }
+        costImpact: { type: number }
+        scheduleImpactDays: { type: integer, minimum: 0 }
+        linkedSubmittalPackageId: { type: integer, minimum: 1 }
+    ProjectIssueUpdate:
+      type: object
+      properties:
+        subject: { type: string, minLength: 1, maxLength: 240 }
+        question: { type: string, minLength: 1, maxLength: 5000 }
+        ownerUserId: { type: ["integer", "null"], minimum: 1 }
+        responsibleParty: { type: ["string", "null"], maxLength: 180 }
+        status: { type: string, enum: [open, pending_response, answered, closed] }
+        priority: { type: string, enum: [low, normal, high, critical] }
+        dueDate: { type: ["string", "null"], format: date }
+        response: { type: ["string", "null"], maxLength: 5000 }
+        documentUrl: { type: ["string", "null"], maxLength: 2000 }
+        costImpact: { type: number }
+        scheduleImpactDays: { type: integer, minimum: 0 }
+    ProjectChangeOrder:
+      type: object
+      required: [id, projectId, changeNumber, changeType, title, description, status, approvalStatus, proposedValue, approvedValue, scheduleImpactDays, requestedBy, dueDate, approvedAt, documentUrl, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        changeNumber: { type: string }
+        changeType: { type: string, enum: [change_request, change_order] }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        status: { type: string, enum: [draft, submitted, under_review, approved, rejected, void] }
+        approvalStatus: { type: string, enum: [pending, approved, rejected] }
+        proposedValue: { type: number }
+        approvedValue: { type: number }
+        scheduleImpactDays: { type: integer }
+        requestedBy: { type: ["string", "null"] }
+        dueDate: { type: ["string", "null"], format: date }
+        approvedAt: { type: ["string", "null"], format: date-time }
+        documentUrl: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectChangeOrderInput:
+      type: object
+      required: [changeNumber, changeType, title, proposedValue]
+      properties:
+        changeNumber: { type: string, minLength: 1, maxLength: 60 }
+        changeType: { type: string, enum: [change_request, change_order] }
+        title: { type: string, minLength: 1, maxLength: 240 }
+        description: { type: string, maxLength: 5000 }
+        status: { type: string, enum: [draft, submitted, under_review, approved, rejected, void] }
+        approvalStatus: { type: string, enum: [pending, approved, rejected] }
+        proposedValue: { type: number }
+        approvedValue: { type: number }
+        scheduleImpactDays: { type: integer, minimum: 0 }
+        requestedBy: { type: string, maxLength: 180 }
+        dueDate: { type: string, format: date }
+        documentUrl: { type: string, maxLength: 2000 }
+    ProjectChangeOrderUpdate:
+      type: object
+      properties:
+        description: { type: ["string", "null"], maxLength: 5000 }
+        title: { type: string, minLength: 1, maxLength: 240 }
+        status: { type: string, enum: [draft, submitted, under_review, approved, rejected, void] }
+        approvalStatus: { type: string, enum: [pending, approved, rejected] }
+        proposedValue: { type: number }
+        approvedValue: { type: number }
+        scheduleImpactDays: { type: integer, minimum: 0 }
+        dueDate: { type: ["string", "null"], format: date }
+        documentUrl: { type: ["string", "null"], maxLength: 2000 }
+    ProjectFinancials:
+      type: object
+      required: [id, projectId, budgetCost, forecastCost, actualCost, forecastRevenue, retainageHeld, asOfDate, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        budgetCost: { type: number }
+        forecastCost: { type: number }
+        actualCost: { type: number }
+        forecastRevenue: { type: number }
+        retainageHeld: { type: number }
+        asOfDate: { type: ["string", "null"], format: date }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectFinancialsInput:
+      type: object
+      required: [budgetCost, forecastCost, actualCost, forecastRevenue]
+      properties:
+        budgetCost: { type: number, minimum: 0 }
+        forecastCost: { type: number, minimum: 0 }
+        actualCost: { type: number, minimum: 0 }
+        forecastRevenue: { type: number, minimum: 0 }
+        retainageHeld: { type: number, minimum: 0 }
+        asOfDate: { type: string, format: date }
+    ProjectPayApplication:
+      type: object
+      required: [id, projectId, applicationNumber, periodStart, periodEnd, grossAmount, retainageAmount, netAmount, status, submittedAt, approvedAt, paidAt, notes, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        applicationNumber: { type: string }
+        periodStart: { type: ["string", "null"], format: date }
+        periodEnd: { type: ["string", "null"], format: date }
+        grossAmount: { type: number }
+        retainageAmount: { type: number }
+        netAmount: { type: number }
+        status: { type: string, enum: [draft, submitted, approved, paid, rejected] }
+        submittedAt: { type: ["string", "null"], format: date-time }
+        approvedAt: { type: ["string", "null"], format: date-time }
+        paidAt: { type: ["string", "null"], format: date-time }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectPayApplicationInput:
+      type: object
+      required: [applicationNumber, grossAmount]
+      properties:
+        applicationNumber: { type: string, minLength: 1, maxLength: 60 }
+        periodStart: { type: string, format: date }
+        periodEnd: { type: string, format: date }
+        grossAmount: { type: number, minimum: 0 }
+        retainageAmount: { type: number, minimum: 0 }
+        status: { type: string, enum: [draft, submitted, approved, paid, rejected] }
+        notes: { type: string, maxLength: 2000 }
+    ProjectPayApplicationUpdate:
+      type: object
+      properties:
+        periodStart: { type: ["string", "null"], format: date }
+        periodEnd: { type: ["string", "null"], format: date }
+        grossAmount: { type: number, minimum: 0 }
+        retainageAmount: { type: number, minimum: 0 }
+        status: { type: string, enum: [draft, submitted, approved, paid, rejected] }
+        notes: { type: ["string", "null"], maxLength: 2000 }
+    ProjectCloseoutRequirement:
+      type: object
+      required: [id, projectId, requirementNumber, requirementType, title, status, dueDate, responsibleParty, documentUrl, completedAt, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        requirementNumber: { type: string }
+        requirementType: { type: string }
+        title: { type: string }
+        status: { type: string, enum: [open, in_progress, complete, waived] }
+        dueDate: { type: ["string", "null"], format: date }
+        responsibleParty: { type: ["string", "null"] }
+        documentUrl: { type: ["string", "null"] }
+        completedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectCloseoutRequirementInput:
+      type: object
+      required: [requirementNumber, title]
+      properties:
+        requirementNumber: { type: string, minLength: 1, maxLength: 60 }
+        requirementType: { type: string, maxLength: 80 }
+        title: { type: string, minLength: 1, maxLength: 240 }
+        status: { type: string, enum: [open, in_progress, complete, waived] }
+        dueDate: { type: string, format: date }
+        responsibleParty: { type: string, maxLength: 180 }
+        documentUrl: { type: string, maxLength: 2000 }
+    ProjectCloseoutRequirementUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 240 }
+        status: { type: string, enum: [open, in_progress, complete, waived] }
+        dueDate: { type: ["string", "null"], format: date }
+        responsibleParty: { type: ["string", "null"], maxLength: 180 }
+        documentUrl: { type: ["string", "null"], maxLength: 2000 }
+    ProjectControlEvent:
+      type: object
+      required: [id, entityType, entityId, action, fromStatus, toStatus, comments, createdAt]
+      properties:
+        id: { type: integer }
+        entityType: { type: string }
+        entityId: { type: integer }
+        action: { type: string }
+        fromStatus: { type: ["string", "null"] }
+        toStatus: { type: ["string", "null"] }
+        comments: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+    ProjectControlsMetrics:
+      type: object
+      required: [contractValue, committedCost, forecastCost, forecastMargin, openIssues, overdueIssues, pendingChanges, scheduleRiskDays, billedToDate, retainageHeld, closeoutReadiness]
+      properties:
+        contractValue: { type: number }
+        committedCost: { type: number }
+        forecastCost: { type: number }
+        forecastMargin: { type: number }
+        openIssues: { type: integer }
+        overdueIssues: { type: integer }
+        pendingChanges: { type: integer }
+        scheduleRiskDays: { type: integer }
+        billedToDate: { type: number }
+        retainageHeld: { type: number }
+        closeoutReadiness: { type: integer, minimum: 0, maximum: 100 }
+    ProjectControlsSummary:
+      type: object
+      required: [projectId, contract, scheduleItems, sovLines, commitments, issues, changeOrders, payApplications, closeoutRequirements, financials, metrics, events]
+      properties:
+        projectId: { type: integer }
+        contract:
+          oneOf:
+            - $ref: "#/components/schemas/ProjectContract"
+            - type: "null"
+        scheduleItems:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectScheduleItem" }
+        sovLines:
+          type: array
+          items: { $ref: "#/components/schemas/ScheduleOfValue" }
+        commitments:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectCommitment" }
+        issues:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectIssue" }
+        changeOrders:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectChangeOrder" }
+        payApplications:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectPayApplication" }
+        closeoutRequirements:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectCloseoutRequirement" }
+        financials:
+          oneOf:
+            - $ref: "#/components/schemas/ProjectFinancials"
+            - type: "null"
+        metrics: { $ref: "#/components/schemas/ProjectControlsMetrics" }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectControlEvent" }
+    ProjectControlsDashboard:
+      type: object
+      required: [activeProjects, contractValue, committedCost, forecastCost, forecastMargin, openDecisions, pendingChanges, scheduleRiskDays, billingPending, closeoutReadyProjects]
+      properties:
+        activeProjects: { type: integer }
+        contractValue: { type: number }
+        committedCost: { type: number }
+        forecastCost: { type: number }
+        forecastMargin: { type: number }
+        openDecisions: { type: integer }
+        pendingChanges: { type: integer }
+        scheduleRiskDays: { type: integer }
+        billingPending: { type: number }
+        closeoutReadyProjects: { type: integer }
     ProjectInput:
       type: object
       required: [projectName, category]

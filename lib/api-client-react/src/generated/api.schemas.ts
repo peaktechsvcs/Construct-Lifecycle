@@ -1456,6 +1456,1097 @@ export interface Project {
   updatedAt: string;
 }
 
+export type ProjectContractApprovalStatus = typeof ProjectContractApprovalStatus[keyof typeof ProjectContractApprovalStatus];
+
+
+export const ProjectContractApprovalStatus = {
+  draft: 'draft',
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type ProjectContractStatus = typeof ProjectContractStatus[keyof typeof ProjectContractStatus];
+
+
+export const ProjectContractStatus = {
+  active: 'active',
+  suspended: 'suspended',
+  complete: 'complete',
+} as const;
+
+export interface ContractParticipant {
+  id: number;
+  participantType: string;
+  organizationName: string;
+  /** @nullable */
+  contactName: string | null;
+  /** @nullable */
+  contactEmail: string | null;
+  /** @nullable */
+  role: string | null;
+}
+
+export interface ProjectContract {
+  id: number;
+  projectId: number;
+  contractNumber: string;
+  deliveryMethod: string;
+  originalValue: number;
+  currentValue: number;
+  /** @nullable */
+  contractStart: string | null;
+  /** @nullable */
+  contractEnd: string | null;
+  /** @nullable */
+  noticeToProceed: string | null;
+  /** @nullable */
+  paymentTerms: string | null;
+  retainagePercent: number;
+  /** @nullable */
+  retainageCap: number | null;
+  approvalStatus: ProjectContractApprovalStatus;
+  status: ProjectContractStatus;
+  /** @nullable */
+  documentUrl: string | null;
+  participants: ContractParticipant[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProjectContractInputApprovalStatus = typeof ProjectContractInputApprovalStatus[keyof typeof ProjectContractInputApprovalStatus];
+
+
+export const ProjectContractInputApprovalStatus = {
+  draft: 'draft',
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type ProjectContractInputStatus = typeof ProjectContractInputStatus[keyof typeof ProjectContractInputStatus];
+
+
+export const ProjectContractInputStatus = {
+  active: 'active',
+  suspended: 'suspended',
+  complete: 'complete',
+} as const;
+
+export interface ContractParticipantInput {
+  /** @maxLength 80 */
+  participantType: string;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  organizationName: string;
+  /** @maxLength 180 */
+  contactName?: string;
+  /** @maxLength 320 */
+  contactEmail?: string;
+  /** @maxLength 120 */
+  role?: string;
+}
+
+export interface ProjectContractInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  contractNumber: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  deliveryMethod: string;
+  /** @minimum 0 */
+  originalValue: number;
+  /** @minimum 0 */
+  currentValue: number;
+  contractStart?: string;
+  contractEnd?: string;
+  noticeToProceed?: string;
+  /** @maxLength 1000 */
+  paymentTerms?: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  retainagePercent?: number;
+  /** @minimum 0 */
+  retainageCap?: number;
+  approvalStatus?: ProjectContractInputApprovalStatus;
+  status?: ProjectContractInputStatus;
+  /** @maxLength 2000 */
+  documentUrl?: string;
+  /** @maxItems 50 */
+  participants?: ContractParticipantInput[];
+}
+
+export type ProjectScheduleItemItemType = typeof ProjectScheduleItemItemType[keyof typeof ProjectScheduleItemItemType];
+
+
+export const ProjectScheduleItemItemType = {
+  milestone: 'milestone',
+  activity: 'activity',
+  dependency: 'dependency',
+} as const;
+
+export type ProjectScheduleItemStatus = typeof ProjectScheduleItemStatus[keyof typeof ProjectScheduleItemStatus];
+
+
+export const ProjectScheduleItemStatus = {
+  planned: 'planned',
+  in_progress: 'in_progress',
+  complete: 'complete',
+  delayed: 'delayed',
+} as const;
+
+export interface ProjectScheduleItem {
+  id: number;
+  projectId: number;
+  itemNumber: string;
+  name: string;
+  itemType: ProjectScheduleItemItemType;
+  /** @nullable */
+  predecessor: string | null;
+  /** @nullable */
+  plannedStart: string | null;
+  /** @nullable */
+  plannedEnd: string | null;
+  /** @nullable */
+  actualStart: string | null;
+  /** @nullable */
+  actualEnd: string | null;
+  status: ProjectScheduleItemStatus;
+  /** @nullable */
+  ownerName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProjectScheduleItemInputItemType = typeof ProjectScheduleItemInputItemType[keyof typeof ProjectScheduleItemInputItemType];
+
+
+export const ProjectScheduleItemInputItemType = {
+  milestone: 'milestone',
+  activity: 'activity',
+  dependency: 'dependency',
+} as const;
+
+export type ProjectScheduleItemInputStatus = typeof ProjectScheduleItemInputStatus[keyof typeof ProjectScheduleItemInputStatus];
+
+
+export const ProjectScheduleItemInputStatus = {
+  planned: 'planned',
+  in_progress: 'in_progress',
+  complete: 'complete',
+  delayed: 'delayed',
+} as const;
+
+export interface ProjectScheduleItemInput {
+  /**
+     * @minLength 1
+     * @maxLength 30
+     */
+  itemNumber: string;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  itemType?: ProjectScheduleItemInputItemType;
+  /** @maxLength 120 */
+  predecessor?: string;
+  plannedStart?: string;
+  plannedEnd?: string;
+  actualStart?: string;
+  actualEnd?: string;
+  status?: ProjectScheduleItemInputStatus;
+  /** @maxLength 180 */
+  ownerName?: string;
+}
+
+export type ProjectScheduleItemUpdateItemType = typeof ProjectScheduleItemUpdateItemType[keyof typeof ProjectScheduleItemUpdateItemType];
+
+
+export const ProjectScheduleItemUpdateItemType = {
+  milestone: 'milestone',
+  activity: 'activity',
+  dependency: 'dependency',
+} as const;
+
+export type ProjectScheduleItemUpdateStatus = typeof ProjectScheduleItemUpdateStatus[keyof typeof ProjectScheduleItemUpdateStatus];
+
+
+export const ProjectScheduleItemUpdateStatus = {
+  planned: 'planned',
+  in_progress: 'in_progress',
+  complete: 'complete',
+  delayed: 'delayed',
+} as const;
+
+export interface ProjectScheduleItemUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 30
+     */
+  itemNumber?: string;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name?: string;
+  itemType?: ProjectScheduleItemUpdateItemType;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  predecessor?: string | null;
+  /** @nullable */
+  plannedStart?: string | null;
+  /** @nullable */
+  plannedEnd?: string | null;
+  /** @nullable */
+  actualStart?: string | null;
+  /** @nullable */
+  actualEnd?: string | null;
+  status?: ProjectScheduleItemUpdateStatus;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  ownerName?: string | null;
+}
+
+export type ScheduleOfValueStatus = typeof ScheduleOfValueStatus[keyof typeof ScheduleOfValueStatus];
+
+
+export const ScheduleOfValueStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+} as const;
+
+export interface ScheduleOfValue {
+  id: number;
+  projectId: number;
+  lineNumber: string;
+  /** @nullable */
+  costCode: string | null;
+  description: string;
+  scheduledValue: number;
+  approvedValue: number;
+  billedToDate: number;
+  percentComplete: number;
+  retentionHeld: number;
+  status: ScheduleOfValueStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ScheduleOfValueInputStatus = typeof ScheduleOfValueInputStatus[keyof typeof ScheduleOfValueInputStatus];
+
+
+export const ScheduleOfValueInputStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+} as const;
+
+export interface ScheduleOfValueInput {
+  /**
+     * @minLength 1
+     * @maxLength 30
+     */
+  lineNumber: string;
+  /** @maxLength 80 */
+  costCode?: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  description: string;
+  /** @minimum 0 */
+  scheduledValue: number;
+  /** @minimum 0 */
+  approvedValue?: number;
+  /** @minimum 0 */
+  billedToDate?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  percentComplete?: number;
+  /** @minimum 0 */
+  retentionHeld?: number;
+  status?: ScheduleOfValueInputStatus;
+}
+
+export type ScheduleOfValueUpdateStatus = typeof ScheduleOfValueUpdateStatus[keyof typeof ScheduleOfValueUpdateStatus];
+
+
+export const ScheduleOfValueUpdateStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+} as const;
+
+export interface ScheduleOfValueUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  description?: string;
+  /**
+     * @maxLength 80
+     * @nullable
+     */
+  costCode?: string | null;
+  /** @minimum 0 */
+  scheduledValue?: number;
+  /** @minimum 0 */
+  approvedValue?: number;
+  /** @minimum 0 */
+  billedToDate?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  percentComplete?: number;
+  /** @minimum 0 */
+  retentionHeld?: number;
+  status?: ScheduleOfValueUpdateStatus;
+}
+
+export type ProjectCommitmentCommitmentType = typeof ProjectCommitmentCommitmentType[keyof typeof ProjectCommitmentCommitmentType];
+
+
+export const ProjectCommitmentCommitmentType = {
+  subcontract: 'subcontract',
+  purchase_order: 'purchase_order',
+  supplier: 'supplier',
+} as const;
+
+export type ProjectCommitmentStatus = typeof ProjectCommitmentStatus[keyof typeof ProjectCommitmentStatus];
+
+
+export const ProjectCommitmentStatus = {
+  draft: 'draft',
+  pending: 'pending',
+  executed: 'executed',
+  complete: 'complete',
+  closed: 'closed',
+} as const;
+
+export interface ProjectCommitment {
+  id: number;
+  projectId: number;
+  commitmentNumber: string;
+  commitmentType: ProjectCommitmentCommitmentType;
+  vendorName: string;
+  /** @nullable */
+  description: string | null;
+  status: ProjectCommitmentStatus;
+  committedValue: number;
+  invoicedValue: number;
+  paidValue: number;
+  /** @nullable */
+  dueDate: string | null;
+  /** @nullable */
+  documentUrl: string | null;
+  /** @nullable */
+  linkedBidId: number | null;
+  /** @nullable */
+  linkedSubmittalPackageId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProjectCommitmentInputCommitmentType = typeof ProjectCommitmentInputCommitmentType[keyof typeof ProjectCommitmentInputCommitmentType];
+
+
+export const ProjectCommitmentInputCommitmentType = {
+  subcontract: 'subcontract',
+  purchase_order: 'purchase_order',
+  supplier: 'supplier',
+} as const;
+
+export type ProjectCommitmentInputStatus = typeof ProjectCommitmentInputStatus[keyof typeof ProjectCommitmentInputStatus];
+
+
+export const ProjectCommitmentInputStatus = {
+  draft: 'draft',
+  pending: 'pending',
+  executed: 'executed',
+  complete: 'complete',
+  closed: 'closed',
+} as const;
+
+export interface ProjectCommitmentInput {
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  commitmentNumber: string;
+  commitmentType: ProjectCommitmentInputCommitmentType;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  vendorName: string;
+  /** @maxLength 2000 */
+  description?: string;
+  status?: ProjectCommitmentInputStatus;
+  /** @minimum 0 */
+  committedValue: number;
+  /** @minimum 0 */
+  invoicedValue?: number;
+  /** @minimum 0 */
+  paidValue?: number;
+  dueDate?: string;
+  /** @maxLength 2000 */
+  documentUrl?: string;
+  /** @minimum 1 */
+  linkedBidId?: number;
+  /** @minimum 1 */
+  linkedSubmittalPackageId?: number;
+}
+
+export type ProjectCommitmentUpdateStatus = typeof ProjectCommitmentUpdateStatus[keyof typeof ProjectCommitmentUpdateStatus];
+
+
+export const ProjectCommitmentUpdateStatus = {
+  draft: 'draft',
+  pending: 'pending',
+  executed: 'executed',
+  complete: 'complete',
+  closed: 'closed',
+} as const;
+
+export interface ProjectCommitmentUpdate {
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  description?: string | null;
+  status?: ProjectCommitmentUpdateStatus;
+  /** @minimum 0 */
+  invoicedValue?: number;
+  /** @minimum 0 */
+  paidValue?: number;
+  /** @nullable */
+  dueDate?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  documentUrl?: string | null;
+}
+
+export type ProjectIssueIssueType = typeof ProjectIssueIssueType[keyof typeof ProjectIssueIssueType];
+
+
+export const ProjectIssueIssueType = {
+  rfi: 'rfi',
+  issue: 'issue',
+} as const;
+
+export type ProjectIssueStatus = typeof ProjectIssueStatus[keyof typeof ProjectIssueStatus];
+
+
+export const ProjectIssueStatus = {
+  open: 'open',
+  pending_response: 'pending_response',
+  answered: 'answered',
+  closed: 'closed',
+} as const;
+
+export type ProjectIssuePriority = typeof ProjectIssuePriority[keyof typeof ProjectIssuePriority];
+
+
+export const ProjectIssuePriority = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+  critical: 'critical',
+} as const;
+
+export interface ProjectIssue {
+  id: number;
+  projectId: number;
+  issueNumber: string;
+  issueType: ProjectIssueIssueType;
+  subject: string;
+  question: string;
+  /** @nullable */
+  ownerUserId: number | null;
+  /** @nullable */
+  responsibleParty: string | null;
+  status: ProjectIssueStatus;
+  priority: ProjectIssuePriority;
+  /** @nullable */
+  dueDate: string | null;
+  /** @nullable */
+  response: string | null;
+  /** @nullable */
+  resolvedAt: string | null;
+  /** @nullable */
+  documentUrl: string | null;
+  costImpact: number;
+  scheduleImpactDays: number;
+  /** @nullable */
+  linkedSubmittalPackageId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProjectIssueInputIssueType = typeof ProjectIssueInputIssueType[keyof typeof ProjectIssueInputIssueType];
+
+
+export const ProjectIssueInputIssueType = {
+  rfi: 'rfi',
+  issue: 'issue',
+} as const;
+
+export type ProjectIssueInputStatus = typeof ProjectIssueInputStatus[keyof typeof ProjectIssueInputStatus];
+
+
+export const ProjectIssueInputStatus = {
+  open: 'open',
+  pending_response: 'pending_response',
+  answered: 'answered',
+  closed: 'closed',
+} as const;
+
+export type ProjectIssueInputPriority = typeof ProjectIssueInputPriority[keyof typeof ProjectIssueInputPriority];
+
+
+export const ProjectIssueInputPriority = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+  critical: 'critical',
+} as const;
+
+export interface ProjectIssueInput {
+  issueType: ProjectIssueInputIssueType;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  subject: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  question: string;
+  /** @minimum 1 */
+  ownerUserId?: number;
+  /** @maxLength 180 */
+  responsibleParty?: string;
+  status?: ProjectIssueInputStatus;
+  priority?: ProjectIssueInputPriority;
+  dueDate?: string;
+  /** @maxLength 5000 */
+  response?: string;
+  /** @maxLength 2000 */
+  documentUrl?: string;
+  costImpact?: number;
+  /** @minimum 0 */
+  scheduleImpactDays?: number;
+  /** @minimum 1 */
+  linkedSubmittalPackageId?: number;
+}
+
+export type ProjectIssueUpdateStatus = typeof ProjectIssueUpdateStatus[keyof typeof ProjectIssueUpdateStatus];
+
+
+export const ProjectIssueUpdateStatus = {
+  open: 'open',
+  pending_response: 'pending_response',
+  answered: 'answered',
+  closed: 'closed',
+} as const;
+
+export type ProjectIssueUpdatePriority = typeof ProjectIssueUpdatePriority[keyof typeof ProjectIssueUpdatePriority];
+
+
+export const ProjectIssueUpdatePriority = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+  critical: 'critical',
+} as const;
+
+export interface ProjectIssueUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  subject?: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  question?: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  ownerUserId?: number | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  responsibleParty?: string | null;
+  status?: ProjectIssueUpdateStatus;
+  priority?: ProjectIssueUpdatePriority;
+  /** @nullable */
+  dueDate?: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  response?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  documentUrl?: string | null;
+  costImpact?: number;
+  /** @minimum 0 */
+  scheduleImpactDays?: number;
+}
+
+export type ProjectChangeOrderChangeType = typeof ProjectChangeOrderChangeType[keyof typeof ProjectChangeOrderChangeType];
+
+
+export const ProjectChangeOrderChangeType = {
+  change_request: 'change_request',
+  change_order: 'change_order',
+} as const;
+
+export type ProjectChangeOrderStatus = typeof ProjectChangeOrderStatus[keyof typeof ProjectChangeOrderStatus];
+
+
+export const ProjectChangeOrderStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+  void: 'void',
+} as const;
+
+export type ProjectChangeOrderApprovalStatus = typeof ProjectChangeOrderApprovalStatus[keyof typeof ProjectChangeOrderApprovalStatus];
+
+
+export const ProjectChangeOrderApprovalStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface ProjectChangeOrder {
+  id: number;
+  projectId: number;
+  changeNumber: string;
+  changeType: ProjectChangeOrderChangeType;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  status: ProjectChangeOrderStatus;
+  approvalStatus: ProjectChangeOrderApprovalStatus;
+  proposedValue: number;
+  approvedValue: number;
+  scheduleImpactDays: number;
+  /** @nullable */
+  requestedBy: string | null;
+  /** @nullable */
+  dueDate: string | null;
+  /** @nullable */
+  approvedAt: string | null;
+  /** @nullable */
+  documentUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProjectChangeOrderInputChangeType = typeof ProjectChangeOrderInputChangeType[keyof typeof ProjectChangeOrderInputChangeType];
+
+
+export const ProjectChangeOrderInputChangeType = {
+  change_request: 'change_request',
+  change_order: 'change_order',
+} as const;
+
+export type ProjectChangeOrderInputStatus = typeof ProjectChangeOrderInputStatus[keyof typeof ProjectChangeOrderInputStatus];
+
+
+export const ProjectChangeOrderInputStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+  void: 'void',
+} as const;
+
+export type ProjectChangeOrderInputApprovalStatus = typeof ProjectChangeOrderInputApprovalStatus[keyof typeof ProjectChangeOrderInputApprovalStatus];
+
+
+export const ProjectChangeOrderInputApprovalStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface ProjectChangeOrderInput {
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  changeNumber: string;
+  changeType: ProjectChangeOrderInputChangeType;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  title: string;
+  /** @maxLength 5000 */
+  description?: string;
+  status?: ProjectChangeOrderInputStatus;
+  approvalStatus?: ProjectChangeOrderInputApprovalStatus;
+  proposedValue: number;
+  approvedValue?: number;
+  /** @minimum 0 */
+  scheduleImpactDays?: number;
+  /** @maxLength 180 */
+  requestedBy?: string;
+  dueDate?: string;
+  /** @maxLength 2000 */
+  documentUrl?: string;
+}
+
+export type ProjectChangeOrderUpdateStatus = typeof ProjectChangeOrderUpdateStatus[keyof typeof ProjectChangeOrderUpdateStatus];
+
+
+export const ProjectChangeOrderUpdateStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+  void: 'void',
+} as const;
+
+export type ProjectChangeOrderUpdateApprovalStatus = typeof ProjectChangeOrderUpdateApprovalStatus[keyof typeof ProjectChangeOrderUpdateApprovalStatus];
+
+
+export const ProjectChangeOrderUpdateApprovalStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface ProjectChangeOrderUpdate {
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  title?: string;
+  status?: ProjectChangeOrderUpdateStatus;
+  approvalStatus?: ProjectChangeOrderUpdateApprovalStatus;
+  proposedValue?: number;
+  approvedValue?: number;
+  /** @minimum 0 */
+  scheduleImpactDays?: number;
+  /** @nullable */
+  dueDate?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  documentUrl?: string | null;
+}
+
+export interface ProjectFinancials {
+  id: number;
+  projectId: number;
+  budgetCost: number;
+  forecastCost: number;
+  actualCost: number;
+  forecastRevenue: number;
+  retainageHeld: number;
+  /** @nullable */
+  asOfDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectFinancialsInput {
+  /** @minimum 0 */
+  budgetCost: number;
+  /** @minimum 0 */
+  forecastCost: number;
+  /** @minimum 0 */
+  actualCost: number;
+  /** @minimum 0 */
+  forecastRevenue: number;
+  /** @minimum 0 */
+  retainageHeld?: number;
+  asOfDate?: string;
+}
+
+export type ProjectPayApplicationStatus = typeof ProjectPayApplicationStatus[keyof typeof ProjectPayApplicationStatus];
+
+
+export const ProjectPayApplicationStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+  paid: 'paid',
+  rejected: 'rejected',
+} as const;
+
+export interface ProjectPayApplication {
+  id: number;
+  projectId: number;
+  applicationNumber: string;
+  /** @nullable */
+  periodStart: string | null;
+  /** @nullable */
+  periodEnd: string | null;
+  grossAmount: number;
+  retainageAmount: number;
+  netAmount: number;
+  status: ProjectPayApplicationStatus;
+  /** @nullable */
+  submittedAt: string | null;
+  /** @nullable */
+  approvedAt: string | null;
+  /** @nullable */
+  paidAt: string | null;
+  /** @nullable */
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProjectPayApplicationInputStatus = typeof ProjectPayApplicationInputStatus[keyof typeof ProjectPayApplicationInputStatus];
+
+
+export const ProjectPayApplicationInputStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+  paid: 'paid',
+  rejected: 'rejected',
+} as const;
+
+export interface ProjectPayApplicationInput {
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  applicationNumber: string;
+  periodStart?: string;
+  periodEnd?: string;
+  /** @minimum 0 */
+  grossAmount: number;
+  /** @minimum 0 */
+  retainageAmount?: number;
+  status?: ProjectPayApplicationInputStatus;
+  /** @maxLength 2000 */
+  notes?: string;
+}
+
+export type ProjectPayApplicationUpdateStatus = typeof ProjectPayApplicationUpdateStatus[keyof typeof ProjectPayApplicationUpdateStatus];
+
+
+export const ProjectPayApplicationUpdateStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+  paid: 'paid',
+  rejected: 'rejected',
+} as const;
+
+export interface ProjectPayApplicationUpdate {
+  /** @nullable */
+  periodStart?: string | null;
+  /** @nullable */
+  periodEnd?: string | null;
+  /** @minimum 0 */
+  grossAmount?: number;
+  /** @minimum 0 */
+  retainageAmount?: number;
+  status?: ProjectPayApplicationUpdateStatus;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  notes?: string | null;
+}
+
+export type ProjectCloseoutRequirementStatus = typeof ProjectCloseoutRequirementStatus[keyof typeof ProjectCloseoutRequirementStatus];
+
+
+export const ProjectCloseoutRequirementStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  complete: 'complete',
+  waived: 'waived',
+} as const;
+
+export interface ProjectCloseoutRequirement {
+  id: number;
+  projectId: number;
+  requirementNumber: string;
+  requirementType: string;
+  title: string;
+  status: ProjectCloseoutRequirementStatus;
+  /** @nullable */
+  dueDate: string | null;
+  /** @nullable */
+  responsibleParty: string | null;
+  /** @nullable */
+  documentUrl: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProjectCloseoutRequirementInputStatus = typeof ProjectCloseoutRequirementInputStatus[keyof typeof ProjectCloseoutRequirementInputStatus];
+
+
+export const ProjectCloseoutRequirementInputStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  complete: 'complete',
+  waived: 'waived',
+} as const;
+
+export interface ProjectCloseoutRequirementInput {
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  requirementNumber: string;
+  /** @maxLength 80 */
+  requirementType?: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  title: string;
+  status?: ProjectCloseoutRequirementInputStatus;
+  dueDate?: string;
+  /** @maxLength 180 */
+  responsibleParty?: string;
+  /** @maxLength 2000 */
+  documentUrl?: string;
+}
+
+export type ProjectCloseoutRequirementUpdateStatus = typeof ProjectCloseoutRequirementUpdateStatus[keyof typeof ProjectCloseoutRequirementUpdateStatus];
+
+
+export const ProjectCloseoutRequirementUpdateStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  complete: 'complete',
+  waived: 'waived',
+} as const;
+
+export interface ProjectCloseoutRequirementUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  title?: string;
+  status?: ProjectCloseoutRequirementUpdateStatus;
+  /** @nullable */
+  dueDate?: string | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  responsibleParty?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  documentUrl?: string | null;
+}
+
+export interface ProjectControlEvent {
+  id: number;
+  entityType: string;
+  entityId: number;
+  action: string;
+  /** @nullable */
+  fromStatus: string | null;
+  /** @nullable */
+  toStatus: string | null;
+  /** @nullable */
+  comments: string | null;
+  createdAt: string;
+}
+
+export interface ProjectControlsMetrics {
+  contractValue: number;
+  committedCost: number;
+  forecastCost: number;
+  forecastMargin: number;
+  openIssues: number;
+  overdueIssues: number;
+  pendingChanges: number;
+  scheduleRiskDays: number;
+  billedToDate: number;
+  retainageHeld: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  closeoutReadiness: number;
+}
+
+export interface ProjectControlsSummary {
+  projectId: number;
+  contract: ProjectContract | null;
+  scheduleItems: ProjectScheduleItem[];
+  sovLines: ScheduleOfValue[];
+  commitments: ProjectCommitment[];
+  issues: ProjectIssue[];
+  changeOrders: ProjectChangeOrder[];
+  payApplications: ProjectPayApplication[];
+  closeoutRequirements: ProjectCloseoutRequirement[];
+  financials: ProjectFinancials | null;
+  metrics: ProjectControlsMetrics;
+  events: ProjectControlEvent[];
+}
+
+export interface ProjectControlsDashboard {
+  activeProjects: number;
+  contractValue: number;
+  committedCost: number;
+  forecastCost: number;
+  forecastMargin: number;
+  openDecisions: number;
+  pendingChanges: number;
+  scheduleRiskDays: number;
+  billingPending: number;
+  closeoutReadyProjects: number;
+}
+
 export interface BusinessCustomerInput {
   /**
      * @minLength 1

@@ -4,6 +4,7 @@ import {
   useGetDashboardSummary, getGetDashboardSummaryQueryKey,
   useListRecentActivity, getListRecentActivityQueryKey,
   useListFollowUps, getListFollowUpsQueryKey,
+  useGetProjectControlsDashboard, getGetProjectControlsDashboardQueryKey,
   FollowUpStatus,
 } from '@workspace/api-client-react';
 import {
@@ -64,6 +65,7 @@ function DrillStatCard({
 
 export function Dashboard() {
   const summaryQuery = useGetDashboardSummary({ query: { queryKey: getGetDashboardSummaryQueryKey() } });
+  const controlsQuery = useGetProjectControlsDashboard({ query: { queryKey: getGetProjectControlsDashboardQueryKey(), staleTime: 60000 } });
   const activityQuery = useListRecentActivity({ query: { queryKey: getListRecentActivityQueryKey(), staleTime: 60000 } });
   const followQuery = useListFollowUps({ query: { queryKey: getListFollowUpsQueryKey(), staleTime: 60000 } });
   const workflow = useWorkflow();
@@ -71,6 +73,7 @@ export function Dashboard() {
   const summary = summaryQuery.data;
   const activity = activityQuery.data ?? [];
   const followUps = followQuery.data?.filter((item) => item.status === FollowUpStatus.open).slice(0, 4) ?? [];
+  const controls = controlsQuery.data;
   const maxStage = Math.max(...(summary?.stageCounts.map((item) => item.count) ?? [1]), 1);
 
   const dateStr = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date());
@@ -284,6 +287,27 @@ export function Dashboard() {
           <ActivityList items={activity.slice(0, 5)} compact />
         </section>
       </div>
+
+      {controls && (
+        <section className="mt-5 rounded-xl border border-border bg-card p-5 md:p-6">
+          <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
+            <div>
+              <p className="mono text-[10px] uppercase tracking-[.13em] text-accent">General contractor view</p>
+              <h2 className="mt-1 text-lg font-bold tracking-tight">Project controls pulse</h2>
+              <p className="mt-1 text-xs text-muted-foreground">The decisions, commitments, margin, billing, and closeout signals that need attention across active work.</p>
+            </div>
+            <Link href="/projects" className="text-xs font-bold text-primary hover:underline">Open project book <ArrowRight className="ml-1 inline" size={13} /></Link>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <div className="rounded-lg bg-secondary/55 p-3"><p className="mono text-[9px] uppercase text-muted-foreground">Committed</p><p className="mt-2 text-lg font-bold">{currency.format(controls.committedCost)}</p><p className="text-[10px] text-muted-foreground">{controls.activeProjects} active projects</p></div>
+            <div className="rounded-lg bg-secondary/55 p-3"><p className="mono text-[9px] uppercase text-muted-foreground">Forecast margin</p><p className={`mt-2 text-lg font-bold ${controls.forecastMargin < 0 ? 'text-status-danger' : 'text-status-success'}`}>{currency.format(controls.forecastMargin)}</p><p className="text-[10px] text-muted-foreground">Across current work</p></div>
+            <div className="rounded-lg bg-status-warning/8 p-3"><p className="mono text-[9px] uppercase text-status-warning">Decisions</p><p className="mt-2 text-lg font-bold">{controls.openDecisions}</p><p className="text-[10px] text-muted-foreground">{controls.pendingChanges} changes pending</p></div>
+            <div className="rounded-lg bg-status-warning/8 p-3"><p className="mono text-[9px] uppercase text-status-warning">Schedule risk</p><p className="mt-2 text-lg font-bold">{controls.scheduleRiskDays} days</p><p className="text-[10px] text-muted-foreground">From issues and changes</p></div>
+            <div className="rounded-lg bg-secondary/55 p-3"><p className="mono text-[9px] uppercase text-muted-foreground">Billing pending</p><p className="mt-2 text-lg font-bold">{currency.format(controls.billingPending)}</p><p className="text-[10px] text-muted-foreground">Invoiced less received</p></div>
+            <div className="rounded-lg bg-primary/8 p-3"><p className="mono text-[9px] uppercase text-primary">Closeout ready</p><p className="mt-2 text-lg font-bold text-primary">{controls.closeoutReadyProjects}</p><p className="text-[10px] text-muted-foreground">Projects ready to close</p></div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

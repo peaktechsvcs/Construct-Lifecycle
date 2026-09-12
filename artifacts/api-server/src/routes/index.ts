@@ -18,6 +18,7 @@ import bidsRouter from "./bids";
 import submittalsRouter from "./submittals";
 import estimatesRouter from "./estimates";
 import proposalsRouter from "./proposals";
+import projectControlsRouter from "./project-controls";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(workflowsRouter);
 router.use(integrationsRouter);
 router.use(customersRouter);
 router.use(projectsRouter);
+router.use(projectControlsRouter);
 
 export default router;

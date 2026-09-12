@@ -365,6 +365,1082 @@ export const DeleteProjectResponse = zod.void()
 
 
 /**
+ * @summary Get the project controls workspace
+ */
+export const GetProjectControlsParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const getProjectControlsResponseMetricsCloseoutReadinessMin = 0;
+export const getProjectControlsResponseMetricsCloseoutReadinessMax = 100;
+
+
+
+export const GetProjectControlsResponse = zod.object({
+  "projectId": zod.number().int(),
+  "contract": zod.union([zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "contractNumber": zod.string(),
+  "deliveryMethod": zod.string(),
+  "originalValue": zod.number(),
+  "currentValue": zod.number(),
+  "contractStart": zod.coerce.date().nullable(),
+  "contractEnd": zod.coerce.date().nullable(),
+  "noticeToProceed": zod.coerce.date().nullable(),
+  "paymentTerms": zod.string().nullable(),
+  "retainagePercent": zod.number(),
+  "retainageCap": zod.number().nullable(),
+  "approvalStatus": zod.enum(['draft', 'pending', 'approved', 'rejected']),
+  "status": zod.enum(['active', 'suspended', 'complete']),
+  "documentUrl": zod.string().nullable(),
+  "participants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "participantType": zod.string(),
+  "organizationName": zod.string(),
+  "contactName": zod.string().nullable(),
+  "contactEmail": zod.string().email().nullable(),
+  "role": zod.string().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),zod.null()]),
+  "scheduleItems": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "itemNumber": zod.string(),
+  "name": zod.string(),
+  "itemType": zod.enum(['milestone', 'activity', 'dependency']),
+  "predecessor": zod.string().nullable(),
+  "plannedStart": zod.coerce.date().nullable(),
+  "plannedEnd": zod.coerce.date().nullable(),
+  "actualStart": zod.coerce.date().nullable(),
+  "actualEnd": zod.coerce.date().nullable(),
+  "status": zod.enum(['planned', 'in_progress', 'complete', 'delayed']),
+  "ownerName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "sovLines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "lineNumber": zod.string(),
+  "costCode": zod.string().nullable(),
+  "description": zod.string(),
+  "scheduledValue": zod.number(),
+  "approvedValue": zod.number(),
+  "billedToDate": zod.number(),
+  "percentComplete": zod.number(),
+  "retentionHeld": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "commitments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "commitmentNumber": zod.string(),
+  "commitmentType": zod.enum(['subcontract', 'purchase_order', 'supplier']),
+  "vendorName": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['draft', 'pending', 'executed', 'complete', 'closed']),
+  "committedValue": zod.number(),
+  "invoicedValue": zod.number(),
+  "paidValue": zod.number(),
+  "dueDate": zod.coerce.date().nullable(),
+  "documentUrl": zod.string().nullable(),
+  "linkedBidId": zod.number().int().nullable(),
+  "linkedSubmittalPackageId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "issues": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "issueNumber": zod.string(),
+  "issueType": zod.enum(['rfi', 'issue']),
+  "subject": zod.string(),
+  "question": zod.string(),
+  "ownerUserId": zod.number().int().nullable(),
+  "responsibleParty": zod.string().nullable(),
+  "status": zod.enum(['open', 'pending_response', 'answered', 'closed']),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']),
+  "dueDate": zod.coerce.date().nullable(),
+  "response": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable(),
+  "documentUrl": zod.string().nullable(),
+  "costImpact": zod.number(),
+  "scheduleImpactDays": zod.number().int(),
+  "linkedSubmittalPackageId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "changeOrders": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "changeNumber": zod.string(),
+  "changeType": zod.enum(['change_request', 'change_order']),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'void']),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "proposedValue": zod.number(),
+  "approvedValue": zod.number(),
+  "scheduleImpactDays": zod.number().int(),
+  "requestedBy": zod.string().nullable(),
+  "dueDate": zod.coerce.date().nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "documentUrl": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "payApplications": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "applicationNumber": zod.string(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "grossAmount": zod.number(),
+  "retainageAmount": zod.number(),
+  "netAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'paid', 'rejected']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "closeoutRequirements": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "requirementNumber": zod.string(),
+  "requirementType": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['open', 'in_progress', 'complete', 'waived']),
+  "dueDate": zod.coerce.date().nullable(),
+  "responsibleParty": zod.string().nullable(),
+  "documentUrl": zod.string().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "financials": zod.union([zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "budgetCost": zod.number(),
+  "forecastCost": zod.number(),
+  "actualCost": zod.number(),
+  "forecastRevenue": zod.number(),
+  "retainageHeld": zod.number(),
+  "asOfDate": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),zod.null()]),
+  "metrics": zod.object({
+  "contractValue": zod.number(),
+  "committedCost": zod.number(),
+  "forecastCost": zod.number(),
+  "forecastMargin": zod.number(),
+  "openIssues": zod.number().int(),
+  "overdueIssues": zod.number().int(),
+  "pendingChanges": zod.number().int(),
+  "scheduleRiskDays": zod.number().int(),
+  "billedToDate": zod.number(),
+  "retainageHeld": zod.number(),
+  "closeoutReadiness": zod.number().int().min(getProjectControlsResponseMetricsCloseoutReadinessMin).max(getProjectControlsResponseMetricsCloseoutReadinessMax)
+}),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "entityType": zod.string(),
+  "entityId": zod.number().int(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullable(),
+  "toStatus": zod.string().nullable(),
+  "comments": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create or update the primary project contract
+ */
+export const UpsertProjectContractParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const upsertProjectContractBodyContractNumberMax = 120;
+
+export const upsertProjectContractBodyDeliveryMethodMax = 80;
+
+export const upsertProjectContractBodyOriginalValueMin = 0;
+
+export const upsertProjectContractBodyCurrentValueMin = 0;
+
+export const upsertProjectContractBodyPaymentTermsMax = 1000;
+
+export const upsertProjectContractBodyRetainagePercentMin = 0;
+export const upsertProjectContractBodyRetainagePercentMax = 100;
+
+export const upsertProjectContractBodyRetainageCapMin = 0;
+
+export const upsertProjectContractBodyDocumentUrlMax = 2000;
+
+export const upsertProjectContractBodyParticipantsItemParticipantTypeMax = 80;
+
+export const upsertProjectContractBodyParticipantsItemOrganizationNameMax = 180;
+
+export const upsertProjectContractBodyParticipantsItemContactNameMax = 180;
+
+export const upsertProjectContractBodyParticipantsItemContactEmailMax = 320;
+
+export const upsertProjectContractBodyParticipantsItemRoleMax = 120;
+
+export const upsertProjectContractBodyParticipantsMax = 50;
+
+
+
+export const UpsertProjectContractBody = zod.object({
+  "contractNumber": zod.string().min(1).max(upsertProjectContractBodyContractNumberMax),
+  "deliveryMethod": zod.string().min(1).max(upsertProjectContractBodyDeliveryMethodMax),
+  "originalValue": zod.number().min(upsertProjectContractBodyOriginalValueMin),
+  "currentValue": zod.number().min(upsertProjectContractBodyCurrentValueMin),
+  "contractStart": zod.coerce.date().optional(),
+  "contractEnd": zod.coerce.date().optional(),
+  "noticeToProceed": zod.coerce.date().optional(),
+  "paymentTerms": zod.string().max(upsertProjectContractBodyPaymentTermsMax).optional(),
+  "retainagePercent": zod.number().min(upsertProjectContractBodyRetainagePercentMin).max(upsertProjectContractBodyRetainagePercentMax).optional(),
+  "retainageCap": zod.number().min(upsertProjectContractBodyRetainageCapMin).optional(),
+  "approvalStatus": zod.enum(['draft', 'pending', 'approved', 'rejected']).optional(),
+  "status": zod.enum(['active', 'suspended', 'complete']).optional(),
+  "documentUrl": zod.string().max(upsertProjectContractBodyDocumentUrlMax).optional(),
+  "participants": zod.array(zod.object({
+  "participantType": zod.string().max(upsertProjectContractBodyParticipantsItemParticipantTypeMax),
+  "organizationName": zod.string().min(1).max(upsertProjectContractBodyParticipantsItemOrganizationNameMax),
+  "contactName": zod.string().max(upsertProjectContractBodyParticipantsItemContactNameMax).optional(),
+  "contactEmail": zod.string().email().max(upsertProjectContractBodyParticipantsItemContactEmailMax).optional(),
+  "role": zod.string().max(upsertProjectContractBodyParticipantsItemRoleMax).optional()
+})).max(upsertProjectContractBodyParticipantsMax).optional()
+})
+
+export const UpsertProjectContractResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "contractNumber": zod.string(),
+  "deliveryMethod": zod.string(),
+  "originalValue": zod.number(),
+  "currentValue": zod.number(),
+  "contractStart": zod.coerce.date().nullable(),
+  "contractEnd": zod.coerce.date().nullable(),
+  "noticeToProceed": zod.coerce.date().nullable(),
+  "paymentTerms": zod.string().nullable(),
+  "retainagePercent": zod.number(),
+  "retainageCap": zod.number().nullable(),
+  "approvalStatus": zod.enum(['draft', 'pending', 'approved', 'rejected']),
+  "status": zod.enum(['active', 'suspended', 'complete']),
+  "documentUrl": zod.string().nullable(),
+  "participants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "participantType": zod.string(),
+  "organizationName": zod.string(),
+  "contactName": zod.string().nullable(),
+  "contactEmail": zod.string().email().nullable(),
+  "role": zod.string().nullable()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Add a project milestone or schedule item
+ */
+export const CreateProjectScheduleItemParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const createProjectScheduleItemBodyItemNumberMax = 30;
+
+export const createProjectScheduleItemBodyNameMax = 180;
+
+export const createProjectScheduleItemBodyPredecessorMax = 120;
+
+export const createProjectScheduleItemBodyOwnerNameMax = 180;
+
+
+
+export const CreateProjectScheduleItemBody = zod.object({
+  "itemNumber": zod.string().min(1).max(createProjectScheduleItemBodyItemNumberMax),
+  "name": zod.string().min(1).max(createProjectScheduleItemBodyNameMax),
+  "itemType": zod.enum(['milestone', 'activity', 'dependency']).optional(),
+  "predecessor": zod.string().max(createProjectScheduleItemBodyPredecessorMax).optional(),
+  "plannedStart": zod.coerce.date().optional(),
+  "plannedEnd": zod.coerce.date().optional(),
+  "actualStart": zod.coerce.date().optional(),
+  "actualEnd": zod.coerce.date().optional(),
+  "status": zod.enum(['planned', 'in_progress', 'complete', 'delayed']).optional(),
+  "ownerName": zod.string().max(createProjectScheduleItemBodyOwnerNameMax).optional()
+})
+
+export const CreateProjectScheduleItemResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "itemNumber": zod.string(),
+  "name": zod.string(),
+  "itemType": zod.enum(['milestone', 'activity', 'dependency']),
+  "predecessor": zod.string().nullable(),
+  "plannedStart": zod.coerce.date().nullable(),
+  "plannedEnd": zod.coerce.date().nullable(),
+  "actualStart": zod.coerce.date().nullable(),
+  "actualEnd": zod.coerce.date().nullable(),
+  "status": zod.enum(['planned', 'in_progress', 'complete', 'delayed']),
+  "ownerName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a project milestone or schedule item
+ */
+export const UpdateProjectScheduleItemParams = zod.object({
+  "projectId": zod.coerce.number().int(),
+  "itemId": zod.coerce.number().int()
+})
+
+export const updateProjectScheduleItemBodyItemNumberMax = 30;
+
+export const updateProjectScheduleItemBodyNameMax = 180;
+
+export const updateProjectScheduleItemBodyPredecessorMax = 120;
+
+export const updateProjectScheduleItemBodyOwnerNameMax = 180;
+
+
+
+export const UpdateProjectScheduleItemBody = zod.object({
+  "itemNumber": zod.string().min(1).max(updateProjectScheduleItemBodyItemNumberMax).optional(),
+  "name": zod.string().min(1).max(updateProjectScheduleItemBodyNameMax).optional(),
+  "itemType": zod.enum(['milestone', 'activity', 'dependency']).optional(),
+  "predecessor": zod.string().max(updateProjectScheduleItemBodyPredecessorMax).nullish(),
+  "plannedStart": zod.coerce.date().nullish(),
+  "plannedEnd": zod.coerce.date().nullish(),
+  "actualStart": zod.coerce.date().nullish(),
+  "actualEnd": zod.coerce.date().nullish(),
+  "status": zod.enum(['planned', 'in_progress', 'complete', 'delayed']).optional(),
+  "ownerName": zod.string().max(updateProjectScheduleItemBodyOwnerNameMax).nullish()
+})
+
+export const UpdateProjectScheduleItemResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "itemNumber": zod.string(),
+  "name": zod.string(),
+  "itemType": zod.enum(['milestone', 'activity', 'dependency']),
+  "predecessor": zod.string().nullable(),
+  "plannedStart": zod.coerce.date().nullable(),
+  "plannedEnd": zod.coerce.date().nullable(),
+  "actualStart": zod.coerce.date().nullable(),
+  "actualEnd": zod.coerce.date().nullable(),
+  "status": zod.enum(['planned', 'in_progress', 'complete', 'delayed']),
+  "ownerName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Add a schedule of values line
+ */
+export const CreateScheduleOfValueParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const createScheduleOfValueBodyLineNumberMax = 30;
+
+export const createScheduleOfValueBodyCostCodeMax = 80;
+
+export const createScheduleOfValueBodyDescriptionMax = 240;
+
+export const createScheduleOfValueBodyScheduledValueMin = 0;
+
+export const createScheduleOfValueBodyApprovedValueMin = 0;
+
+export const createScheduleOfValueBodyBilledToDateMin = 0;
+
+export const createScheduleOfValueBodyPercentCompleteMin = 0;
+export const createScheduleOfValueBodyPercentCompleteMax = 100;
+
+export const createScheduleOfValueBodyRetentionHeldMin = 0;
+
+
+
+export const CreateScheduleOfValueBody = zod.object({
+  "lineNumber": zod.string().min(1).max(createScheduleOfValueBodyLineNumberMax),
+  "costCode": zod.string().max(createScheduleOfValueBodyCostCodeMax).optional(),
+  "description": zod.string().min(1).max(createScheduleOfValueBodyDescriptionMax),
+  "scheduledValue": zod.number().min(createScheduleOfValueBodyScheduledValueMin),
+  "approvedValue": zod.number().min(createScheduleOfValueBodyApprovedValueMin).optional(),
+  "billedToDate": zod.number().min(createScheduleOfValueBodyBilledToDateMin).optional(),
+  "percentComplete": zod.number().min(createScheduleOfValueBodyPercentCompleteMin).max(createScheduleOfValueBodyPercentCompleteMax).optional(),
+  "retentionHeld": zod.number().min(createScheduleOfValueBodyRetentionHeldMin).optional(),
+  "status": zod.enum(['draft', 'submitted', 'approved']).optional()
+})
+
+export const CreateScheduleOfValueResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "lineNumber": zod.string(),
+  "costCode": zod.string().nullable(),
+  "description": zod.string(),
+  "scheduledValue": zod.number(),
+  "approvedValue": zod.number(),
+  "billedToDate": zod.number(),
+  "percentComplete": zod.number(),
+  "retentionHeld": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a schedule of values line
+ */
+export const UpdateScheduleOfValueParams = zod.object({
+  "projectId": zod.coerce.number().int(),
+  "lineId": zod.coerce.number().int()
+})
+
+export const updateScheduleOfValueBodyDescriptionMax = 240;
+
+export const updateScheduleOfValueBodyCostCodeMax = 80;
+
+export const updateScheduleOfValueBodyScheduledValueMin = 0;
+
+export const updateScheduleOfValueBodyApprovedValueMin = 0;
+
+export const updateScheduleOfValueBodyBilledToDateMin = 0;
+
+export const updateScheduleOfValueBodyPercentCompleteMin = 0;
+export const updateScheduleOfValueBodyPercentCompleteMax = 100;
+
+export const updateScheduleOfValueBodyRetentionHeldMin = 0;
+
+
+
+export const UpdateScheduleOfValueBody = zod.object({
+  "description": zod.string().min(1).max(updateScheduleOfValueBodyDescriptionMax).optional(),
+  "costCode": zod.string().max(updateScheduleOfValueBodyCostCodeMax).nullish(),
+  "scheduledValue": zod.number().min(updateScheduleOfValueBodyScheduledValueMin).optional(),
+  "approvedValue": zod.number().min(updateScheduleOfValueBodyApprovedValueMin).optional(),
+  "billedToDate": zod.number().min(updateScheduleOfValueBodyBilledToDateMin).optional(),
+  "percentComplete": zod.number().min(updateScheduleOfValueBodyPercentCompleteMin).max(updateScheduleOfValueBodyPercentCompleteMax).optional(),
+  "retentionHeld": zod.number().min(updateScheduleOfValueBodyRetentionHeldMin).optional(),
+  "status": zod.enum(['draft', 'submitted', 'approved']).optional()
+})
+
+export const UpdateScheduleOfValueResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "lineNumber": zod.string(),
+  "costCode": zod.string().nullable(),
+  "description": zod.string(),
+  "scheduledValue": zod.number(),
+  "approvedValue": zod.number(),
+  "billedToDate": zod.number(),
+  "percentComplete": zod.number(),
+  "retentionHeld": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a schedule of values line
+ */
+export const DeleteScheduleOfValueParams = zod.object({
+  "projectId": zod.coerce.number().int(),
+  "lineId": zod.coerce.number().int()
+})
+
+export const DeleteScheduleOfValueResponse = zod.void()
+
+
+/**
+ * @summary Add a subcontractor or supplier commitment
+ */
+export const CreateProjectCommitmentParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const createProjectCommitmentBodyCommitmentNumberMax = 60;
+
+export const createProjectCommitmentBodyVendorNameMax = 180;
+
+export const createProjectCommitmentBodyDescriptionMax = 2000;
+
+export const createProjectCommitmentBodyCommittedValueMin = 0;
+
+export const createProjectCommitmentBodyInvoicedValueMin = 0;
+
+export const createProjectCommitmentBodyPaidValueMin = 0;
+
+export const createProjectCommitmentBodyDocumentUrlMax = 2000;
+
+
+
+
+
+export const CreateProjectCommitmentBody = zod.object({
+  "commitmentNumber": zod.string().min(1).max(createProjectCommitmentBodyCommitmentNumberMax),
+  "commitmentType": zod.enum(['subcontract', 'purchase_order', 'supplier']),
+  "vendorName": zod.string().min(1).max(createProjectCommitmentBodyVendorNameMax),
+  "description": zod.string().max(createProjectCommitmentBodyDescriptionMax).optional(),
+  "status": zod.enum(['draft', 'pending', 'executed', 'complete', 'closed']).optional(),
+  "committedValue": zod.number().min(createProjectCommitmentBodyCommittedValueMin),
+  "invoicedValue": zod.number().min(createProjectCommitmentBodyInvoicedValueMin).optional(),
+  "paidValue": zod.number().min(createProjectCommitmentBodyPaidValueMin).optional(),
+  "dueDate": zod.coerce.date().optional(),
+  "documentUrl": zod.string().max(createProjectCommitmentBodyDocumentUrlMax).optional(),
+  "linkedBidId": zod.number().int().min(1).optional(),
+  "linkedSubmittalPackageId": zod.number().int().min(1).optional()
+})
+
+export const CreateProjectCommitmentResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "commitmentNumber": zod.string(),
+  "commitmentType": zod.enum(['subcontract', 'purchase_order', 'supplier']),
+  "vendorName": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['draft', 'pending', 'executed', 'complete', 'closed']),
+  "committedValue": zod.number(),
+  "invoicedValue": zod.number(),
+  "paidValue": zod.number(),
+  "dueDate": zod.coerce.date().nullable(),
+  "documentUrl": zod.string().nullable(),
+  "linkedBidId": zod.number().int().nullable(),
+  "linkedSubmittalPackageId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a project commitment
+ */
+export const UpdateProjectCommitmentParams = zod.object({
+  "projectId": zod.coerce.number().int(),
+  "commitmentId": zod.coerce.number().int()
+})
+
+export const updateProjectCommitmentBodyDescriptionMax = 2000;
+
+export const updateProjectCommitmentBodyInvoicedValueMin = 0;
+
+export const updateProjectCommitmentBodyPaidValueMin = 0;
+
+export const updateProjectCommitmentBodyDocumentUrlMax = 2000;
+
+
+
+export const UpdateProjectCommitmentBody = zod.object({
+  "description": zod.string().max(updateProjectCommitmentBodyDescriptionMax).nullish(),
+  "status": zod.enum(['draft', 'pending', 'executed', 'complete', 'closed']).optional(),
+  "invoicedValue": zod.number().min(updateProjectCommitmentBodyInvoicedValueMin).optional(),
+  "paidValue": zod.number().min(updateProjectCommitmentBodyPaidValueMin).optional(),
+  "dueDate": zod.coerce.date().nullish(),
+  "documentUrl": zod.string().max(updateProjectCommitmentBodyDocumentUrlMax).nullish()
+})
+
+export const UpdateProjectCommitmentResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "commitmentNumber": zod.string(),
+  "commitmentType": zod.enum(['subcontract', 'purchase_order', 'supplier']),
+  "vendorName": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['draft', 'pending', 'executed', 'complete', 'closed']),
+  "committedValue": zod.number(),
+  "invoicedValue": zod.number(),
+  "paidValue": zod.number(),
+  "dueDate": zod.coerce.date().nullable(),
+  "documentUrl": zod.string().nullable(),
+  "linkedBidId": zod.number().int().nullable(),
+  "linkedSubmittalPackageId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Create an RFI or project issue
+ */
+export const CreateProjectIssueParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const createProjectIssueBodySubjectMax = 240;
+
+export const createProjectIssueBodyQuestionMax = 5000;
+
+
+export const createProjectIssueBodyResponsiblePartyMax = 180;
+
+export const createProjectIssueBodyResponseMax = 5000;
+
+export const createProjectIssueBodyDocumentUrlMax = 2000;
+
+export const createProjectIssueBodyScheduleImpactDaysMin = 0;
+
+
+
+
+export const CreateProjectIssueBody = zod.object({
+  "issueType": zod.enum(['rfi', 'issue']),
+  "subject": zod.string().min(1).max(createProjectIssueBodySubjectMax),
+  "question": zod.string().min(1).max(createProjectIssueBodyQuestionMax),
+  "ownerUserId": zod.number().int().min(1).optional(),
+  "responsibleParty": zod.string().max(createProjectIssueBodyResponsiblePartyMax).optional(),
+  "status": zod.enum(['open', 'pending_response', 'answered', 'closed']).optional(),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']).optional(),
+  "dueDate": zod.coerce.date().optional(),
+  "response": zod.string().max(createProjectIssueBodyResponseMax).optional(),
+  "documentUrl": zod.string().max(createProjectIssueBodyDocumentUrlMax).optional(),
+  "costImpact": zod.number().optional(),
+  "scheduleImpactDays": zod.number().int().min(createProjectIssueBodyScheduleImpactDaysMin).optional(),
+  "linkedSubmittalPackageId": zod.number().int().min(1).optional()
+})
+
+export const CreateProjectIssueResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "issueNumber": zod.string(),
+  "issueType": zod.enum(['rfi', 'issue']),
+  "subject": zod.string(),
+  "question": zod.string(),
+  "ownerUserId": zod.number().int().nullable(),
+  "responsibleParty": zod.string().nullable(),
+  "status": zod.enum(['open', 'pending_response', 'answered', 'closed']),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']),
+  "dueDate": zod.coerce.date().nullable(),
+  "response": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable(),
+  "documentUrl": zod.string().nullable(),
+  "costImpact": zod.number(),
+  "scheduleImpactDays": zod.number().int(),
+  "linkedSubmittalPackageId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update an RFI or project issue
+ */
+export const UpdateProjectIssueParams = zod.object({
+  "projectId": zod.coerce.number().int(),
+  "issueId": zod.coerce.number().int()
+})
+
+export const updateProjectIssueBodySubjectMax = 240;
+
+export const updateProjectIssueBodyQuestionMax = 5000;
+
+
+export const updateProjectIssueBodyResponsiblePartyMax = 180;
+
+export const updateProjectIssueBodyResponseMax = 5000;
+
+export const updateProjectIssueBodyDocumentUrlMax = 2000;
+
+export const updateProjectIssueBodyScheduleImpactDaysMin = 0;
+
+
+
+export const UpdateProjectIssueBody = zod.object({
+  "subject": zod.string().min(1).max(updateProjectIssueBodySubjectMax).optional(),
+  "question": zod.string().min(1).max(updateProjectIssueBodyQuestionMax).optional(),
+  "ownerUserId": zod.number().int().min(1).nullish(),
+  "responsibleParty": zod.string().max(updateProjectIssueBodyResponsiblePartyMax).nullish(),
+  "status": zod.enum(['open', 'pending_response', 'answered', 'closed']).optional(),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']).optional(),
+  "dueDate": zod.coerce.date().nullish(),
+  "response": zod.string().max(updateProjectIssueBodyResponseMax).nullish(),
+  "documentUrl": zod.string().max(updateProjectIssueBodyDocumentUrlMax).nullish(),
+  "costImpact": zod.number().optional(),
+  "scheduleImpactDays": zod.number().int().min(updateProjectIssueBodyScheduleImpactDaysMin).optional()
+})
+
+export const UpdateProjectIssueResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "issueNumber": zod.string(),
+  "issueType": zod.enum(['rfi', 'issue']),
+  "subject": zod.string(),
+  "question": zod.string(),
+  "ownerUserId": zod.number().int().nullable(),
+  "responsibleParty": zod.string().nullable(),
+  "status": zod.enum(['open', 'pending_response', 'answered', 'closed']),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']),
+  "dueDate": zod.coerce.date().nullable(),
+  "response": zod.string().nullable(),
+  "resolvedAt": zod.coerce.date().nullable(),
+  "documentUrl": zod.string().nullable(),
+  "costImpact": zod.number(),
+  "scheduleImpactDays": zod.number().int(),
+  "linkedSubmittalPackageId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Create a change request or change order
+ */
+export const CreateProjectChangeOrderParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const createProjectChangeOrderBodyChangeNumberMax = 60;
+
+export const createProjectChangeOrderBodyTitleMax = 240;
+
+export const createProjectChangeOrderBodyDescriptionMax = 5000;
+
+export const createProjectChangeOrderBodyScheduleImpactDaysMin = 0;
+
+export const createProjectChangeOrderBodyRequestedByMax = 180;
+
+export const createProjectChangeOrderBodyDocumentUrlMax = 2000;
+
+
+
+export const CreateProjectChangeOrderBody = zod.object({
+  "changeNumber": zod.string().min(1).max(createProjectChangeOrderBodyChangeNumberMax),
+  "changeType": zod.enum(['change_request', 'change_order']),
+  "title": zod.string().min(1).max(createProjectChangeOrderBodyTitleMax),
+  "description": zod.string().max(createProjectChangeOrderBodyDescriptionMax).optional(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'void']).optional(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']).optional(),
+  "proposedValue": zod.number(),
+  "approvedValue": zod.number().optional(),
+  "scheduleImpactDays": zod.number().int().min(createProjectChangeOrderBodyScheduleImpactDaysMin).optional(),
+  "requestedBy": zod.string().max(createProjectChangeOrderBodyRequestedByMax).optional(),
+  "dueDate": zod.coerce.date().optional(),
+  "documentUrl": zod.string().max(createProjectChangeOrderBodyDocumentUrlMax).optional()
+})
+
+export const CreateProjectChangeOrderResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "changeNumber": zod.string(),
+  "changeType": zod.enum(['change_request', 'change_order']),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'void']),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "proposedValue": zod.number(),
+  "approvedValue": zod.number(),
+  "scheduleImpactDays": zod.number().int(),
+  "requestedBy": zod.string().nullable(),
+  "dueDate": zod.coerce.date().nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "documentUrl": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update or approve a change request or change order
+ */
+export const UpdateProjectChangeOrderParams = zod.object({
+  "projectId": zod.coerce.number().int(),
+  "changeOrderId": zod.coerce.number().int()
+})
+
+export const updateProjectChangeOrderBodyDescriptionMax = 5000;
+
+export const updateProjectChangeOrderBodyTitleMax = 240;
+
+export const updateProjectChangeOrderBodyScheduleImpactDaysMin = 0;
+
+export const updateProjectChangeOrderBodyDocumentUrlMax = 2000;
+
+
+
+export const UpdateProjectChangeOrderBody = zod.object({
+  "description": zod.string().max(updateProjectChangeOrderBodyDescriptionMax).nullish(),
+  "title": zod.string().min(1).max(updateProjectChangeOrderBodyTitleMax).optional(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'void']).optional(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']).optional(),
+  "proposedValue": zod.number().optional(),
+  "approvedValue": zod.number().optional(),
+  "scheduleImpactDays": zod.number().int().min(updateProjectChangeOrderBodyScheduleImpactDaysMin).optional(),
+  "dueDate": zod.coerce.date().nullish(),
+  "documentUrl": zod.string().max(updateProjectChangeOrderBodyDocumentUrlMax).nullish()
+})
+
+export const UpdateProjectChangeOrderResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "changeNumber": zod.string(),
+  "changeType": zod.enum(['change_request', 'change_order']),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'rejected', 'void']),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "proposedValue": zod.number(),
+  "approvedValue": zod.number(),
+  "scheduleImpactDays": zod.number().int(),
+  "requestedBy": zod.string().nullable(),
+  "dueDate": zod.coerce.date().nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "documentUrl": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update project budget and forecast cost controls
+ */
+export const UpdateProjectFinancialsParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const updateProjectFinancialsBodyBudgetCostMin = 0;
+
+export const updateProjectFinancialsBodyForecastCostMin = 0;
+
+export const updateProjectFinancialsBodyActualCostMin = 0;
+
+export const updateProjectFinancialsBodyForecastRevenueMin = 0;
+
+export const updateProjectFinancialsBodyRetainageHeldMin = 0;
+
+
+
+export const UpdateProjectFinancialsBody = zod.object({
+  "budgetCost": zod.number().min(updateProjectFinancialsBodyBudgetCostMin),
+  "forecastCost": zod.number().min(updateProjectFinancialsBodyForecastCostMin),
+  "actualCost": zod.number().min(updateProjectFinancialsBodyActualCostMin),
+  "forecastRevenue": zod.number().min(updateProjectFinancialsBodyForecastRevenueMin),
+  "retainageHeld": zod.number().min(updateProjectFinancialsBodyRetainageHeldMin).optional(),
+  "asOfDate": zod.coerce.date().optional()
+})
+
+export const UpdateProjectFinancialsResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "budgetCost": zod.number(),
+  "forecastCost": zod.number(),
+  "actualCost": zod.number(),
+  "forecastRevenue": zod.number(),
+  "retainageHeld": zod.number(),
+  "asOfDate": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Create an owner pay application
+ */
+export const CreateProjectPayApplicationParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const createProjectPayApplicationBodyApplicationNumberMax = 60;
+
+export const createProjectPayApplicationBodyGrossAmountMin = 0;
+
+export const createProjectPayApplicationBodyRetainageAmountMin = 0;
+
+export const createProjectPayApplicationBodyNotesMax = 2000;
+
+
+
+export const CreateProjectPayApplicationBody = zod.object({
+  "applicationNumber": zod.string().min(1).max(createProjectPayApplicationBodyApplicationNumberMax),
+  "periodStart": zod.coerce.date().optional(),
+  "periodEnd": zod.coerce.date().optional(),
+  "grossAmount": zod.number().min(createProjectPayApplicationBodyGrossAmountMin),
+  "retainageAmount": zod.number().min(createProjectPayApplicationBodyRetainageAmountMin).optional(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'paid', 'rejected']).optional(),
+  "notes": zod.string().max(createProjectPayApplicationBodyNotesMax).optional()
+})
+
+export const CreateProjectPayApplicationResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "applicationNumber": zod.string(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "grossAmount": zod.number(),
+  "retainageAmount": zod.number(),
+  "netAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'paid', 'rejected']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update an owner pay application
+ */
+export const UpdateProjectPayApplicationParams = zod.object({
+  "projectId": zod.coerce.number().int(),
+  "applicationId": zod.coerce.number().int()
+})
+
+export const updateProjectPayApplicationBodyGrossAmountMin = 0;
+
+export const updateProjectPayApplicationBodyRetainageAmountMin = 0;
+
+export const updateProjectPayApplicationBodyNotesMax = 2000;
+
+
+
+export const UpdateProjectPayApplicationBody = zod.object({
+  "periodStart": zod.coerce.date().nullish(),
+  "periodEnd": zod.coerce.date().nullish(),
+  "grossAmount": zod.number().min(updateProjectPayApplicationBodyGrossAmountMin).optional(),
+  "retainageAmount": zod.number().min(updateProjectPayApplicationBodyRetainageAmountMin).optional(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'paid', 'rejected']).optional(),
+  "notes": zod.string().max(updateProjectPayApplicationBodyNotesMax).nullish()
+})
+
+export const UpdateProjectPayApplicationResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "applicationNumber": zod.string(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "grossAmount": zod.number(),
+  "retainageAmount": zod.number(),
+  "netAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'paid', 'rejected']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Add a project closeout requirement
+ */
+export const CreateProjectCloseoutRequirementParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const createProjectCloseoutRequirementBodyRequirementNumberMax = 60;
+
+export const createProjectCloseoutRequirementBodyRequirementTypeMax = 80;
+
+export const createProjectCloseoutRequirementBodyTitleMax = 240;
+
+export const createProjectCloseoutRequirementBodyResponsiblePartyMax = 180;
+
+export const createProjectCloseoutRequirementBodyDocumentUrlMax = 2000;
+
+
+
+export const CreateProjectCloseoutRequirementBody = zod.object({
+  "requirementNumber": zod.string().min(1).max(createProjectCloseoutRequirementBodyRequirementNumberMax),
+  "requirementType": zod.string().max(createProjectCloseoutRequirementBodyRequirementTypeMax).optional(),
+  "title": zod.string().min(1).max(createProjectCloseoutRequirementBodyTitleMax),
+  "status": zod.enum(['open', 'in_progress', 'complete', 'waived']).optional(),
+  "dueDate": zod.coerce.date().optional(),
+  "responsibleParty": zod.string().max(createProjectCloseoutRequirementBodyResponsiblePartyMax).optional(),
+  "documentUrl": zod.string().max(createProjectCloseoutRequirementBodyDocumentUrlMax).optional()
+})
+
+export const CreateProjectCloseoutRequirementResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "requirementNumber": zod.string(),
+  "requirementType": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['open', 'in_progress', 'complete', 'waived']),
+  "dueDate": zod.coerce.date().nullable(),
+  "responsibleParty": zod.string().nullable(),
+  "documentUrl": zod.string().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a project closeout requirement
+ */
+export const UpdateProjectCloseoutRequirementParams = zod.object({
+  "projectId": zod.coerce.number().int(),
+  "requirementId": zod.coerce.number().int()
+})
+
+export const updateProjectCloseoutRequirementBodyTitleMax = 240;
+
+export const updateProjectCloseoutRequirementBodyResponsiblePartyMax = 180;
+
+export const updateProjectCloseoutRequirementBodyDocumentUrlMax = 2000;
+
+
+
+export const UpdateProjectCloseoutRequirementBody = zod.object({
+  "title": zod.string().min(1).max(updateProjectCloseoutRequirementBodyTitleMax).optional(),
+  "status": zod.enum(['open', 'in_progress', 'complete', 'waived']).optional(),
+  "dueDate": zod.coerce.date().nullish(),
+  "responsibleParty": zod.string().max(updateProjectCloseoutRequirementBodyResponsiblePartyMax).nullish(),
+  "documentUrl": zod.string().max(updateProjectCloseoutRequirementBodyDocumentUrlMax).nullish()
+})
+
+export const UpdateProjectCloseoutRequirementResponse = zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "requirementNumber": zod.string(),
+  "requirementType": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['open', 'in_progress', 'complete', 'waived']),
+  "dueDate": zod.coerce.date().nullable(),
+  "responsibleParty": zod.string().nullable(),
+  "documentUrl": zod.string().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get project controls rollups for the dashboard
+ */
+export const GetProjectControlsDashboardResponse = zod.object({
+  "activeProjects": zod.number().int(),
+  "contractValue": zod.number(),
+  "committedCost": zod.number(),
+  "forecastCost": zod.number(),
+  "forecastMargin": zod.number(),
+  "openDecisions": zod.number().int(),
+  "pendingChanges": zod.number().int(),
+  "scheduleRiskDays": zod.number().int(),
+  "billingPending": zod.number(),
+  "closeoutReadyProjects": zod.number().int()
+})
+
+
+/**
  * @summary List opportunities for the active customer environment
  */
 export const listOpportunitiesQuerySearchMax = 120;

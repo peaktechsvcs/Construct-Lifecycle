@@ -17,6 +17,7 @@ import {
 } from '@/components/app-ui';
 import { stageLabels } from '@/lib/stage-config';
 import { ProjectFormModal } from '@/components/project-form-modal';
+import { ProjectControlsPanel } from '@/components/project-controls-panel';
 import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
 import { Textarea } from '@workspace/construct-lifecycle-design-system/components/ui/textarea';
@@ -238,6 +239,7 @@ export function ProjectDetail() {
       </div>
 
       <Lifecycle project={project} />
+      <ProjectControlsPanel projectId={project.id} contractValue={project.contractValue} closeoutStatus={project.closeoutStatus} />
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[1.18fr_.82fr]">
         <div className="space-y-5">
