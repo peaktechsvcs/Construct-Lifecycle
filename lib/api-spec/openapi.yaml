@@ -296,6 +296,86 @@ paths:
         - $ref: "#/components/parameters/BidId"
       responses:
         "204": { description: Bid deleted }
+  /estimates:
+    get:
+      operationId: listEstimates
+      tags: [estimates]
+      summary: List estimates for the active customer environment
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 120 }
+        - in: query
+          name: stage
+          schema: { $ref: "#/components/schemas/EstimateStage" }
+        - in: query
+          name: ownerUserId
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: integrationStatus
+          schema: { $ref: "#/components/schemas/EstimateIntegrationStatus" }
+      responses:
+        "200":
+          description: Estimates
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Estimate" }
+    post:
+      operationId: createEstimate
+      tags: [estimates]
+      summary: Create an estimate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EstimateInput" }
+      responses:
+        "201":
+          description: Estimate created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Estimate" }
+  /estimates/{estimateId}:
+    get:
+      operationId: getEstimate
+      tags: [estimates]
+      summary: Get an estimate
+      parameters:
+        - $ref: "#/components/parameters/EstimateId"
+      responses:
+        "200":
+          description: Estimate
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Estimate" }
+        "404": { description: Estimate not found }
+    patch:
+      operationId: updateEstimate
+      tags: [estimates]
+      summary: Update an estimate
+      parameters:
+        - $ref: "#/components/parameters/EstimateId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EstimateUpdate" }
+      responses:
+        "200":
+          description: Updated estimate
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Estimate" }
+    delete:
+      operationId: deleteEstimate
+      tags: [estimates]
+      summary: Delete an estimate
+      parameters:
+        - $ref: "#/components/parameters/EstimateId"
+      responses:
+        "204": { description: Estimate deleted }
   /projects/{projectId}/activity:
     get:
       operationId: listProjectActivity
@@ -1227,6 +1307,12 @@ components:
       required: true
       schema:
         type: integer
+    EstimateId:
+      in: path
+      name: estimateId
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
@@ -1405,6 +1491,84 @@ components:
         takeoffCoverage: { $ref: "#/components/schemas/BidIntegrationCoverage" }
         estimatingProvider: { type: ["string", "null"], maxLength: 160 }
         estimatingCoverage: { $ref: "#/components/schemas/BidIntegrationCoverage" }
+    EstimateStage:
+      type: string
+      enum: [draft, takeoff, estimating, review, approved, rejected]
+    EstimateIntegrationKind:
+      type: string
+      enum: [takeoff_estimating, accounting, pricing, other]
+    EstimateIntegrationStatus:
+      type: string
+      enum: [manual, pending, synced, error]
+    Estimate:
+      type: object
+      required: [id, environmentId, estimateNumber, businessCustomerId, customerName, bidId, bidNumber, name, stage, laborValue, materialValue, subcontractValue, otherValue, contingencyValue, totalValue, dueDate, ownerUserId, owner, integrationProviderKey, integrationKind, integrationStatus, externalReference, lastSyncedAt, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        environmentId: { type: integer }
+        estimateNumber: { type: string }
+        businessCustomerId: { type: integer }
+        customerName: { type: string }
+        bidId: { type: ["integer", "null"] }
+        bidNumber: { type: ["string", "null"] }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        stage: { $ref: "#/components/schemas/EstimateStage" }
+        laborValue: { type: number }
+        materialValue: { type: number }
+        subcontractValue: { type: number }
+        otherValue: { type: number }
+        contingencyValue: { type: number }
+        totalValue: { type: number }
+        dueDate: { type: ["string", "null"], format: date }
+        ownerUserId: { type: ["integer", "null"] }
+        owner: { oneOf: [{ $ref: "#/components/schemas/BidOwner" }, { type: "null" }] }
+        integrationProviderKey: { type: ["string", "null"] }
+        integrationKind: { oneOf: [{ $ref: "#/components/schemas/EstimateIntegrationKind" }, { type: "null" }] }
+        integrationStatus: { $ref: "#/components/schemas/EstimateIntegrationStatus" }
+        externalReference: { type: ["string", "null"] }
+        lastSyncedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    EstimateInput:
+      type: object
+      required: [businessCustomerId, name]
+      properties:
+        businessCustomerId: { type: integer, minimum: 1 }
+        bidId: { type: integer, minimum: 1 }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: string, maxLength: 5000 }
+        stage: { $ref: "#/components/schemas/EstimateStage" }
+        laborValue: { type: number, minimum: 0, maximum: 999999999999 }
+        materialValue: { type: number, minimum: 0, maximum: 999999999999 }
+        subcontractValue: { type: number, minimum: 0, maximum: 999999999999 }
+        otherValue: { type: number, minimum: 0, maximum: 999999999999 }
+        contingencyValue: { type: number, minimum: 0, maximum: 999999999999 }
+        dueDate: { type: string, format: date }
+        ownerUserId: { type: integer, minimum: 1 }
+        integrationProviderKey: { type: string, maxLength: 80, pattern: "^[a-z][a-z0-9_]{1,63}$" }
+        integrationKind: { $ref: "#/components/schemas/EstimateIntegrationKind" }
+        integrationStatus: { $ref: "#/components/schemas/EstimateIntegrationStatus" }
+        externalReference: { type: string, maxLength: 180 }
+    EstimateUpdate:
+      type: object
+      properties:
+        businessCustomerId: { type: integer, minimum: 1 }
+        bidId: { type: ["integer", "null"], minimum: 1 }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: ["string", "null"], maxLength: 5000 }
+        stage: { $ref: "#/components/schemas/EstimateStage" }
+        laborValue: { type: number, minimum: 0, maximum: 999999999999 }
+        materialValue: { type: number, minimum: 0, maximum: 999999999999 }
+        subcontractValue: { type: number, minimum: 0, maximum: 999999999999 }
+        otherValue: { type: number, minimum: 0, maximum: 999999999999 }
+        contingencyValue: { type: number, minimum: 0, maximum: 999999999999 }
+        dueDate: { type: ["string", "null"], format: date }
+        ownerUserId: { type: ["integer", "null"], minimum: 1 }
+        integrationProviderKey: { type: ["string", "null"], maxLength: 80, pattern: "^[a-z][a-z0-9_]{1,63}$" }
+        integrationKind: { oneOf: [{ $ref: "#/components/schemas/EstimateIntegrationKind" }, { type: "null" }] }
+        integrationStatus: { $ref: "#/components/schemas/EstimateIntegrationStatus" }
+        externalReference: { type: ["string", "null"], maxLength: 180 }
     ProposalStatus:
       type: string
       enum: [not_started, drafting, submitted, revised, accepted]
