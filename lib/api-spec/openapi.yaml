@@ -645,6 +645,64 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubmittalRevision" }
+  /submittals/{submittalId}/coordination:
+    get:
+      operationId: listSubmittalCoordination
+      tags: [submittals]
+      summary: List procurement, fabrication, installation, and schedule coordination records
+      parameters:
+        - $ref: "#/components/parameters/SubmittalId"
+      responses:
+        "200":
+          description: Coordination records
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SubmittalCoordination" }
+    post:
+      operationId: createSubmittalCoordination
+      tags: [submittals]
+      summary: Add a downstream coordination record to a submittal package
+      parameters:
+        - $ref: "#/components/parameters/SubmittalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalCoordinationInput" }
+      responses:
+        "201":
+          description: Coordination record created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalCoordination" }
+  /submittal-coordination/{coordinationId}:
+    patch:
+      operationId: updateSubmittalCoordination
+      tags: [submittals]
+      summary: Update coordination ownership or status
+      parameters:
+        - $ref: "#/components/parameters/SubmittalCoordinationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalCoordinationUpdate" }
+      responses:
+        "200":
+          description: Updated coordination record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalCoordination" }
+    delete:
+      operationId: deleteSubmittalCoordination
+      tags: [submittals]
+      summary: Delete a coordination record
+      parameters:
+        - $ref: "#/components/parameters/SubmittalCoordinationId"
+      responses:
+        "204": { description: Coordination record deleted }
   /projects/{projectId}/activity:
     get:
       operationId: listProjectActivity
