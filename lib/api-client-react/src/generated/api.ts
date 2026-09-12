@@ -22,6 +22,9 @@ import type {
 import type {
   AcceptedTenantInvitation,
   Activity,
+  Bid,
+  BidInput,
+  BidUpdate,
   BillingActionResponse,
   BillingAuditEvent,
   BillingCheckoutInput,
@@ -60,6 +63,7 @@ import type {
   IntegrationActivity,
   IntegrationCatalogItem,
   InvitationDetails,
+  ListBidsParams,
   ListBusinessCustomersParams,
   ListIntegrationActivityParams,
   ListNotificationsParams,
@@ -941,6 +945,381 @@ export const useDeleteOpportunity = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteOpportunityMutationOptions(options));
+    }
+
+export const getListBidsUrl = (params?: ListBidsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/bids?${stringifiedParams}` : `/api/bids`
+}
+
+/**
+ * @summary List bids for the active customer environment
+ */
+export const listBids = async (params?: ListBidsParams, options?: Parameters<typeof customFetch>[1]): Promise<Bid[]> => {
+
+  return customFetch<Bid[]>(getListBidsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBidsQueryKey = (params?: ListBidsParams,) => {
+    return [
+    `/api/bids`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListBidsQueryOptions = <TData = Awaited<ReturnType<typeof listBids>>, TError = ErrorType<unknown>>(params?: ListBidsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBids>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBidsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBids>>> = ({ signal }) => listBids(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBids>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBidsQueryResult = NonNullable<Awaited<ReturnType<typeof listBids>>>
+export type ListBidsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List bids for the active customer environment
+ */
+
+export function useListBids<TData = Awaited<ReturnType<typeof listBids>>, TError = ErrorType<unknown>>(
+ params?: ListBidsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBids>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBidsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateBidUrl = () => {
+
+
+
+
+  return `/api/bids`
+}
+
+/**
+ * @summary Create a bid
+ */
+export const createBid = async (bidInput: BidInput, options?: Parameters<typeof customFetch>[1]): Promise<Bid> => {
+
+  return customFetch<Bid>(getCreateBidUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bidInput)
+  }
+);}
+
+
+
+
+
+export const getCreateBidMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBid>>, TError,{data: BodyType<BidInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBid>>, TError,{data: BodyType<BidInput>}, TContext> => {
+
+const mutationKey = ['createBid'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBid>>, {data: BodyType<BidInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBid(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBidMutationResult = NonNullable<Awaited<ReturnType<typeof createBid>>>
+    export type CreateBidMutationBody = BodyType<BidInput>
+    export type CreateBidMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a bid
+ */
+export const useCreateBid = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBid>>, TError,{data: BodyType<BidInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBid>>,
+        TError,
+        {data: BodyType<BidInput>},
+        TContext
+      > => {
+      return useMutation(getCreateBidMutationOptions(options));
+    }
+
+export const getGetBidUrl = (bidId: number,) => {
+
+
+
+
+  return `/api/bids/${bidId}`
+}
+
+/**
+ * @summary Get a bid
+ */
+export const getBid = async (bidId: number, options?: Parameters<typeof customFetch>[1]): Promise<Bid> => {
+
+  return customFetch<Bid>(getGetBidUrl(bidId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBidQueryKey = (bidId: number,) => {
+    return [
+    `/api/bids/${bidId}`
+    ] as const;
+    }
+
+
+export const getGetBidQueryOptions = <TData = Awaited<ReturnType<typeof getBid>>, TError = ErrorType<void>>(bidId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBid>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBidQueryKey(bidId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBid>>> = ({ signal }) => getBid(bidId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bidId !== null && bidId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBid>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBidQueryResult = NonNullable<Awaited<ReturnType<typeof getBid>>>
+export type GetBidQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a bid
+ */
+
+export function useGetBid<TData = Awaited<ReturnType<typeof getBid>>, TError = ErrorType<void>>(
+ bidId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBid>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBidQueryOptions(bidId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateBidUrl = (bidId: number,) => {
+
+
+
+
+  return `/api/bids/${bidId}`
+}
+
+/**
+ * @summary Update a bid
+ */
+export const updateBid = async (bidId: number,
+    bidUpdate: BidUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Bid> => {
+
+  return customFetch<Bid>(getUpdateBidUrl(bidId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bidUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateBidMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBid>>, TError,{bidId: number;data: BodyType<BidUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBid>>, TError,{bidId: number;data: BodyType<BidUpdate>}, TContext> => {
+
+const mutationKey = ['updateBid'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBid>>, {bidId: number;data: BodyType<BidUpdate>}> = (props) => {
+          const {bidId,data} = props ?? {};
+
+          return  updateBid(bidId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBidMutationResult = NonNullable<Awaited<ReturnType<typeof updateBid>>>
+    export type UpdateBidMutationBody = BodyType<BidUpdate>
+    export type UpdateBidMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a bid
+ */
+export const useUpdateBid = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBid>>, TError,{bidId: number;data: BodyType<BidUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBid>>,
+        TError,
+        {bidId: number;data: BodyType<BidUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateBidMutationOptions(options));
+    }
+
+export const getDeleteBidUrl = (bidId: number,) => {
+
+
+
+
+  return `/api/bids/${bidId}`
+}
+
+/**
+ * @summary Delete a bid
+ */
+export const deleteBid = async (bidId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteBidUrl(bidId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteBidMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBid>>, TError,{bidId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteBid>>, TError,{bidId: number}, TContext> => {
+
+const mutationKey = ['deleteBid'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBid>>, {bidId: number}> = (props) => {
+          const {bidId} = props ?? {};
+
+          return  deleteBid(bidId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteBidMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBid>>>
+
+    export type DeleteBidMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a bid
+ */
+export const useDeleteBid = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBid>>, TError,{bidId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteBid>>,
+        TError,
+        {bidId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteBidMutationOptions(options));
     }
 
 export const getListProjectActivityUrl = (projectId: number,) => {

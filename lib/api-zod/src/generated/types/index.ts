@@ -8,7 +8,15 @@
 
 export * from './acceptedTenantInvitation';
 export * from './activity';
+export * from './bid';
+export * from './bidInput';
+export * from './bidIntegrationCoverage';
 export * from './bidOutcome';
+export * from './bidOwner';
+export * from './bidScopeMode';
+export * from './bidStage';
+export * from './bidType';
+export * from './bidUpdate';
 export * from './billingAccount';
 export * from './billingAccountPaymentMethod';
 export * from './billingActionResponse';
@@ -87,6 +95,7 @@ export * from './integrationConnectionStatus';
 export * from './invitationDetails';
 export * from './invitationDetailsRole';
 export * from './invitationDetailsStatus';
+export * from './listBidsParams';
 export * from './listBusinessCustomersParams';
 export * from './listIntegrationActivityParams';
 export * from './listNotificationsParams';

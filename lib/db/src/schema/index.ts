@@ -7,3 +7,4 @@ export * from "./billing";
 export * from "./workflows";
 export * from "./notifications";
 export * from "./opportunities";
+export * from "./bids";

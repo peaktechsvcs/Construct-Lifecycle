@@ -537,6 +537,246 @@ export const DeleteOpportunityResponse = zod.void()
 
 
 /**
+ * @summary List bids for the active customer environment
+ */
+export const listBidsQuerySearchMax = 120;
+
+
+
+
+export const ListBidsQueryParams = zod.object({
+  "search": zod.coerce.string().max(listBidsQuerySearchMax).optional(),
+  "stage": zod.enum(['invited', 'qualifying', 'takeoff', 'estimating', 'review', 'submitted', 'awarded', 'lost']).optional(),
+  "ownerUserId": zod.coerce.number().int().min(1).optional(),
+  "bidType": zod.enum(['general', 'specialty']).optional(),
+  "scopeMode": zod.enum(['full', 'partial']).optional()
+})
+
+export const ListBidsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "bidNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "opportunityId": zod.number().int().nullable(),
+  "opportunityName": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['invited', 'qualifying', 'takeoff', 'estimating', 'review', 'submitted', 'awarded', 'lost']),
+  "bidType": zod.enum(['general', 'specialty']),
+  "scopeMode": zod.enum(['full', 'partial']),
+  "specialty": zod.string().nullable(),
+  "estimatedValue": zod.number(),
+  "dueDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "takeoffProvider": zod.string().nullable(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
+  "estimatingProvider": zod.string().nullable(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListBidsResponse = zod.array(ListBidsResponseItem)
+
+
+/**
+ * @summary Create a bid
+ */
+
+
+export const createBidBodyNameMax = 180;
+
+export const createBidBodyDescriptionMax = 5000;
+
+export const createBidBodySpecialtyMax = 160;
+
+export const createBidBodyEstimatedValueMin = 0;
+export const createBidBodyEstimatedValueMax = 999999999999;
+
+
+export const createBidBodyTakeoffProviderMax = 160;
+
+export const createBidBodyEstimatingProviderMax = 160;
+
+
+
+export const CreateBidBody = zod.object({
+  "businessCustomerId": zod.number().int().min(1),
+  "opportunityId": zod.number().int().min(1).optional(),
+  "name": zod.string().min(1).max(createBidBodyNameMax),
+  "description": zod.string().max(createBidBodyDescriptionMax).optional(),
+  "stage": zod.enum(['invited', 'qualifying', 'takeoff', 'estimating', 'review', 'submitted', 'awarded', 'lost']).optional(),
+  "bidType": zod.enum(['general', 'specialty']).optional(),
+  "scopeMode": zod.enum(['full', 'partial']).optional(),
+  "specialty": zod.string().max(createBidBodySpecialtyMax).optional(),
+  "estimatedValue": zod.number().min(createBidBodyEstimatedValueMin).max(createBidBodyEstimatedValueMax).optional(),
+  "dueDate": zod.coerce.date().optional(),
+  "ownerUserId": zod.number().int().min(1).optional(),
+  "takeoffProvider": zod.string().max(createBidBodyTakeoffProviderMax).optional(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']).optional(),
+  "estimatingProvider": zod.string().max(createBidBodyEstimatingProviderMax).optional(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']).optional()
+})
+
+export const CreateBidResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "bidNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "opportunityId": zod.number().int().nullable(),
+  "opportunityName": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['invited', 'qualifying', 'takeoff', 'estimating', 'review', 'submitted', 'awarded', 'lost']),
+  "bidType": zod.enum(['general', 'specialty']),
+  "scopeMode": zod.enum(['full', 'partial']),
+  "specialty": zod.string().nullable(),
+  "estimatedValue": zod.number(),
+  "dueDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "takeoffProvider": zod.string().nullable(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
+  "estimatingProvider": zod.string().nullable(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a bid
+ */
+export const GetBidParams = zod.object({
+  "bidId": zod.coerce.number().int()
+})
+
+export const GetBidResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "bidNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "opportunityId": zod.number().int().nullable(),
+  "opportunityName": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['invited', 'qualifying', 'takeoff', 'estimating', 'review', 'submitted', 'awarded', 'lost']),
+  "bidType": zod.enum(['general', 'specialty']),
+  "scopeMode": zod.enum(['full', 'partial']),
+  "specialty": zod.string().nullable(),
+  "estimatedValue": zod.number(),
+  "dueDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "takeoffProvider": zod.string().nullable(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
+  "estimatingProvider": zod.string().nullable(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a bid
+ */
+export const UpdateBidParams = zod.object({
+  "bidId": zod.coerce.number().int()
+})
+
+
+
+export const updateBidBodyNameMax = 180;
+
+export const updateBidBodyDescriptionMax = 5000;
+
+export const updateBidBodySpecialtyMax = 160;
+
+export const updateBidBodyEstimatedValueMin = 0;
+export const updateBidBodyEstimatedValueMax = 999999999999;
+
+
+export const updateBidBodyTakeoffProviderMax = 160;
+
+export const updateBidBodyEstimatingProviderMax = 160;
+
+
+
+export const UpdateBidBody = zod.object({
+  "businessCustomerId": zod.number().int().min(1).optional(),
+  "opportunityId": zod.number().int().min(1).nullish(),
+  "name": zod.string().min(1).max(updateBidBodyNameMax).optional(),
+  "description": zod.string().max(updateBidBodyDescriptionMax).nullish(),
+  "stage": zod.enum(['invited', 'qualifying', 'takeoff', 'estimating', 'review', 'submitted', 'awarded', 'lost']).optional(),
+  "bidType": zod.enum(['general', 'specialty']).optional(),
+  "scopeMode": zod.enum(['full', 'partial']).optional(),
+  "specialty": zod.string().max(updateBidBodySpecialtyMax).nullish(),
+  "estimatedValue": zod.number().min(updateBidBodyEstimatedValueMin).max(updateBidBodyEstimatedValueMax).optional(),
+  "dueDate": zod.coerce.date().nullish(),
+  "ownerUserId": zod.number().int().min(1).nullish(),
+  "takeoffProvider": zod.string().max(updateBidBodyTakeoffProviderMax).nullish(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']).optional(),
+  "estimatingProvider": zod.string().max(updateBidBodyEstimatingProviderMax).nullish(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']).optional()
+})
+
+export const UpdateBidResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "bidNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "opportunityId": zod.number().int().nullable(),
+  "opportunityName": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['invited', 'qualifying', 'takeoff', 'estimating', 'review', 'submitted', 'awarded', 'lost']),
+  "bidType": zod.enum(['general', 'specialty']),
+  "scopeMode": zod.enum(['full', 'partial']),
+  "specialty": zod.string().nullable(),
+  "estimatedValue": zod.number(),
+  "dueDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "takeoffProvider": zod.string().nullable(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
+  "estimatingProvider": zod.string().nullable(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a bid
+ */
+export const DeleteBidParams = zod.object({
+  "bidId": zod.coerce.number().int()
+})
+
+export const DeleteBidResponse = zod.void()
+
+
+/**
  * @summary List project activity
  */
 export const ListProjectActivityParams = zod.object({

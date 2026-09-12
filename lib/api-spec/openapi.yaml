@@ -213,6 +213,89 @@ paths:
         - $ref: "#/components/parameters/OpportunityId"
       responses:
         "204": { description: Opportunity deleted }
+  /bids:
+    get:
+      operationId: listBids
+      tags: [bids]
+      summary: List bids for the active customer environment
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 120 }
+        - in: query
+          name: stage
+          schema: { $ref: "#/components/schemas/BidStage" }
+        - in: query
+          name: ownerUserId
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: bidType
+          schema: { $ref: "#/components/schemas/BidType" }
+        - in: query
+          name: scopeMode
+          schema: { $ref: "#/components/schemas/BidScopeMode" }
+      responses:
+        "200":
+          description: Bids
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Bid" }
+    post:
+      operationId: createBid
+      tags: [bids]
+      summary: Create a bid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BidInput" }
+      responses:
+        "201":
+          description: Bid created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bid" }
+  /bids/{bidId}:
+    get:
+      operationId: getBid
+      tags: [bids]
+      summary: Get a bid
+      parameters:
+        - $ref: "#/components/parameters/BidId"
+      responses:
+        "200":
+          description: Bid
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bid" }
+        "404": { description: Bid not found }
+    patch:
+      operationId: updateBid
+      tags: [bids]
+      summary: Update a bid
+      parameters:
+        - $ref: "#/components/parameters/BidId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BidUpdate" }
+      responses:
+        "200":
+          description: Updated bid
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bid" }
+    delete:
+      operationId: deleteBid
+      tags: [bids]
+      summary: Delete a bid
+      parameters:
+        - $ref: "#/components/parameters/BidId"
+      responses:
+        "204": { description: Bid deleted }
   /projects/{projectId}/activity:
     get:
       operationId: listProjectActivity
@@ -1138,6 +1221,12 @@ components:
       required: true
       schema:
         type: integer
+    BidId:
+      in: path
+      name: bidId
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
@@ -1233,6 +1322,89 @@ components:
         estimatedValue: { type: number, minimum: 0, maximum: 999999999999 }
         expectedCloseDate: { type: ["string", "null"], format: date }
         ownerUserId: { type: ["integer", "null"], minimum: 1 }
+    BidStage:
+      type: string
+      enum: [invited, qualifying, takeoff, estimating, review, submitted, awarded, lost]
+    BidType:
+      type: string
+      enum: [general, specialty]
+    BidScopeMode:
+      type: string
+      enum: [full, partial]
+    BidIntegrationCoverage:
+      type: string
+      enum: [none, full, partial]
+    BidOwner:
+      type: object
+      required: [userId, email, displayName]
+      properties:
+        userId: { type: integer }
+        email: { type: ["string", "null"], format: email }
+        displayName: { type: ["string", "null"] }
+    Bid:
+      type: object
+      required: [id, environmentId, bidNumber, businessCustomerId, customerName, opportunityId, opportunityName, name, stage, bidType, scopeMode, specialty, estimatedValue, dueDate, ownerUserId, owner, takeoffProvider, takeoffCoverage, estimatingProvider, estimatingCoverage, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        environmentId: { type: integer }
+        bidNumber: { type: string }
+        businessCustomerId: { type: integer }
+        customerName: { type: string }
+        opportunityId: { type: ["integer", "null"] }
+        opportunityName: { type: ["string", "null"] }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        stage: { $ref: "#/components/schemas/BidStage" }
+        bidType: { $ref: "#/components/schemas/BidType" }
+        scopeMode: { $ref: "#/components/schemas/BidScopeMode" }
+        specialty: { type: ["string", "null"] }
+        estimatedValue: { type: number }
+        dueDate: { type: ["string", "null"], format: date }
+        ownerUserId: { type: ["integer", "null"] }
+        owner: { oneOf: [{ $ref: "#/components/schemas/BidOwner" }, { type: "null" }] }
+        takeoffProvider: { type: ["string", "null"] }
+        takeoffCoverage: { $ref: "#/components/schemas/BidIntegrationCoverage" }
+        estimatingProvider: { type: ["string", "null"] }
+        estimatingCoverage: { $ref: "#/components/schemas/BidIntegrationCoverage" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    BidInput:
+      type: object
+      required: [businessCustomerId, name]
+      properties:
+        businessCustomerId: { type: integer, minimum: 1 }
+        opportunityId: { type: integer, minimum: 1 }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: string, maxLength: 5000 }
+        stage: { $ref: "#/components/schemas/BidStage" }
+        bidType: { $ref: "#/components/schemas/BidType" }
+        scopeMode: { $ref: "#/components/schemas/BidScopeMode" }
+        specialty: { type: string, maxLength: 160 }
+        estimatedValue: { type: number, minimum: 0, maximum: 999999999999 }
+        dueDate: { type: string, format: date }
+        ownerUserId: { type: integer, minimum: 1 }
+        takeoffProvider: { type: string, maxLength: 160 }
+        takeoffCoverage: { $ref: "#/components/schemas/BidIntegrationCoverage" }
+        estimatingProvider: { type: string, maxLength: 160 }
+        estimatingCoverage: { $ref: "#/components/schemas/BidIntegrationCoverage" }
+    BidUpdate:
+      type: object
+      properties:
+        businessCustomerId: { type: integer, minimum: 1 }
+        opportunityId: { type: ["integer", "null"], minimum: 1 }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: ["string", "null"], maxLength: 5000 }
+        stage: { $ref: "#/components/schemas/BidStage" }
+        bidType: { $ref: "#/components/schemas/BidType" }
+        scopeMode: { $ref: "#/components/schemas/BidScopeMode" }
+        specialty: { type: ["string", "null"], maxLength: 160 }
+        estimatedValue: { type: number, minimum: 0, maximum: 999999999999 }
+        dueDate: { type: ["string", "null"], format: date }
+        ownerUserId: { type: ["integer", "null"], minimum: 1 }
+        takeoffProvider: { type: ["string", "null"], maxLength: 160 }
+        takeoffCoverage: { $ref: "#/components/schemas/BidIntegrationCoverage" }
+        estimatingProvider: { type: ["string", "null"], maxLength: 160 }
+        estimatingCoverage: { $ref: "#/components/schemas/BidIntegrationCoverage" }
     ProposalStatus:
       type: string
       enum: [not_started, drafting, submitted, revised, accepted]

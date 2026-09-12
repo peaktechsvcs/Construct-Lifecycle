@@ -150,6 +150,172 @@ export interface OpportunityUpdate {
   ownerUserId?: number | null;
 }
 
+export type BidStage = typeof BidStage[keyof typeof BidStage];
+
+
+export const BidStage = {
+  invited: 'invited',
+  qualifying: 'qualifying',
+  takeoff: 'takeoff',
+  estimating: 'estimating',
+  review: 'review',
+  submitted: 'submitted',
+  awarded: 'awarded',
+  lost: 'lost',
+} as const;
+
+export type BidType = typeof BidType[keyof typeof BidType];
+
+
+export const BidType = {
+  general: 'general',
+  specialty: 'specialty',
+} as const;
+
+export type BidScopeMode = typeof BidScopeMode[keyof typeof BidScopeMode];
+
+
+export const BidScopeMode = {
+  full: 'full',
+  partial: 'partial',
+} as const;
+
+export type BidIntegrationCoverage = typeof BidIntegrationCoverage[keyof typeof BidIntegrationCoverage];
+
+
+export const BidIntegrationCoverage = {
+  none: 'none',
+  full: 'full',
+  partial: 'partial',
+} as const;
+
+export interface BidOwner {
+  userId: number;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  displayName: string | null;
+}
+
+export interface Bid {
+  id: number;
+  environmentId: number;
+  bidNumber: string;
+  businessCustomerId: number;
+  customerName: string;
+  /** @nullable */
+  opportunityId: number | null;
+  /** @nullable */
+  opportunityName: string | null;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  stage: BidStage;
+  bidType: BidType;
+  scopeMode: BidScopeMode;
+  /** @nullable */
+  specialty: string | null;
+  estimatedValue: number;
+  /** @nullable */
+  dueDate: string | null;
+  /** @nullable */
+  ownerUserId: number | null;
+  owner: BidOwner | null;
+  /** @nullable */
+  takeoffProvider: string | null;
+  takeoffCoverage: BidIntegrationCoverage;
+  /** @nullable */
+  estimatingProvider: string | null;
+  estimatingCoverage: BidIntegrationCoverage;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BidInput {
+  /** @minimum 1 */
+  businessCustomerId: number;
+  /** @minimum 1 */
+  opportunityId?: number;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  /** @maxLength 5000 */
+  description?: string;
+  stage?: BidStage;
+  bidType?: BidType;
+  scopeMode?: BidScopeMode;
+  /** @maxLength 160 */
+  specialty?: string;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  estimatedValue?: number;
+  dueDate?: string;
+  /** @minimum 1 */
+  ownerUserId?: number;
+  /** @maxLength 160 */
+  takeoffProvider?: string;
+  takeoffCoverage?: BidIntegrationCoverage;
+  /** @maxLength 160 */
+  estimatingProvider?: string;
+  estimatingCoverage?: BidIntegrationCoverage;
+}
+
+export interface BidUpdate {
+  /** @minimum 1 */
+  businessCustomerId?: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  opportunityId?: number | null;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name?: string;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  description?: string | null;
+  stage?: BidStage;
+  bidType?: BidType;
+  scopeMode?: BidScopeMode;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  specialty?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  estimatedValue?: number;
+  /** @nullable */
+  dueDate?: string | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  ownerUserId?: number | null;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  takeoffProvider?: string | null;
+  takeoffCoverage?: BidIntegrationCoverage;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  estimatingProvider?: string | null;
+  estimatingCoverage?: BidIntegrationCoverage;
+}
+
 export type ProposalStatus = typeof ProposalStatus[keyof typeof ProposalStatus];
 
 
@@ -1388,6 +1554,20 @@ stage?: OpportunityStage;
  * @minimum 1
  */
 ownerUserId?: number;
+};
+
+export type ListBidsParams = {
+/**
+ * @maxLength 120
+ */
+search?: string;
+stage?: BidStage;
+/**
+ * @minimum 1
+ */
+ownerUserId?: number;
+bidType?: BidType;
+scopeMode?: BidScopeMode;
 };
 
 export type ListBusinessCustomersParams = {
