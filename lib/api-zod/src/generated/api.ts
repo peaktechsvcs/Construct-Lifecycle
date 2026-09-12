@@ -1153,6 +1153,59 @@ export const ListRecentActivityResponse = zod.array(ListRecentActivityResponseIt
 
 
 /**
+ * @summary List notifications for the active customer environment
+ */
+export const listNotificationsQueryStatusDefault = `all`;
+export const listNotificationsQueryLimitDefault = 30;
+export const listNotificationsQueryLimitMax = 50;
+
+
+
+export const ListNotificationsQueryParams = zod.object({
+  "status": zod.enum(['all', 'unread']).default(listNotificationsQueryStatusDefault),
+  "limit": zod.coerce.number().int().min(1).max(listNotificationsQueryLimitMax).default(listNotificationsQueryLimitDefault)
+})
+
+export const ListNotificationsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "key": zod.string(),
+  "kind": zod.enum(['activity', 'follow_up']),
+  "title": zod.string(),
+  "description": zod.string(),
+  "href": zod.string(),
+  "severity": zod.enum(['info', 'attention', 'urgent']),
+  "createdAt": zod.coerce.date(),
+  "read": zod.boolean(),
+  "projectId": zod.number().int().nullish(),
+  "projectName": zod.string().nullish()
+})),
+  "unreadCount": zod.number().int()
+})
+
+
+/**
+ * @summary Mark selected notifications as read
+ */
+export const markNotificationsReadBodyNotificationKeysItemMax = 160;
+
+export const markNotificationsReadBodyNotificationKeysMax = 50;
+
+
+
+export const MarkNotificationsReadBody = zod.object({
+  "notificationKeys": zod.array(zod.string().min(1).max(markNotificationsReadBodyNotificationKeysItemMax)).min(1).max(markNotificationsReadBodyNotificationKeysMax)
+})
+
+export const MarkNotificationsReadResponse = zod.void()
+
+
+/**
+ * @summary Mark all current notifications as read
+ */
+export const MarkAllNotificationsReadResponse = zod.void()
+
+
+/**
  * @summary Inspect records contributing to a dashboard metric
  */
 export const getDashboardDrilldownQueryStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');

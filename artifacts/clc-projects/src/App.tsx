@@ -25,6 +25,7 @@ import { FeedbackPage } from '@/pages/feedback';
 import { AcceptInvitation } from '@/pages/accept-invitation';
 import { ComingSoonPage } from '@/pages/coming-soon';
 import { SettingsPage } from '@/pages/settings';
+import { Notifications } from '@/pages/notifications';
 import { PricingCanceledPage, PricingPage, PricingSuccessPage } from '@/pages/pricing';
 
 const queryClient = new QueryClient();
@@ -212,6 +213,9 @@ function AppRouter() {
         </Route>
         <Route path="/feedback">
           <Shell><ProtectedRoute component={FeedbackPage} /></Shell>
+        </Route>
+        <Route path="/notifications">
+          <Shell><ProtectedRoute component={Notifications} /></Shell>
         </Route>
         <Route path="/settings">
           <Shell><ProtectedRoute component={SettingsPage} /></Shell>

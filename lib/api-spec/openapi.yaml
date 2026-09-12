@@ -16,6 +16,8 @@ tags:
     description: Business customer records and project relationships
   - name: dashboard
     description: Dashboard summaries
+  - name: notifications
+    description: Customer-scoped alerts and notification read state
   - name: follow-ups
     description: Future work follow-ups
   - name: tenants
@@ -349,6 +351,52 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Activity"
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for the active customer environment
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [all, unread]
+            default: all
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 30
+      responses:
+        "200":
+          description: Notifications and unread count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationListResponse"
+  /notifications/read:
+    post:
+      operationId: markNotificationsRead
+      tags: [notifications]
+      summary: Mark selected notifications as read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationReadInput"
+      responses:
+        "204": { description: Notifications marked as read }
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all current notifications as read
+      responses:
+        "204": { description: Notifications marked as read }
   /dashboard/drilldown:
     get:
       operationId: getDashboardDrilldown
@@ -1013,6 +1061,41 @@ components:
           type: string
       required:
         - status
+    Notification:
+      type: object
+      required: [key, kind, title, description, href, severity, createdAt, read]
+      properties:
+        key: { type: string }
+        kind:
+          type: string
+          enum: [activity, follow_up]
+        title: { type: string }
+        description: { type: string }
+        href: { type: string }
+        severity:
+          type: string
+          enum: [info, attention, urgent]
+        createdAt: { type: string, format: date-time }
+        read: { type: boolean }
+        projectId: { type: ["integer", "null"] }
+        projectName: { type: ["string", "null"] }
+    NotificationListResponse:
+      type: object
+      required: [items, unreadCount]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Notification" }
+        unreadCount: { type: integer }
+    NotificationReadInput:
+      type: object
+      required: [notificationKeys]
+      properties:
+        notificationKeys:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { type: string, minLength: 1, maxLength: 160 }
     ProjectStage:
       type: string
       pattern: "^[a-z][a-z0-9_]{1,62}$"

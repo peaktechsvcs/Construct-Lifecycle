@@ -23,6 +23,7 @@ import { useUser, useClerk } from '@clerk/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@workspace/construct-lifecycle-design-system/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@workspace/construct-lifecycle-design-system/components/ui/tooltip';
+import { NotificationPreview } from '@/components/notification-preview';
 
 function OpenFollowUpDot() {
   const { data } = useListFollowUps({ query: { queryKey: getListFollowUpsQueryKey(), staleTime: 60000 } });
@@ -171,7 +172,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       { href: '/overview', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/follow-ups', label: 'My Work', icon: BriefcaseBusiness, badge: true },
       { href: '/feedback', label: 'Feature Feedback', icon: MessageSquareText },
-      { href: '/coming-soon/notifications', label: 'Notifications', icon: Bell },
+      { href: '/notifications', label: 'Notifications', icon: Bell },
     ],
   },
   {
@@ -239,6 +240,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
 function getBreadcrumbLabel(location: string): string {
   if (location === '/overview') return 'Dashboard';
   if (location.startsWith('/follow-ups')) return 'My Work';
+  if (location.startsWith('/notifications')) return 'Notifications';
   if (location.startsWith('/settings/administration')) return 'Administration';
   if (location === '/settings' || location.startsWith('/settings/')) return 'Settings';
   if (location.includes('/administration/platform/customers')) return 'Platform Customers';
@@ -554,14 +556,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 }).format(new Date())}
               </p>
             </div>
-            <button
-              data-testid="button-notifications"
-              className="relative rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Notifications"
-            >
-              <Bell size={18} />
-              <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
-            </button>
+             <NotificationPreview />
           </div>
         </header>
         <div className="mx-auto max-w-[1500px] px-4 py-7 md:px-9 md:py-9">{children}</div>

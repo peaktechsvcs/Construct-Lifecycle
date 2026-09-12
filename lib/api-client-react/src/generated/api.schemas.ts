@@ -9,6 +9,53 @@ export interface HealthStatus {
   status: string;
 }
 
+export type NotificationKind = typeof NotificationKind[keyof typeof NotificationKind];
+
+
+export const NotificationKind = {
+  activity: 'activity',
+  follow_up: 'follow_up',
+} as const;
+
+export type NotificationSeverity = typeof NotificationSeverity[keyof typeof NotificationSeverity];
+
+
+export const NotificationSeverity = {
+  info: 'info',
+  attention: 'attention',
+  urgent: 'urgent',
+} as const;
+
+export interface Notification {
+  key: string;
+  kind: NotificationKind;
+  title: string;
+  description: string;
+  href: string;
+  severity: NotificationSeverity;
+  createdAt: string;
+  read: boolean;
+  /** @nullable */
+  projectId?: number | null;
+  /** @nullable */
+  projectName?: string | null;
+}
+
+export interface NotificationListResponse {
+  items: Notification[];
+  unreadCount: number;
+}
+
+export interface NotificationReadInput {
+  /**
+     * @minItems 1
+     * @maxItems 50
+     * @items.minLength 1
+     * @items.maxLength 160
+     */
+  notificationKeys: string[];
+}
+
 /**
  * @pattern ^[a-z][a-z0-9_]{1,62}$
  */
@@ -1249,6 +1296,23 @@ export type ListBusinessCustomersParams = {
 search?: string;
 includeArchived?: boolean;
 };
+
+export type ListNotificationsParams = {
+status?: ListNotificationsStatus;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+};
+
+export type ListNotificationsStatus = typeof ListNotificationsStatus[keyof typeof ListNotificationsStatus];
+
+
+export const ListNotificationsStatus = {
+  all: 'all',
+  unread: 'unread',
+} as const;
 
 export type GetDashboardDrilldownParams = {
 type: DashboardDrilldownType;
