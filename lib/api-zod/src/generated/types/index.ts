@@ -118,6 +118,7 @@ export * from './notificationSeverity';
 export * from './opportunity';
 export * from './opportunityInput';
 export * from './opportunityOwner';
+export * from './opportunityQualification';
 export * from './opportunityStage';
 export * from './opportunityUpdate';
 export * from './platformCustomer';

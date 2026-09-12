@@ -395,6 +395,14 @@ export const ListOpportunitiesResponseItem = zod.object({
   "email": zod.string().email().nullable(),
   "displayName": zod.string().nullable()
 }),zod.null()]),
+  "leadSource": zod.string().nullable(),
+  "contactName": zod.string().nullable(),
+  "contactEmail": zod.string().email().nullable(),
+  "contactPhone": zod.string().nullable(),
+  "qualification": zod.enum(['unqualified', 'qualified', 'disqualified']),
+  "nextAction": zod.string().nullable(),
+  "nextActionDate": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
   "crmProviderKey": zod.string().nullable(),
   "crmIntegrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
   "crmExternalReference": zod.string().nullable(),
@@ -417,6 +425,16 @@ export const createOpportunityBodyEstimatedValueMin = 0;
 export const createOpportunityBodyEstimatedValueMax = 999999999999;
 
 
+export const createOpportunityBodyLeadSourceMax = 120;
+
+export const createOpportunityBodyContactNameMax = 160;
+
+export const createOpportunityBodyContactEmailMax = 320;
+
+export const createOpportunityBodyContactPhoneMax = 40;
+
+export const createOpportunityBodyNextActionMax = 240;
+
 export const createOpportunityBodyCrmProviderKeyMax = 80;
 
 
@@ -433,6 +451,14 @@ export const CreateOpportunityBody = zod.object({
   "estimatedValue": zod.number().min(createOpportunityBodyEstimatedValueMin).max(createOpportunityBodyEstimatedValueMax).optional(),
   "expectedCloseDate": zod.coerce.date().optional(),
   "ownerUserId": zod.number().int().min(1).optional(),
+  "leadSource": zod.string().max(createOpportunityBodyLeadSourceMax).optional(),
+  "contactName": zod.string().max(createOpportunityBodyContactNameMax).optional(),
+  "contactEmail": zod.string().email().max(createOpportunityBodyContactEmailMax).optional(),
+  "contactPhone": zod.string().max(createOpportunityBodyContactPhoneMax).optional(),
+  "qualification": zod.enum(['unqualified', 'qualified', 'disqualified']).optional(),
+  "nextAction": zod.string().max(createOpportunityBodyNextActionMax).optional(),
+  "nextActionDate": zod.coerce.date().optional(),
+  "lastContactedAt": zod.coerce.date().optional(),
   "crmProviderKey": zod.string().max(createOpportunityBodyCrmProviderKeyMax).regex(createOpportunityBodyCrmProviderKeyRegExp).optional(),
   "crmIntegrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']).optional(),
   "crmExternalReference": zod.string().max(createOpportunityBodyCrmExternalReferenceMax).optional()
@@ -455,6 +481,14 @@ export const CreateOpportunityResponse = zod.object({
   "email": zod.string().email().nullable(),
   "displayName": zod.string().nullable()
 }),zod.null()]),
+  "leadSource": zod.string().nullable(),
+  "contactName": zod.string().nullable(),
+  "contactEmail": zod.string().email().nullable(),
+  "contactPhone": zod.string().nullable(),
+  "qualification": zod.enum(['unqualified', 'qualified', 'disqualified']),
+  "nextAction": zod.string().nullable(),
+  "nextActionDate": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
   "crmProviderKey": zod.string().nullable(),
   "crmIntegrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
   "crmExternalReference": zod.string().nullable(),
@@ -488,6 +522,14 @@ export const GetOpportunityResponse = zod.object({
   "email": zod.string().email().nullable(),
   "displayName": zod.string().nullable()
 }),zod.null()]),
+  "leadSource": zod.string().nullable(),
+  "contactName": zod.string().nullable(),
+  "contactEmail": zod.string().email().nullable(),
+  "contactPhone": zod.string().nullable(),
+  "qualification": zod.enum(['unqualified', 'qualified', 'disqualified']),
+  "nextAction": zod.string().nullable(),
+  "nextActionDate": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
   "crmProviderKey": zod.string().nullable(),
   "crmIntegrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
   "crmExternalReference": zod.string().nullable(),
@@ -513,6 +555,16 @@ export const updateOpportunityBodyEstimatedValueMin = 0;
 export const updateOpportunityBodyEstimatedValueMax = 999999999999;
 
 
+export const updateOpportunityBodyLeadSourceMax = 120;
+
+export const updateOpportunityBodyContactNameMax = 160;
+
+export const updateOpportunityBodyContactEmailMax = 320;
+
+export const updateOpportunityBodyContactPhoneMax = 40;
+
+export const updateOpportunityBodyNextActionMax = 240;
+
 export const updateOpportunityBodyCrmProviderKeyMax = 80;
 
 
@@ -529,6 +581,14 @@ export const UpdateOpportunityBody = zod.object({
   "estimatedValue": zod.number().min(updateOpportunityBodyEstimatedValueMin).max(updateOpportunityBodyEstimatedValueMax).optional(),
   "expectedCloseDate": zod.coerce.date().nullish(),
   "ownerUserId": zod.number().int().min(1).nullish(),
+  "leadSource": zod.string().max(updateOpportunityBodyLeadSourceMax).nullish(),
+  "contactName": zod.string().max(updateOpportunityBodyContactNameMax).nullish(),
+  "contactEmail": zod.string().email().max(updateOpportunityBodyContactEmailMax).nullish(),
+  "contactPhone": zod.string().max(updateOpportunityBodyContactPhoneMax).nullish(),
+  "qualification": zod.enum(['unqualified', 'qualified', 'disqualified']).optional(),
+  "nextAction": zod.string().max(updateOpportunityBodyNextActionMax).nullish(),
+  "nextActionDate": zod.coerce.date().nullish(),
+  "lastContactedAt": zod.coerce.date().nullish(),
   "crmProviderKey": zod.string().max(updateOpportunityBodyCrmProviderKeyMax).regex(updateOpportunityBodyCrmProviderKeyRegExp).nullish(),
   "crmIntegrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']).optional(),
   "crmExternalReference": zod.string().max(updateOpportunityBodyCrmExternalReferenceMax).nullish()
@@ -551,6 +611,14 @@ export const UpdateOpportunityResponse = zod.object({
   "email": zod.string().email().nullable(),
   "displayName": zod.string().nullable()
 }),zod.null()]),
+  "leadSource": zod.string().nullable(),
+  "contactName": zod.string().nullable(),
+  "contactEmail": zod.string().email().nullable(),
+  "contactPhone": zod.string().nullable(),
+  "qualification": zod.enum(['unqualified', 'qualified', 'disqualified']),
+  "nextAction": zod.string().nullable(),
+  "nextActionDate": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
   "crmProviderKey": zod.string().nullable(),
   "crmIntegrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
   "crmExternalReference": zod.string().nullable(),

@@ -81,6 +81,15 @@ export interface OpportunityOwner {
   displayName: string | null;
 }
 
+export type OpportunityQualification = typeof OpportunityQualification[keyof typeof OpportunityQualification];
+
+
+export const OpportunityQualification = {
+  unqualified: 'unqualified',
+  qualified: 'qualified',
+  disqualified: 'disqualified',
+} as const;
+
 export type ProposalIntegrationStatus = typeof ProposalIntegrationStatus[keyof typeof ProposalIntegrationStatus];
 
 
@@ -107,6 +116,21 @@ export interface Opportunity {
   /** @nullable */
   ownerUserId: number | null;
   owner: OpportunityOwner | null;
+  /** @nullable */
+  leadSource: string | null;
+  /** @nullable */
+  contactName: string | null;
+  /** @nullable */
+  contactEmail: string | null;
+  /** @nullable */
+  contactPhone: string | null;
+  qualification: OpportunityQualification;
+  /** @nullable */
+  nextAction: string | null;
+  /** @nullable */
+  nextActionDate: string | null;
+  /** @nullable */
+  lastContactedAt: string | null;
   /** @nullable */
   crmProviderKey: string | null;
   crmIntegrationStatus: ProposalIntegrationStatus;
@@ -137,6 +161,19 @@ export interface OpportunityInput {
   expectedCloseDate?: string;
   /** @minimum 1 */
   ownerUserId?: number;
+  /** @maxLength 120 */
+  leadSource?: string;
+  /** @maxLength 160 */
+  contactName?: string;
+  /** @maxLength 320 */
+  contactEmail?: string;
+  /** @maxLength 40 */
+  contactPhone?: string;
+  qualification?: OpportunityQualification;
+  /** @maxLength 240 */
+  nextAction?: string;
+  nextActionDate?: string;
+  lastContactedAt?: string;
   /**
      * @maxLength 80
      * @pattern ^[a-z][a-z0-9_]{1,63}$
@@ -173,6 +210,36 @@ export interface OpportunityUpdate {
      * @nullable
      */
   ownerUserId?: number | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  leadSource?: string | null;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  contactName?: string | null;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  contactEmail?: string | null;
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  contactPhone?: string | null;
+  qualification?: OpportunityQualification;
+  /**
+     * @maxLength 240
+     * @nullable
+     */
+  nextAction?: string | null;
+  /** @nullable */
+  nextActionDate?: string | null;
+  /** @nullable */
+  lastContactedAt?: string | null;
   /**
      * @maxLength 80
      * @nullable

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { OpportunityOwner } from './opportunityOwner';
+import type { OpportunityQualification } from './opportunityQualification';
 import type { OpportunityStage } from './opportunityStage';
 import type { ProposalIntegrationStatus } from './proposalIntegrationStatus';
 
@@ -25,6 +26,21 @@ export interface Opportunity {
   /** @nullable */
   ownerUserId: number | null;
   owner: OpportunityOwner | null;
+  /** @nullable */
+  leadSource: string | null;
+  /** @nullable */
+  contactName: string | null;
+  /** @nullable */
+  contactEmail: string | null;
+  /** @nullable */
+  contactPhone: string | null;
+  qualification: OpportunityQualification;
+  /** @nullable */
+  nextAction: string | null;
+  /** @nullable */
+  nextActionDate: Date | null;
+  /** @nullable */
+  lastContactedAt: Date | null;
   /** @nullable */
   crmProviderKey: string | null;
   crmIntegrationStatus: ProposalIntegrationStatus;

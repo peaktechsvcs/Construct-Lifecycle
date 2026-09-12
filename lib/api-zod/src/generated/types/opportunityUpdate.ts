@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { OpportunityQualification } from './opportunityQualification';
 import type { OpportunityStage } from './opportunityStage';
 import type { ProposalIntegrationStatus } from './proposalIntegrationStatus';
 
@@ -34,6 +35,36 @@ export interface OpportunityUpdate {
      * @nullable
      */
   ownerUserId?: number | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  leadSource?: string | null;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  contactName?: string | null;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  contactEmail?: string | null;
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  contactPhone?: string | null;
+  qualification?: OpportunityQualification;
+  /**
+     * @maxLength 240
+     * @nullable
+     */
+  nextAction?: string | null;
+  /** @nullable */
+  nextActionDate?: Date | null;
+  /** @nullable */
+  lastContactedAt?: Date | null;
   /**
      * @maxLength 80
      * @nullable
