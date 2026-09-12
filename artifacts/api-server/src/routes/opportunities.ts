@@ -47,6 +47,10 @@ const serializeOpportunity = ({ opportunity, customerName, ownerUserId, ownerEma
     email: ownerEmail,
     displayName: ownerDisplayName,
   },
+  crmProviderKey: opportunity.crmProviderKey,
+  crmIntegrationStatus: opportunity.crmIntegrationStatus,
+  crmExternalReference: opportunity.crmExternalReference,
+  crmLastSyncedAt: opportunity.crmLastSyncedAt,
   createdAt: opportunity.createdAt,
   updatedAt: opportunity.updatedAt,
 });
@@ -124,6 +128,8 @@ router.get("/opportunities", async (req: TenantRequest, res) => {
       ilike(opportunitiesTable.name, term),
       ilike(opportunitiesTable.opportunityNumber, term),
       ilike(businessCustomersTable.companyName, term),
+      ilike(opportunitiesTable.crmProviderKey, term),
+      ilike(opportunitiesTable.crmExternalReference, term),
     );
     if (searchCondition) conditions.push(searchCondition);
   }
@@ -174,6 +180,9 @@ router.post("/opportunities", requireRole("owner", "admin", "member"), async (re
     estimatedValue: String(parsed.data.estimatedValue ?? 0),
     expectedCloseDate: dateString(parsed.data.expectedCloseDate),
     ownerUserId: parsed.data.ownerUserId ?? null,
+    crmProviderKey: parsed.data.crmProviderKey?.trim() || null,
+    crmIntegrationStatus: parsed.data.crmIntegrationStatus ?? "manual",
+    crmExternalReference: parsed.data.crmExternalReference?.trim() || null,
     tenantId: req.tenantId!,
     environmentId: req.environmentId!,
   }).returning();
@@ -229,6 +238,9 @@ router.patch("/opportunities/:opportunityId", requireRole("owner", "admin", "mem
     ...(parsed.data.estimatedValue !== undefined ? { estimatedValue: String(parsed.data.estimatedValue) } : {}),
     ...(parsed.data.expectedCloseDate !== undefined ? { expectedCloseDate: dateString(parsed.data.expectedCloseDate) } : {}),
     ...(parsed.data.ownerUserId !== undefined ? { ownerUserId: parsed.data.ownerUserId } : {}),
+    ...(parsed.data.crmProviderKey !== undefined ? { crmProviderKey: parsed.data.crmProviderKey?.trim() || null } : {}),
+    ...(parsed.data.crmIntegrationStatus !== undefined ? { crmIntegrationStatus: parsed.data.crmIntegrationStatus } : {}),
+    ...(parsed.data.crmExternalReference !== undefined ? { crmExternalReference: parsed.data.crmExternalReference?.trim() || null } : {}),
     updatedAt: new Date(),
   }).where(and(
     eq(opportunitiesTable.id, params.data.opportunityId),
