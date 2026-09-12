@@ -1753,12 +1753,23 @@ export const TenantRole = {
   viewer: 'viewer',
 } as const;
 
+export type BusinessType = typeof BusinessType[keyof typeof BusinessType];
+
+
+export const BusinessType = {
+  'general-contractor': 'general-contractor',
+  subcontractor: 'subcontractor',
+  supplier: 'supplier',
+} as const;
+
 export interface Tenant {
   id: number;
   name: string;
   slug: string;
   status: TenantStatus;
   role: TenantRole;
+  /** @minItems 1 */
+  businessTypes: BusinessType[];
 }
 
 export type TenantMembershipSummaryStatus = typeof TenantMembershipSummaryStatus[keyof typeof TenantMembershipSummaryStatus];
@@ -1843,6 +1854,20 @@ export interface FeatureFlag {
   description: string;
   route: string;
   enabled: boolean;
+}
+
+export interface TenantBusinessProfile {
+  /** @minItems 1 */
+  businessTypes: BusinessType[];
+  features: FeatureFlag[];
+}
+
+export interface TenantBusinessProfilePreview {
+  currentBusinessTypes: BusinessType[];
+  /** @minItems 1 */
+  nextBusinessTypes: BusinessType[];
+  addedFeatures: FeatureFlag[];
+  removedFeatures: FeatureFlag[];
 }
 
 export interface FeatureFlagUpdate {
@@ -2031,6 +2056,8 @@ export interface PlatformCustomer {
   name: string;
   slug: string;
   status: PlatformCustomerStatus;
+  /** @minItems 1 */
+  businessTypes: BusinessType[];
   memberCount: number;
   pendingInvitationCount: number;
   environments: PlatformCustomerEnvironment[];
@@ -2048,6 +2075,16 @@ export interface CreatePlatformCustomerInput {
   slug: string;
   /** @nullable */
   ownerEmail?: string | null;
+  /** @minItems 1 */
+  businessTypes: BusinessType[];
+}
+
+export interface UpdateTenantBusinessProfileInput {
+  /**
+     * @minItems 1
+     * @maxItems 3
+     */
+  businessTypes: BusinessType[];
 }
 
 export interface CreatedPlatformCustomer {

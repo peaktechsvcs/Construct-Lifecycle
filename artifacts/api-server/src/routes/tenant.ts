@@ -1,9 +1,31 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { db, environmentsTable, membershipsTable, tenantBrandingDraftsTable, tenantBrandingVersionsTable, tenantsTable, userTenantContextTable } from "@workspace/db";
-import { SaveBrandingDraftBody, SwitchEnvironmentBody, SwitchTenantBody, RollbackBrandingParams } from "@workspace/api-zod";
+import {
+  db,
+  environmentsTable,
+  membershipsTable,
+  platformAuditEventsTable,
+  tenantBrandingDraftsTable,
+  tenantBrandingVersionsTable,
+  tenantsTable,
+  userTenantContextTable,
+} from "@workspace/db";
+import {
+  SaveBrandingDraftBody,
+  SwitchEnvironmentBody,
+  SwitchTenantBody,
+  RollbackBrandingParams,
+  UpdateTenantBusinessProfileBody,
+} from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
+import {
+  featureChanges,
+  getFeatureAvailability,
+  getTenantBusinessTypes,
+  normalizeBusinessTypes,
+  replaceTenantBusinessTypes,
+} from "../lib/tenant-business-profile";
 
 const router: IRouter = Router();
 const defaults = {
@@ -74,8 +96,10 @@ const context = async (req: TenantRequest) => {
   const environments = await db.select().from(environmentsTable)
     .where(eq(environmentsTable.tenantId, req.tenantId!)).orderBy(environmentsTable.name);
   const activeEnvironment = environments.find(x => x.id === req.environmentId) ?? environments[0];
+  const activeTenant = memberships.find(x => x.id === req.tenantId);
+  const businessTypes = await getTenantBusinessTypes(req.tenantId!);
   return {
-    activeTenant: memberships.find(x => x.id === req.tenantId),
+    activeTenant: activeTenant ? { ...activeTenant, businessTypes } : undefined,
     memberships,
     activeEnvironment,
     environments,
@@ -107,6 +131,80 @@ router.post("/tenant/context", async (req: TenantRequest, res) => {
   req.environmentId = environment.id;
   res.json(await context(req));
 });
+
+const serializeFeature = (feature: Awaited<ReturnType<typeof getFeatureAvailability>>[number]) => {
+  const { businessTypes: _businessTypes, ...publicFeature } = feature;
+  return publicFeature;
+};
+
+const businessProfile = async (req: TenantRequest) => {
+  const businessTypes = await getTenantBusinessTypes(req.tenantId!);
+  return {
+    businessTypes,
+    features: (await getFeatureAvailability(businessTypes)).map(serializeFeature),
+  };
+};
+
+router.get("/tenant/business-profile", async (req: TenantRequest, res) => {
+  res.json(await businessProfile(req));
+});
+
+router.post(
+  "/tenant/business-profile/preview",
+  requireRole("owner", "admin"),
+  async (req: TenantRequest, res) => {
+    const parsed = UpdateTenantBusinessProfileBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Select at least one business type", details: parsed.error.issues });
+      return;
+    }
+    const currentBusinessTypes = await getTenantBusinessTypes(req.tenantId!);
+    const nextBusinessTypes = normalizeBusinessTypes(parsed.data.businessTypes);
+    if (!nextBusinessTypes) {
+      res.status(400).json({ error: "Select at least one valid business type" });
+      return;
+    }
+    const changes = featureChanges(currentBusinessTypes, nextBusinessTypes);
+    res.json({
+      currentBusinessTypes,
+      nextBusinessTypes,
+      addedFeatures: changes.addedFeatures.map(serializeFeature),
+      removedFeatures: changes.removedFeatures.map(serializeFeature),
+    });
+  },
+);
+
+router.put(
+  "/tenant/business-profile",
+  requireRole("owner", "admin"),
+  async (req: TenantRequest, res) => {
+    const parsed = UpdateTenantBusinessProfileBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Select at least one business type", details: parsed.error.issues });
+      return;
+    }
+    const businessTypes = normalizeBusinessTypes(parsed.data.businessTypes);
+    if (!businessTypes) {
+      res.status(400).json({ error: "Select at least one valid business type" });
+      return;
+    }
+    try {
+      const previousBusinessTypes = await getTenantBusinessTypes(req.tenantId!);
+      await replaceTenantBusinessTypes(req.tenantId!, businessTypes);
+      await db.insert(platformAuditEventsTable).values({
+        actorUserId: req.localUserId!,
+        tenantId: req.tenantId!,
+        action: "tenant_business_types_updated",
+        details: JSON.stringify({ previousBusinessTypes, businessTypes }),
+      });
+      res.json(await businessProfile(req));
+    } catch (error) {
+      req.log?.error({ err: error, tenantId: req.tenantId, userId: req.localUserId }, "failed to update tenant business types");
+      res.status(500).json({ error: "Unable to update workspace business types" });
+    }
+  },
+);
+
 router.get("/tenant/environments", async (req: TenantRequest, res) => {
   const environments = await db.select().from(environmentsTable)
     .where(eq(environmentsTable.tenantId, req.tenantId!)).orderBy(environmentsTable.name);

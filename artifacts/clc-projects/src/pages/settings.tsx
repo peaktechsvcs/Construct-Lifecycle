@@ -1,13 +1,25 @@
-import { Building2, Cable, ShieldCheck, Paintbrush, Layers3, Users, KeyRound, CreditCard } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Building2, Cable, ShieldCheck, Paintbrush, Layers3, Users, KeyRound, CreditCard, Check, Eye, Save, RotateCcw } from 'lucide-react';
 import { Link, useLocation, Redirect } from 'wouter';
 import { BrandingAdmin } from '@/pages/branding-admin';
 import { IntegrationsAdmin } from '@/pages/integrations-admin';
 import { OrganizationAccess } from '@/pages/organization-access';
-import { EmptyState, LoadingPanel, PageTitle } from '@/components/app-ui';
+import { Button, EmptyState, LoadingPanel, PageTitle } from '@/components/app-ui';
 import { useTenant } from '@/providers/tenant-provider';
 import { BillingAdmin } from '@/pages/billing';
 import { WorkflowsAdmin } from '@/pages/workflows';
-import { getListFeatureFlagsQueryKey, useListFeatureFlags } from '@workspace/api-client-react';
+import {
+  BusinessType,
+  getGetTenantBusinessProfileQueryKey,
+  getGetTenantContextQueryKey,
+  getListFeatureFlagsQueryKey,
+  useGetTenantBusinessProfile,
+  useListFeatureFlags,
+  usePreviewTenantBusinessProfile,
+  useUpdateTenantBusinessProfile,
+} from '@workspace/api-client-react';
+import { BUSINESS_TYPE_OPTIONS, businessTypeLabel } from '@/lib/business-profile';
+import { useQueryClient } from '@tanstack/react-query';
 
 type SettingsSection = 'profile' | 'branding' | 'integrations' | 'billing' | 'administration';
 type AdministrationSection = 'users' | 'roles' | 'access' | 'workflows';
@@ -122,7 +134,147 @@ function OrganizationProfile() {
         <ShieldCheck size={17} className="mt-0.5 shrink-0 text-primary" />
         <p className="leading-6 text-muted-foreground">Tenant configuration is restricted to workspace owners and administrators. Operational users continue to access customers, vendors, projects, and day-to-day work from the main navigation.</p>
       </div>
+      <BusinessProfileSettings />
     </div>
+  );
+}
+
+function sameBusinessTypes(left: BusinessType[], right: BusinessType[]) {
+  return left.length === right.length && left.every((value) => right.includes(value));
+}
+
+function BusinessProfileSettings() {
+  const qc = useQueryClient();
+  const profileQuery = useGetTenantBusinessProfile({
+    query: {
+      queryKey: getGetTenantBusinessProfileQueryKey(),
+      staleTime: 30000,
+      retry: false,
+    },
+  });
+  const preview = usePreviewTenantBusinessProfile();
+  const update = useUpdateTenantBusinessProfile();
+  const [selected, setSelected] = useState<BusinessType[]>([]);
+
+  useEffect(() => {
+    if (profileQuery.data) setSelected(profileQuery.data.businessTypes);
+  }, [profileQuery.data]);
+
+  const current = profileQuery.data?.businessTypes ?? [];
+  const isDirty = !sameBusinessTypes(selected, current);
+  const previewMatchesSelection = preview.data ? sameBusinessTypes(preview.data.nextBusinessTypes, selected) : false;
+
+  const toggle = (businessType: BusinessType) => {
+    setSelected((values) =>
+      values.includes(businessType)
+        ? values.filter((value) => value !== businessType)
+        : [...values, businessType],
+    );
+    preview.reset();
+  };
+
+  const previewChanges = () => {
+    if (selected.length === 0) return;
+    preview.mutate({ data: { businessTypes: selected } });
+  };
+
+  const save = () => {
+    if (selected.length === 0 || !previewMatchesSelection) return;
+    update.mutate(
+      { data: { businessTypes: selected } },
+      {
+        onSuccess: (nextProfile) => {
+          setSelected(nextProfile.businessTypes);
+          preview.reset();
+          qc.setQueryData(getGetTenantBusinessProfileQueryKey(), nextProfile);
+          qc.invalidateQueries({ queryKey: getGetTenantContextQueryKey() });
+          qc.invalidateQueries({ queryKey: getListFeatureFlagsQueryKey() });
+        },
+      },
+    );
+  };
+
+  if (profileQuery.isLoading) return null;
+  if (profileQuery.isError) {
+    return (
+      <section className="mt-6 rounded-xl border border-status-warning/30 bg-status-warning/5 p-5" role="alert">
+        <h2 className="text-base font-bold">Business profile unavailable</h2>
+        <p className="mt-1 text-sm text-muted-foreground">We could not load the workspace business types. Refresh and try again.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mt-6 rounded-xl border border-border bg-card p-5">
+      <div className="mb-5 flex items-start justify-between gap-4 border-b border-border pb-4">
+        <div className="flex items-start gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary"><Building2 size={16} /></span>
+          <div>
+            <h2 className="text-base font-bold">Business profile</h2>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Choose every part of the business this workspace supports. Navigation and setup guidance use the combined selection, so mixed companies keep all required capabilities.</p>
+          </div>
+        </div>
+        {isDirty && <span className="mono shrink-0 rounded-full bg-status-warning/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[.1em] text-status-warning">Unsaved changes</span>}
+      </div>
+
+      <fieldset className="grid gap-3 md:grid-cols-3">
+        <legend className="sr-only">Workspace business types</legend>
+        {BUSINESS_TYPE_OPTIONS.map((option) => {
+          const checked = selected.includes(option.value);
+          return (
+            <label key={option.value} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors focus-within:ring-2 focus-within:ring-ring ${checked ? 'border-primary/50 bg-primary/5' : 'border-border bg-background hover:border-primary/30'}`}>
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => toggle(option.value)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 text-sm font-semibold">{option.label}{checked && <Check size={14} className="text-primary" />}</span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.description}</span>
+              </span>
+            </label>
+          );
+        })}
+      </fieldset>
+
+      {selected.length === 0 && <p className="mt-3 text-xs text-destructive" role="alert">Select at least one business type.</p>}
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Button variant="outline" onClick={previewChanges} disabled={!isDirty || selected.length === 0 || preview.isPending}>
+          <Eye size={14} /> {preview.isPending ? 'Previewing…' : 'Preview navigation changes'}
+        </Button>
+        <Button onClick={save} disabled={!isDirty || !previewMatchesSelection || update.isPending}>
+          <Save size={14} /> {update.isPending ? 'Saving…' : 'Save business profile'}
+        </Button>
+        {isDirty && <Button variant="ghost" onClick={() => { setSelected(current); preview.reset(); }}><RotateCcw size={14} /> Reset</Button>}
+      </div>
+
+      {preview.isError && <p className="mt-3 text-xs text-destructive" role="alert">The preview could not be generated. Review the selection and try again.</p>}
+      {update.isError && <p className="mt-3 text-xs text-destructive" role="alert">The business profile could not be saved. No navigation settings were changed.</p>}
+
+      {preview.data && previewMatchesSelection && (
+        <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4" aria-live="polite">
+          <p className="text-sm font-bold">Impact preview</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {preview.data.addedFeatures.length === 0 && preview.data.removedFeatures.length === 0
+              ? 'This selection does not change the currently entitled feature groups.'
+              : 'Saving changes the feature groups shown in navigation. Existing projects, records, and documents are not deleted.'}
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-status-success">Will show</p>
+              <p className="mt-1 text-xs font-semibold">{preview.data.addedFeatures.length > 0 ? preview.data.addedFeatures.map((feature) => feature.label).join(' · ') : 'No new feature groups'}</p>
+            </div>
+            <div>
+              <p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-status-warning">Will hide</p>
+              <p className="mt-1 text-xs font-semibold">{preview.data.removedFeatures.length > 0 ? preview.data.removedFeatures.map((feature) => feature.label).join(' · ') : 'No feature groups removed'}</p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">Selected profile: {selected.map(businessTypeLabel).join(' · ')}</p>
+        </div>
+      )}
+    </section>
   );
 }
 

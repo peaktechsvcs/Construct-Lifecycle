@@ -1,5 +1,13 @@
 import { boolean, integer, pgTable, serial, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 
+export const TENANT_BUSINESS_TYPES = [
+  "general-contractor",
+  "subcontractor",
+  "supplier",
+] as const;
+
+export type TenantBusinessType = (typeof TENANT_BUSINESS_TYPES)[number];
+
 export const tenantsTable = pgTable("tenants", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -8,6 +16,15 @@ export const tenantsTable = pgTable("tenants", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const tenantBusinessTypesTable = pgTable("tenant_business_types", {
+  tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id, { onDelete: "cascade" }),
+  businessType: text("business_type").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("tenant_business_types_tenant_type_idx").on(table.tenantId, table.businessType),
+  index("tenant_business_types_tenant_idx").on(table.tenantId),
+]);
 
 export const environmentsTable = pgTable("customer_environments", {
   id: serial("id").primaryKey(),

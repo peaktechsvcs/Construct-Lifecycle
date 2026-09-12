@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { BusinessType } from './businessType';
 import type { PlatformCustomerEnvironment } from './platformCustomerEnvironment';
 import type { PlatformCustomerStatus } from './platformCustomerStatus';
 
@@ -13,6 +14,8 @@ export interface PlatformCustomer {
   name: string;
   slug: string;
   status: PlatformCustomerStatus;
+  /** @minItems 1 */
+  businessTypes: BusinessType[];
   memberCount: number;
   pendingInvitationCount: number;
   environments: PlatformCustomerEnvironment[];

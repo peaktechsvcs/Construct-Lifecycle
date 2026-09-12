@@ -5,8 +5,10 @@ import {
   environmentsTable,
   membershipsTable,
   platformAuditEventsTable,
+  tenantBusinessTypesTable,
   tenantsTable,
   tenantInvitationsTable,
+  type TenantBusinessType,
 } from "@workspace/db";
 import {
   CreatePlatformCustomerBody,
@@ -16,6 +18,7 @@ import type { TenantRequest } from "../middlewares/tenantContext";
 import { requirePlatformAdmin } from "../middlewares/platformAdmin";
 import { createTenantInvitation, serializeInvitation } from "./tenant-admin";
 import { ensurePublishedWorkflow } from "../lib/workflow";
+import { DEFAULT_TENANT_BUSINESS_TYPES, getTenantBusinessTypes } from "../lib/tenant-business-profile";
 
 const router: IRouter = Router();
 
@@ -59,8 +62,10 @@ async function serializeCustomer(tenant: typeof tenantsTable.$inferSelect) {
     .from(environmentsTable)
     .where(eq(environmentsTable.tenantId, tenant.id))
     .orderBy(environmentsTable.id);
+  const businessTypes = await getTenantBusinessTypes(tenant.id);
   return {
     ...tenant,
+    businessTypes,
     memberCount: Number(memberCount),
     pendingInvitationCount: Number(invitationCount),
     environments,
@@ -96,6 +101,10 @@ router.post("/platform/customers", async (req: TenantRequest, res) => {
     .insert(tenantsTable)
     .values({ name: parsed.data.name.trim(), slug, status: "active" })
     .returning();
+  const businessTypes = (parsed.data.businessTypes ?? DEFAULT_TENANT_BUSINESS_TYPES) as TenantBusinessType[];
+  await db.insert(tenantBusinessTypesTable).values(
+    businessTypes.map((businessType) => ({ tenantId: tenant.id, businessType })),
+  );
   await db.insert(environmentsTable).values([
     {
       tenantId: tenant.id,
@@ -134,7 +143,7 @@ router.post("/platform/customers", async (req: TenantRequest, res) => {
   await writeAudit(req, "customer_created", tenant.id, {
     name: tenant.name,
     slug: tenant.slug,
-    ownerEmail: parsed.data.ownerEmail ?? null,
+    businessTypes,
   });
   res.status(201).json({ customer: await serializeCustomer(tenant), invitation, invitationToken });
 });

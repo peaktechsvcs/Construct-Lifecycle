@@ -111,10 +111,13 @@ import type {
   SubmittalSignatureRequestInput,
   SwitchEnvironmentInput,
   SwitchTenantInput,
+  TenantBusinessProfile,
+  TenantBusinessProfilePreview,
   TenantContext,
   TenantInvitation,
   TenantMember,
   UpdatePlatformCustomerInput,
+  UpdateTenantBusinessProfileInput,
   UpdateTenantMemberInput,
   WorkflowConfigInput,
   WorkflowConfigResponse,
@@ -5360,6 +5363,225 @@ export const useSwitchTenant = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSwitchTenantMutationOptions(options));
+    }
+
+export const getGetTenantBusinessProfileUrl = () => {
+
+
+
+
+  return `/api/tenant/business-profile`
+}
+
+/**
+ * @summary Get the active tenant business types and entitled features
+ */
+export const getTenantBusinessProfile = async ( options?: Parameters<typeof customFetch>[1]): Promise<TenantBusinessProfile> => {
+
+  return customFetch<TenantBusinessProfile>(getGetTenantBusinessProfileUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTenantBusinessProfileQueryKey = () => {
+    return [
+    `/api/tenant/business-profile`
+    ] as const;
+    }
+
+
+export const getGetTenantBusinessProfileQueryOptions = <TData = Awaited<ReturnType<typeof getTenantBusinessProfile>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTenantBusinessProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTenantBusinessProfileQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTenantBusinessProfile>>> = ({ signal }) => getTenantBusinessProfile({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTenantBusinessProfile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTenantBusinessProfileQueryResult = NonNullable<Awaited<ReturnType<typeof getTenantBusinessProfile>>>
+export type GetTenantBusinessProfileQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the active tenant business types and entitled features
+ */
+
+export function useGetTenantBusinessProfile<TData = Awaited<ReturnType<typeof getTenantBusinessProfile>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTenantBusinessProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTenantBusinessProfileQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateTenantBusinessProfileUrl = () => {
+
+
+
+
+  return `/api/tenant/business-profile`
+}
+
+/**
+ * @summary Update the active tenant business types
+ */
+export const updateTenantBusinessProfile = async (updateTenantBusinessProfileInput: UpdateTenantBusinessProfileInput, options?: Parameters<typeof customFetch>[1]): Promise<TenantBusinessProfile> => {
+
+  return customFetch<TenantBusinessProfile>(getUpdateTenantBusinessProfileUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateTenantBusinessProfileInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateTenantBusinessProfileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTenantBusinessProfile>>, TError,{data: BodyType<UpdateTenantBusinessProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTenantBusinessProfile>>, TError,{data: BodyType<UpdateTenantBusinessProfileInput>}, TContext> => {
+
+const mutationKey = ['updateTenantBusinessProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTenantBusinessProfile>>, {data: BodyType<UpdateTenantBusinessProfileInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateTenantBusinessProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTenantBusinessProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateTenantBusinessProfile>>>
+    export type UpdateTenantBusinessProfileMutationBody = BodyType<UpdateTenantBusinessProfileInput>
+    export type UpdateTenantBusinessProfileMutationError = ErrorType<void>
+
+    /**
+ * @summary Update the active tenant business types
+ */
+export const useUpdateTenantBusinessProfile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTenantBusinessProfile>>, TError,{data: BodyType<UpdateTenantBusinessProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTenantBusinessProfile>>,
+        TError,
+        {data: BodyType<UpdateTenantBusinessProfileInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateTenantBusinessProfileMutationOptions(options));
+    }
+
+export const getPreviewTenantBusinessProfileUrl = () => {
+
+
+
+
+  return `/api/tenant/business-profile/preview`
+}
+
+/**
+ * @summary Preview navigation changes for new tenant business types
+ */
+export const previewTenantBusinessProfile = async (updateTenantBusinessProfileInput: UpdateTenantBusinessProfileInput, options?: Parameters<typeof customFetch>[1]): Promise<TenantBusinessProfilePreview> => {
+
+  return customFetch<TenantBusinessProfilePreview>(getPreviewTenantBusinessProfileUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateTenantBusinessProfileInput)
+  }
+);}
+
+
+
+
+
+export const getPreviewTenantBusinessProfileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewTenantBusinessProfile>>, TError,{data: BodyType<UpdateTenantBusinessProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewTenantBusinessProfile>>, TError,{data: BodyType<UpdateTenantBusinessProfileInput>}, TContext> => {
+
+const mutationKey = ['previewTenantBusinessProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewTenantBusinessProfile>>, {data: BodyType<UpdateTenantBusinessProfileInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewTenantBusinessProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewTenantBusinessProfileMutationResult = NonNullable<Awaited<ReturnType<typeof previewTenantBusinessProfile>>>
+    export type PreviewTenantBusinessProfileMutationBody = BodyType<UpdateTenantBusinessProfileInput>
+    export type PreviewTenantBusinessProfileMutationError = ErrorType<void>
+
+    /**
+ * @summary Preview navigation changes for new tenant business types
+ */
+export const usePreviewTenantBusinessProfile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewTenantBusinessProfile>>, TError,{data: BodyType<UpdateTenantBusinessProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewTenantBusinessProfile>>,
+        TError,
+        {data: BodyType<UpdateTenantBusinessProfileInput>},
+        TContext
+      > => {
+      return useMutation(getPreviewTenantBusinessProfileMutationOptions(options));
     }
 
 export const getListEnvironmentsUrl = () => {

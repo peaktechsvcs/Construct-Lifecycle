@@ -1136,6 +1136,52 @@ paths:
               schema:
                 $ref: "#/components/schemas/TenantContext"
         "403": { description: User is not a member of the tenant }
+  /tenant/business-profile:
+    get:
+      operationId: getTenantBusinessProfile
+      tags: [tenants]
+      summary: Get the active tenant business types and entitled features
+      responses:
+        "200":
+          description: Active tenant business profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantBusinessProfile" }
+    put:
+      operationId: updateTenantBusinessProfile
+      tags: [tenants]
+      summary: Update the active tenant business types
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateTenantBusinessProfileInput" }
+      responses:
+        "200":
+          description: Updated tenant business profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantBusinessProfile" }
+        "400": { description: At least one valid business type is required }
+        "403": { description: Workspace owner or administrator permission required }
+  /tenant/business-profile/preview:
+    post:
+      operationId: previewTenantBusinessProfile
+      tags: [tenants]
+      summary: Preview navigation changes for new tenant business types
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateTenantBusinessProfileInput" }
+      responses:
+        "200":
+          description: Business profile impact preview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantBusinessProfilePreview" }
+        "400": { description: At least one valid business type is required }
+        "403": { description: Workspace owner or administrator permission required }
   /tenant/environments:
     get:
       operationId: listEnvironments
@@ -2813,13 +2859,17 @@ components:
           items: { $ref: "#/components/schemas/DashboardDrilldownAttention" }
     Tenant:
       type: object
-      required: [id, name, slug, status, role]
+      required: [id, name, slug, status, role, businessTypes]
       properties:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
         status: { type: string, enum: [active, suspended] }
         role: { type: string, enum: [owner, admin, member, viewer] }
+        businessTypes:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/BusinessType" }
     TenantMembershipSummary:
       type: object
       required: [id, name, slug, status, role]
@@ -2855,6 +2905,37 @@ components:
           items: { $ref: "#/components/schemas/Environment" }
         environmentLabel: { type: string, enum: [development, demo, production] }
         isPlatformAdmin: { type: boolean }
+    BusinessType:
+      type: string
+      enum: [general-contractor, subcontractor, supplier]
+    TenantBusinessProfile:
+      type: object
+      required: [businessTypes, features]
+      properties:
+        businessTypes:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/BusinessType" }
+        features:
+          type: array
+          items: { $ref: "#/components/schemas/FeatureFlag" }
+    TenantBusinessProfilePreview:
+      type: object
+      required: [currentBusinessTypes, nextBusinessTypes, addedFeatures, removedFeatures]
+      properties:
+        currentBusinessTypes:
+          type: array
+          items: { $ref: "#/components/schemas/BusinessType" }
+        nextBusinessTypes:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/BusinessType" }
+        addedFeatures:
+          type: array
+          items: { $ref: "#/components/schemas/FeatureFlag" }
+        removedFeatures:
+          type: array
+          items: { $ref: "#/components/schemas/FeatureFlag" }
     FeatureFlag:
       type: object
       required: [key, label, section, description, route, enabled]
@@ -2959,12 +3040,16 @@ components:
         status: { type: string, enum: [active, suspended, provisioning, archived] }
     PlatformCustomer:
       type: object
-      required: [id, name, slug, status, memberCount, pendingInvitationCount, environments, createdAt, updatedAt]
+      required: [id, name, slug, status, businessTypes, memberCount, pendingInvitationCount, environments, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
         status: { type: string, enum: [active, suspended] }
+        businessTypes:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/BusinessType" }
         memberCount: { type: integer }
         pendingInvitationCount: { type: integer }
         environments:
@@ -2974,11 +3059,26 @@ components:
         updatedAt: { type: string, format: date-time }
     CreatePlatformCustomerInput:
       type: object
-      required: [name, slug]
+      required: [name, slug, businessTypes]
       properties:
         name: { type: string, minLength: 2, maxLength: 120 }
         slug: { type: string, pattern: "^[a-z0-9][a-z0-9-]{2,62}$" }
         ownerEmail: { type: ["string", "null"], format: email }
+        businessTypes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/BusinessType" }
+    UpdateTenantBusinessProfileInput:
+      type: object
+      required: [businessTypes]
+      properties:
+        businessTypes:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/BusinessType" }
     CreatedPlatformCustomer:
       type: object
       required: [customer, invitation, invitationToken]

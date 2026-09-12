@@ -3767,13 +3767,17 @@ export const GetDashboardDrilldownResponse = zod.object({
 /**
  * @summary Get the active tenant context
  */
+
+
+
 export const GetTenantContextResponse = zod.object({
   "activeTenant": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
-  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer']),
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1)
 }),
   "memberships": zod.array(zod.object({
   "id": zod.number().int(),
@@ -3817,13 +3821,17 @@ export const SwitchTenantBody = zod.object({
   "tenantId": zod.number().int().min(1)
 })
 
+
+
+
 export const SwitchTenantResponse = zod.object({
   "activeTenant": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
-  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer']),
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1)
 }),
   "memberships": zod.array(zod.object({
   "id": zod.number().int(),
@@ -3858,6 +3866,88 @@ export const SwitchTenantResponse = zod.object({
 
 
 /**
+ * @summary Get the active tenant business types and entitled features
+ */
+
+
+
+export const GetTenantBusinessProfileResponse = zod.object({
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1),
+  "features": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "description": zod.string(),
+  "route": zod.string(),
+  "enabled": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Update the active tenant business types
+ */
+export const updateTenantBusinessProfileBodyBusinessTypesMax = 3;
+
+
+
+export const UpdateTenantBusinessProfileBody = zod.object({
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1).max(updateTenantBusinessProfileBodyBusinessTypesMax)
+})
+
+
+
+
+export const UpdateTenantBusinessProfileResponse = zod.object({
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1),
+  "features": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "description": zod.string(),
+  "route": zod.string(),
+  "enabled": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Preview navigation changes for new tenant business types
+ */
+export const previewTenantBusinessProfileBodyBusinessTypesMax = 3;
+
+
+
+export const PreviewTenantBusinessProfileBody = zod.object({
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1).max(previewTenantBusinessProfileBodyBusinessTypesMax)
+})
+
+
+
+
+export const PreviewTenantBusinessProfileResponse = zod.object({
+  "currentBusinessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])),
+  "nextBusinessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1),
+  "addedFeatures": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "description": zod.string(),
+  "route": zod.string(),
+  "enabled": zod.boolean()
+})),
+  "removedFeatures": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "description": zod.string(),
+  "route": zod.string(),
+  "enabled": zod.boolean()
+}))
+})
+
+
+/**
  * @summary List environments authorized for the active customer
  */
 export const ListEnvironmentsResponseItem = zod.object({
@@ -3883,13 +3973,17 @@ export const SwitchEnvironmentBody = zod.object({
   "environmentId": zod.number().int().min(1)
 })
 
+
+
+
 export const SwitchEnvironmentResponse = zod.object({
   "activeTenant": zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
-  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer']),
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1)
 }),
   "memberships": zod.array(zod.object({
   "id": zod.number().int(),
@@ -4153,11 +4247,15 @@ export const AcceptTenantInvitationResponse = zod.object({
 /**
  * @summary List customer workspaces for platform administrators
  */
+
+
+
 export const ListPlatformCustomersResponseItem = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1),
   "memberCount": zod.number().int(),
   "pendingInvitationCount": zod.number().int(),
   "environments": zod.array(zod.object({
@@ -4181,11 +4279,16 @@ export const createPlatformCustomerBodyNameMax = 120;
 export const createPlatformCustomerBodySlugRegExp = new RegExp('^[a-z0-9][a-z0-9-]{2,62}$');
 
 
+
 export const CreatePlatformCustomerBody = zod.object({
   "name": zod.string().min(createPlatformCustomerBodyNameMin).max(createPlatformCustomerBodyNameMax),
   "slug": zod.string().regex(createPlatformCustomerBodySlugRegExp),
-  "ownerEmail": zod.string().email().nullish()
+  "ownerEmail": zod.string().email().nullish(),
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1)
 })
+
+
+
 
 export const CreatePlatformCustomerResponse = zod.object({
   "customer": zod.object({
@@ -4193,6 +4296,7 @@ export const CreatePlatformCustomerResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1),
   "memberCount": zod.number().int(),
   "pendingInvitationCount": zod.number().int(),
   "environments": zod.array(zod.object({
@@ -4231,11 +4335,15 @@ export const UpdatePlatformCustomerBody = zod.object({
   "status": zod.enum(['active', 'suspended'])
 })
 
+
+
+
 export const UpdatePlatformCustomerResponse = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1),
   "memberCount": zod.number().int(),
   "pendingInvitationCount": zod.number().int(),
   "environments": zod.array(zod.object({

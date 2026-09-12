@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { BusinessType } from './businessType';
 
 export interface CreatePlatformCustomerInput {
   /**
@@ -16,4 +17,6 @@ export interface CreatePlatformCustomerInput {
   slug: string;
   /** @nullable */
   ownerEmail?: string | null;
+  /** @minItems 1 */
+  businessTypes: BusinessType[];
 }

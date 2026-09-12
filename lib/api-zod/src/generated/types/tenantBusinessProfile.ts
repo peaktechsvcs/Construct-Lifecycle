@@ -6,15 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BusinessType } from './businessType';
-import type { TenantRole } from './tenantRole';
-import type { TenantStatus } from './tenantStatus';
+import type { FeatureFlag } from './featureFlag';
 
-export interface Tenant {
-  id: number;
-  name: string;
-  slug: string;
-  status: TenantStatus;
-  role: TenantRole;
+export interface TenantBusinessProfile {
   /** @minItems 1 */
   businessTypes: BusinessType[];
+  features: FeatureFlag[];
 }
