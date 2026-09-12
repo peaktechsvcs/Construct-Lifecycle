@@ -1457,7 +1457,7 @@ components:
         displayName: { type: ["string", "null"] }
     Opportunity:
       type: object
-      required: [id, environmentId, opportunityNumber, businessCustomerId, customerName, name, stage, estimatedValue, expectedCloseDate, ownerUserId, owner, createdAt, updatedAt]
+      required: [id, environmentId, opportunityNumber, businessCustomerId, customerName, name, stage, estimatedValue, expectedCloseDate, ownerUserId, owner, crmProviderKey, crmIntegrationStatus, crmExternalReference, crmLastSyncedAt, createdAt, updatedAt]
       properties:
         id: { type: integer }
         environmentId: { type: integer }
@@ -1471,6 +1471,10 @@ components:
         expectedCloseDate: { type: ["string", "null"], format: date }
         ownerUserId: { type: ["integer", "null"] }
         owner: { oneOf: [{ $ref: "#/components/schemas/OpportunityOwner" }, { type: "null" }] }
+        crmProviderKey: { type: ["string", "null"] }
+        crmIntegrationStatus: { $ref: "#/components/schemas/ProposalIntegrationStatus" }
+        crmExternalReference: { type: ["string", "null"] }
+        crmLastSyncedAt: { type: ["string", "null"], format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     OpportunityInput:
@@ -1484,6 +1488,9 @@ components:
         estimatedValue: { type: number, minimum: 0, maximum: 999999999999 }
         expectedCloseDate: { type: string, format: date }
         ownerUserId: { type: integer, minimum: 1 }
+        crmProviderKey: { type: string, maxLength: 80, pattern: "^[a-z][a-z0-9_]{1,63}$" }
+        crmIntegrationStatus: { $ref: "#/components/schemas/ProposalIntegrationStatus" }
+        crmExternalReference: { type: string, maxLength: 180 }
     OpportunityUpdate:
       type: object
       properties:
@@ -1494,6 +1501,9 @@ components:
         estimatedValue: { type: number, minimum: 0, maximum: 999999999999 }
         expectedCloseDate: { type: ["string", "null"], format: date }
         ownerUserId: { type: ["integer", "null"], minimum: 1 }
+        crmProviderKey: { type: ["string", "null"], maxLength: 80, pattern: "^[a-z][a-z0-9_]{1,63}$" }
+        crmIntegrationStatus: { $ref: "#/components/schemas/ProposalIntegrationStatus" }
+        crmExternalReference: { type: ["string", "null"], maxLength: 180 }
     BidStage:
       type: string
       enum: [invited, qualifying, takeoff, estimating, review, submitted, awarded, lost]
