@@ -42,6 +42,13 @@ const stageTone = (stage: string) => {
   return 'neutral' as const;
 };
 
+const crmTone = (status: string) => {
+  if (status === 'synced') return 'green' as const;
+  if (status === 'error') return 'red' as const;
+  if (status === 'pending') return 'orange' as const;
+  return 'neutral' as const;
+};
+
 const fieldClass = 'w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
 
 type FormState = {
@@ -293,8 +300,14 @@ function OpportunityDetail({ id }: { id: number }) {
           {opportunity.description && <div className="mt-6 border-t border-border pt-5"><p className="mb-1 text-xs text-muted-foreground">Description</p><p className="whitespace-pre-wrap text-sm leading-6">{opportunity.description}</p></div>}
         </section>
         <section className="rounded-xl border border-border bg-card p-5">
-          <p className="mono mb-4 text-[10px] uppercase tracking-[.13em] text-muted-foreground">Record details</p>
-          <div className="space-y-4 text-sm"><p><span className="block text-xs text-muted-foreground">Created</span>{shortDate(opportunity.createdAt)}</p><p><span className="block text-xs text-muted-foreground">Last updated</span>{shortDate(opportunity.updatedAt)}</p></div>
+          <p className="mono mb-4 text-[10px] uppercase tracking-[.13em] text-muted-foreground">Relationship details</p>
+          <div className="space-y-4 text-sm">
+            <p><span className="block text-xs text-muted-foreground">Primary contact</span>{opportunity.contactName || 'Not assigned'}{opportunity.contactEmail && <span className="block text-xs text-muted-foreground">{opportunity.contactEmail}</span>}{opportunity.contactPhone && <span className="block text-xs text-muted-foreground">{opportunity.contactPhone}</span>}</p>
+            <p><span className="block text-xs text-muted-foreground">Lead source / qualification</span>{opportunity.leadSource || 'No source recorded'} · {opportunity.qualification}</p>
+            <p><span className="block text-xs text-muted-foreground">Next action</span>{opportunity.nextAction || 'No next action'}{opportunity.nextActionDate && <span className="block text-xs text-muted-foreground">{shortDate(opportunity.nextActionDate)}</span>}</p>
+            <div className="border-t border-border pt-4"><span className="mb-2 block text-xs text-muted-foreground">CRM connection</span><div className="flex items-center gap-2"><Badge tone={crmTone(opportunity.crmIntegrationStatus)}>{opportunity.crmProviderKey || 'Manual'}</Badge>{opportunity.crmExternalReference && <span className="mono text-xs text-muted-foreground">{opportunity.crmExternalReference}</span>}</div></div>
+            <p><span className="block text-xs text-muted-foreground">Created / updated</span>{shortDate(opportunity.createdAt)} · {shortDate(opportunity.updatedAt)}</p>
+          </div>
         </section>
       </div>
       {editing && <OpportunityForm opportunity={opportunity} onClose={() => setEditing(false)} onSaved={(saved) => { queryClient.setQueryData(getGetOpportunityQueryKey(id), saved); queryClient.invalidateQueries({ queryKey: getListOpportunitiesQueryKey() }); setEditing(false); }} />}
