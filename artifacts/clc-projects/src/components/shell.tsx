@@ -202,14 +202,14 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
   {
     label: 'Operations',
     items: [
-      { href: '/coming-soon/vendors', label: 'Vendors', icon: Building2 },
+      { href: '/procurement', label: 'Vendors', icon: Building2 },
       { href: '/compliance', label: 'Trade Partner Compliance', icon: ShieldCheck },
-      { href: '/coming-soon/products', label: 'Products', icon: Package },
+      { href: '/procurement', label: 'Products', icon: Package },
       { href: '/coming-soon/selections', label: 'Selections', icon: ListChecks },
-      { href: '/coming-soon/procurement', label: 'Procurement', icon: ShoppingCart },
-      { href: '/coming-soon/purchase-orders', label: 'Purchase Orders', icon: ClipboardList },
-      { href: '/coming-soon/deliveries', label: 'Deliveries', icon: Truck },
-      { href: '/coming-soon/receiving', label: 'Receiving', icon: PackageCheck },
+      { href: '/procurement', label: 'Procurement', icon: ShoppingCart },
+      { href: '/purchase-orders', label: 'Purchase Orders', icon: ClipboardList },
+      { href: '/deliveries', label: 'Deliveries', icon: Truck },
+      { href: '/receiving', label: 'Receiving', icon: PackageCheck },
     ],
   },
   {

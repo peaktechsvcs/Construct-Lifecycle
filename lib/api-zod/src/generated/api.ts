@@ -2346,6 +2346,1158 @@ export const CreateSubcontractCloseoutItemResponse = zod.object({
 
 
 /**
+ * @summary List supplier products and materials
+ */
+export const listSupplierProductsQuerySearchMax = 120;
+
+
+
+export const ListSupplierProductsQueryParams = zod.object({
+  "search": zod.coerce.string().max(listSupplierProductsQuerySearchMax).optional(),
+  "status": zod.enum(['active', 'archived']).optional()
+})
+
+export const ListSupplierProductsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "sku": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "category": zod.string(),
+  "unit": zod.string(),
+  "defaultVendorId": zod.number().int().nullable(),
+  "leadTimeDays": zod.number().int(),
+  "unitCost": zod.number(),
+  "listPrice": zod.number(),
+  "availableQuantity": zod.number(),
+  "backorderedQuantity": zod.number(),
+  "status": zod.enum(['active', 'archived']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListSupplierProductsResponse = zod.array(ListSupplierProductsResponseItem)
+
+
+/**
+ * @summary Add a supplier product or material
+ */
+export const createSupplierProductBodySkuMax = 80;
+
+export const createSupplierProductBodyNameMax = 240;
+
+export const createSupplierProductBodyDescriptionMax = 5000;
+
+export const createSupplierProductBodyCategoryMax = 80;
+
+export const createSupplierProductBodyUnitMax = 40;
+
+export const createSupplierProductBodyLeadTimeDaysMin = 0;
+export const createSupplierProductBodyLeadTimeDaysMax = 3650;
+
+export const createSupplierProductBodyUnitCostMin = 0;
+
+export const createSupplierProductBodyListPriceMin = 0;
+
+export const createSupplierProductBodyAvailableQuantityMin = 0;
+
+export const createSupplierProductBodyBackorderedQuantityMin = 0;
+
+
+
+export const CreateSupplierProductBody = zod.object({
+  "sku": zod.string().min(1).max(createSupplierProductBodySkuMax),
+  "name": zod.string().min(1).max(createSupplierProductBodyNameMax),
+  "description": zod.string().max(createSupplierProductBodyDescriptionMax).optional(),
+  "category": zod.string().max(createSupplierProductBodyCategoryMax).optional(),
+  "unit": zod.string().max(createSupplierProductBodyUnitMax).optional(),
+  "defaultVendorId": zod.number().int().optional(),
+  "leadTimeDays": zod.number().int().min(createSupplierProductBodyLeadTimeDaysMin).max(createSupplierProductBodyLeadTimeDaysMax).optional(),
+  "unitCost": zod.number().min(createSupplierProductBodyUnitCostMin).optional(),
+  "listPrice": zod.number().min(createSupplierProductBodyListPriceMin).optional(),
+  "availableQuantity": zod.number().min(createSupplierProductBodyAvailableQuantityMin).optional(),
+  "backorderedQuantity": zod.number().min(createSupplierProductBodyBackorderedQuantityMin).optional()
+})
+
+export const CreateSupplierProductResponse = zod.object({
+  "id": zod.number().int(),
+  "sku": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "category": zod.string(),
+  "unit": zod.string(),
+  "defaultVendorId": zod.number().int().nullable(),
+  "leadTimeDays": zod.number().int(),
+  "unitCost": zod.number(),
+  "listPrice": zod.number(),
+  "availableQuantity": zod.number(),
+  "backorderedQuantity": zod.number(),
+  "status": zod.enum(['active', 'archived']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a supplier product or material
+ */
+export const UpdateSupplierProductParams = zod.object({
+  "productId": zod.coerce.number().int()
+})
+
+export const updateSupplierProductBodySkuMax = 80;
+
+export const updateSupplierProductBodyNameMax = 240;
+
+export const updateSupplierProductBodyDescriptionMax = 5000;
+
+export const updateSupplierProductBodyCategoryMax = 80;
+
+export const updateSupplierProductBodyUnitMax = 40;
+
+export const updateSupplierProductBodyLeadTimeDaysMin = 0;
+export const updateSupplierProductBodyLeadTimeDaysMax = 3650;
+
+export const updateSupplierProductBodyUnitCostMin = 0;
+
+export const updateSupplierProductBodyListPriceMin = 0;
+
+export const updateSupplierProductBodyAvailableQuantityMin = 0;
+
+export const updateSupplierProductBodyBackorderedQuantityMin = 0;
+
+
+
+export const UpdateSupplierProductBody = zod.object({
+  "sku": zod.string().min(1).max(updateSupplierProductBodySkuMax).optional(),
+  "name": zod.string().min(1).max(updateSupplierProductBodyNameMax).optional(),
+  "description": zod.string().max(updateSupplierProductBodyDescriptionMax).nullish(),
+  "category": zod.string().max(updateSupplierProductBodyCategoryMax).optional(),
+  "unit": zod.string().max(updateSupplierProductBodyUnitMax).optional(),
+  "defaultVendorId": zod.number().int().nullish(),
+  "leadTimeDays": zod.number().int().min(updateSupplierProductBodyLeadTimeDaysMin).max(updateSupplierProductBodyLeadTimeDaysMax).optional(),
+  "unitCost": zod.number().min(updateSupplierProductBodyUnitCostMin).optional(),
+  "listPrice": zod.number().min(updateSupplierProductBodyListPriceMin).optional(),
+  "availableQuantity": zod.number().min(updateSupplierProductBodyAvailableQuantityMin).optional(),
+  "backorderedQuantity": zod.number().min(updateSupplierProductBodyBackorderedQuantityMin).optional(),
+  "status": zod.enum(['active', 'archived']).optional()
+})
+
+export const UpdateSupplierProductResponse = zod.object({
+  "id": zod.number().int(),
+  "sku": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "category": zod.string(),
+  "unit": zod.string(),
+  "defaultVendorId": zod.number().int().nullable(),
+  "leadTimeDays": zod.number().int(),
+  "unitCost": zod.number(),
+  "listPrice": zod.number(),
+  "availableQuantity": zod.number(),
+  "backorderedQuantity": zod.number(),
+  "status": zod.enum(['active', 'archived']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List supplier vendors
+ */
+export const ListSupplierVendorsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "contactName": zod.string().nullable(),
+  "email": zod.string().email().nullable(),
+  "phone": zod.string().nullable(),
+  "leadTimeDays": zod.number().int(),
+  "status": zod.enum(['active', 'archived']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListSupplierVendorsResponse = zod.array(ListSupplierVendorsResponseItem)
+
+
+/**
+ * @summary Add a supplier vendor
+ */
+export const createSupplierVendorBodyNameMax = 180;
+
+export const createSupplierVendorBodyContactNameMax = 180;
+
+export const createSupplierVendorBodyEmailMax = 320;
+
+export const createSupplierVendorBodyPhoneMax = 40;
+
+export const createSupplierVendorBodyLeadTimeDaysMin = 0;
+export const createSupplierVendorBodyLeadTimeDaysMax = 3650;
+
+
+
+export const CreateSupplierVendorBody = zod.object({
+  "name": zod.string().min(1).max(createSupplierVendorBodyNameMax),
+  "contactName": zod.string().max(createSupplierVendorBodyContactNameMax).optional(),
+  "email": zod.string().email().max(createSupplierVendorBodyEmailMax).optional(),
+  "phone": zod.string().max(createSupplierVendorBodyPhoneMax).optional(),
+  "leadTimeDays": zod.number().int().min(createSupplierVendorBodyLeadTimeDaysMin).max(createSupplierVendorBodyLeadTimeDaysMax).optional()
+})
+
+export const CreateSupplierVendorResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "contactName": zod.string().nullable(),
+  "email": zod.string().email().nullable(),
+  "phone": zod.string().nullable(),
+  "leadTimeDays": zod.number().int(),
+  "status": zod.enum(['active', 'archived']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List supplier customer terms
+ */
+export const ListSupplierCustomerTermsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "businessCustomerId": zod.number().int(),
+  "paymentTerms": zod.string(),
+  "creditLimit": zod.number(),
+  "discountPercent": zod.number(),
+  "retainageRequired": zod.number(),
+  "status": zod.enum(['active', 'inactive']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListSupplierCustomerTermsResponse = zod.array(ListSupplierCustomerTermsResponseItem)
+
+
+/**
+ * @summary Set customer-specific supplier terms
+ */
+export const createSupplierCustomerTermsBodyPaymentTermsMax = 120;
+
+export const createSupplierCustomerTermsBodyCreditLimitMin = 0;
+
+export const createSupplierCustomerTermsBodyDiscountPercentMin = 0;
+export const createSupplierCustomerTermsBodyDiscountPercentMax = 100;
+
+export const createSupplierCustomerTermsBodyRetainageRequiredMin = 0;
+export const createSupplierCustomerTermsBodyRetainageRequiredMax = 100;
+
+
+
+export const CreateSupplierCustomerTermsBody = zod.object({
+  "businessCustomerId": zod.number().int(),
+  "paymentTerms": zod.string().max(createSupplierCustomerTermsBodyPaymentTermsMax).optional(),
+  "creditLimit": zod.number().min(createSupplierCustomerTermsBodyCreditLimitMin).optional(),
+  "discountPercent": zod.number().min(createSupplierCustomerTermsBodyDiscountPercentMin).max(createSupplierCustomerTermsBodyDiscountPercentMax).optional(),
+  "retainageRequired": zod.number().min(createSupplierCustomerTermsBodyRetainageRequiredMin).max(createSupplierCustomerTermsBodyRetainageRequiredMax).optional(),
+  "status": zod.enum(['active', 'inactive']).optional()
+})
+
+export const CreateSupplierCustomerTermsResponse = zod.object({
+  "id": zod.number().int(),
+  "businessCustomerId": zod.number().int(),
+  "paymentTerms": zod.string(),
+  "creditLimit": zod.number(),
+  "discountPercent": zod.number(),
+  "retainageRequired": zod.number(),
+  "status": zod.enum(['active', 'inactive']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List supplier price lists
+ */
+export const ListSupplierPriceListsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "businessCustomerId": zod.number().int().nullable(),
+  "effectiveFrom": zod.coerce.date().nullable(),
+  "effectiveTo": zod.coerce.date().nullable(),
+  "status": zod.enum(['active', 'inactive']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListSupplierPriceListsResponse = zod.array(ListSupplierPriceListsResponseItem)
+
+
+/**
+ * @summary Create a supplier price list
+ */
+export const createSupplierPriceListBodyNameMax = 180;
+
+
+
+export const CreateSupplierPriceListBody = zod.object({
+  "name": zod.string().min(1).max(createSupplierPriceListBodyNameMax),
+  "businessCustomerId": zod.number().int().optional(),
+  "effectiveFrom": zod.coerce.date().optional(),
+  "effectiveTo": zod.coerce.date().optional(),
+  "status": zod.enum(['active', 'inactive']).optional()
+})
+
+export const CreateSupplierPriceListResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "businessCustomerId": zod.number().int().nullable(),
+  "effectiveFrom": zod.coerce.date().nullable(),
+  "effectiveTo": zod.coerce.date().nullable(),
+  "status": zod.enum(['active', 'inactive']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "priceListId": zod.number().int(),
+  "productId": zod.number().int(),
+  "unitPrice": zod.number(),
+  "minimumQuantity": zod.number(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Add a product price to a supplier price list
+ */
+export const CreateSupplierPriceListItemParams = zod.object({
+  "priceListId": zod.coerce.number().int()
+})
+
+export const createSupplierPriceListItemBodyUnitPriceMin = 0;
+
+export const createSupplierPriceListItemBodyMinimumQuantityMin = 0.001;
+
+
+
+export const CreateSupplierPriceListItemBody = zod.object({
+  "productId": zod.number().int(),
+  "unitPrice": zod.number().min(createSupplierPriceListItemBodyUnitPriceMin),
+  "minimumQuantity": zod.number().min(createSupplierPriceListItemBodyMinimumQuantityMin).optional()
+})
+
+export const CreateSupplierPriceListItemResponse = zod.object({
+  "id": zod.number().int(),
+  "priceListId": zod.number().int(),
+  "productId": zod.number().int(),
+  "unitPrice": zod.number(),
+  "minimumQuantity": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List supplier quotes
+ */
+export const ListSupplierQuotesQueryParams = zod.object({
+  "status": zod.enum(['draft', 'sent', 'accepted', 'rejected', 'expired', 'converted']).optional(),
+  "businessCustomerId": zod.coerce.number().int().optional()
+})
+
+export const ListSupplierQuotesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "quoteNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "projectId": zod.number().int().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "estimateId": zod.number().int().nullable(),
+  "proposalId": zod.number().int().nullable(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'rejected', 'expired', 'converted']),
+  "quoteDate": zod.coerce.date().nullable(),
+  "validUntil": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "subtotal": zod.number(),
+  "totalCost": zod.number(),
+  "totalSell": zod.number(),
+  "grossMargin": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListSupplierQuotesResponse = zod.array(ListSupplierQuotesResponseItem)
+
+
+/**
+ * @summary Create a supplier quote
+ */
+export const createSupplierQuoteBodyNotesMax = 5000;
+
+export const createSupplierQuoteBodyLinesItemDescriptionMax = 500;
+
+export const createSupplierQuoteBodyLinesItemQuantityMin = 0.001;
+
+export const createSupplierQuoteBodyLinesItemUnitMax = 40;
+
+export const createSupplierQuoteBodyLinesItemUnitCostMin = 0;
+
+export const createSupplierQuoteBodyLinesItemUnitPriceMin = 0;
+
+export const createSupplierQuoteBodyLinesItemApprovedSubstitutionMax = 500;
+
+export const createSupplierQuoteBodyLinesItemScopeReferenceMax = 120;
+
+export const createSupplierQuoteBodyLinesMax = 200;
+
+
+
+export const CreateSupplierQuoteBody = zod.object({
+  "businessCustomerId": zod.number().int(),
+  "projectId": zod.number().int().optional(),
+  "bidId": zod.number().int().optional(),
+  "estimateId": zod.number().int().optional(),
+  "proposalId": zod.number().int().optional(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'rejected', 'expired', 'converted']).optional(),
+  "quoteDate": zod.coerce.date().optional(),
+  "validUntil": zod.coerce.date().optional(),
+  "notes": zod.string().max(createSupplierQuoteBodyNotesMax).optional(),
+  "lines": zod.array(zod.object({
+  "productId": zod.number().int().optional(),
+  "vendorId": zod.number().int().optional(),
+  "description": zod.string().min(1).max(createSupplierQuoteBodyLinesItemDescriptionMax),
+  "quantity": zod.number().min(createSupplierQuoteBodyLinesItemQuantityMin),
+  "unit": zod.string().max(createSupplierQuoteBodyLinesItemUnitMax).optional(),
+  "unitCost": zod.number().min(createSupplierQuoteBodyLinesItemUnitCostMin),
+  "unitPrice": zod.number().min(createSupplierQuoteBodyLinesItemUnitPriceMin),
+  "approvedSubstitution": zod.string().max(createSupplierQuoteBodyLinesItemApprovedSubstitutionMax).optional(),
+  "promisedDate": zod.coerce.date().optional(),
+  "scopeReference": zod.string().max(createSupplierQuoteBodyLinesItemScopeReferenceMax).optional()
+})).min(1).max(createSupplierQuoteBodyLinesMax)
+})
+
+export const CreateSupplierQuoteResponse = zod.object({
+  "id": zod.number().int(),
+  "quoteNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "projectId": zod.number().int().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "estimateId": zod.number().int().nullable(),
+  "proposalId": zod.number().int().nullable(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'rejected', 'expired', 'converted']),
+  "quoteDate": zod.coerce.date().nullable(),
+  "validUntil": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "subtotal": zod.number(),
+  "totalCost": zod.number(),
+  "totalSell": zod.number(),
+  "grossMargin": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "quoteId": zod.number().int(),
+  "productId": zod.number().int().nullable(),
+  "vendorId": zod.number().int().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "unitCost": zod.number(),
+  "unitPrice": zod.number(),
+  "approvedSubstitution": zod.string().nullable(),
+  "promisedDate": zod.coerce.date().nullable(),
+  "scopeReference": zod.string().nullable()
+}))
+}))
+
+
+/**
+ * @summary Get a supplier quote with line items
+ */
+export const GetSupplierQuoteParams = zod.object({
+  "quoteId": zod.coerce.number().int()
+})
+
+export const GetSupplierQuoteResponse = zod.object({
+  "id": zod.number().int(),
+  "quoteNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "projectId": zod.number().int().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "estimateId": zod.number().int().nullable(),
+  "proposalId": zod.number().int().nullable(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'rejected', 'expired', 'converted']),
+  "quoteDate": zod.coerce.date().nullable(),
+  "validUntil": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "subtotal": zod.number(),
+  "totalCost": zod.number(),
+  "totalSell": zod.number(),
+  "grossMargin": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "quoteId": zod.number().int(),
+  "productId": zod.number().int().nullable(),
+  "vendorId": zod.number().int().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "unitCost": zod.number(),
+  "unitPrice": zod.number(),
+  "approvedSubstitution": zod.string().nullable(),
+  "promisedDate": zod.coerce.date().nullable(),
+  "scopeReference": zod.string().nullable()
+}))
+}))
+
+
+/**
+ * @summary Convert an accepted supplier quote into an order
+ */
+export const ConvertSupplierQuoteParams = zod.object({
+  "quoteId": zod.coerce.number().int()
+})
+
+export const convertSupplierQuoteBodyJobsiteInstructionsMax = 5000;
+
+
+
+export const ConvertSupplierQuoteBody = zod.object({
+  "orderDate": zod.coerce.date().optional(),
+  "promisedDate": zod.coerce.date().optional(),
+  "jobsiteInstructions": zod.string().max(convertSupplierQuoteBodyJobsiteInstructionsMax).optional(),
+  "linkedCommitmentId": zod.number().int().optional(),
+  "linkedSubmittalPackageId": zod.number().int().optional()
+})
+
+export const convertSupplierQuoteResponseTwoDeliveriesItemProofObjectPathRegExp = new RegExp('^/objects');
+export const convertSupplierQuoteResponseTwoInvoicesItemObjectPathRegExp = new RegExp('^/objects');
+
+
+export const ConvertSupplierQuoteResponse = zod.object({
+  "id": zod.number().int(),
+  "orderNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "projectId": zod.number().int().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "estimateId": zod.number().int().nullable(),
+  "proposalId": zod.number().int().nullable(),
+  "sourceQuoteId": zod.number().int().nullable(),
+  "orderStatus": zod.enum(['draft', 'pending_approval', 'approved', 'purchasing', 'partially_fulfilled', 'fulfilled', 'closed', 'canceled']),
+  "paymentStatus": zod.enum(['unbilled', 'invoiced', 'partially_paid', 'paid', 'past_due']),
+  "orderDate": zod.coerce.date().nullable(),
+  "promisedDate": zod.coerce.date().nullable(),
+  "subtotal": zod.number(),
+  "totalCost": zod.number(),
+  "totalSell": zod.number(),
+  "grossMargin": zod.number(),
+  "jobsiteInstructions": zod.string().nullable(),
+  "customerVisibleStatus": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "sourceQuoteLineId": zod.number().int().nullable(),
+  "productId": zod.number().int().nullable(),
+  "vendorId": zod.number().int().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "unitCost": zod.number(),
+  "unitPrice": zod.number(),
+  "purchasedQuantity": zod.number(),
+  "deliveredQuantity": zod.number(),
+  "receivedQuantity": zod.number(),
+  "backorderedQuantity": zod.number(),
+  "approvedSubstitution": zod.string().nullable(),
+  "promisedDate": zod.coerce.date().nullable(),
+  "scopeReference": zod.string().nullable()
+})),
+  "deliveries": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "deliveryNumber": zod.string(),
+  "status": zod.enum(['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned', 'canceled']),
+  "appointmentDate": zod.coerce.date().nullable(),
+  "windowStart": zod.coerce.date().nullable(),
+  "windowEnd": zod.coerce.date().nullable(),
+  "carrier": zod.string().nullable(),
+  "trackingReference": zod.string().nullable(),
+  "jobsiteInstructions": zod.string().nullable(),
+  "proofObjectPath": zod.string().regex(convertSupplierQuoteResponseTwoDeliveriesItemProofObjectPathRegExp).nullable(),
+  "proofFileName": zod.string().nullable(),
+  "recipientName": zod.string().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "invoices": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date().nullable(),
+  "dueDate": zod.coerce.date().nullable(),
+  "subtotal": zod.number(),
+  "retainageAmount": zod.number(),
+  "totalAmount": zod.number(),
+  "paidAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']),
+  "paymentReference": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "objectPath": zod.string().regex(convertSupplierQuoteResponseTwoInvoicesItemObjectPathRegExp).nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary List supplier orders
+ */
+export const ListSupplierOrdersQueryParams = zod.object({
+  "orderStatus": zod.enum(['draft', 'pending_approval', 'approved', 'purchasing', 'partially_fulfilled', 'fulfilled', 'closed', 'canceled']).optional(),
+  "businessCustomerId": zod.coerce.number().int().optional(),
+  "projectId": zod.coerce.number().int().optional()
+})
+
+export const ListSupplierOrdersResponseItem = zod.object({
+  "id": zod.number().int(),
+  "orderNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "projectId": zod.number().int().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "estimateId": zod.number().int().nullable(),
+  "proposalId": zod.number().int().nullable(),
+  "sourceQuoteId": zod.number().int().nullable(),
+  "orderStatus": zod.enum(['draft', 'pending_approval', 'approved', 'purchasing', 'partially_fulfilled', 'fulfilled', 'closed', 'canceled']),
+  "paymentStatus": zod.enum(['unbilled', 'invoiced', 'partially_paid', 'paid', 'past_due']),
+  "orderDate": zod.coerce.date().nullable(),
+  "promisedDate": zod.coerce.date().nullable(),
+  "subtotal": zod.number(),
+  "totalCost": zod.number(),
+  "totalSell": zod.number(),
+  "grossMargin": zod.number(),
+  "jobsiteInstructions": zod.string().nullable(),
+  "customerVisibleStatus": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListSupplierOrdersResponse = zod.array(ListSupplierOrdersResponseItem)
+
+
+/**
+ * @summary Get a supplier order with fulfillment and payment history
+ */
+export const GetSupplierOrderParams = zod.object({
+  "orderId": zod.coerce.number().int()
+})
+
+export const getSupplierOrderResponseTwoDeliveriesItemProofObjectPathRegExp = new RegExp('^/objects');
+export const getSupplierOrderResponseTwoInvoicesItemObjectPathRegExp = new RegExp('^/objects');
+
+
+export const GetSupplierOrderResponse = zod.object({
+  "id": zod.number().int(),
+  "orderNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "projectId": zod.number().int().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "estimateId": zod.number().int().nullable(),
+  "proposalId": zod.number().int().nullable(),
+  "sourceQuoteId": zod.number().int().nullable(),
+  "orderStatus": zod.enum(['draft', 'pending_approval', 'approved', 'purchasing', 'partially_fulfilled', 'fulfilled', 'closed', 'canceled']),
+  "paymentStatus": zod.enum(['unbilled', 'invoiced', 'partially_paid', 'paid', 'past_due']),
+  "orderDate": zod.coerce.date().nullable(),
+  "promisedDate": zod.coerce.date().nullable(),
+  "subtotal": zod.number(),
+  "totalCost": zod.number(),
+  "totalSell": zod.number(),
+  "grossMargin": zod.number(),
+  "jobsiteInstructions": zod.string().nullable(),
+  "customerVisibleStatus": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "sourceQuoteLineId": zod.number().int().nullable(),
+  "productId": zod.number().int().nullable(),
+  "vendorId": zod.number().int().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "unitCost": zod.number(),
+  "unitPrice": zod.number(),
+  "purchasedQuantity": zod.number(),
+  "deliveredQuantity": zod.number(),
+  "receivedQuantity": zod.number(),
+  "backorderedQuantity": zod.number(),
+  "approvedSubstitution": zod.string().nullable(),
+  "promisedDate": zod.coerce.date().nullable(),
+  "scopeReference": zod.string().nullable()
+})),
+  "deliveries": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "deliveryNumber": zod.string(),
+  "status": zod.enum(['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned', 'canceled']),
+  "appointmentDate": zod.coerce.date().nullable(),
+  "windowStart": zod.coerce.date().nullable(),
+  "windowEnd": zod.coerce.date().nullable(),
+  "carrier": zod.string().nullable(),
+  "trackingReference": zod.string().nullable(),
+  "jobsiteInstructions": zod.string().nullable(),
+  "proofObjectPath": zod.string().regex(getSupplierOrderResponseTwoDeliveriesItemProofObjectPathRegExp).nullable(),
+  "proofFileName": zod.string().nullable(),
+  "recipientName": zod.string().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "invoices": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date().nullable(),
+  "dueDate": zod.coerce.date().nullable(),
+  "subtotal": zod.number(),
+  "retainageAmount": zod.number(),
+  "totalAmount": zod.number(),
+  "paidAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']),
+  "paymentReference": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "objectPath": zod.string().regex(getSupplierOrderResponseTwoInvoicesItemObjectPathRegExp).nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Update supplier order status and shared instructions
+ */
+export const UpdateSupplierOrderParams = zod.object({
+  "orderId": zod.coerce.number().int()
+})
+
+export const updateSupplierOrderBodyJobsiteInstructionsMax = 5000;
+
+
+
+export const UpdateSupplierOrderBody = zod.object({
+  "orderStatus": zod.enum(['draft', 'pending_approval', 'approved', 'purchasing', 'partially_fulfilled', 'fulfilled', 'closed', 'canceled']).optional(),
+  "paymentStatus": zod.enum(['unbilled', 'invoiced', 'partially_paid', 'paid', 'past_due']).optional(),
+  "promisedDate": zod.coerce.date().nullish(),
+  "jobsiteInstructions": zod.string().max(updateSupplierOrderBodyJobsiteInstructionsMax).nullish()
+})
+
+export const updateSupplierOrderResponseTwoDeliveriesItemProofObjectPathRegExp = new RegExp('^/objects');
+export const updateSupplierOrderResponseTwoInvoicesItemObjectPathRegExp = new RegExp('^/objects');
+
+
+export const UpdateSupplierOrderResponse = zod.object({
+  "id": zod.number().int(),
+  "orderNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "projectId": zod.number().int().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "estimateId": zod.number().int().nullable(),
+  "proposalId": zod.number().int().nullable(),
+  "sourceQuoteId": zod.number().int().nullable(),
+  "orderStatus": zod.enum(['draft', 'pending_approval', 'approved', 'purchasing', 'partially_fulfilled', 'fulfilled', 'closed', 'canceled']),
+  "paymentStatus": zod.enum(['unbilled', 'invoiced', 'partially_paid', 'paid', 'past_due']),
+  "orderDate": zod.coerce.date().nullable(),
+  "promisedDate": zod.coerce.date().nullable(),
+  "subtotal": zod.number(),
+  "totalCost": zod.number(),
+  "totalSell": zod.number(),
+  "grossMargin": zod.number(),
+  "jobsiteInstructions": zod.string().nullable(),
+  "customerVisibleStatus": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "sourceQuoteLineId": zod.number().int().nullable(),
+  "productId": zod.number().int().nullable(),
+  "vendorId": zod.number().int().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "unitCost": zod.number(),
+  "unitPrice": zod.number(),
+  "purchasedQuantity": zod.number(),
+  "deliveredQuantity": zod.number(),
+  "receivedQuantity": zod.number(),
+  "backorderedQuantity": zod.number(),
+  "approvedSubstitution": zod.string().nullable(),
+  "promisedDate": zod.coerce.date().nullable(),
+  "scopeReference": zod.string().nullable()
+})),
+  "deliveries": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "deliveryNumber": zod.string(),
+  "status": zod.enum(['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned', 'canceled']),
+  "appointmentDate": zod.coerce.date().nullable(),
+  "windowStart": zod.coerce.date().nullable(),
+  "windowEnd": zod.coerce.date().nullable(),
+  "carrier": zod.string().nullable(),
+  "trackingReference": zod.string().nullable(),
+  "jobsiteInstructions": zod.string().nullable(),
+  "proofObjectPath": zod.string().regex(updateSupplierOrderResponseTwoDeliveriesItemProofObjectPathRegExp).nullable(),
+  "proofFileName": zod.string().nullable(),
+  "recipientName": zod.string().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "invoices": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date().nullable(),
+  "dueDate": zod.coerce.date().nullable(),
+  "subtotal": zod.number(),
+  "retainageAmount": zod.number(),
+  "totalAmount": zod.number(),
+  "paidAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']),
+  "paymentReference": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "objectPath": zod.string().regex(updateSupplierOrderResponseTwoInvoicesItemObjectPathRegExp).nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Schedule or record a supplier delivery
+ */
+export const CreateSupplierDeliveryParams = zod.object({
+  "orderId": zod.coerce.number().int()
+})
+
+export const createSupplierDeliveryBodyCarrierMax = 120;
+
+export const createSupplierDeliveryBodyTrackingReferenceMax = 180;
+
+export const createSupplierDeliveryBodyJobsiteInstructionsMax = 5000;
+
+export const createSupplierDeliveryBodyNotesMax = 5000;
+
+export const createSupplierDeliveryBodyLinesItemQuantityDeliveredMin = 0;
+
+export const createSupplierDeliveryBodyLinesItemQuantityDamagedMin = 0;
+
+export const createSupplierDeliveryBodyLinesItemQuantityShortMin = 0;
+
+export const createSupplierDeliveryBodyLinesItemQuantityReturnedMin = 0;
+
+export const createSupplierDeliveryBodyLinesItemExceptionNoteMax = 2000;
+
+export const createSupplierDeliveryBodyLinesMax = 200;
+
+
+
+export const CreateSupplierDeliveryBody = zod.object({
+  "status": zod.enum(['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned', 'canceled']).optional(),
+  "appointmentDate": zod.coerce.date().optional(),
+  "carrier": zod.string().max(createSupplierDeliveryBodyCarrierMax).optional(),
+  "trackingReference": zod.string().max(createSupplierDeliveryBodyTrackingReferenceMax).optional(),
+  "jobsiteInstructions": zod.string().max(createSupplierDeliveryBodyJobsiteInstructionsMax).optional(),
+  "notes": zod.string().max(createSupplierDeliveryBodyNotesMax).optional(),
+  "lines": zod.array(zod.object({
+  "orderLineId": zod.number().int(),
+  "quantityDelivered": zod.number().min(createSupplierDeliveryBodyLinesItemQuantityDeliveredMin),
+  "quantityDamaged": zod.number().min(createSupplierDeliveryBodyLinesItemQuantityDamagedMin).optional(),
+  "quantityShort": zod.number().min(createSupplierDeliveryBodyLinesItemQuantityShortMin).optional(),
+  "quantityReturned": zod.number().min(createSupplierDeliveryBodyLinesItemQuantityReturnedMin).optional(),
+  "exceptionNote": zod.string().max(createSupplierDeliveryBodyLinesItemExceptionNoteMax).optional()
+})).min(1).max(createSupplierDeliveryBodyLinesMax)
+})
+
+export const createSupplierDeliveryResponseProofObjectPathRegExp = new RegExp('^/objects');
+
+
+export const CreateSupplierDeliveryResponse = zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "deliveryNumber": zod.string(),
+  "status": zod.enum(['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned', 'canceled']),
+  "appointmentDate": zod.coerce.date().nullable(),
+  "windowStart": zod.coerce.date().nullable(),
+  "windowEnd": zod.coerce.date().nullable(),
+  "carrier": zod.string().nullable(),
+  "trackingReference": zod.string().nullable(),
+  "jobsiteInstructions": zod.string().nullable(),
+  "proofObjectPath": zod.string().regex(createSupplierDeliveryResponseProofObjectPathRegExp).nullable(),
+  "proofFileName": zod.string().nullable(),
+  "recipientName": zod.string().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update delivery status or proof of delivery
+ */
+export const UpdateSupplierDeliveryParams = zod.object({
+  "deliveryId": zod.coerce.number().int()
+})
+
+export const updateSupplierDeliveryBodyProofObjectPathRegExp = new RegExp('^/objects');
+export const updateSupplierDeliveryBodyProofFileNameMax = 240;
+
+export const updateSupplierDeliveryBodyRecipientNameMax = 180;
+
+export const updateSupplierDeliveryBodyNotesMax = 5000;
+
+
+
+export const UpdateSupplierDeliveryBody = zod.object({
+  "status": zod.enum(['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned', 'canceled']).optional(),
+  "proofObjectPath": zod.string().regex(updateSupplierDeliveryBodyProofObjectPathRegExp).nullish(),
+  "proofFileName": zod.string().max(updateSupplierDeliveryBodyProofFileNameMax).nullish(),
+  "recipientName": zod.string().max(updateSupplierDeliveryBodyRecipientNameMax).nullish(),
+  "notes": zod.string().max(updateSupplierDeliveryBodyNotesMax).nullish()
+})
+
+export const updateSupplierDeliveryResponseProofObjectPathRegExp = new RegExp('^/objects');
+
+
+export const UpdateSupplierDeliveryResponse = zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "deliveryNumber": zod.string(),
+  "status": zod.enum(['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned', 'canceled']),
+  "appointmentDate": zod.coerce.date().nullable(),
+  "windowStart": zod.coerce.date().nullable(),
+  "windowEnd": zod.coerce.date().nullable(),
+  "carrier": zod.string().nullable(),
+  "trackingReference": zod.string().nullable(),
+  "jobsiteInstructions": zod.string().nullable(),
+  "proofObjectPath": zod.string().regex(updateSupplierDeliveryResponseProofObjectPathRegExp).nullable(),
+  "proofFileName": zod.string().nullable(),
+  "recipientName": zod.string().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Record receiving quantities and exceptions
+ */
+export const RecordSupplierReceivingParams = zod.object({
+  "deliveryId": zod.coerce.number().int()
+})
+
+export const recordSupplierReceivingBodyLinesItemQuantityReceivedMin = 0;
+
+export const recordSupplierReceivingBodyLinesItemExceptionNoteMax = 2000;
+
+export const recordSupplierReceivingBodyLinesMax = 200;
+
+
+
+export const RecordSupplierReceivingBody = zod.object({
+  "lines": zod.array(zod.object({
+  "deliveryLineId": zod.number().int(),
+  "quantityReceived": zod.number().min(recordSupplierReceivingBodyLinesItemQuantityReceivedMin),
+  "accepted": zod.boolean().optional(),
+  "exceptionNote": zod.string().max(recordSupplierReceivingBodyLinesItemExceptionNoteMax).optional()
+})).min(1).max(recordSupplierReceivingBodyLinesMax)
+})
+
+export const recordSupplierReceivingResponseTwoDeliveriesItemProofObjectPathRegExp = new RegExp('^/objects');
+export const recordSupplierReceivingResponseTwoInvoicesItemObjectPathRegExp = new RegExp('^/objects');
+
+
+export const RecordSupplierReceivingResponse = zod.object({
+  "id": zod.number().int(),
+  "orderNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "projectId": zod.number().int().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "estimateId": zod.number().int().nullable(),
+  "proposalId": zod.number().int().nullable(),
+  "sourceQuoteId": zod.number().int().nullable(),
+  "orderStatus": zod.enum(['draft', 'pending_approval', 'approved', 'purchasing', 'partially_fulfilled', 'fulfilled', 'closed', 'canceled']),
+  "paymentStatus": zod.enum(['unbilled', 'invoiced', 'partially_paid', 'paid', 'past_due']),
+  "orderDate": zod.coerce.date().nullable(),
+  "promisedDate": zod.coerce.date().nullable(),
+  "subtotal": zod.number(),
+  "totalCost": zod.number(),
+  "totalSell": zod.number(),
+  "grossMargin": zod.number(),
+  "jobsiteInstructions": zod.string().nullable(),
+  "customerVisibleStatus": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "sourceQuoteLineId": zod.number().int().nullable(),
+  "productId": zod.number().int().nullable(),
+  "vendorId": zod.number().int().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "unitCost": zod.number(),
+  "unitPrice": zod.number(),
+  "purchasedQuantity": zod.number(),
+  "deliveredQuantity": zod.number(),
+  "receivedQuantity": zod.number(),
+  "backorderedQuantity": zod.number(),
+  "approvedSubstitution": zod.string().nullable(),
+  "promisedDate": zod.coerce.date().nullable(),
+  "scopeReference": zod.string().nullable()
+})),
+  "deliveries": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "deliveryNumber": zod.string(),
+  "status": zod.enum(['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned', 'canceled']),
+  "appointmentDate": zod.coerce.date().nullable(),
+  "windowStart": zod.coerce.date().nullable(),
+  "windowEnd": zod.coerce.date().nullable(),
+  "carrier": zod.string().nullable(),
+  "trackingReference": zod.string().nullable(),
+  "jobsiteInstructions": zod.string().nullable(),
+  "proofObjectPath": zod.string().regex(recordSupplierReceivingResponseTwoDeliveriesItemProofObjectPathRegExp).nullable(),
+  "proofFileName": zod.string().nullable(),
+  "recipientName": zod.string().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "invoices": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date().nullable(),
+  "dueDate": zod.coerce.date().nullable(),
+  "subtotal": zod.number(),
+  "retainageAmount": zod.number(),
+  "totalAmount": zod.number(),
+  "paidAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']),
+  "paymentReference": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "objectPath": zod.string().regex(recordSupplierReceivingResponseTwoInvoicesItemObjectPathRegExp).nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Add a supplier invoice and payment status
+ */
+export const CreateSupplierInvoiceParams = zod.object({
+  "orderId": zod.coerce.number().int()
+})
+
+export const createSupplierInvoiceBodyInvoiceNumberMax = 120;
+
+export const createSupplierInvoiceBodySubtotalMin = 0;
+
+export const createSupplierInvoiceBodyRetainageAmountMin = 0;
+
+export const createSupplierInvoiceBodyTotalAmountMin = 0;
+
+export const createSupplierInvoiceBodyPaidAmountMin = 0;
+
+export const createSupplierInvoiceBodyPaymentReferenceMax = 180;
+
+export const createSupplierInvoiceBodyObjectPathRegExp = new RegExp('^/objects');
+export const createSupplierInvoiceBodyNotesMax = 5000;
+
+
+
+export const CreateSupplierInvoiceBody = zod.object({
+  "invoiceNumber": zod.string().min(1).max(createSupplierInvoiceBodyInvoiceNumberMax),
+  "invoiceDate": zod.coerce.date().optional(),
+  "dueDate": zod.coerce.date().optional(),
+  "subtotal": zod.number().min(createSupplierInvoiceBodySubtotalMin).optional(),
+  "retainageAmount": zod.number().min(createSupplierInvoiceBodyRetainageAmountMin).optional(),
+  "totalAmount": zod.number().min(createSupplierInvoiceBodyTotalAmountMin),
+  "paidAmount": zod.number().min(createSupplierInvoiceBodyPaidAmountMin).optional(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']).optional(),
+  "paymentReference": zod.string().max(createSupplierInvoiceBodyPaymentReferenceMax).optional(),
+  "objectPath": zod.string().regex(createSupplierInvoiceBodyObjectPathRegExp).optional(),
+  "notes": zod.string().max(createSupplierInvoiceBodyNotesMax).optional()
+})
+
+export const createSupplierInvoiceResponseObjectPathRegExp = new RegExp('^/objects');
+
+
+export const CreateSupplierInvoiceResponse = zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date().nullable(),
+  "dueDate": zod.coerce.date().nullable(),
+  "subtotal": zod.number(),
+  "retainageAmount": zod.number(),
+  "totalAmount": zod.number(),
+  "paidAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']),
+  "paymentReference": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "objectPath": zod.string().regex(createSupplierInvoiceResponseObjectPathRegExp).nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List supplier order audit events
+ */
+export const ListSupplierOrderEventsParams = zod.object({
+  "orderId": zod.coerce.number().int()
+})
+
+export const ListSupplierOrderEventsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "entityType": zod.string(),
+  "entityId": zod.number().int(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullable(),
+  "toStatus": zod.string().nullable(),
+  "details": zod.string().nullable(),
+  "visibleToCustomer": zod.boolean(),
+  "actorUserId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListSupplierOrderEventsResponse = zod.array(ListSupplierOrderEventsResponseItem)
+
+
+/**
  * @summary Get project controls rollups for the dashboard
  */
 export const GetProjectControlsDashboardResponse = zod.object({

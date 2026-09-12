@@ -33,6 +33,7 @@ import { ComingSoonPage } from '@/pages/coming-soon';
 import { SettingsPage } from '@/pages/settings';
 import { Notifications } from '@/pages/notifications';
 import { PricingCanceledPage, PricingPage, PricingSuccessPage } from '@/pages/pricing';
+import { SupplierOrders } from '@/pages/supplier-orders';
 
 const queryClient = new QueryClient();
 
@@ -246,6 +247,18 @@ function AppRouter() {
         </Route>
         <Route path="/compliance">
           <Shell><ProtectedRoute component={Compliance} /></Shell>
+        </Route>
+        <Route path="/procurement">
+          <Shell><ProtectedRoute component={SupplierOrders} /></Shell>
+        </Route>
+        <Route path="/purchase-orders">
+          <Shell><ProtectedRoute component={SupplierOrders} /></Shell>
+        </Route>
+        <Route path="/deliveries">
+          <Shell><ProtectedRoute component={SupplierOrders} /></Shell>
+        </Route>
+        <Route path="/receiving">
+          <Shell><ProtectedRoute component={SupplierOrders} /></Shell>
         </Route>
         <Route path="/follow-ups">
           <Shell><ProtectedRoute component={FollowUps} /></Shell>

@@ -44,6 +44,8 @@ tags:
     description: Bid-linked and post-award construction submittal packages
   - name: subcontractor-compliance
     description: Trade partner qualification, compliance gates, subcontracts, and payment rights
+  - name: supplier-orders
+    description: Supplier catalog, quoting, ordering, delivery, receiving, and payment visibility
 paths:
   /healthz:
     get:
@@ -754,6 +756,370 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubcontractCloseoutItem" }
+  /supplier-products:
+    get:
+      operationId: listSupplierProducts
+      tags: [supplier-orders]
+      summary: List supplier products and materials
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 120 }
+        - in: query
+          name: status
+          schema: { type: string, enum: [active, archived] }
+      responses:
+        "200":
+          description: Supplier products
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SupplierProduct" }
+    post:
+      operationId: createSupplierProduct
+      tags: [supplier-orders]
+      summary: Add a supplier product or material
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierProductInput" }
+      responses:
+        "201":
+          description: Supplier product
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierProduct" }
+  /supplier-products/{productId}:
+    patch:
+      operationId: updateSupplierProduct
+      tags: [supplier-orders]
+      summary: Update a supplier product or material
+      parameters:
+        - $ref: "#/components/parameters/SupplierProductId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierProductUpdate" }
+      responses:
+        "200":
+          description: Supplier product
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierProduct" }
+  /supplier-vendors:
+    get:
+      operationId: listSupplierVendors
+      tags: [supplier-orders]
+      summary: List supplier vendors
+      responses:
+        "200":
+          description: Supplier vendors
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SupplierVendor" }
+    post:
+      operationId: createSupplierVendor
+      tags: [supplier-orders]
+      summary: Add a supplier vendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierVendorInput" }
+      responses:
+        "201":
+          description: Supplier vendor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierVendor" }
+  /supplier-customer-terms:
+    get:
+      operationId: listSupplierCustomerTerms
+      tags: [supplier-orders]
+      summary: List supplier customer terms
+      responses:
+        "200":
+          description: Customer terms
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SupplierCustomerTerms" }
+    post:
+      operationId: createSupplierCustomerTerms
+      tags: [supplier-orders]
+      summary: Set customer-specific supplier terms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierCustomerTermsInput" }
+      responses:
+        "201":
+          description: Customer terms
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierCustomerTerms" }
+  /supplier-price-lists:
+    get:
+      operationId: listSupplierPriceLists
+      tags: [supplier-orders]
+      summary: List supplier price lists
+      responses:
+        "200":
+          description: Supplier price lists
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SupplierPriceList" }
+    post:
+      operationId: createSupplierPriceList
+      tags: [supplier-orders]
+      summary: Create a supplier price list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierPriceListInput" }
+      responses:
+        "201":
+          description: Supplier price list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierPriceListDetail" }
+  /supplier-price-lists/{priceListId}/items:
+    post:
+      operationId: createSupplierPriceListItem
+      tags: [supplier-orders]
+      summary: Add a product price to a supplier price list
+      parameters:
+        - in: path
+          name: priceListId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierPriceListItemInput" }
+      responses:
+        "201":
+          description: Supplier price list item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierPriceListItem" }
+  /supplier-quotes:
+    get:
+      operationId: listSupplierQuotes
+      tags: [supplier-orders]
+      summary: List supplier quotes
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: "#/components/schemas/SupplierQuoteStatus" }
+        - in: query
+          name: businessCustomerId
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Supplier quotes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SupplierQuote" }
+    post:
+      operationId: createSupplierQuote
+      tags: [supplier-orders]
+      summary: Create a supplier quote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierQuoteInput" }
+      responses:
+        "201":
+          description: Supplier quote
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierQuoteDetail" }
+  /supplier-quotes/{quoteId}:
+    get:
+      operationId: getSupplierQuote
+      tags: [supplier-orders]
+      summary: Get a supplier quote with line items
+      parameters:
+        - $ref: "#/components/parameters/SupplierQuoteId"
+      responses:
+        "200":
+          description: Supplier quote detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierQuoteDetail" }
+  /supplier-quotes/{quoteId}/convert:
+    post:
+      operationId: convertSupplierQuote
+      tags: [supplier-orders]
+      summary: Convert an accepted supplier quote into an order
+      parameters:
+        - $ref: "#/components/parameters/SupplierQuoteId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierQuoteConversionInput" }
+      responses:
+        "201":
+          description: Supplier order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierOrderDetail" }
+  /supplier-orders:
+    get:
+      operationId: listSupplierOrders
+      tags: [supplier-orders]
+      summary: List supplier orders
+      parameters:
+        - in: query
+          name: orderStatus
+          schema: { $ref: "#/components/schemas/SupplierOrderStatus" }
+        - in: query
+          name: businessCustomerId
+          schema: { type: integer }
+        - in: query
+          name: projectId
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Supplier orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SupplierOrder" }
+  /supplier-orders/{orderId}:
+    get:
+      operationId: getSupplierOrder
+      tags: [supplier-orders]
+      summary: Get a supplier order with fulfillment and payment history
+      parameters:
+        - $ref: "#/components/parameters/SupplierOrderId"
+      responses:
+        "200":
+          description: Supplier order detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierOrderDetail" }
+    patch:
+      operationId: updateSupplierOrder
+      tags: [supplier-orders]
+      summary: Update supplier order status and shared instructions
+      parameters:
+        - $ref: "#/components/parameters/SupplierOrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierOrderUpdate" }
+      responses:
+        "200":
+          description: Supplier order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierOrderDetail" }
+  /supplier-orders/{orderId}/deliveries:
+    post:
+      operationId: createSupplierDelivery
+      tags: [supplier-orders]
+      summary: Schedule or record a supplier delivery
+      parameters:
+        - $ref: "#/components/parameters/SupplierOrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierDeliveryInput" }
+      responses:
+        "201":
+          description: Supplier delivery
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierDelivery" }
+  /supplier-deliveries/{deliveryId}:
+    patch:
+      operationId: updateSupplierDelivery
+      tags: [supplier-orders]
+      summary: Update delivery status or proof of delivery
+      parameters:
+        - $ref: "#/components/parameters/SupplierDeliveryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierDeliveryUpdate" }
+      responses:
+        "200":
+          description: Supplier delivery
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierDelivery" }
+  /supplier-deliveries/{deliveryId}/receiving:
+    post:
+      operationId: recordSupplierReceiving
+      tags: [supplier-orders]
+      summary: Record receiving quantities and exceptions
+      parameters:
+        - $ref: "#/components/parameters/SupplierDeliveryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierReceivingInput" }
+      responses:
+        "200":
+          description: Updated supplier order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierOrderDetail" }
+  /supplier-orders/{orderId}/invoices:
+    post:
+      operationId: createSupplierInvoice
+      tags: [supplier-orders]
+      summary: Add a supplier invoice and payment status
+      parameters:
+        - $ref: "#/components/parameters/SupplierOrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierInvoiceInput" }
+      responses:
+        "201":
+          description: Supplier invoice
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierInvoice" }
+  /supplier-orders/{orderId}/events:
+    get:
+      operationId: listSupplierOrderEvents
+      tags: [supplier-orders]
+      summary: List supplier order audit events
+      parameters:
+        - $ref: "#/components/parameters/SupplierOrderId"
+      responses:
+        "200":
+          description: Supplier order events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SupplierOrderEvent" }
   /dashboard/project-controls:
     get:
       operationId: getProjectControlsDashboard
@@ -2528,6 +2894,30 @@ components:
     SubcontractPayApplicationId:
       in: path
       name: applicationId
+      required: true
+      schema:
+        type: integer
+    SupplierProductId:
+      in: path
+      name: productId
+      required: true
+      schema:
+        type: integer
+    SupplierQuoteId:
+      in: path
+      name: quoteId
+      required: true
+      schema:
+        type: integer
+    SupplierOrderId:
+      in: path
+      name: orderId
+      required: true
+      schema:
+        type: integer
+    SupplierDeliveryId:
+      in: path
+      name: deliveryId
       required: true
       schema:
         type: integer
@@ -5036,4 +5426,427 @@ components:
         dueDate: { type: string, format: date }
         objectPath: { type: string, pattern: "^/objects/" }
         notes: { type: string, maxLength: 5000 }
+    SupplierVendor:
+      type: object
+      required: [id, name, contactName, email, phone, leadTimeDays, status, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        contactName: { type: ["string", "null"] }
+        email: { type: ["string", "null"], format: email }
+        phone: { type: ["string", "null"] }
+        leadTimeDays: { type: integer }
+        status: { type: string, enum: [active, archived] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SupplierVendorInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 180 }
+        contactName: { type: string, maxLength: 180 }
+        email: { type: string, format: email, maxLength: 320 }
+        phone: { type: string, maxLength: 40 }
+        leadTimeDays: { type: integer, minimum: 0, maximum: 3650 }
+    SupplierProduct:
+      type: object
+      required: [id, sku, name, description, category, unit, defaultVendorId, leadTimeDays, unitCost, listPrice, availableQuantity, backorderedQuantity, status, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        sku: { type: string }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        category: { type: string }
+        unit: { type: string }
+        defaultVendorId: { type: ["integer", "null"] }
+        leadTimeDays: { type: integer }
+        unitCost: { type: number }
+        listPrice: { type: number }
+        availableQuantity: { type: number }
+        backorderedQuantity: { type: number }
+        status: { type: string, enum: [active, archived] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SupplierProductInput:
+      type: object
+      required: [sku, name]
+      properties:
+        sku: { type: string, minLength: 1, maxLength: 80 }
+        name: { type: string, minLength: 1, maxLength: 240 }
+        description: { type: string, maxLength: 5000 }
+        category: { type: string, maxLength: 80 }
+        unit: { type: string, maxLength: 40 }
+        defaultVendorId: { type: integer }
+        leadTimeDays: { type: integer, minimum: 0, maximum: 3650 }
+        unitCost: { type: number, minimum: 0 }
+        listPrice: { type: number, minimum: 0 }
+        availableQuantity: { type: number, minimum: 0 }
+        backorderedQuantity: { type: number, minimum: 0 }
+    SupplierProductUpdate:
+      type: object
+      properties:
+        sku: { type: string, minLength: 1, maxLength: 80 }
+        name: { type: string, minLength: 1, maxLength: 240 }
+        description: { type: ["string", "null"], maxLength: 5000 }
+        category: { type: string, maxLength: 80 }
+        unit: { type: string, maxLength: 40 }
+        defaultVendorId: { type: ["integer", "null"] }
+        leadTimeDays: { type: integer, minimum: 0, maximum: 3650 }
+        unitCost: { type: number, minimum: 0 }
+        listPrice: { type: number, minimum: 0 }
+        availableQuantity: { type: number, minimum: 0 }
+        backorderedQuantity: { type: number, minimum: 0 }
+        status: { type: string, enum: [active, archived] }
+    SupplierCustomerTerms:
+      type: object
+      required: [id, businessCustomerId, paymentTerms, creditLimit, discountPercent, retainageRequired, status, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        businessCustomerId: { type: integer }
+        paymentTerms: { type: string }
+        creditLimit: { type: number }
+        discountPercent: { type: number }
+        retainageRequired: { type: number }
+        status: { type: string, enum: [active, inactive] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SupplierCustomerTermsInput:
+      type: object
+      required: [businessCustomerId]
+      properties:
+        businessCustomerId: { type: integer }
+        paymentTerms: { type: string, maxLength: 120 }
+        creditLimit: { type: number, minimum: 0 }
+        discountPercent: { type: number, minimum: 0, maximum: 100 }
+        retainageRequired: { type: number, minimum: 0, maximum: 100 }
+        status: { type: string, enum: [active, inactive] }
+    SupplierPriceList:
+      type: object
+      required: [id, name, businessCustomerId, effectiveFrom, effectiveTo, status, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        businessCustomerId: { type: ["integer", "null"] }
+        effectiveFrom: { type: ["string", "null"], format: date }
+        effectiveTo: { type: ["string", "null"], format: date }
+        status: { type: string, enum: [active, inactive] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SupplierPriceListItem:
+      type: object
+      required: [id, priceListId, productId, unitPrice, minimumQuantity, createdAt]
+      properties:
+        id: { type: integer }
+        priceListId: { type: integer }
+        productId: { type: integer }
+        unitPrice: { type: number }
+        minimumQuantity: { type: number }
+        createdAt: { type: string, format: date-time }
+    SupplierPriceListInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 180 }
+        businessCustomerId: { type: integer }
+        effectiveFrom: { type: string, format: date }
+        effectiveTo: { type: string, format: date }
+        status: { type: string, enum: [active, inactive] }
+    SupplierPriceListDetail:
+      allOf:
+        - $ref: "#/components/schemas/SupplierPriceList"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/SupplierPriceListItem" }
+    SupplierPriceListItemInput:
+      type: object
+      required: [productId, unitPrice]
+      properties:
+        productId: { type: integer }
+        unitPrice: { type: number, minimum: 0 }
+        minimumQuantity: { type: number, minimum: 0.001 }
+    SupplierQuoteStatus:
+      type: string
+      enum: [draft, sent, accepted, rejected, expired, converted]
+    SupplierQuoteLine:
+      type: object
+      required: [id, quoteId, productId, vendorId, description, quantity, unit, unitCost, unitPrice, approvedSubstitution, promisedDate, scopeReference]
+      properties:
+        id: { type: integer }
+        quoteId: { type: integer }
+        productId: { type: ["integer", "null"] }
+        vendorId: { type: ["integer", "null"] }
+        description: { type: string }
+        quantity: { type: number }
+        unit: { type: string }
+        unitCost: { type: number }
+        unitPrice: { type: number }
+        approvedSubstitution: { type: ["string", "null"] }
+        promisedDate: { type: ["string", "null"], format: date }
+        scopeReference: { type: ["string", "null"] }
+    SupplierQuote:
+      type: object
+      required: [id, quoteNumber, businessCustomerId, customerName, projectId, bidId, estimateId, proposalId, status, quoteDate, validUntil, notes, subtotal, totalCost, totalSell, grossMargin, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        quoteNumber: { type: string }
+        businessCustomerId: { type: integer }
+        customerName: { type: string }
+        projectId: { type: ["integer", "null"] }
+        bidId: { type: ["integer", "null"] }
+        estimateId: { type: ["integer", "null"] }
+        proposalId: { type: ["integer", "null"] }
+        status: { $ref: "#/components/schemas/SupplierQuoteStatus" }
+        quoteDate: { type: ["string", "null"], format: date }
+        validUntil: { type: ["string", "null"], format: date }
+        notes: { type: ["string", "null"] }
+        subtotal: { type: number }
+        totalCost: { type: number }
+        totalSell: { type: number }
+        grossMargin: { type: number }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SupplierQuoteInput:
+      type: object
+      required: [businessCustomerId, lines]
+      properties:
+        businessCustomerId: { type: integer }
+        projectId: { type: integer }
+        bidId: { type: integer }
+        estimateId: { type: integer }
+        proposalId: { type: integer }
+        status: { $ref: "#/components/schemas/SupplierQuoteStatus" }
+        quoteDate: { type: string, format: date }
+        validUntil: { type: string, format: date }
+        notes: { type: string, maxLength: 5000 }
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { $ref: "#/components/schemas/SupplierQuoteLineInput" }
+    SupplierQuoteLineInput:
+      type: object
+      required: [description, quantity, unitCost, unitPrice]
+      properties:
+        productId: { type: integer }
+        vendorId: { type: integer }
+        description: { type: string, minLength: 1, maxLength: 500 }
+        quantity: { type: number, minimum: 0.001 }
+        unit: { type: string, maxLength: 40 }
+        unitCost: { type: number, minimum: 0 }
+        unitPrice: { type: number, minimum: 0 }
+        approvedSubstitution: { type: string, maxLength: 500 }
+        promisedDate: { type: string, format: date }
+        scopeReference: { type: string, maxLength: 120 }
+    SupplierQuoteDetail:
+      allOf:
+        - $ref: "#/components/schemas/SupplierQuote"
+        - type: object
+          required: [lines]
+          properties:
+            lines:
+              type: array
+              items: { $ref: "#/components/schemas/SupplierQuoteLine" }
+    SupplierQuoteConversionInput:
+      type: object
+      properties:
+        orderDate: { type: string, format: date }
+        promisedDate: { type: string, format: date }
+        jobsiteInstructions: { type: string, maxLength: 5000 }
+        linkedCommitmentId: { type: integer }
+        linkedSubmittalPackageId: { type: integer }
+    SupplierOrderStatus:
+      type: string
+      enum: [draft, pending_approval, approved, purchasing, partially_fulfilled, fulfilled, closed, canceled]
+    SupplierOrder:
+      type: object
+      required: [id, orderNumber, businessCustomerId, customerName, projectId, bidId, estimateId, proposalId, sourceQuoteId, orderStatus, paymentStatus, orderDate, promisedDate, subtotal, totalCost, totalSell, grossMargin, jobsiteInstructions, customerVisibleStatus, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        orderNumber: { type: string }
+        businessCustomerId: { type: integer }
+        customerName: { type: string }
+        projectId: { type: ["integer", "null"] }
+        bidId: { type: ["integer", "null"] }
+        estimateId: { type: ["integer", "null"] }
+        proposalId: { type: ["integer", "null"] }
+        sourceQuoteId: { type: ["integer", "null"] }
+        orderStatus: { $ref: "#/components/schemas/SupplierOrderStatus" }
+        paymentStatus: { type: string, enum: [unbilled, invoiced, partially_paid, paid, past_due] }
+        orderDate: { type: ["string", "null"], format: date }
+        promisedDate: { type: ["string", "null"], format: date }
+        subtotal: { type: number }
+        totalCost: { type: number }
+        totalSell: { type: number }
+        grossMargin: { type: number }
+        jobsiteInstructions: { type: ["string", "null"] }
+        customerVisibleStatus: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SupplierOrderLine:
+      type: object
+      required: [id, orderId, sourceQuoteLineId, productId, vendorId, description, quantity, unit, unitCost, unitPrice, purchasedQuantity, deliveredQuantity, receivedQuantity, backorderedQuantity, approvedSubstitution, promisedDate, scopeReference]
+      properties:
+        id: { type: integer }
+        orderId: { type: integer }
+        sourceQuoteLineId: { type: ["integer", "null"] }
+        productId: { type: ["integer", "null"] }
+        vendorId: { type: ["integer", "null"] }
+        description: { type: string }
+        quantity: { type: number }
+        unit: { type: string }
+        unitCost: { type: number }
+        unitPrice: { type: number }
+        purchasedQuantity: { type: number }
+        deliveredQuantity: { type: number }
+        receivedQuantity: { type: number }
+        backorderedQuantity: { type: number }
+        approvedSubstitution: { type: ["string", "null"] }
+        promisedDate: { type: ["string", "null"], format: date }
+        scopeReference: { type: ["string", "null"] }
+    SupplierDelivery:
+      type: object
+      required: [id, orderId, deliveryNumber, status, appointmentDate, windowStart, windowEnd, carrier, trackingReference, jobsiteInstructions, proofObjectPath, proofFileName, recipientName, deliveredAt, notes, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        orderId: { type: integer }
+        deliveryNumber: { type: string }
+        status: { type: string, enum: [scheduled, confirmed, in_transit, delivered, partial, exception, returned, canceled] }
+        appointmentDate: { type: ["string", "null"], format: date }
+        windowStart: { type: ["string", "null"], format: date-time }
+        windowEnd: { type: ["string", "null"], format: date-time }
+        carrier: { type: ["string", "null"] }
+        trackingReference: { type: ["string", "null"] }
+        jobsiteInstructions: { type: ["string", "null"] }
+        proofObjectPath: { type: ["string", "null"], pattern: "^/objects/" }
+        proofFileName: { type: ["string", "null"] }
+        recipientName: { type: ["string", "null"] }
+        deliveredAt: { type: ["string", "null"], format: date-time }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SupplierDeliveryInput:
+      type: object
+      required: [lines]
+      properties:
+        status: { type: string, enum: [scheduled, confirmed, in_transit, delivered, partial, exception, returned, canceled] }
+        appointmentDate: { type: string, format: date }
+        carrier: { type: string, maxLength: 120 }
+        trackingReference: { type: string, maxLength: 180 }
+        jobsiteInstructions: { type: string, maxLength: 5000 }
+        notes: { type: string, maxLength: 5000 }
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { $ref: "#/components/schemas/SupplierDeliveryLineInput" }
+    SupplierDeliveryUpdate:
+      type: object
+      properties:
+        status: { type: string, enum: [scheduled, confirmed, in_transit, delivered, partial, exception, returned, canceled] }
+        proofObjectPath: { type: ["string", "null"], pattern: "^/objects/" }
+        proofFileName: { type: ["string", "null"], maxLength: 240 }
+        recipientName: { type: ["string", "null"], maxLength: 180 }
+        notes: { type: ["string", "null"], maxLength: 5000 }
+    SupplierDeliveryLineInput:
+      type: object
+      required: [orderLineId, quantityDelivered]
+      properties:
+        orderLineId: { type: integer }
+        quantityDelivered: { type: number, minimum: 0 }
+        quantityDamaged: { type: number, minimum: 0 }
+        quantityShort: { type: number, minimum: 0 }
+        quantityReturned: { type: number, minimum: 0 }
+        exceptionNote: { type: string, maxLength: 2000 }
+    SupplierReceivingInput:
+      type: object
+      required: [lines]
+      properties:
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { $ref: "#/components/schemas/SupplierReceivingLineInput" }
+    SupplierReceivingLineInput:
+      type: object
+      required: [deliveryLineId, quantityReceived]
+      properties:
+        deliveryLineId: { type: integer }
+        quantityReceived: { type: number, minimum: 0 }
+        accepted: { type: boolean }
+        exceptionNote: { type: string, maxLength: 2000 }
+    SupplierInvoice:
+      type: object
+      required: [id, orderId, invoiceNumber, invoiceDate, dueDate, subtotal, retainageAmount, totalAmount, paidAmount, status, paymentReference, paidAt, objectPath, notes, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        orderId: { type: integer }
+        invoiceNumber: { type: string }
+        invoiceDate: { type: ["string", "null"], format: date }
+        dueDate: { type: ["string", "null"], format: date }
+        subtotal: { type: number }
+        retainageAmount: { type: number }
+        totalAmount: { type: number }
+        paidAmount: { type: number }
+        status: { type: string, enum: [draft, submitted, approved, partially_paid, paid, disputed, void] }
+        paymentReference: { type: ["string", "null"] }
+        paidAt: { type: ["string", "null"], format: date-time }
+        objectPath: { type: ["string", "null"], pattern: "^/objects/" }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SupplierInvoiceInput:
+      type: object
+      required: [invoiceNumber, totalAmount]
+      properties:
+        invoiceNumber: { type: string, minLength: 1, maxLength: 120 }
+        invoiceDate: { type: string, format: date }
+        dueDate: { type: string, format: date }
+        subtotal: { type: number, minimum: 0 }
+        retainageAmount: { type: number, minimum: 0 }
+        totalAmount: { type: number, minimum: 0 }
+        paidAmount: { type: number, minimum: 0 }
+        status: { type: string, enum: [draft, submitted, approved, partially_paid, paid, disputed, void] }
+        paymentReference: { type: string, maxLength: 180 }
+        objectPath: { type: string, pattern: "^/objects/" }
+        notes: { type: string, maxLength: 5000 }
+    SupplierOrderEvent:
+      type: object
+      required: [id, orderId, entityType, entityId, action, fromStatus, toStatus, details, visibleToCustomer, actorUserId, createdAt]
+      properties:
+        id: { type: integer }
+        orderId: { type: integer }
+        entityType: { type: string }
+        entityId: { type: integer }
+        action: { type: string }
+        fromStatus: { type: ["string", "null"] }
+        toStatus: { type: ["string", "null"] }
+        details: { type: ["string", "null"] }
+        visibleToCustomer: { type: boolean }
+        actorUserId: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+    SupplierOrderDetail:
+      allOf:
+        - $ref: "#/components/schemas/SupplierOrder"
+        - type: object
+          required: [lines, deliveries, invoices]
+          properties:
+            lines:
+              type: array
+              items: { $ref: "#/components/schemas/SupplierOrderLine" }
+            deliveries:
+              type: array
+              items: { $ref: "#/components/schemas/SupplierDelivery" }
+            invoices:
+              type: array
+              items: { $ref: "#/components/schemas/SupplierInvoice" }
+    SupplierOrderUpdate:
+      type: object
+      properties:
+        orderStatus: { $ref: "#/components/schemas/SupplierOrderStatus" }
+        paymentStatus: { type: string, enum: [unbilled, invoiced, partially_paid, paid, past_due] }
+        promisedDate: { type: ["string", "null"], format: date }
+        jobsiteInstructions: { type: ["string", "null"], maxLength: 5000 }
 

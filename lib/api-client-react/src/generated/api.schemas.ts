@@ -4444,6 +4444,737 @@ export interface SubcontractCloseoutItemInput {
   notes?: string;
 }
 
+export type SupplierVendorStatus = typeof SupplierVendorStatus[keyof typeof SupplierVendorStatus];
+
+
+export const SupplierVendorStatus = {
+  active: 'active',
+  archived: 'archived',
+} as const;
+
+export interface SupplierVendor {
+  id: number;
+  name: string;
+  /** @nullable */
+  contactName: string | null;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  phone: string | null;
+  leadTimeDays: number;
+  status: SupplierVendorStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupplierVendorInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  /** @maxLength 180 */
+  contactName?: string;
+  /** @maxLength 320 */
+  email?: string;
+  /** @maxLength 40 */
+  phone?: string;
+  /**
+     * @minimum 0
+     * @maximum 3650
+     */
+  leadTimeDays?: number;
+}
+
+export type SupplierProductStatus = typeof SupplierProductStatus[keyof typeof SupplierProductStatus];
+
+
+export const SupplierProductStatus = {
+  active: 'active',
+  archived: 'archived',
+} as const;
+
+export interface SupplierProduct {
+  id: number;
+  sku: string;
+  name: string;
+  /** @nullable */
+  description: string | null;
+  category: string;
+  unit: string;
+  /** @nullable */
+  defaultVendorId: number | null;
+  leadTimeDays: number;
+  unitCost: number;
+  listPrice: number;
+  availableQuantity: number;
+  backorderedQuantity: number;
+  status: SupplierProductStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupplierProductInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  sku: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  name: string;
+  /** @maxLength 5000 */
+  description?: string;
+  /** @maxLength 80 */
+  category?: string;
+  /** @maxLength 40 */
+  unit?: string;
+  defaultVendorId?: number;
+  /**
+     * @minimum 0
+     * @maximum 3650
+     */
+  leadTimeDays?: number;
+  /** @minimum 0 */
+  unitCost?: number;
+  /** @minimum 0 */
+  listPrice?: number;
+  /** @minimum 0 */
+  availableQuantity?: number;
+  /** @minimum 0 */
+  backorderedQuantity?: number;
+}
+
+export type SupplierProductUpdateStatus = typeof SupplierProductUpdateStatus[keyof typeof SupplierProductUpdateStatus];
+
+
+export const SupplierProductUpdateStatus = {
+  active: 'active',
+  archived: 'archived',
+} as const;
+
+export interface SupplierProductUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  sku?: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  name?: string;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  description?: string | null;
+  /** @maxLength 80 */
+  category?: string;
+  /** @maxLength 40 */
+  unit?: string;
+  /** @nullable */
+  defaultVendorId?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 3650
+     */
+  leadTimeDays?: number;
+  /** @minimum 0 */
+  unitCost?: number;
+  /** @minimum 0 */
+  listPrice?: number;
+  /** @minimum 0 */
+  availableQuantity?: number;
+  /** @minimum 0 */
+  backorderedQuantity?: number;
+  status?: SupplierProductUpdateStatus;
+}
+
+export type SupplierCustomerTermsStatus = typeof SupplierCustomerTermsStatus[keyof typeof SupplierCustomerTermsStatus];
+
+
+export const SupplierCustomerTermsStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export interface SupplierCustomerTerms {
+  id: number;
+  businessCustomerId: number;
+  paymentTerms: string;
+  creditLimit: number;
+  discountPercent: number;
+  retainageRequired: number;
+  status: SupplierCustomerTermsStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SupplierCustomerTermsInputStatus = typeof SupplierCustomerTermsInputStatus[keyof typeof SupplierCustomerTermsInputStatus];
+
+
+export const SupplierCustomerTermsInputStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export interface SupplierCustomerTermsInput {
+  businessCustomerId: number;
+  /** @maxLength 120 */
+  paymentTerms?: string;
+  /** @minimum 0 */
+  creditLimit?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  discountPercent?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  retainageRequired?: number;
+  status?: SupplierCustomerTermsInputStatus;
+}
+
+export type SupplierPriceListStatus = typeof SupplierPriceListStatus[keyof typeof SupplierPriceListStatus];
+
+
+export const SupplierPriceListStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export interface SupplierPriceList {
+  id: number;
+  name: string;
+  /** @nullable */
+  businessCustomerId: number | null;
+  /** @nullable */
+  effectiveFrom: string | null;
+  /** @nullable */
+  effectiveTo: string | null;
+  status: SupplierPriceListStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupplierPriceListItem {
+  id: number;
+  priceListId: number;
+  productId: number;
+  unitPrice: number;
+  minimumQuantity: number;
+  createdAt: string;
+}
+
+export type SupplierPriceListInputStatus = typeof SupplierPriceListInputStatus[keyof typeof SupplierPriceListInputStatus];
+
+
+export const SupplierPriceListInputStatus = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export interface SupplierPriceListInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  businessCustomerId?: number;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  status?: SupplierPriceListInputStatus;
+}
+
+export type SupplierPriceListDetail = SupplierPriceList & {
+  items: SupplierPriceListItem[];
+};
+
+export interface SupplierPriceListItemInput {
+  productId: number;
+  /** @minimum 0 */
+  unitPrice: number;
+  /** @minimum 0.001 */
+  minimumQuantity?: number;
+}
+
+export type SupplierQuoteStatus = typeof SupplierQuoteStatus[keyof typeof SupplierQuoteStatus];
+
+
+export const SupplierQuoteStatus = {
+  draft: 'draft',
+  sent: 'sent',
+  accepted: 'accepted',
+  rejected: 'rejected',
+  expired: 'expired',
+  converted: 'converted',
+} as const;
+
+export interface SupplierQuoteLine {
+  id: number;
+  quoteId: number;
+  /** @nullable */
+  productId: number | null;
+  /** @nullable */
+  vendorId: number | null;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitCost: number;
+  unitPrice: number;
+  /** @nullable */
+  approvedSubstitution: string | null;
+  /** @nullable */
+  promisedDate: string | null;
+  /** @nullable */
+  scopeReference: string | null;
+}
+
+export interface SupplierQuote {
+  id: number;
+  quoteNumber: string;
+  businessCustomerId: number;
+  customerName: string;
+  /** @nullable */
+  projectId: number | null;
+  /** @nullable */
+  bidId: number | null;
+  /** @nullable */
+  estimateId: number | null;
+  /** @nullable */
+  proposalId: number | null;
+  status: SupplierQuoteStatus;
+  /** @nullable */
+  quoteDate: string | null;
+  /** @nullable */
+  validUntil: string | null;
+  /** @nullable */
+  notes: string | null;
+  subtotal: number;
+  totalCost: number;
+  totalSell: number;
+  grossMargin: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupplierQuoteLineInput {
+  productId?: number;
+  vendorId?: number;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  description: string;
+  /** @minimum 0.001 */
+  quantity: number;
+  /** @maxLength 40 */
+  unit?: string;
+  /** @minimum 0 */
+  unitCost: number;
+  /** @minimum 0 */
+  unitPrice: number;
+  /** @maxLength 500 */
+  approvedSubstitution?: string;
+  promisedDate?: string;
+  /** @maxLength 120 */
+  scopeReference?: string;
+}
+
+export interface SupplierQuoteInput {
+  businessCustomerId: number;
+  projectId?: number;
+  bidId?: number;
+  estimateId?: number;
+  proposalId?: number;
+  status?: SupplierQuoteStatus;
+  quoteDate?: string;
+  validUntil?: string;
+  /** @maxLength 5000 */
+  notes?: string;
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  lines: SupplierQuoteLineInput[];
+}
+
+export type SupplierQuoteDetail = SupplierQuote & {
+  lines: SupplierQuoteLine[];
+};
+
+export interface SupplierQuoteConversionInput {
+  orderDate?: string;
+  promisedDate?: string;
+  /** @maxLength 5000 */
+  jobsiteInstructions?: string;
+  linkedCommitmentId?: number;
+  linkedSubmittalPackageId?: number;
+}
+
+export type SupplierOrderStatus = typeof SupplierOrderStatus[keyof typeof SupplierOrderStatus];
+
+
+export const SupplierOrderStatus = {
+  draft: 'draft',
+  pending_approval: 'pending_approval',
+  approved: 'approved',
+  purchasing: 'purchasing',
+  partially_fulfilled: 'partially_fulfilled',
+  fulfilled: 'fulfilled',
+  closed: 'closed',
+  canceled: 'canceled',
+} as const;
+
+export type SupplierOrderPaymentStatus = typeof SupplierOrderPaymentStatus[keyof typeof SupplierOrderPaymentStatus];
+
+
+export const SupplierOrderPaymentStatus = {
+  unbilled: 'unbilled',
+  invoiced: 'invoiced',
+  partially_paid: 'partially_paid',
+  paid: 'paid',
+  past_due: 'past_due',
+} as const;
+
+export interface SupplierOrder {
+  id: number;
+  orderNumber: string;
+  businessCustomerId: number;
+  customerName: string;
+  /** @nullable */
+  projectId: number | null;
+  /** @nullable */
+  bidId: number | null;
+  /** @nullable */
+  estimateId: number | null;
+  /** @nullable */
+  proposalId: number | null;
+  /** @nullable */
+  sourceQuoteId: number | null;
+  orderStatus: SupplierOrderStatus;
+  paymentStatus: SupplierOrderPaymentStatus;
+  /** @nullable */
+  orderDate: string | null;
+  /** @nullable */
+  promisedDate: string | null;
+  subtotal: number;
+  totalCost: number;
+  totalSell: number;
+  grossMargin: number;
+  /** @nullable */
+  jobsiteInstructions: string | null;
+  customerVisibleStatus: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupplierOrderLine {
+  id: number;
+  orderId: number;
+  /** @nullable */
+  sourceQuoteLineId: number | null;
+  /** @nullable */
+  productId: number | null;
+  /** @nullable */
+  vendorId: number | null;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitCost: number;
+  unitPrice: number;
+  purchasedQuantity: number;
+  deliveredQuantity: number;
+  receivedQuantity: number;
+  backorderedQuantity: number;
+  /** @nullable */
+  approvedSubstitution: string | null;
+  /** @nullable */
+  promisedDate: string | null;
+  /** @nullable */
+  scopeReference: string | null;
+}
+
+export type SupplierDeliveryStatus = typeof SupplierDeliveryStatus[keyof typeof SupplierDeliveryStatus];
+
+
+export const SupplierDeliveryStatus = {
+  scheduled: 'scheduled',
+  confirmed: 'confirmed',
+  in_transit: 'in_transit',
+  delivered: 'delivered',
+  partial: 'partial',
+  exception: 'exception',
+  returned: 'returned',
+  canceled: 'canceled',
+} as const;
+
+export interface SupplierDelivery {
+  id: number;
+  orderId: number;
+  deliveryNumber: string;
+  status: SupplierDeliveryStatus;
+  /** @nullable */
+  appointmentDate: string | null;
+  /** @nullable */
+  windowStart: string | null;
+  /** @nullable */
+  windowEnd: string | null;
+  /** @nullable */
+  carrier: string | null;
+  /** @nullable */
+  trackingReference: string | null;
+  /** @nullable */
+  jobsiteInstructions: string | null;
+  /**
+     * @nullable
+     * @pattern ^/objects/
+     */
+  proofObjectPath: string | null;
+  /** @nullable */
+  proofFileName: string | null;
+  /** @nullable */
+  recipientName: string | null;
+  /** @nullable */
+  deliveredAt: string | null;
+  /** @nullable */
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SupplierDeliveryInputStatus = typeof SupplierDeliveryInputStatus[keyof typeof SupplierDeliveryInputStatus];
+
+
+export const SupplierDeliveryInputStatus = {
+  scheduled: 'scheduled',
+  confirmed: 'confirmed',
+  in_transit: 'in_transit',
+  delivered: 'delivered',
+  partial: 'partial',
+  exception: 'exception',
+  returned: 'returned',
+  canceled: 'canceled',
+} as const;
+
+export interface SupplierDeliveryLineInput {
+  orderLineId: number;
+  /** @minimum 0 */
+  quantityDelivered: number;
+  /** @minimum 0 */
+  quantityDamaged?: number;
+  /** @minimum 0 */
+  quantityShort?: number;
+  /** @minimum 0 */
+  quantityReturned?: number;
+  /** @maxLength 2000 */
+  exceptionNote?: string;
+}
+
+export interface SupplierDeliveryInput {
+  status?: SupplierDeliveryInputStatus;
+  appointmentDate?: string;
+  /** @maxLength 120 */
+  carrier?: string;
+  /** @maxLength 180 */
+  trackingReference?: string;
+  /** @maxLength 5000 */
+  jobsiteInstructions?: string;
+  /** @maxLength 5000 */
+  notes?: string;
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  lines: SupplierDeliveryLineInput[];
+}
+
+export type SupplierDeliveryUpdateStatus = typeof SupplierDeliveryUpdateStatus[keyof typeof SupplierDeliveryUpdateStatus];
+
+
+export const SupplierDeliveryUpdateStatus = {
+  scheduled: 'scheduled',
+  confirmed: 'confirmed',
+  in_transit: 'in_transit',
+  delivered: 'delivered',
+  partial: 'partial',
+  exception: 'exception',
+  returned: 'returned',
+  canceled: 'canceled',
+} as const;
+
+export interface SupplierDeliveryUpdate {
+  status?: SupplierDeliveryUpdateStatus;
+  /**
+     * @nullable
+     * @pattern ^/objects/
+     */
+  proofObjectPath?: string | null;
+  /**
+     * @maxLength 240
+     * @nullable
+     */
+  proofFileName?: string | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  recipientName?: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  notes?: string | null;
+}
+
+export interface SupplierReceivingLineInput {
+  deliveryLineId: number;
+  /** @minimum 0 */
+  quantityReceived: number;
+  accepted?: boolean;
+  /** @maxLength 2000 */
+  exceptionNote?: string;
+}
+
+export interface SupplierReceivingInput {
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  lines: SupplierReceivingLineInput[];
+}
+
+export type SupplierInvoiceStatus = typeof SupplierInvoiceStatus[keyof typeof SupplierInvoiceStatus];
+
+
+export const SupplierInvoiceStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+  partially_paid: 'partially_paid',
+  paid: 'paid',
+  disputed: 'disputed',
+  void: 'void',
+} as const;
+
+export interface SupplierInvoice {
+  id: number;
+  orderId: number;
+  invoiceNumber: string;
+  /** @nullable */
+  invoiceDate: string | null;
+  /** @nullable */
+  dueDate: string | null;
+  subtotal: number;
+  retainageAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  status: SupplierInvoiceStatus;
+  /** @nullable */
+  paymentReference: string | null;
+  /** @nullable */
+  paidAt: string | null;
+  /**
+     * @nullable
+     * @pattern ^/objects/
+     */
+  objectPath: string | null;
+  /** @nullable */
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SupplierInvoiceInputStatus = typeof SupplierInvoiceInputStatus[keyof typeof SupplierInvoiceInputStatus];
+
+
+export const SupplierInvoiceInputStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+  partially_paid: 'partially_paid',
+  paid: 'paid',
+  disputed: 'disputed',
+  void: 'void',
+} as const;
+
+export interface SupplierInvoiceInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  invoiceNumber: string;
+  invoiceDate?: string;
+  dueDate?: string;
+  /** @minimum 0 */
+  subtotal?: number;
+  /** @minimum 0 */
+  retainageAmount?: number;
+  /** @minimum 0 */
+  totalAmount: number;
+  /** @minimum 0 */
+  paidAmount?: number;
+  status?: SupplierInvoiceInputStatus;
+  /** @maxLength 180 */
+  paymentReference?: string;
+  /** @pattern ^/objects/ */
+  objectPath?: string;
+  /** @maxLength 5000 */
+  notes?: string;
+}
+
+export interface SupplierOrderEvent {
+  id: number;
+  orderId: number;
+  entityType: string;
+  entityId: number;
+  action: string;
+  /** @nullable */
+  fromStatus: string | null;
+  /** @nullable */
+  toStatus: string | null;
+  /** @nullable */
+  details: string | null;
+  visibleToCustomer: boolean;
+  /** @nullable */
+  actorUserId: number | null;
+  createdAt: string;
+}
+
+export type SupplierOrderDetail = SupplierOrder & {
+  lines: SupplierOrderLine[];
+  deliveries: SupplierDelivery[];
+  invoices: SupplierInvoice[];
+};
+
+export type SupplierOrderUpdatePaymentStatus = typeof SupplierOrderUpdatePaymentStatus[keyof typeof SupplierOrderUpdatePaymentStatus];
+
+
+export const SupplierOrderUpdatePaymentStatus = {
+  unbilled: 'unbilled',
+  invoiced: 'invoiced',
+  partially_paid: 'partially_paid',
+  paid: 'paid',
+  past_due: 'past_due',
+} as const;
+
+export interface SupplierOrderUpdate {
+  orderStatus?: SupplierOrderStatus;
+  paymentStatus?: SupplierOrderUpdatePaymentStatus;
+  /** @nullable */
+  promisedDate?: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  jobsiteInstructions?: string | null;
+}
+
 export type ListProjectsParams = {
 search?: string;
 stage?: ProjectStage;
@@ -4468,6 +5199,33 @@ export const ListTradePartnersStatus = {
 export type ListSubcontractAgreementsParams = {
 projectId?: number;
 tradePartnerId?: number;
+};
+
+export type ListSupplierProductsParams = {
+/**
+ * @maxLength 120
+ */
+search?: string;
+status?: ListSupplierProductsStatus;
+};
+
+export type ListSupplierProductsStatus = typeof ListSupplierProductsStatus[keyof typeof ListSupplierProductsStatus];
+
+
+export const ListSupplierProductsStatus = {
+  active: 'active',
+  archived: 'archived',
+} as const;
+
+export type ListSupplierQuotesParams = {
+status?: SupplierQuoteStatus;
+businessCustomerId?: number;
+};
+
+export type ListSupplierOrdersParams = {
+orderStatus?: SupplierOrderStatus;
+businessCustomerId?: number;
+projectId?: number;
 };
 
 export type ListOpportunitiesParams = {

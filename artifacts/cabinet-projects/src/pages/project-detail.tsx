@@ -52,7 +52,7 @@ function BackNav() {
 
 function Lifecycle({ project }: { project: Project }) {
   const stages = LIFECYCLE_STAGES;
-  const current = stages.indexOf(project.stage);
+  const current = stages.indexOf(project.stage as (typeof stages)[number]);
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 md:p-6">

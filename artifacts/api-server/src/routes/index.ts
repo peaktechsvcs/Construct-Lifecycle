@@ -20,6 +20,7 @@ import estimatesRouter from "./estimates";
 import proposalsRouter from "./proposals";
 import projectControlsRouter from "./project-controls";
 import subcontractorComplianceRouter from "./subcontractor-compliance";
+import supplierOrdersRouter from "./supplier-orders";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(customersRouter);
 router.use(projectsRouter);
 router.use(projectControlsRouter);
 router.use(subcontractorComplianceRouter);
+router.use(supplierOrdersRouter);
 
 export default router;
