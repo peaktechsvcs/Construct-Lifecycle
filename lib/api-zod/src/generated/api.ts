@@ -3515,6 +3515,1411 @@ export const GetProjectControlsDashboardResponse = zod.object({
 
 
 /**
+ * @summary List invitation-to-bid intake records
+ */
+export const listItbIntakesQuerySearchMax = 120;
+
+
+
+export const ListItbIntakesQueryParams = zod.object({
+  "status": zod.enum(['review', 'approved', 'rejected', 'archived', 'failed']).optional(),
+  "sourceType": zod.enum(['manual', 'gmail']).optional(),
+  "search": zod.coerce.string().max(listItbIntakesQuerySearchMax).optional()
+})
+
+export const listItbIntakesResponseSourceBodyMax = 200000;
+
+export const listItbIntakesResponseExtractionIssuerConfidenceMin = 0;
+export const listItbIntakesResponseExtractionIssuerConfidenceMax = 1;
+
+export const listItbIntakesResponseExtractionIssuerEvidenceMax = 1000;
+
+export const listItbIntakesResponseExtractionContactNameConfidenceMin = 0;
+export const listItbIntakesResponseExtractionContactNameConfidenceMax = 1;
+
+export const listItbIntakesResponseExtractionContactNameEvidenceMax = 1000;
+
+export const listItbIntakesResponseExtractionContactEmailConfidenceMin = 0;
+export const listItbIntakesResponseExtractionContactEmailConfidenceMax = 1;
+
+export const listItbIntakesResponseExtractionContactEmailEvidenceMax = 1000;
+
+export const listItbIntakesResponseExtractionContactPhoneConfidenceMin = 0;
+export const listItbIntakesResponseExtractionContactPhoneConfidenceMax = 1;
+
+export const listItbIntakesResponseExtractionContactPhoneEvidenceMax = 1000;
+
+export const listItbIntakesResponseExtractionProjectNameConfidenceMin = 0;
+export const listItbIntakesResponseExtractionProjectNameConfidenceMax = 1;
+
+export const listItbIntakesResponseExtractionProjectNameEvidenceMax = 1000;
+
+export const listItbIntakesResponseExtractionLocationConfidenceMin = 0;
+export const listItbIntakesResponseExtractionLocationConfidenceMax = 1;
+
+export const listItbIntakesResponseExtractionLocationEvidenceMax = 1000;
+
+export const listItbIntakesResponseExtractionDueDateConfidenceMin = 0;
+export const listItbIntakesResponseExtractionDueDateConfidenceMax = 1;
+
+export const listItbIntakesResponseExtractionDueDateEvidenceMax = 1000;
+
+export const listItbIntakesResponseExtractionScopeItemConfidenceMin = 0;
+export const listItbIntakesResponseExtractionScopeItemConfidenceMax = 1;
+
+export const listItbIntakesResponseExtractionScopeItemEvidenceMax = 1000;
+
+export const listItbIntakesResponseExtractionRequirementsItemConfidenceMin = 0;
+export const listItbIntakesResponseExtractionRequirementsItemConfidenceMax = 1;
+
+export const listItbIntakesResponseExtractionRequirementsItemEvidenceMax = 1000;
+
+export const listItbIntakesResponseExtractionAlternatesItemConfidenceMin = 0;
+export const listItbIntakesResponseExtractionAlternatesItemConfidenceMax = 1;
+
+export const listItbIntakesResponseExtractionAlternatesItemEvidenceMax = 1000;
+
+export const listItbIntakesResponseExtractionEstimatedValueConfidenceMin = 0;
+export const listItbIntakesResponseExtractionEstimatedValueConfidenceMax = 1;
+
+export const listItbIntakesResponseExtractionEstimatedValueEvidenceMax = 1000;
+
+export const listItbIntakesResponseAttachmentsItemSizeMin = 0;
+
+
+
+export const ListItbIntakesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceProvider": zod.string().nullish(),
+  "sourceMessageId": zod.string().nullish(),
+  "sourceThreadId": zod.string().nullish(),
+  "sourceMailbox": zod.string().nullish(),
+  "sourceSender": zod.string().nullish(),
+  "sourceSenderEmail": zod.string().email().nullish(),
+  "sourceSubject": zod.string().nullish(),
+  "sourceReceivedAt": zod.coerce.date().nullish(),
+  "sourceBody": zod.string().max(listItbIntakesResponseSourceBodyMax).optional(),
+  "status": zod.enum(['review', 'approved', 'rejected', 'archived', 'failed']),
+  "extractionStatus": zod.enum(['completed', 'partial', 'failed']),
+  "extraction": zod.object({
+  "issuer": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(listItbIntakesResponseExtractionIssuerConfidenceMin).max(listItbIntakesResponseExtractionIssuerConfidenceMax),
+  "evidence": zod.string().max(listItbIntakesResponseExtractionIssuerEvidenceMax)
+}),
+  "contactName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(listItbIntakesResponseExtractionContactNameConfidenceMin).max(listItbIntakesResponseExtractionContactNameConfidenceMax),
+  "evidence": zod.string().max(listItbIntakesResponseExtractionContactNameEvidenceMax)
+}),
+  "contactEmail": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(listItbIntakesResponseExtractionContactEmailConfidenceMin).max(listItbIntakesResponseExtractionContactEmailConfidenceMax),
+  "evidence": zod.string().max(listItbIntakesResponseExtractionContactEmailEvidenceMax)
+}),
+  "contactPhone": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(listItbIntakesResponseExtractionContactPhoneConfidenceMin).max(listItbIntakesResponseExtractionContactPhoneConfidenceMax),
+  "evidence": zod.string().max(listItbIntakesResponseExtractionContactPhoneEvidenceMax)
+}),
+  "projectName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(listItbIntakesResponseExtractionProjectNameConfidenceMin).max(listItbIntakesResponseExtractionProjectNameConfidenceMax),
+  "evidence": zod.string().max(listItbIntakesResponseExtractionProjectNameEvidenceMax)
+}),
+  "location": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(listItbIntakesResponseExtractionLocationConfidenceMin).max(listItbIntakesResponseExtractionLocationConfidenceMax),
+  "evidence": zod.string().max(listItbIntakesResponseExtractionLocationEvidenceMax)
+}),
+  "dueDate": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(listItbIntakesResponseExtractionDueDateConfidenceMin).max(listItbIntakesResponseExtractionDueDateConfidenceMax),
+  "evidence": zod.string().max(listItbIntakesResponseExtractionDueDateEvidenceMax)
+}),
+  "scope": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(listItbIntakesResponseExtractionScopeItemConfidenceMin).max(listItbIntakesResponseExtractionScopeItemConfidenceMax),
+  "evidence": zod.string().max(listItbIntakesResponseExtractionScopeItemEvidenceMax)
+})),
+  "requirements": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(listItbIntakesResponseExtractionRequirementsItemConfidenceMin).max(listItbIntakesResponseExtractionRequirementsItemConfidenceMax),
+  "evidence": zod.string().max(listItbIntakesResponseExtractionRequirementsItemEvidenceMax)
+})),
+  "alternates": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(listItbIntakesResponseExtractionAlternatesItemConfidenceMin).max(listItbIntakesResponseExtractionAlternatesItemConfidenceMax),
+  "evidence": zod.string().max(listItbIntakesResponseExtractionAlternatesItemEvidenceMax)
+})),
+  "estimatedValue": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(listItbIntakesResponseExtractionEstimatedValueConfidenceMin).max(listItbIntakesResponseExtractionEstimatedValueConfidenceMax),
+  "evidence": zod.string().max(listItbIntakesResponseExtractionEstimatedValueEvidenceMax)
+})
+}),
+  "warnings": zod.array(zod.string()),
+  "errorMessage": zod.string().nullish(),
+  "businessCustomerId": zod.number().int().nullish(),
+  "opportunityId": zod.number().int().nullish(),
+  "bidId": zod.number().int().nullish(),
+  "mergedIntoId": zod.number().int().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int().min(listItbIntakesResponseAttachmentsItemSizeMin),
+  "downloadUrl": zod.string(),
+  "sourceAttachmentId": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListItbIntakesResponse = zod.array(ListItbIntakesResponseItem)
+
+
+/**
+ * @summary Create and extract a manual invitation-to-bid intake
+ */
+export const createItbIntakeBodySourceProviderMax = 80;
+
+export const createItbIntakeBodySourceMessageIdMax = 240;
+
+export const createItbIntakeBodySourceThreadIdMax = 240;
+
+export const createItbIntakeBodySourceMailboxMax = 320;
+
+export const createItbIntakeBodySourceSenderMax = 180;
+
+export const createItbIntakeBodySourceSenderEmailMax = 320;
+
+export const createItbIntakeBodySourceSubjectMax = 300;
+
+export const createItbIntakeBodySourceBodyMax = 200000;
+
+export const createItbIntakeBodyAttachmentsItemOriginalNameMax = 255;
+
+export const createItbIntakeBodyAttachmentsItemContentTypeMax = 120;
+
+export const createItbIntakeBodyAttachmentsItemSizeMax = 104857600;
+
+export const createItbIntakeBodyAttachmentsItemObjectPathRegExp = new RegExp('^/objects/.+');
+export const createItbIntakeBodyAttachmentsItemSourceAttachmentIdMax = 240;
+
+export const createItbIntakeBodyAttachmentsMax = 20;
+
+
+
+export const CreateItbIntakeBody = zod.object({
+  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceProvider": zod.string().max(createItbIntakeBodySourceProviderMax).optional(),
+  "sourceMessageId": zod.string().max(createItbIntakeBodySourceMessageIdMax).optional(),
+  "sourceThreadId": zod.string().max(createItbIntakeBodySourceThreadIdMax).optional(),
+  "sourceMailbox": zod.string().max(createItbIntakeBodySourceMailboxMax).optional(),
+  "sourceSender": zod.string().max(createItbIntakeBodySourceSenderMax).optional(),
+  "sourceSenderEmail": zod.string().email().max(createItbIntakeBodySourceSenderEmailMax).optional(),
+  "sourceSubject": zod.string().max(createItbIntakeBodySourceSubjectMax).optional(),
+  "sourceReceivedAt": zod.coerce.date().optional(),
+  "sourceBody": zod.string().min(1).max(createItbIntakeBodySourceBodyMax),
+  "attachments": zod.array(zod.object({
+  "originalName": zod.string().min(1).max(createItbIntakeBodyAttachmentsItemOriginalNameMax),
+  "contentType": zod.string().max(createItbIntakeBodyAttachmentsItemContentTypeMax),
+  "size": zod.number().int().min(1).max(createItbIntakeBodyAttachmentsItemSizeMax),
+  "objectPath": zod.string().regex(createItbIntakeBodyAttachmentsItemObjectPathRegExp),
+  "sourceAttachmentId": zod.string().max(createItbIntakeBodyAttachmentsItemSourceAttachmentIdMax).optional()
+})).max(createItbIntakeBodyAttachmentsMax).optional()
+})
+
+export const createItbIntakeResponseSourceBodyMax = 200000;
+
+export const createItbIntakeResponseExtractionIssuerConfidenceMin = 0;
+export const createItbIntakeResponseExtractionIssuerConfidenceMax = 1;
+
+export const createItbIntakeResponseExtractionIssuerEvidenceMax = 1000;
+
+export const createItbIntakeResponseExtractionContactNameConfidenceMin = 0;
+export const createItbIntakeResponseExtractionContactNameConfidenceMax = 1;
+
+export const createItbIntakeResponseExtractionContactNameEvidenceMax = 1000;
+
+export const createItbIntakeResponseExtractionContactEmailConfidenceMin = 0;
+export const createItbIntakeResponseExtractionContactEmailConfidenceMax = 1;
+
+export const createItbIntakeResponseExtractionContactEmailEvidenceMax = 1000;
+
+export const createItbIntakeResponseExtractionContactPhoneConfidenceMin = 0;
+export const createItbIntakeResponseExtractionContactPhoneConfidenceMax = 1;
+
+export const createItbIntakeResponseExtractionContactPhoneEvidenceMax = 1000;
+
+export const createItbIntakeResponseExtractionProjectNameConfidenceMin = 0;
+export const createItbIntakeResponseExtractionProjectNameConfidenceMax = 1;
+
+export const createItbIntakeResponseExtractionProjectNameEvidenceMax = 1000;
+
+export const createItbIntakeResponseExtractionLocationConfidenceMin = 0;
+export const createItbIntakeResponseExtractionLocationConfidenceMax = 1;
+
+export const createItbIntakeResponseExtractionLocationEvidenceMax = 1000;
+
+export const createItbIntakeResponseExtractionDueDateConfidenceMin = 0;
+export const createItbIntakeResponseExtractionDueDateConfidenceMax = 1;
+
+export const createItbIntakeResponseExtractionDueDateEvidenceMax = 1000;
+
+export const createItbIntakeResponseExtractionScopeItemConfidenceMin = 0;
+export const createItbIntakeResponseExtractionScopeItemConfidenceMax = 1;
+
+export const createItbIntakeResponseExtractionScopeItemEvidenceMax = 1000;
+
+export const createItbIntakeResponseExtractionRequirementsItemConfidenceMin = 0;
+export const createItbIntakeResponseExtractionRequirementsItemConfidenceMax = 1;
+
+export const createItbIntakeResponseExtractionRequirementsItemEvidenceMax = 1000;
+
+export const createItbIntakeResponseExtractionAlternatesItemConfidenceMin = 0;
+export const createItbIntakeResponseExtractionAlternatesItemConfidenceMax = 1;
+
+export const createItbIntakeResponseExtractionAlternatesItemEvidenceMax = 1000;
+
+export const createItbIntakeResponseExtractionEstimatedValueConfidenceMin = 0;
+export const createItbIntakeResponseExtractionEstimatedValueConfidenceMax = 1;
+
+export const createItbIntakeResponseExtractionEstimatedValueEvidenceMax = 1000;
+
+export const createItbIntakeResponseAttachmentsItemSizeMin = 0;
+
+
+
+export const CreateItbIntakeResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceProvider": zod.string().nullish(),
+  "sourceMessageId": zod.string().nullish(),
+  "sourceThreadId": zod.string().nullish(),
+  "sourceMailbox": zod.string().nullish(),
+  "sourceSender": zod.string().nullish(),
+  "sourceSenderEmail": zod.string().email().nullish(),
+  "sourceSubject": zod.string().nullish(),
+  "sourceReceivedAt": zod.coerce.date().nullish(),
+  "sourceBody": zod.string().max(createItbIntakeResponseSourceBodyMax).optional(),
+  "status": zod.enum(['review', 'approved', 'rejected', 'archived', 'failed']),
+  "extractionStatus": zod.enum(['completed', 'partial', 'failed']),
+  "extraction": zod.object({
+  "issuer": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(createItbIntakeResponseExtractionIssuerConfidenceMin).max(createItbIntakeResponseExtractionIssuerConfidenceMax),
+  "evidence": zod.string().max(createItbIntakeResponseExtractionIssuerEvidenceMax)
+}),
+  "contactName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(createItbIntakeResponseExtractionContactNameConfidenceMin).max(createItbIntakeResponseExtractionContactNameConfidenceMax),
+  "evidence": zod.string().max(createItbIntakeResponseExtractionContactNameEvidenceMax)
+}),
+  "contactEmail": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(createItbIntakeResponseExtractionContactEmailConfidenceMin).max(createItbIntakeResponseExtractionContactEmailConfidenceMax),
+  "evidence": zod.string().max(createItbIntakeResponseExtractionContactEmailEvidenceMax)
+}),
+  "contactPhone": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(createItbIntakeResponseExtractionContactPhoneConfidenceMin).max(createItbIntakeResponseExtractionContactPhoneConfidenceMax),
+  "evidence": zod.string().max(createItbIntakeResponseExtractionContactPhoneEvidenceMax)
+}),
+  "projectName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(createItbIntakeResponseExtractionProjectNameConfidenceMin).max(createItbIntakeResponseExtractionProjectNameConfidenceMax),
+  "evidence": zod.string().max(createItbIntakeResponseExtractionProjectNameEvidenceMax)
+}),
+  "location": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(createItbIntakeResponseExtractionLocationConfidenceMin).max(createItbIntakeResponseExtractionLocationConfidenceMax),
+  "evidence": zod.string().max(createItbIntakeResponseExtractionLocationEvidenceMax)
+}),
+  "dueDate": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(createItbIntakeResponseExtractionDueDateConfidenceMin).max(createItbIntakeResponseExtractionDueDateConfidenceMax),
+  "evidence": zod.string().max(createItbIntakeResponseExtractionDueDateEvidenceMax)
+}),
+  "scope": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(createItbIntakeResponseExtractionScopeItemConfidenceMin).max(createItbIntakeResponseExtractionScopeItemConfidenceMax),
+  "evidence": zod.string().max(createItbIntakeResponseExtractionScopeItemEvidenceMax)
+})),
+  "requirements": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(createItbIntakeResponseExtractionRequirementsItemConfidenceMin).max(createItbIntakeResponseExtractionRequirementsItemConfidenceMax),
+  "evidence": zod.string().max(createItbIntakeResponseExtractionRequirementsItemEvidenceMax)
+})),
+  "alternates": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(createItbIntakeResponseExtractionAlternatesItemConfidenceMin).max(createItbIntakeResponseExtractionAlternatesItemConfidenceMax),
+  "evidence": zod.string().max(createItbIntakeResponseExtractionAlternatesItemEvidenceMax)
+})),
+  "estimatedValue": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(createItbIntakeResponseExtractionEstimatedValueConfidenceMin).max(createItbIntakeResponseExtractionEstimatedValueConfidenceMax),
+  "evidence": zod.string().max(createItbIntakeResponseExtractionEstimatedValueEvidenceMax)
+})
+}),
+  "warnings": zod.array(zod.string()),
+  "errorMessage": zod.string().nullish(),
+  "businessCustomerId": zod.number().int().nullish(),
+  "opportunityId": zod.number().int().nullish(),
+  "bidId": zod.number().int().nullish(),
+  "mergedIntoId": zod.number().int().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int().min(createItbIntakeResponseAttachmentsItemSizeMin),
+  "downloadUrl": zod.string(),
+  "sourceAttachmentId": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Request a protected upload URL for an ITB attachment
+ */
+export const requestItbAttachmentUploadBodyOriginalNameMax = 255;
+
+export const requestItbAttachmentUploadBodyContentTypeMax = 120;
+
+export const requestItbAttachmentUploadBodySizeMax = 104857600;
+
+
+
+export const RequestItbAttachmentUploadBody = zod.object({
+  "originalName": zod.string().min(1).max(requestItbAttachmentUploadBodyOriginalNameMax),
+  "contentType": zod.string().max(requestItbAttachmentUploadBodyContentTypeMax),
+  "size": zod.number().int().min(1).max(requestItbAttachmentUploadBodySizeMax)
+})
+
+export const requestItbAttachmentUploadResponseObjectPathRegExp = new RegExp('^/objects/.+');
+
+
+export const RequestItbAttachmentUploadResponse = zod.object({
+  "uploadURL": zod.string().url(),
+  "objectPath": zod.string().regex(requestItbAttachmentUploadResponseObjectPathRegExp)
+})
+
+
+/**
+ * @summary Preview likely ITB messages from the connected mailbox
+ */
+export const previewItbMailboxQueryQDefault = `in:anywhere newer_than:30d`;
+export const previewItbMailboxQueryQMax = 180;
+
+export const previewItbMailboxQueryPageSizeDefault = 10;
+export const previewItbMailboxQueryPageSizeMax = 20;
+
+
+
+export const PreviewItbMailboxQueryParams = zod.object({
+  "q": zod.coerce.string().max(previewItbMailboxQueryQMax).default(previewItbMailboxQueryQDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(previewItbMailboxQueryPageSizeMax).default(previewItbMailboxQueryPageSizeDefault)
+})
+
+export const PreviewItbMailboxResponseItem = zod.object({
+  "threadId": zod.string(),
+  "messageId": zod.string(),
+  "subject": zod.string(),
+  "sender": zod.string(),
+  "receivedAt": zod.coerce.date(),
+  "snippet": zod.string(),
+  "imported": zod.boolean()
+})
+export const PreviewItbMailboxResponse = zod.array(PreviewItbMailboxResponseItem)
+
+
+/**
+ * @summary Import one connected-mailbox message into ITB review
+ */
+export const importItbMailboxMessageBodyThreadIdMax = 240;
+
+export const importItbMailboxMessageBodyMessageIdMax = 240;
+
+
+
+export const ImportItbMailboxMessageBody = zod.object({
+  "threadId": zod.string().min(1).max(importItbMailboxMessageBodyThreadIdMax),
+  "messageId": zod.string().max(importItbMailboxMessageBodyMessageIdMax).optional()
+})
+
+export const importItbMailboxMessageResponseSourceBodyMax = 200000;
+
+export const importItbMailboxMessageResponseExtractionIssuerConfidenceMin = 0;
+export const importItbMailboxMessageResponseExtractionIssuerConfidenceMax = 1;
+
+export const importItbMailboxMessageResponseExtractionIssuerEvidenceMax = 1000;
+
+export const importItbMailboxMessageResponseExtractionContactNameConfidenceMin = 0;
+export const importItbMailboxMessageResponseExtractionContactNameConfidenceMax = 1;
+
+export const importItbMailboxMessageResponseExtractionContactNameEvidenceMax = 1000;
+
+export const importItbMailboxMessageResponseExtractionContactEmailConfidenceMin = 0;
+export const importItbMailboxMessageResponseExtractionContactEmailConfidenceMax = 1;
+
+export const importItbMailboxMessageResponseExtractionContactEmailEvidenceMax = 1000;
+
+export const importItbMailboxMessageResponseExtractionContactPhoneConfidenceMin = 0;
+export const importItbMailboxMessageResponseExtractionContactPhoneConfidenceMax = 1;
+
+export const importItbMailboxMessageResponseExtractionContactPhoneEvidenceMax = 1000;
+
+export const importItbMailboxMessageResponseExtractionProjectNameConfidenceMin = 0;
+export const importItbMailboxMessageResponseExtractionProjectNameConfidenceMax = 1;
+
+export const importItbMailboxMessageResponseExtractionProjectNameEvidenceMax = 1000;
+
+export const importItbMailboxMessageResponseExtractionLocationConfidenceMin = 0;
+export const importItbMailboxMessageResponseExtractionLocationConfidenceMax = 1;
+
+export const importItbMailboxMessageResponseExtractionLocationEvidenceMax = 1000;
+
+export const importItbMailboxMessageResponseExtractionDueDateConfidenceMin = 0;
+export const importItbMailboxMessageResponseExtractionDueDateConfidenceMax = 1;
+
+export const importItbMailboxMessageResponseExtractionDueDateEvidenceMax = 1000;
+
+export const importItbMailboxMessageResponseExtractionScopeItemConfidenceMin = 0;
+export const importItbMailboxMessageResponseExtractionScopeItemConfidenceMax = 1;
+
+export const importItbMailboxMessageResponseExtractionScopeItemEvidenceMax = 1000;
+
+export const importItbMailboxMessageResponseExtractionRequirementsItemConfidenceMin = 0;
+export const importItbMailboxMessageResponseExtractionRequirementsItemConfidenceMax = 1;
+
+export const importItbMailboxMessageResponseExtractionRequirementsItemEvidenceMax = 1000;
+
+export const importItbMailboxMessageResponseExtractionAlternatesItemConfidenceMin = 0;
+export const importItbMailboxMessageResponseExtractionAlternatesItemConfidenceMax = 1;
+
+export const importItbMailboxMessageResponseExtractionAlternatesItemEvidenceMax = 1000;
+
+export const importItbMailboxMessageResponseExtractionEstimatedValueConfidenceMin = 0;
+export const importItbMailboxMessageResponseExtractionEstimatedValueConfidenceMax = 1;
+
+export const importItbMailboxMessageResponseExtractionEstimatedValueEvidenceMax = 1000;
+
+export const importItbMailboxMessageResponseAttachmentsItemSizeMin = 0;
+
+
+
+export const ImportItbMailboxMessageResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceProvider": zod.string().nullish(),
+  "sourceMessageId": zod.string().nullish(),
+  "sourceThreadId": zod.string().nullish(),
+  "sourceMailbox": zod.string().nullish(),
+  "sourceSender": zod.string().nullish(),
+  "sourceSenderEmail": zod.string().email().nullish(),
+  "sourceSubject": zod.string().nullish(),
+  "sourceReceivedAt": zod.coerce.date().nullish(),
+  "sourceBody": zod.string().max(importItbMailboxMessageResponseSourceBodyMax).optional(),
+  "status": zod.enum(['review', 'approved', 'rejected', 'archived', 'failed']),
+  "extractionStatus": zod.enum(['completed', 'partial', 'failed']),
+  "extraction": zod.object({
+  "issuer": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(importItbMailboxMessageResponseExtractionIssuerConfidenceMin).max(importItbMailboxMessageResponseExtractionIssuerConfidenceMax),
+  "evidence": zod.string().max(importItbMailboxMessageResponseExtractionIssuerEvidenceMax)
+}),
+  "contactName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(importItbMailboxMessageResponseExtractionContactNameConfidenceMin).max(importItbMailboxMessageResponseExtractionContactNameConfidenceMax),
+  "evidence": zod.string().max(importItbMailboxMessageResponseExtractionContactNameEvidenceMax)
+}),
+  "contactEmail": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(importItbMailboxMessageResponseExtractionContactEmailConfidenceMin).max(importItbMailboxMessageResponseExtractionContactEmailConfidenceMax),
+  "evidence": zod.string().max(importItbMailboxMessageResponseExtractionContactEmailEvidenceMax)
+}),
+  "contactPhone": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(importItbMailboxMessageResponseExtractionContactPhoneConfidenceMin).max(importItbMailboxMessageResponseExtractionContactPhoneConfidenceMax),
+  "evidence": zod.string().max(importItbMailboxMessageResponseExtractionContactPhoneEvidenceMax)
+}),
+  "projectName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(importItbMailboxMessageResponseExtractionProjectNameConfidenceMin).max(importItbMailboxMessageResponseExtractionProjectNameConfidenceMax),
+  "evidence": zod.string().max(importItbMailboxMessageResponseExtractionProjectNameEvidenceMax)
+}),
+  "location": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(importItbMailboxMessageResponseExtractionLocationConfidenceMin).max(importItbMailboxMessageResponseExtractionLocationConfidenceMax),
+  "evidence": zod.string().max(importItbMailboxMessageResponseExtractionLocationEvidenceMax)
+}),
+  "dueDate": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(importItbMailboxMessageResponseExtractionDueDateConfidenceMin).max(importItbMailboxMessageResponseExtractionDueDateConfidenceMax),
+  "evidence": zod.string().max(importItbMailboxMessageResponseExtractionDueDateEvidenceMax)
+}),
+  "scope": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(importItbMailboxMessageResponseExtractionScopeItemConfidenceMin).max(importItbMailboxMessageResponseExtractionScopeItemConfidenceMax),
+  "evidence": zod.string().max(importItbMailboxMessageResponseExtractionScopeItemEvidenceMax)
+})),
+  "requirements": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(importItbMailboxMessageResponseExtractionRequirementsItemConfidenceMin).max(importItbMailboxMessageResponseExtractionRequirementsItemConfidenceMax),
+  "evidence": zod.string().max(importItbMailboxMessageResponseExtractionRequirementsItemEvidenceMax)
+})),
+  "alternates": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(importItbMailboxMessageResponseExtractionAlternatesItemConfidenceMin).max(importItbMailboxMessageResponseExtractionAlternatesItemConfidenceMax),
+  "evidence": zod.string().max(importItbMailboxMessageResponseExtractionAlternatesItemEvidenceMax)
+})),
+  "estimatedValue": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(importItbMailboxMessageResponseExtractionEstimatedValueConfidenceMin).max(importItbMailboxMessageResponseExtractionEstimatedValueConfidenceMax),
+  "evidence": zod.string().max(importItbMailboxMessageResponseExtractionEstimatedValueEvidenceMax)
+})
+}),
+  "warnings": zod.array(zod.string()),
+  "errorMessage": zod.string().nullish(),
+  "businessCustomerId": zod.number().int().nullish(),
+  "opportunityId": zod.number().int().nullish(),
+  "bidId": zod.number().int().nullish(),
+  "mergedIntoId": zod.number().int().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int().min(importItbMailboxMessageResponseAttachmentsItemSizeMin),
+  "downloadUrl": zod.string(),
+  "sourceAttachmentId": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get an invitation-to-bid intake
+ */
+
+
+
+export const GetItbIntakeParams = zod.object({
+  "intakeId": zod.coerce.number().int().min(1)
+})
+
+export const getItbIntakeResponseSourceBodyMax = 200000;
+
+export const getItbIntakeResponseExtractionIssuerConfidenceMin = 0;
+export const getItbIntakeResponseExtractionIssuerConfidenceMax = 1;
+
+export const getItbIntakeResponseExtractionIssuerEvidenceMax = 1000;
+
+export const getItbIntakeResponseExtractionContactNameConfidenceMin = 0;
+export const getItbIntakeResponseExtractionContactNameConfidenceMax = 1;
+
+export const getItbIntakeResponseExtractionContactNameEvidenceMax = 1000;
+
+export const getItbIntakeResponseExtractionContactEmailConfidenceMin = 0;
+export const getItbIntakeResponseExtractionContactEmailConfidenceMax = 1;
+
+export const getItbIntakeResponseExtractionContactEmailEvidenceMax = 1000;
+
+export const getItbIntakeResponseExtractionContactPhoneConfidenceMin = 0;
+export const getItbIntakeResponseExtractionContactPhoneConfidenceMax = 1;
+
+export const getItbIntakeResponseExtractionContactPhoneEvidenceMax = 1000;
+
+export const getItbIntakeResponseExtractionProjectNameConfidenceMin = 0;
+export const getItbIntakeResponseExtractionProjectNameConfidenceMax = 1;
+
+export const getItbIntakeResponseExtractionProjectNameEvidenceMax = 1000;
+
+export const getItbIntakeResponseExtractionLocationConfidenceMin = 0;
+export const getItbIntakeResponseExtractionLocationConfidenceMax = 1;
+
+export const getItbIntakeResponseExtractionLocationEvidenceMax = 1000;
+
+export const getItbIntakeResponseExtractionDueDateConfidenceMin = 0;
+export const getItbIntakeResponseExtractionDueDateConfidenceMax = 1;
+
+export const getItbIntakeResponseExtractionDueDateEvidenceMax = 1000;
+
+export const getItbIntakeResponseExtractionScopeItemConfidenceMin = 0;
+export const getItbIntakeResponseExtractionScopeItemConfidenceMax = 1;
+
+export const getItbIntakeResponseExtractionScopeItemEvidenceMax = 1000;
+
+export const getItbIntakeResponseExtractionRequirementsItemConfidenceMin = 0;
+export const getItbIntakeResponseExtractionRequirementsItemConfidenceMax = 1;
+
+export const getItbIntakeResponseExtractionRequirementsItemEvidenceMax = 1000;
+
+export const getItbIntakeResponseExtractionAlternatesItemConfidenceMin = 0;
+export const getItbIntakeResponseExtractionAlternatesItemConfidenceMax = 1;
+
+export const getItbIntakeResponseExtractionAlternatesItemEvidenceMax = 1000;
+
+export const getItbIntakeResponseExtractionEstimatedValueConfidenceMin = 0;
+export const getItbIntakeResponseExtractionEstimatedValueConfidenceMax = 1;
+
+export const getItbIntakeResponseExtractionEstimatedValueEvidenceMax = 1000;
+
+export const getItbIntakeResponseAttachmentsItemSizeMin = 0;
+
+
+
+export const GetItbIntakeResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceProvider": zod.string().nullish(),
+  "sourceMessageId": zod.string().nullish(),
+  "sourceThreadId": zod.string().nullish(),
+  "sourceMailbox": zod.string().nullish(),
+  "sourceSender": zod.string().nullish(),
+  "sourceSenderEmail": zod.string().email().nullish(),
+  "sourceSubject": zod.string().nullish(),
+  "sourceReceivedAt": zod.coerce.date().nullish(),
+  "sourceBody": zod.string().max(getItbIntakeResponseSourceBodyMax).optional(),
+  "status": zod.enum(['review', 'approved', 'rejected', 'archived', 'failed']),
+  "extractionStatus": zod.enum(['completed', 'partial', 'failed']),
+  "extraction": zod.object({
+  "issuer": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(getItbIntakeResponseExtractionIssuerConfidenceMin).max(getItbIntakeResponseExtractionIssuerConfidenceMax),
+  "evidence": zod.string().max(getItbIntakeResponseExtractionIssuerEvidenceMax)
+}),
+  "contactName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(getItbIntakeResponseExtractionContactNameConfidenceMin).max(getItbIntakeResponseExtractionContactNameConfidenceMax),
+  "evidence": zod.string().max(getItbIntakeResponseExtractionContactNameEvidenceMax)
+}),
+  "contactEmail": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(getItbIntakeResponseExtractionContactEmailConfidenceMin).max(getItbIntakeResponseExtractionContactEmailConfidenceMax),
+  "evidence": zod.string().max(getItbIntakeResponseExtractionContactEmailEvidenceMax)
+}),
+  "contactPhone": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(getItbIntakeResponseExtractionContactPhoneConfidenceMin).max(getItbIntakeResponseExtractionContactPhoneConfidenceMax),
+  "evidence": zod.string().max(getItbIntakeResponseExtractionContactPhoneEvidenceMax)
+}),
+  "projectName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(getItbIntakeResponseExtractionProjectNameConfidenceMin).max(getItbIntakeResponseExtractionProjectNameConfidenceMax),
+  "evidence": zod.string().max(getItbIntakeResponseExtractionProjectNameEvidenceMax)
+}),
+  "location": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(getItbIntakeResponseExtractionLocationConfidenceMin).max(getItbIntakeResponseExtractionLocationConfidenceMax),
+  "evidence": zod.string().max(getItbIntakeResponseExtractionLocationEvidenceMax)
+}),
+  "dueDate": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(getItbIntakeResponseExtractionDueDateConfidenceMin).max(getItbIntakeResponseExtractionDueDateConfidenceMax),
+  "evidence": zod.string().max(getItbIntakeResponseExtractionDueDateEvidenceMax)
+}),
+  "scope": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(getItbIntakeResponseExtractionScopeItemConfidenceMin).max(getItbIntakeResponseExtractionScopeItemConfidenceMax),
+  "evidence": zod.string().max(getItbIntakeResponseExtractionScopeItemEvidenceMax)
+})),
+  "requirements": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(getItbIntakeResponseExtractionRequirementsItemConfidenceMin).max(getItbIntakeResponseExtractionRequirementsItemConfidenceMax),
+  "evidence": zod.string().max(getItbIntakeResponseExtractionRequirementsItemEvidenceMax)
+})),
+  "alternates": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(getItbIntakeResponseExtractionAlternatesItemConfidenceMin).max(getItbIntakeResponseExtractionAlternatesItemConfidenceMax),
+  "evidence": zod.string().max(getItbIntakeResponseExtractionAlternatesItemEvidenceMax)
+})),
+  "estimatedValue": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(getItbIntakeResponseExtractionEstimatedValueConfidenceMin).max(getItbIntakeResponseExtractionEstimatedValueConfidenceMax),
+  "evidence": zod.string().max(getItbIntakeResponseExtractionEstimatedValueEvidenceMax)
+})
+}),
+  "warnings": zod.array(zod.string()),
+  "errorMessage": zod.string().nullish(),
+  "businessCustomerId": zod.number().int().nullish(),
+  "opportunityId": zod.number().int().nullish(),
+  "bidId": zod.number().int().nullish(),
+  "mergedIntoId": zod.number().int().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int().min(getItbIntakeResponseAttachmentsItemSizeMin),
+  "downloadUrl": zod.string(),
+  "sourceAttachmentId": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update an intake draft or review decision
+ */
+
+
+
+export const UpdateItbIntakeParams = zod.object({
+  "intakeId": zod.coerce.number().int().min(1)
+})
+
+export const updateItbIntakeBodyExtractionIssuerConfidenceMin = 0;
+export const updateItbIntakeBodyExtractionIssuerConfidenceMax = 1;
+
+export const updateItbIntakeBodyExtractionIssuerEvidenceMax = 1000;
+
+export const updateItbIntakeBodyExtractionContactNameConfidenceMin = 0;
+export const updateItbIntakeBodyExtractionContactNameConfidenceMax = 1;
+
+export const updateItbIntakeBodyExtractionContactNameEvidenceMax = 1000;
+
+export const updateItbIntakeBodyExtractionContactEmailConfidenceMin = 0;
+export const updateItbIntakeBodyExtractionContactEmailConfidenceMax = 1;
+
+export const updateItbIntakeBodyExtractionContactEmailEvidenceMax = 1000;
+
+export const updateItbIntakeBodyExtractionContactPhoneConfidenceMin = 0;
+export const updateItbIntakeBodyExtractionContactPhoneConfidenceMax = 1;
+
+export const updateItbIntakeBodyExtractionContactPhoneEvidenceMax = 1000;
+
+export const updateItbIntakeBodyExtractionProjectNameConfidenceMin = 0;
+export const updateItbIntakeBodyExtractionProjectNameConfidenceMax = 1;
+
+export const updateItbIntakeBodyExtractionProjectNameEvidenceMax = 1000;
+
+export const updateItbIntakeBodyExtractionLocationConfidenceMin = 0;
+export const updateItbIntakeBodyExtractionLocationConfidenceMax = 1;
+
+export const updateItbIntakeBodyExtractionLocationEvidenceMax = 1000;
+
+export const updateItbIntakeBodyExtractionDueDateConfidenceMin = 0;
+export const updateItbIntakeBodyExtractionDueDateConfidenceMax = 1;
+
+export const updateItbIntakeBodyExtractionDueDateEvidenceMax = 1000;
+
+export const updateItbIntakeBodyExtractionScopeItemConfidenceMin = 0;
+export const updateItbIntakeBodyExtractionScopeItemConfidenceMax = 1;
+
+export const updateItbIntakeBodyExtractionScopeItemEvidenceMax = 1000;
+
+export const updateItbIntakeBodyExtractionRequirementsItemConfidenceMin = 0;
+export const updateItbIntakeBodyExtractionRequirementsItemConfidenceMax = 1;
+
+export const updateItbIntakeBodyExtractionRequirementsItemEvidenceMax = 1000;
+
+export const updateItbIntakeBodyExtractionAlternatesItemConfidenceMin = 0;
+export const updateItbIntakeBodyExtractionAlternatesItemConfidenceMax = 1;
+
+export const updateItbIntakeBodyExtractionAlternatesItemEvidenceMax = 1000;
+
+export const updateItbIntakeBodyExtractionEstimatedValueConfidenceMin = 0;
+export const updateItbIntakeBodyExtractionEstimatedValueConfidenceMax = 1;
+
+export const updateItbIntakeBodyExtractionEstimatedValueEvidenceMax = 1000;
+
+
+export const updateItbIntakeBodyErrorMessageMax = 2000;
+
+
+
+export const UpdateItbIntakeBody = zod.object({
+  "extraction": zod.object({
+  "issuer": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeBodyExtractionIssuerConfidenceMin).max(updateItbIntakeBodyExtractionIssuerConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeBodyExtractionIssuerEvidenceMax)
+}),
+  "contactName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeBodyExtractionContactNameConfidenceMin).max(updateItbIntakeBodyExtractionContactNameConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeBodyExtractionContactNameEvidenceMax)
+}),
+  "contactEmail": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeBodyExtractionContactEmailConfidenceMin).max(updateItbIntakeBodyExtractionContactEmailConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeBodyExtractionContactEmailEvidenceMax)
+}),
+  "contactPhone": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeBodyExtractionContactPhoneConfidenceMin).max(updateItbIntakeBodyExtractionContactPhoneConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeBodyExtractionContactPhoneEvidenceMax)
+}),
+  "projectName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeBodyExtractionProjectNameConfidenceMin).max(updateItbIntakeBodyExtractionProjectNameConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeBodyExtractionProjectNameEvidenceMax)
+}),
+  "location": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeBodyExtractionLocationConfidenceMin).max(updateItbIntakeBodyExtractionLocationConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeBodyExtractionLocationEvidenceMax)
+}),
+  "dueDate": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeBodyExtractionDueDateConfidenceMin).max(updateItbIntakeBodyExtractionDueDateConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeBodyExtractionDueDateEvidenceMax)
+}),
+  "scope": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeBodyExtractionScopeItemConfidenceMin).max(updateItbIntakeBodyExtractionScopeItemConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeBodyExtractionScopeItemEvidenceMax)
+})),
+  "requirements": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeBodyExtractionRequirementsItemConfidenceMin).max(updateItbIntakeBodyExtractionRequirementsItemConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeBodyExtractionRequirementsItemEvidenceMax)
+})),
+  "alternates": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeBodyExtractionAlternatesItemConfidenceMin).max(updateItbIntakeBodyExtractionAlternatesItemConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeBodyExtractionAlternatesItemEvidenceMax)
+})),
+  "estimatedValue": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeBodyExtractionEstimatedValueConfidenceMin).max(updateItbIntakeBodyExtractionEstimatedValueConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeBodyExtractionEstimatedValueEvidenceMax)
+})
+}).optional(),
+  "businessCustomerId": zod.number().int().min(1).nullish(),
+  "status": zod.enum(['review', 'approved', 'rejected', 'archived', 'failed']).optional(),
+  "errorMessage": zod.string().max(updateItbIntakeBodyErrorMessageMax).nullish()
+})
+
+export const updateItbIntakeResponseSourceBodyMax = 200000;
+
+export const updateItbIntakeResponseExtractionIssuerConfidenceMin = 0;
+export const updateItbIntakeResponseExtractionIssuerConfidenceMax = 1;
+
+export const updateItbIntakeResponseExtractionIssuerEvidenceMax = 1000;
+
+export const updateItbIntakeResponseExtractionContactNameConfidenceMin = 0;
+export const updateItbIntakeResponseExtractionContactNameConfidenceMax = 1;
+
+export const updateItbIntakeResponseExtractionContactNameEvidenceMax = 1000;
+
+export const updateItbIntakeResponseExtractionContactEmailConfidenceMin = 0;
+export const updateItbIntakeResponseExtractionContactEmailConfidenceMax = 1;
+
+export const updateItbIntakeResponseExtractionContactEmailEvidenceMax = 1000;
+
+export const updateItbIntakeResponseExtractionContactPhoneConfidenceMin = 0;
+export const updateItbIntakeResponseExtractionContactPhoneConfidenceMax = 1;
+
+export const updateItbIntakeResponseExtractionContactPhoneEvidenceMax = 1000;
+
+export const updateItbIntakeResponseExtractionProjectNameConfidenceMin = 0;
+export const updateItbIntakeResponseExtractionProjectNameConfidenceMax = 1;
+
+export const updateItbIntakeResponseExtractionProjectNameEvidenceMax = 1000;
+
+export const updateItbIntakeResponseExtractionLocationConfidenceMin = 0;
+export const updateItbIntakeResponseExtractionLocationConfidenceMax = 1;
+
+export const updateItbIntakeResponseExtractionLocationEvidenceMax = 1000;
+
+export const updateItbIntakeResponseExtractionDueDateConfidenceMin = 0;
+export const updateItbIntakeResponseExtractionDueDateConfidenceMax = 1;
+
+export const updateItbIntakeResponseExtractionDueDateEvidenceMax = 1000;
+
+export const updateItbIntakeResponseExtractionScopeItemConfidenceMin = 0;
+export const updateItbIntakeResponseExtractionScopeItemConfidenceMax = 1;
+
+export const updateItbIntakeResponseExtractionScopeItemEvidenceMax = 1000;
+
+export const updateItbIntakeResponseExtractionRequirementsItemConfidenceMin = 0;
+export const updateItbIntakeResponseExtractionRequirementsItemConfidenceMax = 1;
+
+export const updateItbIntakeResponseExtractionRequirementsItemEvidenceMax = 1000;
+
+export const updateItbIntakeResponseExtractionAlternatesItemConfidenceMin = 0;
+export const updateItbIntakeResponseExtractionAlternatesItemConfidenceMax = 1;
+
+export const updateItbIntakeResponseExtractionAlternatesItemEvidenceMax = 1000;
+
+export const updateItbIntakeResponseExtractionEstimatedValueConfidenceMin = 0;
+export const updateItbIntakeResponseExtractionEstimatedValueConfidenceMax = 1;
+
+export const updateItbIntakeResponseExtractionEstimatedValueEvidenceMax = 1000;
+
+export const updateItbIntakeResponseAttachmentsItemSizeMin = 0;
+
+
+
+export const UpdateItbIntakeResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceProvider": zod.string().nullish(),
+  "sourceMessageId": zod.string().nullish(),
+  "sourceThreadId": zod.string().nullish(),
+  "sourceMailbox": zod.string().nullish(),
+  "sourceSender": zod.string().nullish(),
+  "sourceSenderEmail": zod.string().email().nullish(),
+  "sourceSubject": zod.string().nullish(),
+  "sourceReceivedAt": zod.coerce.date().nullish(),
+  "sourceBody": zod.string().max(updateItbIntakeResponseSourceBodyMax).optional(),
+  "status": zod.enum(['review', 'approved', 'rejected', 'archived', 'failed']),
+  "extractionStatus": zod.enum(['completed', 'partial', 'failed']),
+  "extraction": zod.object({
+  "issuer": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeResponseExtractionIssuerConfidenceMin).max(updateItbIntakeResponseExtractionIssuerConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeResponseExtractionIssuerEvidenceMax)
+}),
+  "contactName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeResponseExtractionContactNameConfidenceMin).max(updateItbIntakeResponseExtractionContactNameConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeResponseExtractionContactNameEvidenceMax)
+}),
+  "contactEmail": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeResponseExtractionContactEmailConfidenceMin).max(updateItbIntakeResponseExtractionContactEmailConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeResponseExtractionContactEmailEvidenceMax)
+}),
+  "contactPhone": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeResponseExtractionContactPhoneConfidenceMin).max(updateItbIntakeResponseExtractionContactPhoneConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeResponseExtractionContactPhoneEvidenceMax)
+}),
+  "projectName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeResponseExtractionProjectNameConfidenceMin).max(updateItbIntakeResponseExtractionProjectNameConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeResponseExtractionProjectNameEvidenceMax)
+}),
+  "location": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeResponseExtractionLocationConfidenceMin).max(updateItbIntakeResponseExtractionLocationConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeResponseExtractionLocationEvidenceMax)
+}),
+  "dueDate": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeResponseExtractionDueDateConfidenceMin).max(updateItbIntakeResponseExtractionDueDateConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeResponseExtractionDueDateEvidenceMax)
+}),
+  "scope": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeResponseExtractionScopeItemConfidenceMin).max(updateItbIntakeResponseExtractionScopeItemConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeResponseExtractionScopeItemEvidenceMax)
+})),
+  "requirements": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeResponseExtractionRequirementsItemConfidenceMin).max(updateItbIntakeResponseExtractionRequirementsItemConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeResponseExtractionRequirementsItemEvidenceMax)
+})),
+  "alternates": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeResponseExtractionAlternatesItemConfidenceMin).max(updateItbIntakeResponseExtractionAlternatesItemConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeResponseExtractionAlternatesItemEvidenceMax)
+})),
+  "estimatedValue": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(updateItbIntakeResponseExtractionEstimatedValueConfidenceMin).max(updateItbIntakeResponseExtractionEstimatedValueConfidenceMax),
+  "evidence": zod.string().max(updateItbIntakeResponseExtractionEstimatedValueEvidenceMax)
+})
+}),
+  "warnings": zod.array(zod.string()),
+  "errorMessage": zod.string().nullish(),
+  "businessCustomerId": zod.number().int().nullish(),
+  "opportunityId": zod.number().int().nullish(),
+  "bidId": zod.number().int().nullish(),
+  "mergedIntoId": zod.number().int().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int().min(updateItbIntakeResponseAttachmentsItemSizeMin),
+  "downloadUrl": zod.string(),
+  "sourceAttachmentId": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Approve an ITB and create or link pipeline records
+ */
+
+
+
+export const ApproveItbIntakeParams = zod.object({
+  "intakeId": zod.coerce.number().int().min(1)
+})
+
+
+
+export const approveItbIntakeBodyBidNameMax = 180;
+
+
+
+
+export const ApproveItbIntakeBody = zod.object({
+  "businessCustomerId": zod.number().int().min(1),
+  "createOpportunity": zod.boolean(),
+  "opportunityId": zod.number().int().min(1).optional(),
+  "createBid": zod.boolean(),
+  "bidName": zod.string().max(approveItbIntakeBodyBidNameMax).optional(),
+  "ownerUserId": zod.number().int().min(1).optional()
+})
+
+export const approveItbIntakeResponseSourceBodyMax = 200000;
+
+export const approveItbIntakeResponseExtractionIssuerConfidenceMin = 0;
+export const approveItbIntakeResponseExtractionIssuerConfidenceMax = 1;
+
+export const approveItbIntakeResponseExtractionIssuerEvidenceMax = 1000;
+
+export const approveItbIntakeResponseExtractionContactNameConfidenceMin = 0;
+export const approveItbIntakeResponseExtractionContactNameConfidenceMax = 1;
+
+export const approveItbIntakeResponseExtractionContactNameEvidenceMax = 1000;
+
+export const approveItbIntakeResponseExtractionContactEmailConfidenceMin = 0;
+export const approveItbIntakeResponseExtractionContactEmailConfidenceMax = 1;
+
+export const approveItbIntakeResponseExtractionContactEmailEvidenceMax = 1000;
+
+export const approveItbIntakeResponseExtractionContactPhoneConfidenceMin = 0;
+export const approveItbIntakeResponseExtractionContactPhoneConfidenceMax = 1;
+
+export const approveItbIntakeResponseExtractionContactPhoneEvidenceMax = 1000;
+
+export const approveItbIntakeResponseExtractionProjectNameConfidenceMin = 0;
+export const approveItbIntakeResponseExtractionProjectNameConfidenceMax = 1;
+
+export const approveItbIntakeResponseExtractionProjectNameEvidenceMax = 1000;
+
+export const approveItbIntakeResponseExtractionLocationConfidenceMin = 0;
+export const approveItbIntakeResponseExtractionLocationConfidenceMax = 1;
+
+export const approveItbIntakeResponseExtractionLocationEvidenceMax = 1000;
+
+export const approveItbIntakeResponseExtractionDueDateConfidenceMin = 0;
+export const approveItbIntakeResponseExtractionDueDateConfidenceMax = 1;
+
+export const approveItbIntakeResponseExtractionDueDateEvidenceMax = 1000;
+
+export const approveItbIntakeResponseExtractionScopeItemConfidenceMin = 0;
+export const approveItbIntakeResponseExtractionScopeItemConfidenceMax = 1;
+
+export const approveItbIntakeResponseExtractionScopeItemEvidenceMax = 1000;
+
+export const approveItbIntakeResponseExtractionRequirementsItemConfidenceMin = 0;
+export const approveItbIntakeResponseExtractionRequirementsItemConfidenceMax = 1;
+
+export const approveItbIntakeResponseExtractionRequirementsItemEvidenceMax = 1000;
+
+export const approveItbIntakeResponseExtractionAlternatesItemConfidenceMin = 0;
+export const approveItbIntakeResponseExtractionAlternatesItemConfidenceMax = 1;
+
+export const approveItbIntakeResponseExtractionAlternatesItemEvidenceMax = 1000;
+
+export const approveItbIntakeResponseExtractionEstimatedValueConfidenceMin = 0;
+export const approveItbIntakeResponseExtractionEstimatedValueConfidenceMax = 1;
+
+export const approveItbIntakeResponseExtractionEstimatedValueEvidenceMax = 1000;
+
+export const approveItbIntakeResponseAttachmentsItemSizeMin = 0;
+
+
+
+export const ApproveItbIntakeResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceProvider": zod.string().nullish(),
+  "sourceMessageId": zod.string().nullish(),
+  "sourceThreadId": zod.string().nullish(),
+  "sourceMailbox": zod.string().nullish(),
+  "sourceSender": zod.string().nullish(),
+  "sourceSenderEmail": zod.string().email().nullish(),
+  "sourceSubject": zod.string().nullish(),
+  "sourceReceivedAt": zod.coerce.date().nullish(),
+  "sourceBody": zod.string().max(approveItbIntakeResponseSourceBodyMax).optional(),
+  "status": zod.enum(['review', 'approved', 'rejected', 'archived', 'failed']),
+  "extractionStatus": zod.enum(['completed', 'partial', 'failed']),
+  "extraction": zod.object({
+  "issuer": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(approveItbIntakeResponseExtractionIssuerConfidenceMin).max(approveItbIntakeResponseExtractionIssuerConfidenceMax),
+  "evidence": zod.string().max(approveItbIntakeResponseExtractionIssuerEvidenceMax)
+}),
+  "contactName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(approveItbIntakeResponseExtractionContactNameConfidenceMin).max(approveItbIntakeResponseExtractionContactNameConfidenceMax),
+  "evidence": zod.string().max(approveItbIntakeResponseExtractionContactNameEvidenceMax)
+}),
+  "contactEmail": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(approveItbIntakeResponseExtractionContactEmailConfidenceMin).max(approveItbIntakeResponseExtractionContactEmailConfidenceMax),
+  "evidence": zod.string().max(approveItbIntakeResponseExtractionContactEmailEvidenceMax)
+}),
+  "contactPhone": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(approveItbIntakeResponseExtractionContactPhoneConfidenceMin).max(approveItbIntakeResponseExtractionContactPhoneConfidenceMax),
+  "evidence": zod.string().max(approveItbIntakeResponseExtractionContactPhoneEvidenceMax)
+}),
+  "projectName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(approveItbIntakeResponseExtractionProjectNameConfidenceMin).max(approveItbIntakeResponseExtractionProjectNameConfidenceMax),
+  "evidence": zod.string().max(approveItbIntakeResponseExtractionProjectNameEvidenceMax)
+}),
+  "location": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(approveItbIntakeResponseExtractionLocationConfidenceMin).max(approveItbIntakeResponseExtractionLocationConfidenceMax),
+  "evidence": zod.string().max(approveItbIntakeResponseExtractionLocationEvidenceMax)
+}),
+  "dueDate": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(approveItbIntakeResponseExtractionDueDateConfidenceMin).max(approveItbIntakeResponseExtractionDueDateConfidenceMax),
+  "evidence": zod.string().max(approveItbIntakeResponseExtractionDueDateEvidenceMax)
+}),
+  "scope": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(approveItbIntakeResponseExtractionScopeItemConfidenceMin).max(approveItbIntakeResponseExtractionScopeItemConfidenceMax),
+  "evidence": zod.string().max(approveItbIntakeResponseExtractionScopeItemEvidenceMax)
+})),
+  "requirements": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(approveItbIntakeResponseExtractionRequirementsItemConfidenceMin).max(approveItbIntakeResponseExtractionRequirementsItemConfidenceMax),
+  "evidence": zod.string().max(approveItbIntakeResponseExtractionRequirementsItemEvidenceMax)
+})),
+  "alternates": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(approveItbIntakeResponseExtractionAlternatesItemConfidenceMin).max(approveItbIntakeResponseExtractionAlternatesItemConfidenceMax),
+  "evidence": zod.string().max(approveItbIntakeResponseExtractionAlternatesItemEvidenceMax)
+})),
+  "estimatedValue": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(approveItbIntakeResponseExtractionEstimatedValueConfidenceMin).max(approveItbIntakeResponseExtractionEstimatedValueConfidenceMax),
+  "evidence": zod.string().max(approveItbIntakeResponseExtractionEstimatedValueEvidenceMax)
+})
+}),
+  "warnings": zod.array(zod.string()),
+  "errorMessage": zod.string().nullish(),
+  "businessCustomerId": zod.number().int().nullish(),
+  "opportunityId": zod.number().int().nullish(),
+  "bidId": zod.number().int().nullish(),
+  "mergedIntoId": zod.number().int().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int().min(approveItbIntakeResponseAttachmentsItemSizeMin),
+  "downloadUrl": zod.string(),
+  "sourceAttachmentId": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Merge a duplicate intake into another review record
+ */
+
+
+
+export const MergeItbIntakeParams = zod.object({
+  "intakeId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const MergeItbIntakeBody = zod.object({
+  "targetIntakeId": zod.number().int().min(1)
+})
+
+export const mergeItbIntakeResponseSourceBodyMax = 200000;
+
+export const mergeItbIntakeResponseExtractionIssuerConfidenceMin = 0;
+export const mergeItbIntakeResponseExtractionIssuerConfidenceMax = 1;
+
+export const mergeItbIntakeResponseExtractionIssuerEvidenceMax = 1000;
+
+export const mergeItbIntakeResponseExtractionContactNameConfidenceMin = 0;
+export const mergeItbIntakeResponseExtractionContactNameConfidenceMax = 1;
+
+export const mergeItbIntakeResponseExtractionContactNameEvidenceMax = 1000;
+
+export const mergeItbIntakeResponseExtractionContactEmailConfidenceMin = 0;
+export const mergeItbIntakeResponseExtractionContactEmailConfidenceMax = 1;
+
+export const mergeItbIntakeResponseExtractionContactEmailEvidenceMax = 1000;
+
+export const mergeItbIntakeResponseExtractionContactPhoneConfidenceMin = 0;
+export const mergeItbIntakeResponseExtractionContactPhoneConfidenceMax = 1;
+
+export const mergeItbIntakeResponseExtractionContactPhoneEvidenceMax = 1000;
+
+export const mergeItbIntakeResponseExtractionProjectNameConfidenceMin = 0;
+export const mergeItbIntakeResponseExtractionProjectNameConfidenceMax = 1;
+
+export const mergeItbIntakeResponseExtractionProjectNameEvidenceMax = 1000;
+
+export const mergeItbIntakeResponseExtractionLocationConfidenceMin = 0;
+export const mergeItbIntakeResponseExtractionLocationConfidenceMax = 1;
+
+export const mergeItbIntakeResponseExtractionLocationEvidenceMax = 1000;
+
+export const mergeItbIntakeResponseExtractionDueDateConfidenceMin = 0;
+export const mergeItbIntakeResponseExtractionDueDateConfidenceMax = 1;
+
+export const mergeItbIntakeResponseExtractionDueDateEvidenceMax = 1000;
+
+export const mergeItbIntakeResponseExtractionScopeItemConfidenceMin = 0;
+export const mergeItbIntakeResponseExtractionScopeItemConfidenceMax = 1;
+
+export const mergeItbIntakeResponseExtractionScopeItemEvidenceMax = 1000;
+
+export const mergeItbIntakeResponseExtractionRequirementsItemConfidenceMin = 0;
+export const mergeItbIntakeResponseExtractionRequirementsItemConfidenceMax = 1;
+
+export const mergeItbIntakeResponseExtractionRequirementsItemEvidenceMax = 1000;
+
+export const mergeItbIntakeResponseExtractionAlternatesItemConfidenceMin = 0;
+export const mergeItbIntakeResponseExtractionAlternatesItemConfidenceMax = 1;
+
+export const mergeItbIntakeResponseExtractionAlternatesItemEvidenceMax = 1000;
+
+export const mergeItbIntakeResponseExtractionEstimatedValueConfidenceMin = 0;
+export const mergeItbIntakeResponseExtractionEstimatedValueConfidenceMax = 1;
+
+export const mergeItbIntakeResponseExtractionEstimatedValueEvidenceMax = 1000;
+
+export const mergeItbIntakeResponseAttachmentsItemSizeMin = 0;
+
+
+
+export const MergeItbIntakeResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceProvider": zod.string().nullish(),
+  "sourceMessageId": zod.string().nullish(),
+  "sourceThreadId": zod.string().nullish(),
+  "sourceMailbox": zod.string().nullish(),
+  "sourceSender": zod.string().nullish(),
+  "sourceSenderEmail": zod.string().email().nullish(),
+  "sourceSubject": zod.string().nullish(),
+  "sourceReceivedAt": zod.coerce.date().nullish(),
+  "sourceBody": zod.string().max(mergeItbIntakeResponseSourceBodyMax).optional(),
+  "status": zod.enum(['review', 'approved', 'rejected', 'archived', 'failed']),
+  "extractionStatus": zod.enum(['completed', 'partial', 'failed']),
+  "extraction": zod.object({
+  "issuer": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(mergeItbIntakeResponseExtractionIssuerConfidenceMin).max(mergeItbIntakeResponseExtractionIssuerConfidenceMax),
+  "evidence": zod.string().max(mergeItbIntakeResponseExtractionIssuerEvidenceMax)
+}),
+  "contactName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(mergeItbIntakeResponseExtractionContactNameConfidenceMin).max(mergeItbIntakeResponseExtractionContactNameConfidenceMax),
+  "evidence": zod.string().max(mergeItbIntakeResponseExtractionContactNameEvidenceMax)
+}),
+  "contactEmail": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(mergeItbIntakeResponseExtractionContactEmailConfidenceMin).max(mergeItbIntakeResponseExtractionContactEmailConfidenceMax),
+  "evidence": zod.string().max(mergeItbIntakeResponseExtractionContactEmailEvidenceMax)
+}),
+  "contactPhone": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(mergeItbIntakeResponseExtractionContactPhoneConfidenceMin).max(mergeItbIntakeResponseExtractionContactPhoneConfidenceMax),
+  "evidence": zod.string().max(mergeItbIntakeResponseExtractionContactPhoneEvidenceMax)
+}),
+  "projectName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(mergeItbIntakeResponseExtractionProjectNameConfidenceMin).max(mergeItbIntakeResponseExtractionProjectNameConfidenceMax),
+  "evidence": zod.string().max(mergeItbIntakeResponseExtractionProjectNameEvidenceMax)
+}),
+  "location": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(mergeItbIntakeResponseExtractionLocationConfidenceMin).max(mergeItbIntakeResponseExtractionLocationConfidenceMax),
+  "evidence": zod.string().max(mergeItbIntakeResponseExtractionLocationEvidenceMax)
+}),
+  "dueDate": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(mergeItbIntakeResponseExtractionDueDateConfidenceMin).max(mergeItbIntakeResponseExtractionDueDateConfidenceMax),
+  "evidence": zod.string().max(mergeItbIntakeResponseExtractionDueDateEvidenceMax)
+}),
+  "scope": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(mergeItbIntakeResponseExtractionScopeItemConfidenceMin).max(mergeItbIntakeResponseExtractionScopeItemConfidenceMax),
+  "evidence": zod.string().max(mergeItbIntakeResponseExtractionScopeItemEvidenceMax)
+})),
+  "requirements": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(mergeItbIntakeResponseExtractionRequirementsItemConfidenceMin).max(mergeItbIntakeResponseExtractionRequirementsItemConfidenceMax),
+  "evidence": zod.string().max(mergeItbIntakeResponseExtractionRequirementsItemEvidenceMax)
+})),
+  "alternates": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(mergeItbIntakeResponseExtractionAlternatesItemConfidenceMin).max(mergeItbIntakeResponseExtractionAlternatesItemConfidenceMax),
+  "evidence": zod.string().max(mergeItbIntakeResponseExtractionAlternatesItemEvidenceMax)
+})),
+  "estimatedValue": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(mergeItbIntakeResponseExtractionEstimatedValueConfidenceMin).max(mergeItbIntakeResponseExtractionEstimatedValueConfidenceMax),
+  "evidence": zod.string().max(mergeItbIntakeResponseExtractionEstimatedValueEvidenceMax)
+})
+}),
+  "warnings": zod.array(zod.string()),
+  "errorMessage": zod.string().nullish(),
+  "businessCustomerId": zod.number().int().nullish(),
+  "opportunityId": zod.number().int().nullish(),
+  "bidId": zod.number().int().nullish(),
+  "mergedIntoId": zod.number().int().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int().min(mergeItbIntakeResponseAttachmentsItemSizeMin),
+  "downloadUrl": zod.string(),
+  "sourceAttachmentId": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary List opportunities for the active customer environment
  */
 export const listOpportunitiesQuerySearchMax = 120;

@@ -81,6 +81,235 @@ export interface OpportunityOwner {
   displayName: string | null;
 }
 
+export type ItbIntakeStatus = typeof ItbIntakeStatus[keyof typeof ItbIntakeStatus];
+
+
+export const ItbIntakeStatus = {
+  review: 'review',
+  approved: 'approved',
+  rejected: 'rejected',
+  archived: 'archived',
+  failed: 'failed',
+} as const;
+
+export type ItbSourceType = typeof ItbSourceType[keyof typeof ItbSourceType];
+
+
+export const ItbSourceType = {
+  manual: 'manual',
+  gmail: 'gmail',
+} as const;
+
+export type ItbExtractionStatus = typeof ItbExtractionStatus[keyof typeof ItbExtractionStatus];
+
+
+export const ItbExtractionStatus = {
+  completed: 'completed',
+  partial: 'partial',
+  failed: 'failed',
+} as const;
+
+export interface ItbExtractedField {
+  /** @nullable */
+  value: string | null;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  confidence: number;
+  /** @maxLength 1000 */
+  evidence: string;
+}
+
+export interface ItbExtraction {
+  issuer: ItbExtractedField;
+  contactName: ItbExtractedField;
+  contactEmail: ItbExtractedField;
+  contactPhone: ItbExtractedField;
+  projectName: ItbExtractedField;
+  location: ItbExtractedField;
+  dueDate: ItbExtractedField;
+  scope: ItbExtractedField[];
+  requirements: ItbExtractedField[];
+  alternates: ItbExtractedField[];
+  estimatedValue: ItbExtractedField;
+}
+
+export interface ItbIntakeAttachment {
+  id: number;
+  originalName: string;
+  contentType: string;
+  /** @minimum 0 */
+  size: number;
+  downloadUrl: string;
+  /** @nullable */
+  sourceAttachmentId?: string | null;
+  createdAt: string;
+}
+
+export interface ItbIntake {
+  id: number;
+  tenantId: number;
+  environmentId: number;
+  sourceType: ItbSourceType;
+  /** @nullable */
+  sourceProvider?: string | null;
+  /** @nullable */
+  sourceMessageId?: string | null;
+  /** @nullable */
+  sourceThreadId?: string | null;
+  /** @nullable */
+  sourceMailbox?: string | null;
+  /** @nullable */
+  sourceSender?: string | null;
+  /** @nullable */
+  sourceSenderEmail?: string | null;
+  /** @nullable */
+  sourceSubject?: string | null;
+  /** @nullable */
+  sourceReceivedAt?: string | null;
+  /** @maxLength 200000 */
+  sourceBody?: string;
+  status: ItbIntakeStatus;
+  extractionStatus: ItbExtractionStatus;
+  extraction: ItbExtraction;
+  warnings: string[];
+  /** @nullable */
+  errorMessage?: string | null;
+  /** @nullable */
+  businessCustomerId?: number | null;
+  /** @nullable */
+  opportunityId?: number | null;
+  /** @nullable */
+  bidId?: number | null;
+  /** @nullable */
+  mergedIntoId?: number | null;
+  attachments: ItbIntakeAttachment[];
+  /** @nullable */
+  reviewedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ItbIntakeInputAttachmentsItem = {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  originalName: string;
+  /** @maxLength 120 */
+  contentType: string;
+  /**
+     * @minimum 1
+     * @maximum 104857600
+     */
+  size: number;
+  /** @pattern ^/objects/.+ */
+  objectPath: string;
+  /** @maxLength 240 */
+  sourceAttachmentId?: string;
+};
+
+export interface ItbIntakeInput {
+  sourceType: ItbSourceType;
+  /** @maxLength 80 */
+  sourceProvider?: string;
+  /** @maxLength 240 */
+  sourceMessageId?: string;
+  /** @maxLength 240 */
+  sourceThreadId?: string;
+  /** @maxLength 320 */
+  sourceMailbox?: string;
+  /** @maxLength 180 */
+  sourceSender?: string;
+  /** @maxLength 320 */
+  sourceSenderEmail?: string;
+  /** @maxLength 300 */
+  sourceSubject?: string;
+  sourceReceivedAt?: string;
+  /**
+     * @minLength 1
+     * @maxLength 200000
+     */
+  sourceBody: string;
+  /** @maxItems 20 */
+  attachments?: ItbIntakeInputAttachmentsItem[];
+}
+
+export interface ItbIntakeUpdate {
+  extraction?: ItbExtraction;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessCustomerId?: number | null;
+  status?: ItbIntakeStatus;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  errorMessage?: string | null;
+}
+
+export interface ItbIntakeApprovalInput {
+  /** @minimum 1 */
+  businessCustomerId: number;
+  createOpportunity: boolean;
+  /** @minimum 1 */
+  opportunityId?: number;
+  createBid: boolean;
+  /** @maxLength 180 */
+  bidName?: string;
+  /** @minimum 1 */
+  ownerUserId?: number;
+}
+
+export interface ItbIntakeMergeInput {
+  /** @minimum 1 */
+  targetIntakeId: number;
+}
+
+export interface ItbAttachmentUploadInput {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  originalName: string;
+  /** @maxLength 120 */
+  contentType: string;
+  /**
+     * @minimum 1
+     * @maximum 104857600
+     */
+  size: number;
+}
+
+export interface ItbAttachmentUpload {
+  uploadURL: string;
+  /** @pattern ^/objects/.+ */
+  objectPath: string;
+}
+
+export interface ItbMailboxMessage {
+  threadId: string;
+  messageId: string;
+  subject: string;
+  sender: string;
+  receivedAt: string;
+  snippet: string;
+  imported: boolean;
+}
+
+export interface ItbMailboxImportInput {
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  threadId: string;
+  /** @maxLength 240 */
+  messageId?: string;
+}
+
 export type OpportunityQualification = typeof OpportunityQualification[keyof typeof OpportunityQualification];
 
 
@@ -5226,6 +5455,27 @@ export type ListSupplierOrdersParams = {
 orderStatus?: SupplierOrderStatus;
 businessCustomerId?: number;
 projectId?: number;
+};
+
+export type ListItbIntakesParams = {
+status?: ItbIntakeStatus;
+sourceType?: ItbSourceType;
+/**
+ * @maxLength 120
+ */
+search?: string;
+};
+
+export type PreviewItbMailboxParams = {
+/**
+ * @maxLength 180
+ */
+q?: string;
+/**
+ * @minimum 1
+ * @maximum 20
+ */
+pageSize?: number;
 };
 
 export type ListOpportunitiesParams = {

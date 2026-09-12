@@ -19,3 +19,4 @@ export * from "./submittal-signatures";
 export * from "./project-controls";
 export * from "./subcontractor-compliance";
 export * from "./supplier-orders";
+export * from "./itb-intakes";

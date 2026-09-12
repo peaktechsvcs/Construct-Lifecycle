@@ -21,6 +21,7 @@ import proposalsRouter from "./proposals";
 import projectControlsRouter from "./project-controls";
 import subcontractorComplianceRouter from "./subcontractor-compliance";
 import supplierOrdersRouter from "./supplier-orders";
+import itbIntakesRouter from "./itb-intakes";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use(projectsRouter);
 router.use(projectControlsRouter);
 router.use(subcontractorComplianceRouter);
 router.use(supplierOrdersRouter);
+router.use(itbIntakesRouter);
 
 export default router;

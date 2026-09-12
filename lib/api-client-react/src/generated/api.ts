@@ -69,10 +69,20 @@ import type {
   IntegrationActivity,
   IntegrationCatalogItem,
   InvitationDetails,
+  ItbAttachmentUpload,
+  ItbAttachmentUploadInput,
+  ItbIntake,
+  ItbIntakeApprovalInput,
+  ItbIntakeInput,
+  ItbIntakeMergeInput,
+  ItbIntakeUpdate,
+  ItbMailboxImportInput,
+  ItbMailboxMessage,
   ListBidsParams,
   ListBusinessCustomersParams,
   ListEstimatesParams,
   ListIntegrationActivityParams,
+  ListItbIntakesParams,
   ListNotificationsParams,
   ListOpportunitiesParams,
   ListProjectsParams,
@@ -90,6 +100,7 @@ import type {
   OpportunityUpdate,
   PlatformCustomer,
   PlatformRelease,
+  PreviewItbMailboxParams,
   Project,
   ProjectChangeOrder,
   ProjectChangeOrderInput,
@@ -4988,6 +4999,680 @@ export function useGetProjectControlsDashboard<TData = Awaited<ReturnType<typeof
 
 
 
+
+export const getListItbIntakesUrl = (params?: ListItbIntakesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/itb-intakes?${stringifiedParams}` : `/api/itb-intakes`
+}
+
+/**
+ * @summary List invitation-to-bid intake records
+ */
+export const listItbIntakes = async (params?: ListItbIntakesParams, options?: Parameters<typeof customFetch>[1]): Promise<ItbIntake[]> => {
+
+  return customFetch<ItbIntake[]>(getListItbIntakesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListItbIntakesQueryKey = (params?: ListItbIntakesParams,) => {
+    return [
+    `/api/itb-intakes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListItbIntakesQueryOptions = <TData = Awaited<ReturnType<typeof listItbIntakes>>, TError = ErrorType<unknown>>(params?: ListItbIntakesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listItbIntakes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListItbIntakesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listItbIntakes>>> = ({ signal }) => listItbIntakes(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listItbIntakes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListItbIntakesQueryResult = NonNullable<Awaited<ReturnType<typeof listItbIntakes>>>
+export type ListItbIntakesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List invitation-to-bid intake records
+ */
+
+export function useListItbIntakes<TData = Awaited<ReturnType<typeof listItbIntakes>>, TError = ErrorType<unknown>>(
+ params?: ListItbIntakesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listItbIntakes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListItbIntakesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateItbIntakeUrl = () => {
+
+
+
+
+  return `/api/itb-intakes`
+}
+
+/**
+ * @summary Create and extract a manual invitation-to-bid intake
+ */
+export const createItbIntake = async (itbIntakeInput: ItbIntakeInput, options?: Parameters<typeof customFetch>[1]): Promise<ItbIntake> => {
+
+  return customFetch<ItbIntake>(getCreateItbIntakeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(itbIntakeInput)
+  }
+);}
+
+
+
+
+
+export const getCreateItbIntakeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createItbIntake>>, TError,{data: BodyType<ItbIntakeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createItbIntake>>, TError,{data: BodyType<ItbIntakeInput>}, TContext> => {
+
+const mutationKey = ['createItbIntake'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createItbIntake>>, {data: BodyType<ItbIntakeInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createItbIntake(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateItbIntakeMutationResult = NonNullable<Awaited<ReturnType<typeof createItbIntake>>>
+    export type CreateItbIntakeMutationBody = BodyType<ItbIntakeInput>
+    export type CreateItbIntakeMutationError = ErrorType<void>
+
+    /**
+ * @summary Create and extract a manual invitation-to-bid intake
+ */
+export const useCreateItbIntake = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createItbIntake>>, TError,{data: BodyType<ItbIntakeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createItbIntake>>,
+        TError,
+        {data: BodyType<ItbIntakeInput>},
+        TContext
+      > => {
+      return useMutation(getCreateItbIntakeMutationOptions(options));
+    }
+
+export const getRequestItbAttachmentUploadUrl = () => {
+
+
+
+
+  return `/api/itb-intakes/attachments/request-upload`
+}
+
+/**
+ * @summary Request a protected upload URL for an ITB attachment
+ */
+export const requestItbAttachmentUpload = async (itbAttachmentUploadInput: ItbAttachmentUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<ItbAttachmentUpload> => {
+
+  return customFetch<ItbAttachmentUpload>(getRequestItbAttachmentUploadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(itbAttachmentUploadInput)
+  }
+);}
+
+
+
+
+
+export const getRequestItbAttachmentUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestItbAttachmentUpload>>, TError,{data: BodyType<ItbAttachmentUploadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestItbAttachmentUpload>>, TError,{data: BodyType<ItbAttachmentUploadInput>}, TContext> => {
+
+const mutationKey = ['requestItbAttachmentUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestItbAttachmentUpload>>, {data: BodyType<ItbAttachmentUploadInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestItbAttachmentUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestItbAttachmentUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestItbAttachmentUpload>>>
+    export type RequestItbAttachmentUploadMutationBody = BodyType<ItbAttachmentUploadInput>
+    export type RequestItbAttachmentUploadMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Request a protected upload URL for an ITB attachment
+ */
+export const useRequestItbAttachmentUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestItbAttachmentUpload>>, TError,{data: BodyType<ItbAttachmentUploadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestItbAttachmentUpload>>,
+        TError,
+        {data: BodyType<ItbAttachmentUploadInput>},
+        TContext
+      > => {
+      return useMutation(getRequestItbAttachmentUploadMutationOptions(options));
+    }
+
+export const getPreviewItbMailboxUrl = (params?: PreviewItbMailboxParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/itb-intakes/mailbox/preview?${stringifiedParams}` : `/api/itb-intakes/mailbox/preview`
+}
+
+/**
+ * @summary Preview likely ITB messages from the connected mailbox
+ */
+export const previewItbMailbox = async (params?: PreviewItbMailboxParams, options?: Parameters<typeof customFetch>[1]): Promise<ItbMailboxMessage[]> => {
+
+  return customFetch<ItbMailboxMessage[]>(getPreviewItbMailboxUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPreviewItbMailboxQueryKey = (params?: PreviewItbMailboxParams,) => {
+    return [
+    `/api/itb-intakes/mailbox/preview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getPreviewItbMailboxQueryOptions = <TData = Awaited<ReturnType<typeof previewItbMailbox>>, TError = ErrorType<void>>(params?: PreviewItbMailboxParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewItbMailbox>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPreviewItbMailboxQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof previewItbMailbox>>> = ({ signal }) => previewItbMailbox(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof previewItbMailbox>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type PreviewItbMailboxQueryResult = NonNullable<Awaited<ReturnType<typeof previewItbMailbox>>>
+export type PreviewItbMailboxQueryError = ErrorType<void>
+
+
+/**
+ * @summary Preview likely ITB messages from the connected mailbox
+ */
+
+export function usePreviewItbMailbox<TData = Awaited<ReturnType<typeof previewItbMailbox>>, TError = ErrorType<void>>(
+ params?: PreviewItbMailboxParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewItbMailbox>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getPreviewItbMailboxQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportItbMailboxMessageUrl = () => {
+
+
+
+
+  return `/api/itb-intakes/mailbox/import`
+}
+
+/**
+ * @summary Import one connected-mailbox message into ITB review
+ */
+export const importItbMailboxMessage = async (itbMailboxImportInput: ItbMailboxImportInput, options?: Parameters<typeof customFetch>[1]): Promise<ItbIntake> => {
+
+  return customFetch<ItbIntake>(getImportItbMailboxMessageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(itbMailboxImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportItbMailboxMessageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importItbMailboxMessage>>, TError,{data: BodyType<ItbMailboxImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importItbMailboxMessage>>, TError,{data: BodyType<ItbMailboxImportInput>}, TContext> => {
+
+const mutationKey = ['importItbMailboxMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importItbMailboxMessage>>, {data: BodyType<ItbMailboxImportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importItbMailboxMessage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportItbMailboxMessageMutationResult = NonNullable<Awaited<ReturnType<typeof importItbMailboxMessage>>>
+    export type ImportItbMailboxMessageMutationBody = BodyType<ItbMailboxImportInput>
+    export type ImportItbMailboxMessageMutationError = ErrorType<void>
+
+    /**
+ * @summary Import one connected-mailbox message into ITB review
+ */
+export const useImportItbMailboxMessage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importItbMailboxMessage>>, TError,{data: BodyType<ItbMailboxImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importItbMailboxMessage>>,
+        TError,
+        {data: BodyType<ItbMailboxImportInput>},
+        TContext
+      > => {
+      return useMutation(getImportItbMailboxMessageMutationOptions(options));
+    }
+
+export const getGetItbIntakeUrl = (intakeId: number,) => {
+
+
+
+
+  return `/api/itb-intakes/${intakeId}`
+}
+
+/**
+ * @summary Get an invitation-to-bid intake
+ */
+export const getItbIntake = async (intakeId: number, options?: Parameters<typeof customFetch>[1]): Promise<ItbIntake> => {
+
+  return customFetch<ItbIntake>(getGetItbIntakeUrl(intakeId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetItbIntakeQueryKey = (intakeId: number,) => {
+    return [
+    `/api/itb-intakes/${intakeId}`
+    ] as const;
+    }
+
+
+export const getGetItbIntakeQueryOptions = <TData = Awaited<ReturnType<typeof getItbIntake>>, TError = ErrorType<void>>(intakeId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getItbIntake>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetItbIntakeQueryKey(intakeId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getItbIntake>>> = ({ signal }) => getItbIntake(intakeId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: intakeId !== null && intakeId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getItbIntake>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetItbIntakeQueryResult = NonNullable<Awaited<ReturnType<typeof getItbIntake>>>
+export type GetItbIntakeQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get an invitation-to-bid intake
+ */
+
+export function useGetItbIntake<TData = Awaited<ReturnType<typeof getItbIntake>>, TError = ErrorType<void>>(
+ intakeId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getItbIntake>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetItbIntakeQueryOptions(intakeId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateItbIntakeUrl = (intakeId: number,) => {
+
+
+
+
+  return `/api/itb-intakes/${intakeId}`
+}
+
+/**
+ * @summary Update an intake draft or review decision
+ */
+export const updateItbIntake = async (intakeId: number,
+    itbIntakeUpdate: ItbIntakeUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ItbIntake> => {
+
+  return customFetch<ItbIntake>(getUpdateItbIntakeUrl(intakeId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(itbIntakeUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateItbIntakeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateItbIntake>>, TError,{intakeId: number;data: BodyType<ItbIntakeUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateItbIntake>>, TError,{intakeId: number;data: BodyType<ItbIntakeUpdate>}, TContext> => {
+
+const mutationKey = ['updateItbIntake'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateItbIntake>>, {intakeId: number;data: BodyType<ItbIntakeUpdate>}> = (props) => {
+          const {intakeId,data} = props ?? {};
+
+          return  updateItbIntake(intakeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateItbIntakeMutationResult = NonNullable<Awaited<ReturnType<typeof updateItbIntake>>>
+    export type UpdateItbIntakeMutationBody = BodyType<ItbIntakeUpdate>
+    export type UpdateItbIntakeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update an intake draft or review decision
+ */
+export const useUpdateItbIntake = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateItbIntake>>, TError,{intakeId: number;data: BodyType<ItbIntakeUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateItbIntake>>,
+        TError,
+        {intakeId: number;data: BodyType<ItbIntakeUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateItbIntakeMutationOptions(options));
+    }
+
+export const getApproveItbIntakeUrl = (intakeId: number,) => {
+
+
+
+
+  return `/api/itb-intakes/${intakeId}/approve`
+}
+
+/**
+ * @summary Approve an ITB and create or link pipeline records
+ */
+export const approveItbIntake = async (intakeId: number,
+    itbIntakeApprovalInput: ItbIntakeApprovalInput, options?: Parameters<typeof customFetch>[1]): Promise<ItbIntake> => {
+
+  return customFetch<ItbIntake>(getApproveItbIntakeUrl(intakeId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(itbIntakeApprovalInput)
+  }
+);}
+
+
+
+
+
+export const getApproveItbIntakeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveItbIntake>>, TError,{intakeId: number;data: BodyType<ItbIntakeApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveItbIntake>>, TError,{intakeId: number;data: BodyType<ItbIntakeApprovalInput>}, TContext> => {
+
+const mutationKey = ['approveItbIntake'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveItbIntake>>, {intakeId: number;data: BodyType<ItbIntakeApprovalInput>}> = (props) => {
+          const {intakeId,data} = props ?? {};
+
+          return  approveItbIntake(intakeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveItbIntakeMutationResult = NonNullable<Awaited<ReturnType<typeof approveItbIntake>>>
+    export type ApproveItbIntakeMutationBody = BodyType<ItbIntakeApprovalInput>
+    export type ApproveItbIntakeMutationError = ErrorType<void>
+
+    /**
+ * @summary Approve an ITB and create or link pipeline records
+ */
+export const useApproveItbIntake = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveItbIntake>>, TError,{intakeId: number;data: BodyType<ItbIntakeApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveItbIntake>>,
+        TError,
+        {intakeId: number;data: BodyType<ItbIntakeApprovalInput>},
+        TContext
+      > => {
+      return useMutation(getApproveItbIntakeMutationOptions(options));
+    }
+
+export const getMergeItbIntakeUrl = (intakeId: number,) => {
+
+
+
+
+  return `/api/itb-intakes/${intakeId}/merge`
+}
+
+/**
+ * @summary Merge a duplicate intake into another review record
+ */
+export const mergeItbIntake = async (intakeId: number,
+    itbIntakeMergeInput: ItbIntakeMergeInput, options?: Parameters<typeof customFetch>[1]): Promise<ItbIntake> => {
+
+  return customFetch<ItbIntake>(getMergeItbIntakeUrl(intakeId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(itbIntakeMergeInput)
+  }
+);}
+
+
+
+
+
+export const getMergeItbIntakeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeItbIntake>>, TError,{intakeId: number;data: BodyType<ItbIntakeMergeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeItbIntake>>, TError,{intakeId: number;data: BodyType<ItbIntakeMergeInput>}, TContext> => {
+
+const mutationKey = ['mergeItbIntake'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeItbIntake>>, {intakeId: number;data: BodyType<ItbIntakeMergeInput>}> = (props) => {
+          const {intakeId,data} = props ?? {};
+
+          return  mergeItbIntake(intakeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeItbIntakeMutationResult = NonNullable<Awaited<ReturnType<typeof mergeItbIntake>>>
+    export type MergeItbIntakeMutationBody = BodyType<ItbIntakeMergeInput>
+    export type MergeItbIntakeMutationError = ErrorType<void>
+
+    /**
+ * @summary Merge a duplicate intake into another review record
+ */
+export const useMergeItbIntake = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeItbIntake>>, TError,{intakeId: number;data: BodyType<ItbIntakeMergeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof mergeItbIntake>>,
+        TError,
+        {intakeId: number;data: BodyType<ItbIntakeMergeInput>},
+        TContext
+      > => {
+      return useMutation(getMergeItbIntakeMutationOptions(options));
+    }
 
 export const getListOpportunitiesUrl = (params?: ListOpportunitiesParams,) => {
   const normalizedParams = new URLSearchParams();

@@ -34,6 +34,7 @@ import { SettingsPage } from '@/pages/settings';
 import { Notifications } from '@/pages/notifications';
 import { PricingCanceledPage, PricingPage, PricingSuccessPage } from '@/pages/pricing';
 import { SupplierOrders } from '@/pages/supplier-orders';
+import { ItbIntakes } from '@/pages/itb-intakes';
 
 const queryClient = new QueryClient();
 
@@ -214,6 +215,9 @@ function AppRouter() {
         </Route>
         <Route path="/opportunities/:id">
           <Shell><ProtectedRoute component={Opportunities} /></Shell>
+        </Route>
+        <Route path="/itb-intakes">
+          <Shell><ProtectedRoute component={ItbIntakes} /></Shell>
         </Route>
         <Route path="/bids">
           <Shell><ProtectedRoute component={Bids} /></Shell>

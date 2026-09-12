@@ -59,11 +59,27 @@ export class ObjectStorageService {
     return value.replace(/\/+$/, "");
   }
 
-  async requestUpload() {
-    const fullPath = `${this.privateObjectDir()}/submittals/${randomUUID()}`;
+  async requestUpload(prefix = "submittals") {
+    if (!/^[A-Za-z0-9/_-]{1,80}$/.test(prefix) || prefix.includes("..")) {
+      throw new Error("Invalid object storage prefix");
+    }
+    const fullPath = `${this.privateObjectDir()}/${prefix.replace(/^\/+|\/+$/g, "")}/${randomUUID()}`;
     const { bucketName, objectName } = parseStoragePath(fullPath);
     const uploadURL = await signObjectUrl(bucketName, objectName, "PUT");
     return { uploadURL, objectPath: `/objects/${objectName}` };
+  }
+
+  async storeBytes(prefix: string, bytes: Buffer, contentType: string) {
+    if (!/^[A-Za-z0-9/_-]{1,80}$/.test(prefix) || prefix.includes("..")) {
+      throw new Error("Invalid object storage prefix");
+    }
+    const fullPath = `${this.privateObjectDir()}/${prefix.replace(/^\/+|\/+$/g, "")}/${randomUUID()}`;
+    const { bucketName, objectName } = parseStoragePath(fullPath);
+    await objectStorageClient.bucket(bucketName).file(objectName).save(bytes, {
+      resumable: false,
+      metadata: { contentType },
+    });
+    return { objectPath: `/objects/${objectName}` };
   }
 
   async getObjectFile(objectPath: string): Promise<File> {

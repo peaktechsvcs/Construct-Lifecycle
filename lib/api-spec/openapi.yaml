@@ -46,6 +46,8 @@ tags:
     description: Trade partner qualification, compliance gates, subcontracts, and payment rights
   - name: supplier-orders
     description: Supplier catalog, quoting, ordering, delivery, receiving, and payment visibility
+  - name: itb-intakes
+    description: Invitation-to-bid mailbox and document intake review
 paths:
   /healthz:
     get:
@@ -1131,6 +1133,170 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProjectControlsDashboard" }
+  /itb-intakes:
+    get:
+      operationId: listItbIntakes
+      tags: [itb-intakes]
+      summary: List invitation-to-bid intake records
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: "#/components/schemas/ItbIntakeStatus" }
+        - in: query
+          name: sourceType
+          schema: { $ref: "#/components/schemas/ItbSourceType" }
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 120 }
+      responses:
+        "200":
+          description: Invitation-to-bid intake records
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ItbIntake" }
+    post:
+      operationId: createItbIntake
+      tags: [itb-intakes]
+      summary: Create and extract a manual invitation-to-bid intake
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItbIntakeInput" }
+      responses:
+        "201":
+          description: Intake created for review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItbIntake" }
+        "409": { description: The source message or file was already imported }
+  /itb-intakes/attachments/request-upload:
+    post:
+      operationId: requestItbAttachmentUpload
+      tags: [itb-intakes]
+      summary: Request a protected upload URL for an ITB attachment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItbAttachmentUploadInput" }
+      responses:
+        "200":
+          description: Protected upload URL
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItbAttachmentUpload" }
+  /itb-intakes/mailbox/preview:
+    get:
+      operationId: previewItbMailbox
+      tags: [itb-intakes]
+      summary: Preview likely ITB messages from the connected mailbox
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 180, default: "in:anywhere newer_than:30d" }
+        - in: query
+          name: pageSize
+          schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+      responses:
+        "200":
+          description: Mailbox message previews
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ItbMailboxMessage" }
+        "424": { description: Mailbox connector is not authorized or unavailable }
+  /itb-intakes/mailbox/import:
+    post:
+      operationId: importItbMailboxMessage
+      tags: [itb-intakes]
+      summary: Import one connected-mailbox message into ITB review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItbMailboxImportInput" }
+      responses:
+        "201":
+          description: Mailbox intake created for review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItbIntake" }
+        "409": { description: The source message was already imported }
+        "424": { description: Mailbox connector is not authorized or unavailable }
+  /itb-intakes/{intakeId}:
+    get:
+      operationId: getItbIntake
+      tags: [itb-intakes]
+      summary: Get an invitation-to-bid intake
+      parameters:
+        - $ref: "#/components/parameters/ItbIntakeId"
+      responses:
+        "200":
+          description: ITB intake
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItbIntake" }
+        "404": { description: Intake not found }
+    patch:
+      operationId: updateItbIntake
+      tags: [itb-intakes]
+      summary: Update an intake draft or review decision
+      parameters:
+        - $ref: "#/components/parameters/ItbIntakeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItbIntakeUpdate" }
+      responses:
+        "200":
+          description: Updated intake
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItbIntake" }
+  /itb-intakes/{intakeId}/approve:
+    post:
+      operationId: approveItbIntake
+      tags: [itb-intakes]
+      summary: Approve an ITB and create or link pipeline records
+      parameters:
+        - $ref: "#/components/parameters/ItbIntakeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItbIntakeApprovalInput" }
+      responses:
+        "200":
+          description: Approved intake with linked records
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItbIntake" }
+        "409": { description: Intake is already resolved or has a duplicate link }
+  /itb-intakes/{intakeId}/merge:
+    post:
+      operationId: mergeItbIntake
+      tags: [itb-intakes]
+      summary: Merge a duplicate intake into another review record
+      parameters:
+        - $ref: "#/components/parameters/ItbIntakeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItbIntakeMergeInput" }
+      responses:
+        "200":
+          description: The surviving intake after the merge
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItbIntake" }
+        "404": { description: Target intake not found }
+        "409": { description: Intake cannot be merged }
   /opportunities:
     get:
       operationId: listOpportunities
@@ -2753,6 +2919,11 @@ paths:
         "404": { description: Integration provider not available }
 components:
   parameters:
+    ItbIntakeId:
+      in: path
+      name: intakeId
+      required: true
+      schema: { type: integer, minimum: 1 }
     ProjectId:
       in: path
       name: projectId
@@ -2977,6 +3148,166 @@ components:
         userId: { type: integer }
         email: { type: ["string", "null"], format: email }
         displayName: { type: ["string", "null"] }
+    ItbIntakeStatus:
+      type: string
+      enum: [review, approved, rejected, archived, failed]
+    ItbSourceType:
+      type: string
+      enum: [manual, gmail]
+    ItbExtractionStatus:
+      type: string
+      enum: [completed, partial, failed]
+    ItbExtractedField:
+      type: object
+      required: [value, confidence, evidence]
+      properties:
+        value: { type: ["string", "null"] }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        evidence: { type: string, maxLength: 1000 }
+    ItbExtraction:
+      type: object
+      required: [issuer, contactName, contactEmail, contactPhone, projectName, location, dueDate, scope, requirements, alternates, estimatedValue]
+      properties:
+        issuer: { $ref: "#/components/schemas/ItbExtractedField" }
+        contactName: { $ref: "#/components/schemas/ItbExtractedField" }
+        contactEmail: { $ref: "#/components/schemas/ItbExtractedField" }
+        contactPhone: { $ref: "#/components/schemas/ItbExtractedField" }
+        projectName: { $ref: "#/components/schemas/ItbExtractedField" }
+        location: { $ref: "#/components/schemas/ItbExtractedField" }
+        dueDate: { $ref: "#/components/schemas/ItbExtractedField" }
+        scope:
+          type: array
+          items: { $ref: "#/components/schemas/ItbExtractedField" }
+        requirements:
+          type: array
+          items: { $ref: "#/components/schemas/ItbExtractedField" }
+        alternates:
+          type: array
+          items: { $ref: "#/components/schemas/ItbExtractedField" }
+        estimatedValue: { $ref: "#/components/schemas/ItbExtractedField" }
+    ItbIntakeAttachment:
+      type: object
+      required: [id, originalName, contentType, size, downloadUrl, createdAt]
+      properties:
+        id: { type: integer }
+        originalName: { type: string }
+        contentType: { type: string }
+        size: { type: integer, minimum: 0 }
+        downloadUrl: { type: string }
+        sourceAttachmentId: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+    ItbIntake:
+      type: object
+      required: [id, tenantId, environmentId, sourceType, sourceFingerprint, status, extractionStatus, extraction, warnings, attachments, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        environmentId: { type: integer }
+        sourceType: { $ref: "#/components/schemas/ItbSourceType" }
+        sourceProvider: { type: ["string", "null"] }
+        sourceMessageId: { type: ["string", "null"] }
+        sourceThreadId: { type: ["string", "null"] }
+        sourceMailbox: { type: ["string", "null"] }
+        sourceSender: { type: ["string", "null"] }
+        sourceSenderEmail: { type: ["string", "null"], format: email }
+        sourceSubject: { type: ["string", "null"] }
+        sourceReceivedAt: { type: ["string", "null"], format: date-time }
+        sourceBody: { type: string, maxLength: 200000 }
+        status: { $ref: "#/components/schemas/ItbIntakeStatus" }
+        extractionStatus: { $ref: "#/components/schemas/ItbExtractionStatus" }
+        extraction: { $ref: "#/components/schemas/ItbExtraction" }
+        warnings:
+          type: array
+          items: { type: string }
+        errorMessage: { type: ["string", "null"] }
+        businessCustomerId: { type: ["integer", "null"] }
+        opportunityId: { type: ["integer", "null"] }
+        bidId: { type: ["integer", "null"] }
+        mergedIntoId: { type: ["integer", "null"] }
+        attachments:
+          type: array
+          items: { $ref: "#/components/schemas/ItbIntakeAttachment" }
+        reviewedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ItbIntakeInput:
+      type: object
+      required: [sourceType, sourceBody]
+      properties:
+        sourceType: { $ref: "#/components/schemas/ItbSourceType" }
+        sourceProvider: { type: string, maxLength: 80 }
+        sourceMessageId: { type: string, maxLength: 240 }
+        sourceThreadId: { type: string, maxLength: 240 }
+        sourceMailbox: { type: string, maxLength: 320 }
+        sourceSender: { type: string, maxLength: 180 }
+        sourceSenderEmail: { type: string, maxLength: 320, format: email }
+        sourceSubject: { type: string, maxLength: 300 }
+        sourceReceivedAt: { type: string, format: date-time }
+        sourceBody: { type: string, minLength: 1, maxLength: 200000 }
+        attachments:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required: [originalName, contentType, size, objectPath]
+            properties:
+              originalName: { type: string, minLength: 1, maxLength: 255 }
+              contentType: { type: string, maxLength: 120 }
+              size: { type: integer, minimum: 1, maximum: 104857600 }
+              objectPath: { type: string, pattern: "^/objects/.+" }
+              sourceAttachmentId: { type: string, maxLength: 240 }
+    ItbIntakeUpdate:
+      type: object
+      properties:
+        extraction: { $ref: "#/components/schemas/ItbExtraction" }
+        businessCustomerId: { type: ["integer", "null"], minimum: 1 }
+        status: { $ref: "#/components/schemas/ItbIntakeStatus" }
+        errorMessage: { type: ["string", "null"], maxLength: 2000 }
+    ItbIntakeApprovalInput:
+      type: object
+      required: [businessCustomerId, createOpportunity, createBid]
+      properties:
+        businessCustomerId: { type: integer, minimum: 1 }
+        createOpportunity: { type: boolean }
+        opportunityId: { type: integer, minimum: 1 }
+        createBid: { type: boolean }
+        bidName: { type: string, maxLength: 180 }
+        ownerUserId: { type: integer, minimum: 1 }
+    ItbIntakeMergeInput:
+      type: object
+      required: [targetIntakeId]
+      properties:
+        targetIntakeId: { type: integer, minimum: 1 }
+    ItbAttachmentUploadInput:
+      type: object
+      required: [originalName, contentType, size]
+      properties:
+        originalName: { type: string, minLength: 1, maxLength: 255 }
+        contentType: { type: string, maxLength: 120 }
+        size: { type: integer, minimum: 1, maximum: 104857600 }
+    ItbAttachmentUpload:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL: { type: string, format: uri }
+        objectPath: { type: string, pattern: "^/objects/.+" }
+    ItbMailboxMessage:
+      type: object
+      required: [threadId, messageId, subject, sender, receivedAt, snippet, imported]
+      properties:
+        threadId: { type: string }
+        messageId: { type: string }
+        subject: { type: string }
+        sender: { type: string }
+        receivedAt: { type: string, format: date-time }
+        snippet: { type: string }
+        imported: { type: boolean }
+    ItbMailboxImportInput:
+      type: object
+      required: [threadId]
+      properties:
+        threadId: { type: string, minLength: 1, maxLength: 240 }
+        messageId: { type: string, maxLength: 240 }
     Opportunity:
       type: object
       required: [id, environmentId, opportunityNumber, businessCustomerId, customerName, name, stage, estimatedValue, expectedCloseDate, ownerUserId, owner, leadSource, contactName, contactEmail, contactPhone, qualification, nextAction, nextActionDate, lastContactedAt, crmProviderKey, crmIntegrationStatus, crmExternalReference, crmLastSyncedAt, createdAt, updatedAt]

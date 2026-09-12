@@ -8,7 +8,7 @@ import {
   Package, ListChecks, ShoppingCart, ClipboardList, Truck, PackageCheck,
   TrendingUp, HandCoins, Receipt, BadgeDollarSign, FilePenLine, Percent,
   ShieldCheck,
-  Files, ReceiptText, Archive, BarChart3, LineChart, MessageSquareText, ClipboardCheck, type LucideIcon,
+  Files, ReceiptText, Archive, BarChart3, LineChart, MessageSquareText, ClipboardCheck, Mail, type LucideIcon,
 } from 'lucide-react';
 import { useTenant } from '@/providers/tenant-provider';
 import {
@@ -158,6 +158,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/overview': 'Dashboard',
   '/projects': 'Projects',
   '/opportunities': 'Opportunities',
+  '/itb-intakes': 'ITB intakes',
   '/bids': 'Bids',
   '/estimates': 'Estimates',
   '/proposals': 'Proposals',
@@ -183,6 +184,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     label: 'Pipeline',
     items: [
       { href: '/opportunities', label: 'Opportunities', icon: Lightbulb },
+      { href: '/itb-intakes', label: 'ITB intakes', icon: Mail },
       { href: '/bids', label: 'Bids', icon: Gavel },
       { href: '/estimates', label: 'Estimates', icon: Calculator },
       { href: '/proposals', label: 'Proposals', icon: FileText },
@@ -253,6 +255,7 @@ function getBreadcrumbLabel(location: string): string {
   if (location.includes('/administration/platform/features')) return 'Feature Visibility';
   if (location.startsWith('/projects')) return 'All Projects';
   if (location.startsWith('/opportunities')) return 'Opportunities';
+  if (location.startsWith('/itb-intakes')) return 'ITB intakes';
   if (location.startsWith('/bids')) return 'Bids';
   if (location.startsWith('/customers')) return 'Customers';
   if (location.startsWith('/compliance')) return 'Trade Partner Compliance';
