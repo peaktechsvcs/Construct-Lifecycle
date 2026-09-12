@@ -773,6 +773,244 @@ export interface ProposalUpdate {
   externalReference?: string | null;
 }
 
+export type SubmittalPackageStatus = typeof SubmittalPackageStatus[keyof typeof SubmittalPackageStatus];
+
+
+export const SubmittalPackageStatus = {
+  draft: 'draft',
+  submitted: 'submitted',
+  under_review: 'under_review',
+  approved: 'approved',
+  approved_as_noted: 'approved_as_noted',
+  revise_and_resubmit: 'revise_and_resubmit',
+  rejected: 'rejected',
+  superseded: 'superseded',
+} as const;
+
+export type SubmittalOriginType = typeof SubmittalOriginType[keyof typeof SubmittalOriginType];
+
+
+export const SubmittalOriginType = {
+  contract: 'contract',
+  accepted_substitution: 'accepted_substitution',
+  accepted_alternate: 'accepted_alternate',
+  early_procurement: 'early_procurement',
+} as const;
+
+export type SubmittalItemType = typeof SubmittalItemType[keyof typeof SubmittalItemType];
+
+
+export const SubmittalItemType = {
+  shop_drawing: 'shop_drawing',
+  product_data: 'product_data',
+  sample: 'sample',
+  mockup: 'mockup',
+  calculation: 'calculation',
+  certificate: 'certificate',
+  warranty: 'warranty',
+  closeout: 'closeout',
+  other: 'other',
+} as const;
+
+export type SubmittalItemStatus = typeof SubmittalItemStatus[keyof typeof SubmittalItemStatus];
+
+
+export const SubmittalItemStatus = {
+  pending: 'pending',
+  included: 'included',
+  needs_revision: 'needs_revision',
+  accepted: 'accepted',
+  superseded: 'superseded',
+} as const;
+
+export interface SubmittalItem {
+  id: number;
+  packageId: number;
+  itemNumber: string;
+  itemType: SubmittalItemType;
+  name: string;
+  /** @nullable */
+  description: string | null;
+  status: SubmittalItemStatus;
+  /** @nullable */
+  documentName: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  documentUrl: string | null;
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubmittalRevision {
+  id: number;
+  packageId: number;
+  revision: number;
+  status: SubmittalPackageStatus;
+  /** @nullable */
+  reviewerName: string | null;
+  /** @nullable */
+  reviewComments: string | null;
+  /** @nullable */
+  submittedAt: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
+export interface SubmittalPackage {
+  id: number;
+  environmentId: number;
+  packageNumber: string;
+  projectId: number;
+  projectNumber: string;
+  projectName: string;
+  customerName: string;
+  /** @nullable */
+  sourceBidId: number | null;
+  /** @nullable */
+  sourceBidNumber: string | null;
+  originType: SubmittalOriginType;
+  name: string;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  specificationSection: string | null;
+  /** @nullable */
+  responsibleParty: string | null;
+  status: SubmittalPackageStatus;
+  /** @nullable */
+  dueDate: string | null;
+  revision: number;
+  /** @nullable */
+  reviewerName: string | null;
+  /** @nullable */
+  reviewComments: string | null;
+  /** @nullable */
+  submittedAt: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  itemCount: number;
+  items: SubmittalItem[];
+  revisions: SubmittalRevision[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubmittalPackageInput {
+  /** @minimum 1 */
+  projectId: number;
+  /** @minimum 1 */
+  sourceBidId?: number;
+  originType?: SubmittalOriginType;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  /** @maxLength 5000 */
+  description?: string;
+  /** @maxLength 120 */
+  specificationSection?: string;
+  /** @maxLength 180 */
+  responsibleParty?: string;
+  status?: SubmittalPackageStatus;
+  dueDate?: string;
+}
+
+export interface SubmittalPackageUpdate {
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  sourceBidId?: number | null;
+  originType?: SubmittalOriginType;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name?: string;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  specificationSection?: string | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  responsibleParty?: string | null;
+  status?: SubmittalPackageStatus;
+  /** @nullable */
+  dueDate?: string | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  reviewerName?: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  reviewComments?: string | null;
+}
+
+export interface SubmittalItemInput {
+  itemType?: SubmittalItemType;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  /** @maxLength 5000 */
+  description?: string;
+  status?: SubmittalItemStatus;
+  /** @maxLength 240 */
+  documentName?: string;
+  /** @maxLength 2000 */
+  documentUrl?: string;
+}
+
+export interface SubmittalItemUpdate {
+  itemType?: SubmittalItemType;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name?: string;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  description?: string | null;
+  status?: SubmittalItemStatus;
+  /**
+     * @maxLength 240
+     * @nullable
+     */
+  documentName?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  documentUrl?: string | null;
+}
+
+export interface SubmittalRevisionInput {
+  status: SubmittalPackageStatus;
+  /** @maxLength 180 */
+  reviewerName?: string;
+  /** @maxLength 5000 */
+  reviewComments?: string;
+}
+
 export type ProposalStatus = typeof ProposalStatus[keyof typeof ProposalStatus];
 
 
@@ -2060,6 +2298,18 @@ stage?: ProposalStage;
  */
 ownerUserId?: number;
 integrationStatus?: ProposalIntegrationStatus;
+};
+
+export type ListSubmittalPackagesParams = {
+/**
+ * @maxLength 120
+ */
+search?: string;
+status?: SubmittalPackageStatus;
+/**
+ * @minimum 1
+ */
+projectId?: number;
 };
 
 export type ListBusinessCustomersParams = {

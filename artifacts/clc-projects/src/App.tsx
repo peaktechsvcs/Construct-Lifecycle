@@ -19,6 +19,7 @@ import { Opportunities } from '@/pages/opportunities';
 import { Bids } from '@/pages/bids';
 import { Estimates } from '@/pages/estimates';
 import { Proposals } from '@/pages/proposals';
+import { Submittals } from '@/pages/submittals';
 import { ProjectDetail } from '@/pages/project-detail';
 import { Customers } from '@/pages/customers';
 import { CustomerDetail } from '@/pages/customer-detail';
@@ -229,6 +230,12 @@ function AppRouter() {
         </Route>
         <Route path="/proposals/:id">
           <Shell><ProtectedRoute component={Proposals} /></Shell>
+        </Route>
+        <Route path="/submittals">
+          <Shell><ProtectedRoute component={Submittals} /></Shell>
+        </Route>
+        <Route path="/submittals/:id">
+          <Shell><ProtectedRoute component={Submittals} /></Shell>
         </Route>
         <Route path="/customers">
           <Shell><ProtectedRoute component={Customers} /></Shell>

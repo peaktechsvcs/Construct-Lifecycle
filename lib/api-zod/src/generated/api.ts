@@ -1417,6 +1417,462 @@ export const DeleteProposalResponse = zod.void()
 
 
 /**
+ * @summary List submittal packages
+ */
+export const listSubmittalPackagesQuerySearchMax = 120;
+
+
+
+
+export const ListSubmittalPackagesQueryParams = zod.object({
+  "search": zod.coerce.string().max(listSubmittalPackagesQuerySearchMax).optional(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']).optional(),
+  "projectId": zod.coerce.number().int().min(1).optional()
+})
+
+export const listSubmittalPackagesResponseItemsItemDocumentUrlMax = 2000;
+
+
+
+export const ListSubmittalPackagesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "packageNumber": zod.string(),
+  "projectId": zod.number().int(),
+  "projectNumber": zod.string(),
+  "projectName": zod.string(),
+  "customerName": zod.string(),
+  "sourceBidId": zod.number().int().nullable(),
+  "sourceBidNumber": zod.string().nullable(),
+  "originType": zod.enum(['contract', 'accepted_substitution', 'accepted_alternate', 'early_procurement']),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "specificationSection": zod.string().nullable(),
+  "responsibleParty": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']),
+  "dueDate": zod.coerce.date().nullable(),
+  "revision": zod.number().int(),
+  "reviewerName": zod.string().nullable(),
+  "reviewComments": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "itemCount": zod.number().int(),
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "itemNumber": zod.string(),
+  "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
+  "documentName": zod.string().nullable(),
+  "documentUrl": zod.string().max(listSubmittalPackagesResponseItemsItemDocumentUrlMax).nullable(),
+  "revision": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "revisions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "revision": zod.number().int(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']),
+  "reviewerName": zod.string().nullable(),
+  "reviewComments": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListSubmittalPackagesResponse = zod.array(ListSubmittalPackagesResponseItem)
+
+
+/**
+ * @summary Create a submittal package
+ */
+
+
+export const createSubmittalPackageBodyNameMax = 180;
+
+export const createSubmittalPackageBodyDescriptionMax = 5000;
+
+export const createSubmittalPackageBodySpecificationSectionMax = 120;
+
+export const createSubmittalPackageBodyResponsiblePartyMax = 180;
+
+
+
+export const CreateSubmittalPackageBody = zod.object({
+  "projectId": zod.number().int().min(1),
+  "sourceBidId": zod.number().int().min(1).optional(),
+  "originType": zod.enum(['contract', 'accepted_substitution', 'accepted_alternate', 'early_procurement']).optional(),
+  "name": zod.string().min(1).max(createSubmittalPackageBodyNameMax),
+  "description": zod.string().max(createSubmittalPackageBodyDescriptionMax).optional(),
+  "specificationSection": zod.string().max(createSubmittalPackageBodySpecificationSectionMax).optional(),
+  "responsibleParty": zod.string().max(createSubmittalPackageBodyResponsiblePartyMax).optional(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']).optional(),
+  "dueDate": zod.coerce.date().optional()
+})
+
+export const createSubmittalPackageResponseItemsItemDocumentUrlMax = 2000;
+
+
+
+export const CreateSubmittalPackageResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "packageNumber": zod.string(),
+  "projectId": zod.number().int(),
+  "projectNumber": zod.string(),
+  "projectName": zod.string(),
+  "customerName": zod.string(),
+  "sourceBidId": zod.number().int().nullable(),
+  "sourceBidNumber": zod.string().nullable(),
+  "originType": zod.enum(['contract', 'accepted_substitution', 'accepted_alternate', 'early_procurement']),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "specificationSection": zod.string().nullable(),
+  "responsibleParty": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']),
+  "dueDate": zod.coerce.date().nullable(),
+  "revision": zod.number().int(),
+  "reviewerName": zod.string().nullable(),
+  "reviewComments": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "itemCount": zod.number().int(),
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "itemNumber": zod.string(),
+  "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
+  "documentName": zod.string().nullable(),
+  "documentUrl": zod.string().max(createSubmittalPackageResponseItemsItemDocumentUrlMax).nullable(),
+  "revision": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "revisions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "revision": zod.number().int(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']),
+  "reviewerName": zod.string().nullable(),
+  "reviewComments": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a submittal package
+ */
+export const GetSubmittalPackageParams = zod.object({
+  "submittalId": zod.coerce.number().int()
+})
+
+export const getSubmittalPackageResponseItemsItemDocumentUrlMax = 2000;
+
+
+
+export const GetSubmittalPackageResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "packageNumber": zod.string(),
+  "projectId": zod.number().int(),
+  "projectNumber": zod.string(),
+  "projectName": zod.string(),
+  "customerName": zod.string(),
+  "sourceBidId": zod.number().int().nullable(),
+  "sourceBidNumber": zod.string().nullable(),
+  "originType": zod.enum(['contract', 'accepted_substitution', 'accepted_alternate', 'early_procurement']),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "specificationSection": zod.string().nullable(),
+  "responsibleParty": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']),
+  "dueDate": zod.coerce.date().nullable(),
+  "revision": zod.number().int(),
+  "reviewerName": zod.string().nullable(),
+  "reviewComments": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "itemCount": zod.number().int(),
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "itemNumber": zod.string(),
+  "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
+  "documentName": zod.string().nullable(),
+  "documentUrl": zod.string().max(getSubmittalPackageResponseItemsItemDocumentUrlMax).nullable(),
+  "revision": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "revisions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "revision": zod.number().int(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']),
+  "reviewerName": zod.string().nullable(),
+  "reviewComments": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a submittal package
+ */
+export const UpdateSubmittalPackageParams = zod.object({
+  "submittalId": zod.coerce.number().int()
+})
+
+
+export const updateSubmittalPackageBodyNameMax = 180;
+
+export const updateSubmittalPackageBodyDescriptionMax = 5000;
+
+export const updateSubmittalPackageBodySpecificationSectionMax = 120;
+
+export const updateSubmittalPackageBodyResponsiblePartyMax = 180;
+
+export const updateSubmittalPackageBodyReviewerNameMax = 180;
+
+export const updateSubmittalPackageBodyReviewCommentsMax = 5000;
+
+
+
+export const UpdateSubmittalPackageBody = zod.object({
+  "sourceBidId": zod.number().int().min(1).nullish(),
+  "originType": zod.enum(['contract', 'accepted_substitution', 'accepted_alternate', 'early_procurement']).optional(),
+  "name": zod.string().min(1).max(updateSubmittalPackageBodyNameMax).optional(),
+  "description": zod.string().max(updateSubmittalPackageBodyDescriptionMax).nullish(),
+  "specificationSection": zod.string().max(updateSubmittalPackageBodySpecificationSectionMax).nullish(),
+  "responsibleParty": zod.string().max(updateSubmittalPackageBodyResponsiblePartyMax).nullish(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']).optional(),
+  "dueDate": zod.coerce.date().nullish(),
+  "reviewerName": zod.string().max(updateSubmittalPackageBodyReviewerNameMax).nullish(),
+  "reviewComments": zod.string().max(updateSubmittalPackageBodyReviewCommentsMax).nullish()
+})
+
+export const updateSubmittalPackageResponseItemsItemDocumentUrlMax = 2000;
+
+
+
+export const UpdateSubmittalPackageResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "packageNumber": zod.string(),
+  "projectId": zod.number().int(),
+  "projectNumber": zod.string(),
+  "projectName": zod.string(),
+  "customerName": zod.string(),
+  "sourceBidId": zod.number().int().nullable(),
+  "sourceBidNumber": zod.string().nullable(),
+  "originType": zod.enum(['contract', 'accepted_substitution', 'accepted_alternate', 'early_procurement']),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "specificationSection": zod.string().nullable(),
+  "responsibleParty": zod.string().nullable(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']),
+  "dueDate": zod.coerce.date().nullable(),
+  "revision": zod.number().int(),
+  "reviewerName": zod.string().nullable(),
+  "reviewComments": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "itemCount": zod.number().int(),
+  "items": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "itemNumber": zod.string(),
+  "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
+  "documentName": zod.string().nullable(),
+  "documentUrl": zod.string().max(updateSubmittalPackageResponseItemsItemDocumentUrlMax).nullable(),
+  "revision": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "revisions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "revision": zod.number().int(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']),
+  "reviewerName": zod.string().nullable(),
+  "reviewComments": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a submittal package
+ */
+export const DeleteSubmittalPackageParams = zod.object({
+  "submittalId": zod.coerce.number().int()
+})
+
+export const DeleteSubmittalPackageResponse = zod.void()
+
+
+/**
+ * @summary Add an item to a submittal package
+ */
+export const CreateSubmittalItemParams = zod.object({
+  "submittalId": zod.coerce.number().int()
+})
+
+export const createSubmittalItemBodyNameMax = 180;
+
+export const createSubmittalItemBodyDescriptionMax = 5000;
+
+export const createSubmittalItemBodyDocumentNameMax = 240;
+
+export const createSubmittalItemBodyDocumentUrlMax = 2000;
+
+
+
+export const CreateSubmittalItemBody = zod.object({
+  "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']).optional(),
+  "name": zod.string().min(1).max(createSubmittalItemBodyNameMax),
+  "description": zod.string().max(createSubmittalItemBodyDescriptionMax).optional(),
+  "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']).optional(),
+  "documentName": zod.string().max(createSubmittalItemBodyDocumentNameMax).optional(),
+  "documentUrl": zod.string().max(createSubmittalItemBodyDocumentUrlMax).optional()
+})
+
+export const createSubmittalItemResponseDocumentUrlMax = 2000;
+
+
+
+export const CreateSubmittalItemResponse = zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "itemNumber": zod.string(),
+  "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
+  "documentName": zod.string().nullable(),
+  "documentUrl": zod.string().max(createSubmittalItemResponseDocumentUrlMax).nullable(),
+  "revision": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a submittal item
+ */
+export const UpdateSubmittalItemParams = zod.object({
+  "itemId": zod.coerce.number().int()
+})
+
+export const updateSubmittalItemBodyNameMax = 180;
+
+export const updateSubmittalItemBodyDescriptionMax = 5000;
+
+export const updateSubmittalItemBodyDocumentNameMax = 240;
+
+export const updateSubmittalItemBodyDocumentUrlMax = 2000;
+
+
+
+export const UpdateSubmittalItemBody = zod.object({
+  "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']).optional(),
+  "name": zod.string().min(1).max(updateSubmittalItemBodyNameMax).optional(),
+  "description": zod.string().max(updateSubmittalItemBodyDescriptionMax).nullish(),
+  "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']).optional(),
+  "documentName": zod.string().max(updateSubmittalItemBodyDocumentNameMax).nullish(),
+  "documentUrl": zod.string().max(updateSubmittalItemBodyDocumentUrlMax).nullish()
+})
+
+export const updateSubmittalItemResponseDocumentUrlMax = 2000;
+
+
+
+export const UpdateSubmittalItemResponse = zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "itemNumber": zod.string(),
+  "itemType": zod.enum(['shop_drawing', 'product_data', 'sample', 'mockup', 'calculation', 'certificate', 'warranty', 'closeout', 'other']),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "status": zod.enum(['pending', 'included', 'needs_revision', 'accepted', 'superseded']),
+  "documentName": zod.string().nullable(),
+  "documentUrl": zod.string().max(updateSubmittalItemResponseDocumentUrlMax).nullable(),
+  "revision": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a submittal item
+ */
+export const DeleteSubmittalItemParams = zod.object({
+  "itemId": zod.coerce.number().int()
+})
+
+export const DeleteSubmittalItemResponse = zod.void()
+
+
+/**
+ * @summary Add a revision and review disposition to a submittal package
+ */
+export const CreateSubmittalRevisionParams = zod.object({
+  "submittalId": zod.coerce.number().int()
+})
+
+export const createSubmittalRevisionBodyReviewerNameMax = 180;
+
+export const createSubmittalRevisionBodyReviewCommentsMax = 5000;
+
+
+
+export const CreateSubmittalRevisionBody = zod.object({
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']),
+  "reviewerName": zod.string().max(createSubmittalRevisionBodyReviewerNameMax).optional(),
+  "reviewComments": zod.string().max(createSubmittalRevisionBodyReviewCommentsMax).optional()
+})
+
+export const CreateSubmittalRevisionResponse = zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "revision": zod.number().int(),
+  "status": zod.enum(['draft', 'submitted', 'under_review', 'approved', 'approved_as_noted', 'revise_and_resubmit', 'rejected', 'superseded']),
+  "reviewerName": zod.string().nullable(),
+  "reviewComments": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary List project activity
  */
 export const ListProjectActivityParams = zod.object({

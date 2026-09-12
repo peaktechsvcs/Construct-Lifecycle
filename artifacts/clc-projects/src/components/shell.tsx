@@ -8,7 +8,7 @@ import {
   Package, ListChecks, ShoppingCart, ClipboardList, Truck, PackageCheck,
   TrendingUp, HandCoins, Receipt, BadgeDollarSign, FilePenLine, Percent,
   ShieldCheck,
-  Files, ReceiptText, Archive, BarChart3, LineChart, MessageSquareText, type LucideIcon,
+  Files, ReceiptText, Archive, BarChart3, LineChart, MessageSquareText, ClipboardCheck, type LucideIcon,
 } from 'lucide-react';
 import { useTenant } from '@/providers/tenant-provider';
 import {
@@ -186,6 +186,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       { href: '/bids', label: 'Bids', icon: Gavel },
       { href: '/estimates', label: 'Estimates', icon: Calculator },
       { href: '/proposals', label: 'Proposals', icon: FileText },
+      { href: '/submittals', label: 'Submittals', icon: ClipboardCheck },
     ],
   },
   {

@@ -74,6 +74,7 @@ import type {
   ListOpportunitiesParams,
   ListProjectsParams,
   ListProposalsParams,
+  ListSubmittalPackagesParams,
   NotificationListResponse,
   NotificationReadInput,
   Opportunity,
@@ -88,6 +89,14 @@ import type {
   ProposalInput,
   ProposalUpdate,
   PublishedBrandingContext,
+  SubmittalItem,
+  SubmittalItemInput,
+  SubmittalItemUpdate,
+  SubmittalPackage,
+  SubmittalPackageInput,
+  SubmittalPackageUpdate,
+  SubmittalRevision,
+  SubmittalRevisionInput,
   SwitchEnvironmentInput,
   SwitchTenantInput,
   TenantContext,
@@ -2078,6 +2087,668 @@ export const useDeleteProposal = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteProposalMutationOptions(options));
+    }
+
+export const getListSubmittalPackagesUrl = (params?: ListSubmittalPackagesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/submittals?${stringifiedParams}` : `/api/submittals`
+}
+
+/**
+ * @summary List submittal packages
+ */
+export const listSubmittalPackages = async (params?: ListSubmittalPackagesParams, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalPackage[]> => {
+
+  return customFetch<SubmittalPackage[]>(getListSubmittalPackagesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSubmittalPackagesQueryKey = (params?: ListSubmittalPackagesParams,) => {
+    return [
+    `/api/submittals`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSubmittalPackagesQueryOptions = <TData = Awaited<ReturnType<typeof listSubmittalPackages>>, TError = ErrorType<unknown>>(params?: ListSubmittalPackagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubmittalPackages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSubmittalPackagesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSubmittalPackages>>> = ({ signal }) => listSubmittalPackages(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSubmittalPackages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSubmittalPackagesQueryResult = NonNullable<Awaited<ReturnType<typeof listSubmittalPackages>>>
+export type ListSubmittalPackagesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List submittal packages
+ */
+
+export function useListSubmittalPackages<TData = Awaited<ReturnType<typeof listSubmittalPackages>>, TError = ErrorType<unknown>>(
+ params?: ListSubmittalPackagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubmittalPackages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSubmittalPackagesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSubmittalPackageUrl = () => {
+
+
+
+
+  return `/api/submittals`
+}
+
+/**
+ * @summary Create a submittal package
+ */
+export const createSubmittalPackage = async (submittalPackageInput: SubmittalPackageInput, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalPackage> => {
+
+  return customFetch<SubmittalPackage>(getCreateSubmittalPackageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalPackageInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSubmittalPackageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmittalPackage>>, TError,{data: BodyType<SubmittalPackageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSubmittalPackage>>, TError,{data: BodyType<SubmittalPackageInput>}, TContext> => {
+
+const mutationKey = ['createSubmittalPackage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubmittalPackage>>, {data: BodyType<SubmittalPackageInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSubmittalPackage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSubmittalPackageMutationResult = NonNullable<Awaited<ReturnType<typeof createSubmittalPackage>>>
+    export type CreateSubmittalPackageMutationBody = BodyType<SubmittalPackageInput>
+    export type CreateSubmittalPackageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a submittal package
+ */
+export const useCreateSubmittalPackage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmittalPackage>>, TError,{data: BodyType<SubmittalPackageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSubmittalPackage>>,
+        TError,
+        {data: BodyType<SubmittalPackageInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSubmittalPackageMutationOptions(options));
+    }
+
+export const getGetSubmittalPackageUrl = (submittalId: number,) => {
+
+
+
+
+  return `/api/submittals/${submittalId}`
+}
+
+/**
+ * @summary Get a submittal package
+ */
+export const getSubmittalPackage = async (submittalId: number, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalPackage> => {
+
+  return customFetch<SubmittalPackage>(getGetSubmittalPackageUrl(submittalId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSubmittalPackageQueryKey = (submittalId: number,) => {
+    return [
+    `/api/submittals/${submittalId}`
+    ] as const;
+    }
+
+
+export const getGetSubmittalPackageQueryOptions = <TData = Awaited<ReturnType<typeof getSubmittalPackage>>, TError = ErrorType<void>>(submittalId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubmittalPackage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSubmittalPackageQueryKey(submittalId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSubmittalPackage>>> = ({ signal }) => getSubmittalPackage(submittalId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: submittalId !== null && submittalId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSubmittalPackage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSubmittalPackageQueryResult = NonNullable<Awaited<ReturnType<typeof getSubmittalPackage>>>
+export type GetSubmittalPackageQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a submittal package
+ */
+
+export function useGetSubmittalPackage<TData = Awaited<ReturnType<typeof getSubmittalPackage>>, TError = ErrorType<void>>(
+ submittalId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubmittalPackage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSubmittalPackageQueryOptions(submittalId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateSubmittalPackageUrl = (submittalId: number,) => {
+
+
+
+
+  return `/api/submittals/${submittalId}`
+}
+
+/**
+ * @summary Update a submittal package
+ */
+export const updateSubmittalPackage = async (submittalId: number,
+    submittalPackageUpdate: SubmittalPackageUpdate, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalPackage> => {
+
+  return customFetch<SubmittalPackage>(getUpdateSubmittalPackageUrl(submittalId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalPackageUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateSubmittalPackageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSubmittalPackage>>, TError,{submittalId: number;data: BodyType<SubmittalPackageUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSubmittalPackage>>, TError,{submittalId: number;data: BodyType<SubmittalPackageUpdate>}, TContext> => {
+
+const mutationKey = ['updateSubmittalPackage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSubmittalPackage>>, {submittalId: number;data: BodyType<SubmittalPackageUpdate>}> = (props) => {
+          const {submittalId,data} = props ?? {};
+
+          return  updateSubmittalPackage(submittalId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSubmittalPackageMutationResult = NonNullable<Awaited<ReturnType<typeof updateSubmittalPackage>>>
+    export type UpdateSubmittalPackageMutationBody = BodyType<SubmittalPackageUpdate>
+    export type UpdateSubmittalPackageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a submittal package
+ */
+export const useUpdateSubmittalPackage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSubmittalPackage>>, TError,{submittalId: number;data: BodyType<SubmittalPackageUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSubmittalPackage>>,
+        TError,
+        {submittalId: number;data: BodyType<SubmittalPackageUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateSubmittalPackageMutationOptions(options));
+    }
+
+export const getDeleteSubmittalPackageUrl = (submittalId: number,) => {
+
+
+
+
+  return `/api/submittals/${submittalId}`
+}
+
+/**
+ * @summary Delete a submittal package
+ */
+export const deleteSubmittalPackage = async (submittalId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteSubmittalPackageUrl(submittalId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteSubmittalPackageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSubmittalPackage>>, TError,{submittalId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSubmittalPackage>>, TError,{submittalId: number}, TContext> => {
+
+const mutationKey = ['deleteSubmittalPackage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSubmittalPackage>>, {submittalId: number}> = (props) => {
+          const {submittalId} = props ?? {};
+
+          return  deleteSubmittalPackage(submittalId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSubmittalPackageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSubmittalPackage>>>
+
+    export type DeleteSubmittalPackageMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a submittal package
+ */
+export const useDeleteSubmittalPackage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSubmittalPackage>>, TError,{submittalId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSubmittalPackage>>,
+        TError,
+        {submittalId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSubmittalPackageMutationOptions(options));
+    }
+
+export const getCreateSubmittalItemUrl = (submittalId: number,) => {
+
+
+
+
+  return `/api/submittals/${submittalId}/items`
+}
+
+/**
+ * @summary Add an item to a submittal package
+ */
+export const createSubmittalItem = async (submittalId: number,
+    submittalItemInput: SubmittalItemInput, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalItem> => {
+
+  return customFetch<SubmittalItem>(getCreateSubmittalItemUrl(submittalId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalItemInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSubmittalItemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmittalItem>>, TError,{submittalId: number;data: BodyType<SubmittalItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSubmittalItem>>, TError,{submittalId: number;data: BodyType<SubmittalItemInput>}, TContext> => {
+
+const mutationKey = ['createSubmittalItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubmittalItem>>, {submittalId: number;data: BodyType<SubmittalItemInput>}> = (props) => {
+          const {submittalId,data} = props ?? {};
+
+          return  createSubmittalItem(submittalId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSubmittalItemMutationResult = NonNullable<Awaited<ReturnType<typeof createSubmittalItem>>>
+    export type CreateSubmittalItemMutationBody = BodyType<SubmittalItemInput>
+    export type CreateSubmittalItemMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add an item to a submittal package
+ */
+export const useCreateSubmittalItem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmittalItem>>, TError,{submittalId: number;data: BodyType<SubmittalItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSubmittalItem>>,
+        TError,
+        {submittalId: number;data: BodyType<SubmittalItemInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSubmittalItemMutationOptions(options));
+    }
+
+export const getUpdateSubmittalItemUrl = (itemId: number,) => {
+
+
+
+
+  return `/api/submittal-items/${itemId}`
+}
+
+/**
+ * @summary Update a submittal item
+ */
+export const updateSubmittalItem = async (itemId: number,
+    submittalItemUpdate: SubmittalItemUpdate, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalItem> => {
+
+  return customFetch<SubmittalItem>(getUpdateSubmittalItemUrl(itemId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalItemUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateSubmittalItemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSubmittalItem>>, TError,{itemId: number;data: BodyType<SubmittalItemUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSubmittalItem>>, TError,{itemId: number;data: BodyType<SubmittalItemUpdate>}, TContext> => {
+
+const mutationKey = ['updateSubmittalItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSubmittalItem>>, {itemId: number;data: BodyType<SubmittalItemUpdate>}> = (props) => {
+          const {itemId,data} = props ?? {};
+
+          return  updateSubmittalItem(itemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSubmittalItemMutationResult = NonNullable<Awaited<ReturnType<typeof updateSubmittalItem>>>
+    export type UpdateSubmittalItemMutationBody = BodyType<SubmittalItemUpdate>
+    export type UpdateSubmittalItemMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a submittal item
+ */
+export const useUpdateSubmittalItem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSubmittalItem>>, TError,{itemId: number;data: BodyType<SubmittalItemUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSubmittalItem>>,
+        TError,
+        {itemId: number;data: BodyType<SubmittalItemUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateSubmittalItemMutationOptions(options));
+    }
+
+export const getDeleteSubmittalItemUrl = (itemId: number,) => {
+
+
+
+
+  return `/api/submittal-items/${itemId}`
+}
+
+/**
+ * @summary Delete a submittal item
+ */
+export const deleteSubmittalItem = async (itemId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteSubmittalItemUrl(itemId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteSubmittalItemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSubmittalItem>>, TError,{itemId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSubmittalItem>>, TError,{itemId: number}, TContext> => {
+
+const mutationKey = ['deleteSubmittalItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSubmittalItem>>, {itemId: number}> = (props) => {
+          const {itemId} = props ?? {};
+
+          return  deleteSubmittalItem(itemId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSubmittalItemMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSubmittalItem>>>
+
+    export type DeleteSubmittalItemMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a submittal item
+ */
+export const useDeleteSubmittalItem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSubmittalItem>>, TError,{itemId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSubmittalItem>>,
+        TError,
+        {itemId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSubmittalItemMutationOptions(options));
+    }
+
+export const getCreateSubmittalRevisionUrl = (submittalId: number,) => {
+
+
+
+
+  return `/api/submittals/${submittalId}/revisions`
+}
+
+/**
+ * @summary Add a revision and review disposition to a submittal package
+ */
+export const createSubmittalRevision = async (submittalId: number,
+    submittalRevisionInput: SubmittalRevisionInput, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalRevision> => {
+
+  return customFetch<SubmittalRevision>(getCreateSubmittalRevisionUrl(submittalId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalRevisionInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSubmittalRevisionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmittalRevision>>, TError,{submittalId: number;data: BodyType<SubmittalRevisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSubmittalRevision>>, TError,{submittalId: number;data: BodyType<SubmittalRevisionInput>}, TContext> => {
+
+const mutationKey = ['createSubmittalRevision'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubmittalRevision>>, {submittalId: number;data: BodyType<SubmittalRevisionInput>}> = (props) => {
+          const {submittalId,data} = props ?? {};
+
+          return  createSubmittalRevision(submittalId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSubmittalRevisionMutationResult = NonNullable<Awaited<ReturnType<typeof createSubmittalRevision>>>
+    export type CreateSubmittalRevisionMutationBody = BodyType<SubmittalRevisionInput>
+    export type CreateSubmittalRevisionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a revision and review disposition to a submittal package
+ */
+export const useCreateSubmittalRevision = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmittalRevision>>, TError,{submittalId: number;data: BodyType<SubmittalRevisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSubmittalRevision>>,
+        TError,
+        {submittalId: number;data: BodyType<SubmittalRevisionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSubmittalRevisionMutationOptions(options));
     }
 
 export const getListProjectActivityUrl = (projectId: number,) => {

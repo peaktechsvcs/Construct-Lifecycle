@@ -15,6 +15,7 @@ import featuresRouter from "./features";
 import notificationsRouter from "./notifications";
 import opportunitiesRouter from "./opportunities";
 import bidsRouter from "./bids";
+import submittalsRouter from "./submittals";
 import estimatesRouter from "./estimates";
 import proposalsRouter from "./proposals";
 
@@ -31,6 +32,7 @@ router.use(featuresRouter);
 router.use(notificationsRouter);
 router.use(opportunitiesRouter);
 router.use(bidsRouter);
+router.use(submittalsRouter);
 router.use(estimatesRouter);
 router.use(proposalsRouter);
 router.use(tenantAdminRouter);
