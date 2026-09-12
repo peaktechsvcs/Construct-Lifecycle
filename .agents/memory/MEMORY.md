@@ -9,3 +9,4 @@
 - [Clerk environment identity boundary](clerk-environment-identity.md) — Replit-managed Development and Production Clerk users are separate; tenant access must be explicitly provisioned per environment.
 - [Feature visibility and feedback](feature-visibility-feedback.md) — upcoming navigation is server-gated; CLC controls advertisement and tenants cast one current roadmap vote.
 - [Notifications data model](notifications-data-model.md) — notifications derive from tenant activity and due follow-ups; per-user read state is stored by tenant and environment.
+- [Opportunities model](opportunities-model.md) — opportunities stay separate from projects and are assigned only to members of the active tenant.

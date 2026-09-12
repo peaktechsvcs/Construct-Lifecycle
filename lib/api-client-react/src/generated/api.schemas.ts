@@ -61,6 +61,95 @@ export interface NotificationReadInput {
  */
 export type ProjectStage = string;
 
+export type OpportunityStage = typeof OpportunityStage[keyof typeof OpportunityStage];
+
+
+export const OpportunityStage = {
+  new: 'new',
+  qualified: 'qualified',
+  proposal: 'proposal',
+  negotiation: 'negotiation',
+  won: 'won',
+  lost: 'lost',
+} as const;
+
+export interface OpportunityOwner {
+  userId: number;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  displayName: string | null;
+}
+
+export interface Opportunity {
+  id: number;
+  environmentId: number;
+  opportunityNumber: string;
+  businessCustomerId: number;
+  customerName: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  stage: OpportunityStage;
+  estimatedValue: number;
+  /** @nullable */
+  expectedCloseDate: string | null;
+  /** @nullable */
+  ownerUserId: number | null;
+  owner: OpportunityOwner | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OpportunityInput {
+  /** @minimum 1 */
+  businessCustomerId: number;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  /** @maxLength 5000 */
+  description?: string;
+  stage?: OpportunityStage;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  estimatedValue?: number;
+  expectedCloseDate?: string;
+  /** @minimum 1 */
+  ownerUserId?: number;
+}
+
+export interface OpportunityUpdate {
+  /** @minimum 1 */
+  businessCustomerId?: number;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name?: string;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  description?: string | null;
+  stage?: OpportunityStage;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  estimatedValue?: number;
+  /** @nullable */
+  expectedCloseDate?: string | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  ownerUserId?: number | null;
+}
+
 export type ProposalStatus = typeof ProposalStatus[keyof typeof ProposalStatus];
 
 
@@ -1287,6 +1376,18 @@ export interface WorkflowConfigInput {
 export type ListProjectsParams = {
 search?: string;
 stage?: ProjectStage;
+};
+
+export type ListOpportunitiesParams = {
+/**
+ * @maxLength 120
+ */
+search?: string;
+stage?: OpportunityStage;
+/**
+ * @minimum 1
+ */
+ownerUserId?: number;
 };
 
 export type ListBusinessCustomersParams = {

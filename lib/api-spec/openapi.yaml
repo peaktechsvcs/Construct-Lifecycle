@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: projects
     description: Project lifecycle operations
+  - name: opportunities
+    description: Pre-construction opportunity pipeline
   - name: customers
     description: Business customer records and project relationships
   - name: dashboard
@@ -134,6 +136,83 @@ paths:
       responses:
         "204":
           description: Project deleted
+  /opportunities:
+    get:
+      operationId: listOpportunities
+      tags: [opportunities]
+      summary: List opportunities for the active customer environment
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 120 }
+        - in: query
+          name: stage
+          schema: { $ref: "#/components/schemas/OpportunityStage" }
+        - in: query
+          name: ownerUserId
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Opportunities
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Opportunity" }
+    post:
+      operationId: createOpportunity
+      tags: [opportunities]
+      summary: Create an opportunity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OpportunityInput" }
+      responses:
+        "201":
+          description: Opportunity created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Opportunity" }
+  /opportunities/{opportunityId}:
+    get:
+      operationId: getOpportunity
+      tags: [opportunities]
+      summary: Get an opportunity
+      parameters:
+        - $ref: "#/components/parameters/OpportunityId"
+      responses:
+        "200":
+          description: Opportunity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Opportunity" }
+        "404": { description: Opportunity not found }
+    patch:
+      operationId: updateOpportunity
+      tags: [opportunities]
+      summary: Update an opportunity
+      parameters:
+        - $ref: "#/components/parameters/OpportunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OpportunityUpdate" }
+      responses:
+        "200":
+          description: Updated opportunity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Opportunity" }
+    delete:
+      operationId: deleteOpportunity
+      tags: [opportunities]
+      summary: Delete an opportunity
+      parameters:
+        - $ref: "#/components/parameters/OpportunityId"
+      responses:
+        "204": { description: Opportunity deleted }
   /projects/{projectId}/activity:
     get:
       operationId: listProjectActivity
@@ -1053,6 +1132,12 @@ components:
       required: true
       schema:
         type: integer
+    OpportunityId:
+      in: path
+      name: opportunityId
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
@@ -1099,6 +1184,55 @@ components:
     ProjectStage:
       type: string
       pattern: "^[a-z][a-z0-9_]{1,62}$"
+    OpportunityStage:
+      type: string
+      enum: [new, qualified, proposal, negotiation, won, lost]
+    OpportunityOwner:
+      type: object
+      required: [userId, email, displayName]
+      properties:
+        userId: { type: integer }
+        email: { type: ["string", "null"], format: email }
+        displayName: { type: ["string", "null"] }
+    Opportunity:
+      type: object
+      required: [id, environmentId, opportunityNumber, businessCustomerId, customerName, name, stage, estimatedValue, expectedCloseDate, ownerUserId, owner, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        environmentId: { type: integer }
+        opportunityNumber: { type: string }
+        businessCustomerId: { type: integer }
+        customerName: { type: string }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        stage: { $ref: "#/components/schemas/OpportunityStage" }
+        estimatedValue: { type: number }
+        expectedCloseDate: { type: ["string", "null"], format: date }
+        ownerUserId: { type: ["integer", "null"] }
+        owner: { oneOf: [{ $ref: "#/components/schemas/OpportunityOwner" }, { type: "null" }] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    OpportunityInput:
+      type: object
+      required: [businessCustomerId, name]
+      properties:
+        businessCustomerId: { type: integer, minimum: 1 }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: string, maxLength: 5000 }
+        stage: { $ref: "#/components/schemas/OpportunityStage" }
+        estimatedValue: { type: number, minimum: 0, maximum: 999999999999 }
+        expectedCloseDate: { type: string, format: date }
+        ownerUserId: { type: integer, minimum: 1 }
+    OpportunityUpdate:
+      type: object
+      properties:
+        businessCustomerId: { type: integer, minimum: 1 }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: ["string", "null"], maxLength: 5000 }
+        stage: { $ref: "#/components/schemas/OpportunityStage" }
+        estimatedValue: { type: number, minimum: 0, maximum: 999999999999 }
+        expectedCloseDate: { type: ["string", "null"], format: date }
+        ownerUserId: { type: ["integer", "null"], minimum: 1 }
     ProposalStatus:
       type: string
       enum: [not_started, drafting, submitted, revised, accepted]

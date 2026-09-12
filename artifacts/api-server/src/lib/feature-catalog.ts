@@ -7,7 +7,6 @@ export type FeatureCatalogEntry = {
 };
 
 export const FEATURE_CATALOG: FeatureCatalogEntry[] = [
-  { key: "opportunities", label: "Opportunities", section: "Pipeline", description: "Capture and qualify new construction opportunities.", route: "/coming-soon/opportunities" },
   { key: "bids", label: "Bids", section: "Pipeline", description: "Organize bid invitations, deadlines, scope, and submission status.", route: "/coming-soon/bids" },
   { key: "estimates", label: "Estimates", section: "Pipeline", description: "Build and compare project estimates.", route: "/coming-soon/estimates" },
   { key: "proposals", label: "Proposals", section: "Pipeline", description: "Prepare, send, and track proposals.", route: "/coming-soon/proposals" },

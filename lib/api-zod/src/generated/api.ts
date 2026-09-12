@@ -365,6 +365,178 @@ export const DeleteProjectResponse = zod.void()
 
 
 /**
+ * @summary List opportunities for the active customer environment
+ */
+export const listOpportunitiesQuerySearchMax = 120;
+
+
+
+
+export const ListOpportunitiesQueryParams = zod.object({
+  "search": zod.coerce.string().max(listOpportunitiesQuerySearchMax).optional(),
+  "stage": zod.enum(['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost']).optional(),
+  "ownerUserId": zod.coerce.number().int().min(1).optional()
+})
+
+export const ListOpportunitiesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "opportunityNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost']),
+  "estimatedValue": zod.number(),
+  "expectedCloseDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListOpportunitiesResponse = zod.array(ListOpportunitiesResponseItem)
+
+
+/**
+ * @summary Create an opportunity
+ */
+
+export const createOpportunityBodyNameMax = 180;
+
+export const createOpportunityBodyDescriptionMax = 5000;
+
+export const createOpportunityBodyEstimatedValueMin = 0;
+export const createOpportunityBodyEstimatedValueMax = 999999999999;
+
+
+
+
+export const CreateOpportunityBody = zod.object({
+  "businessCustomerId": zod.number().int().min(1),
+  "name": zod.string().min(1).max(createOpportunityBodyNameMax),
+  "description": zod.string().max(createOpportunityBodyDescriptionMax).optional(),
+  "stage": zod.enum(['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost']).optional(),
+  "estimatedValue": zod.number().min(createOpportunityBodyEstimatedValueMin).max(createOpportunityBodyEstimatedValueMax).optional(),
+  "expectedCloseDate": zod.coerce.date().optional(),
+  "ownerUserId": zod.number().int().min(1).optional()
+})
+
+export const CreateOpportunityResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "opportunityNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost']),
+  "estimatedValue": zod.number(),
+  "expectedCloseDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get an opportunity
+ */
+export const GetOpportunityParams = zod.object({
+  "opportunityId": zod.coerce.number().int()
+})
+
+export const GetOpportunityResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "opportunityNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost']),
+  "estimatedValue": zod.number(),
+  "expectedCloseDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update an opportunity
+ */
+export const UpdateOpportunityParams = zod.object({
+  "opportunityId": zod.coerce.number().int()
+})
+
+
+export const updateOpportunityBodyNameMax = 180;
+
+export const updateOpportunityBodyDescriptionMax = 5000;
+
+export const updateOpportunityBodyEstimatedValueMin = 0;
+export const updateOpportunityBodyEstimatedValueMax = 999999999999;
+
+
+
+
+export const UpdateOpportunityBody = zod.object({
+  "businessCustomerId": zod.number().int().min(1).optional(),
+  "name": zod.string().min(1).max(updateOpportunityBodyNameMax).optional(),
+  "description": zod.string().max(updateOpportunityBodyDescriptionMax).nullish(),
+  "stage": zod.enum(['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost']).optional(),
+  "estimatedValue": zod.number().min(updateOpportunityBodyEstimatedValueMin).max(updateOpportunityBodyEstimatedValueMax).optional(),
+  "expectedCloseDate": zod.coerce.date().nullish(),
+  "ownerUserId": zod.number().int().min(1).nullish()
+})
+
+export const UpdateOpportunityResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "opportunityNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost']),
+  "estimatedValue": zod.number(),
+  "expectedCloseDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete an opportunity
+ */
+export const DeleteOpportunityParams = zod.object({
+  "opportunityId": zod.coerce.number().int()
+})
+
+export const DeleteOpportunityResponse = zod.void()
+
+
+/**
  * @summary List project activity
  */
 export const ListProjectActivityParams = zod.object({
