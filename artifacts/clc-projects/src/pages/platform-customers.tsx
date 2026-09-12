@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Building2, Copy, CreditCard, Pause, Play, Plus, ShieldAlert } from 'lucide-react';
+import { Building2, Copy, CreditCard, Megaphone, Pause, Play, Plus, ShieldAlert } from 'lucide-react';
+import { Link } from 'wouter';
 import {
   PlatformCustomerStatus,
   UpdatePlatformCustomerInputStatus,
@@ -64,7 +65,12 @@ export function PlatformCustomers() {
   const refreshPlans = () => qc.invalidateQueries({ queryKey: getListPlatformBillingPlansQueryKey() });
   return (
     <div className="animate-rise">
-      <PageTitle eyebrow="Platform" title="Customers" description="Onboard and control customer workspaces." />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageTitle eyebrow="Platform" title="Customers" description="Onboard and control customer workspaces." />
+        <Link href="/administration/platform/features" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Megaphone size={14} /> Feature visibility
+        </Link>
+      </div>
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <section className="rounded-xl border border-border bg-card p-5">
           <h2 className="mb-4 text-base font-bold">Customer workspaces</h2>

@@ -8,10 +8,17 @@ import {
   Package, ListChecks, ShoppingCart, ClipboardList, Truck, PackageCheck,
   TrendingUp, HandCoins, Receipt, BadgeDollarSign, FilePenLine, Percent,
   ShieldCheck,
-  Files, ReceiptText, Archive, BarChart3, LineChart, type LucideIcon,
+  Files, ReceiptText, Archive, BarChart3, LineChart, MessageSquareText, type LucideIcon,
 } from 'lucide-react';
 import { useTenant } from '@/providers/tenant-provider';
-import { useListFollowUps, getListFollowUpsQueryKey, FollowUpStatus, useSwitchTenant } from '@workspace/api-client-react';
+import {
+  useListFeatureFlags,
+  getListFeatureFlagsQueryKey,
+  useListFollowUps,
+  getListFollowUpsQueryKey,
+  FollowUpStatus,
+  useSwitchTenant,
+} from '@workspace/api-client-react';
 import { useUser, useClerk } from '@clerk/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@workspace/construct-lifecycle-design-system/components/ui/dropdown-menu';
@@ -151,6 +158,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/projects': 'Projects',
   '/customers': 'Customers',
   '/follow-ups': 'Follow-ups',
+  '/feedback': 'Feature Feedback',
 };
 
 type NavigationItem = { href: string; label: string; icon: LucideIcon; badge?: boolean };
@@ -162,6 +170,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     items: [
       { href: '/overview', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/follow-ups', label: 'My Work', icon: BriefcaseBusiness, badge: true },
+      { href: '/feedback', label: 'Feature Feedback', icon: MessageSquareText },
       { href: '/coming-soon/notifications', label: 'Notifications', icon: Bell },
     ],
   },
@@ -233,6 +242,7 @@ function getBreadcrumbLabel(location: string): string {
   if (location.startsWith('/settings/administration')) return 'Administration';
   if (location === '/settings' || location.startsWith('/settings/')) return 'Settings';
   if (location.includes('/administration/platform/customers')) return 'Platform Customers';
+  if (location.includes('/administration/platform/features')) return 'Feature Visibility';
   if (location.startsWith('/projects')) return 'All Projects';
   if (location.startsWith('/customers')) return 'Customers';
   if (location.startsWith('/coming-soon/')) {
@@ -250,6 +260,13 @@ export function Shell({ children }: { children: ReactNode }) {
   const { signOut } = useClerk();
   const switchTenant = useSwitchTenant();
   const qc = useQueryClient();
+  const featureFlagsQuery = useListFeatureFlags({
+    query: {
+      queryKey: getListFeatureFlagsQueryKey(),
+      staleTime: 30000,
+      retry: false,
+    },
+  });
 
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
   const isDtdEnv = activeEnvironment?.kind === 'dtd';
@@ -277,6 +294,18 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const breadcrumbLabel = getBreadcrumbLabel(location);
   const canManageSettings = activeRole === 'owner' || activeRole === 'admin';
+  const enabledFeatureKeys = new Set((featureFlagsQuery.data ?? []).map((feature) => feature.key));
+  const visibleNavigationGroups = NAVIGATION_GROUPS
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(({ href }) => {
+        const featureKey = href.startsWith('/coming-soon/')
+          ? href.slice('/coming-soon/'.length)
+          : undefined;
+        return !featureKey || isPlatformAdmin || enabledFeatureKeys.has(featureKey);
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -341,7 +370,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
             {/* Navigation */}
             <nav className={`space-y-4 pb-5 ${sidebarCollapsed ? 'px-2 pt-4' : 'px-4 pt-5'}`} aria-label="Primary navigation">
-              {NAVIGATION_GROUPS.map((group) => (
+              {visibleNavigationGroups.map((group) => (
                 <div key={group.label}>
                   {!sidebarCollapsed && (
                     <p className="mb-2 px-3 mono text-[9px] font-bold uppercase tracking-[.18em] text-sidebar-foreground/45">

@@ -1,6 +1,8 @@
 import { ArrowLeft, Clock3, Construction } from 'lucide-react';
-import { Link, useParams } from 'wouter';
+import { Link, Redirect, useParams } from 'wouter';
 import { Button } from '@/components/app-ui';
+import { useTenant } from '@/providers/tenant-provider';
+import { getListFeatureFlagsQueryKey, useListFeatureFlags } from '@workspace/api-client-react';
 
 const destinations: Record<string, { section: string; description: string }> = {
   notifications: { section: 'Home', description: 'See alerts, mentions, approvals, and changes that need your attention.' },
@@ -39,6 +41,19 @@ const destinations: Record<string, { section: string; description: string }> = {
 
 export function ComingSoonPage() {
   const { item = '' } = useParams<{ item: string }>();
+  const { isPlatformAdmin } = useTenant();
+  const featureFlagsQuery = useListFeatureFlags({
+    query: {
+      queryKey: getListFeatureFlagsQueryKey(),
+      staleTime: 30000,
+      retry: false,
+    },
+  });
+  const isVisible = isPlatformAdmin || featureFlagsQuery.data?.some((feature) => feature.key === item);
+
+  if (featureFlagsQuery.isLoading) return null;
+  if (!isVisible) return <Redirect to="/overview" />;
+
   const destination = destinations[item] ?? { section: 'Workspace', description: 'This workspace capability is being prepared for the next release.' };
   const title = item
     .split('-')

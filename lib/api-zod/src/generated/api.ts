@@ -1388,6 +1388,87 @@ export const SwitchEnvironmentResponse = zod.object({
 
 
 /**
+ * @summary List feature visibility for the current user
+ */
+export const ListFeatureFlagsResponseItem = zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "description": zod.string(),
+  "route": zod.string(),
+  "enabled": zod.boolean()
+})
+export const ListFeatureFlagsResponse = zod.array(ListFeatureFlagsResponseItem)
+
+
+/**
+ * @summary Toggle an upcoming feature for tenant visibility
+ */
+export const updateFeatureFlagPathFeatureKeyRegExp = new RegExp('^[a-z][a-z0-9-]{1,62}$');
+
+
+export const UpdateFeatureFlagParams = zod.object({
+  "featureKey": zod.coerce.string().regex(updateFeatureFlagPathFeatureKeyRegExp)
+})
+
+export const UpdateFeatureFlagBody = zod.object({
+  "enabled": zod.boolean()
+})
+
+export const UpdateFeatureFlagResponse = zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "description": zod.string(),
+  "route": zod.string(),
+  "enabled": zod.boolean()
+})
+
+
+/**
+ * @summary List upcoming features available for tenant voting
+ */
+export const listFeatureFeedbackResponseVoteCountMin = 0;
+
+
+
+export const ListFeatureFeedbackResponseItem = zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "description": zod.string(),
+  "voteCount": zod.number().int().min(listFeatureFeedbackResponseVoteCountMin),
+  "votedByCurrentUser": zod.boolean()
+})
+export const ListFeatureFeedbackResponse = zod.array(ListFeatureFeedbackResponseItem)
+
+
+/**
+ * @summary Cast the current tenant user's feature vote
+ */
+export const voteForFeatureBodyFeatureKeyRegExp = new RegExp('^[a-z][a-z0-9-]{1,62}$');
+
+
+export const VoteForFeatureBody = zod.object({
+  "featureKey": zod.string().regex(voteForFeatureBodyFeatureKeyRegExp)
+})
+
+export const voteForFeatureResponseVoteCountMin = 0;
+
+
+
+export const VoteForFeatureResponseItem = zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "section": zod.string(),
+  "description": zod.string(),
+  "voteCount": zod.number().int().min(voteForFeatureResponseVoteCountMin),
+  "votedByCurrentUser": zod.boolean()
+})
+export const VoteForFeatureResponse = zod.array(VoteForFeatureResponseItem)
+
+
+/**
  * @summary List members of the active customer
  */
 export const ListTenantMembersResponseItem = zod.object({

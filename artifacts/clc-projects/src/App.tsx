@@ -20,6 +20,8 @@ import { Customers } from '@/pages/customers';
 import { CustomerDetail } from '@/pages/customer-detail';
 import { FollowUps } from '@/pages/follow-ups';
 import { PlatformCustomers } from '@/pages/platform-customers';
+import { PlatformFeatures } from '@/pages/platform-features';
+import { FeedbackPage } from '@/pages/feedback';
 import { AcceptInvitation } from '@/pages/accept-invitation';
 import { ComingSoonPage } from '@/pages/coming-soon';
 import { SettingsPage } from '@/pages/settings';
@@ -208,6 +210,9 @@ function AppRouter() {
         <Route path="/follow-ups">
           <Shell><ProtectedRoute component={FollowUps} /></Shell>
         </Route>
+        <Route path="/feedback">
+          <Shell><ProtectedRoute component={FeedbackPage} /></Shell>
+        </Route>
         <Route path="/settings">
           <Shell><ProtectedRoute component={SettingsPage} /></Shell>
         </Route>
@@ -237,6 +242,9 @@ function AppRouter() {
         </Route>
         <Route path="/administration/platform/customers">
           <Shell><ProtectedRoute component={PlatformCustomers} /></Shell>
+        </Route>
+        <Route path="/administration/platform/features">
+          <Shell><ProtectedRoute component={PlatformFeatures} /></Shell>
         </Route>
         <Route path="/coming-soon/:item">
           <Shell><ProtectedRoute component={ComingSoonPage} /></Shell>

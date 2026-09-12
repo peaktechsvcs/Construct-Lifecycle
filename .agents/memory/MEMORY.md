@@ -7,3 +7,4 @@
 - [Stripe connector runtime](stripe-connector-runtime.md) — the attached connection may expose proxy access without a raw sync secret; billing must fail closed around sync/webhooks.
 - [Sidebar token mapping](sidebar-token-mapping.md) — Tailwind v4 custom sidebar utilities need explicit `@theme` color mappings or mobile navigation can become transparent.
 - [Clerk environment identity boundary](clerk-environment-identity.md) — Replit-managed Development and Production Clerk users are separate; tenant access must be explicitly provisioned per environment.
+- [Feature visibility and feedback](feature-visibility-feedback.md) — upcoming navigation is server-gated; CLC controls advertisement and tenants cast one current roadmap vote.

@@ -11,6 +11,7 @@ import customersRouter from "./customers";
 import { requireAuthenticatedUser } from "../middlewares/tenantContext";
 import billingRouter from "./billing";
 import workflowsRouter from "./workflows";
+import featuresRouter from "./features";
 
 const router: IRouter = Router();
 
@@ -21,6 +22,7 @@ router.use(platformRouter);
 router.use(billingRouter);
 router.use(requireTenantContext);
 router.use(tenantRouter);
+router.use(featuresRouter);
 router.use(tenantAdminRouter);
 router.use(workflowsRouter);
 router.use(integrationsRouter);

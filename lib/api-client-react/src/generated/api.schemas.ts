@@ -513,6 +513,34 @@ export interface TenantContext {
   isPlatformAdmin: boolean;
 }
 
+export interface FeatureFlag {
+  key: string;
+  label: string;
+  section: string;
+  description: string;
+  route: string;
+  enabled: boolean;
+}
+
+export interface FeatureFlagUpdate {
+  enabled: boolean;
+}
+
+export interface FeatureFeedbackItem {
+  key: string;
+  label: string;
+  section: string;
+  description: string;
+  /** @minimum 0 */
+  voteCount: number;
+  votedByCurrentUser: boolean;
+}
+
+export interface FeatureFeedbackVoteInput {
+  /** @pattern ^[a-z][a-z0-9-]{1,62}$ */
+  featureKey: string;
+}
+
 export interface SwitchTenantInput {
   /** @minimum 1 */
   tenantId: number;

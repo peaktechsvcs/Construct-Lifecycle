@@ -48,6 +48,10 @@ import type {
   EntitlementOverride,
   EntitlementOverrideInput,
   Environment,
+  FeatureFeedbackItem,
+  FeatureFeedbackVoteInput,
+  FeatureFlag,
+  FeatureFlagUpdate,
   FollowUp,
   FollowUpInput,
   FollowUpUpdate,
@@ -1980,6 +1984,303 @@ export const useSwitchEnvironment = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSwitchEnvironmentMutationOptions(options));
+    }
+
+export const getListFeatureFlagsUrl = () => {
+
+
+
+
+  return `/api/features`
+}
+
+/**
+ * @summary List feature visibility for the current user
+ */
+export const listFeatureFlags = async ( options?: Parameters<typeof customFetch>[1]): Promise<FeatureFlag[]> => {
+
+  return customFetch<FeatureFlag[]>(getListFeatureFlagsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFeatureFlagsQueryKey = () => {
+    return [
+    `/api/features`
+    ] as const;
+    }
+
+
+export const getListFeatureFlagsQueryOptions = <TData = Awaited<ReturnType<typeof listFeatureFlags>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFeatureFlags>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFeatureFlagsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFeatureFlags>>> = ({ signal }) => listFeatureFlags({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFeatureFlags>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFeatureFlagsQueryResult = NonNullable<Awaited<ReturnType<typeof listFeatureFlags>>>
+export type ListFeatureFlagsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List feature visibility for the current user
+ */
+
+export function useListFeatureFlags<TData = Awaited<ReturnType<typeof listFeatureFlags>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFeatureFlags>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFeatureFlagsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateFeatureFlagUrl = (featureKey: string,) => {
+
+
+
+
+  return `/api/platform/features/${featureKey}`
+}
+
+/**
+ * @summary Toggle an upcoming feature for tenant visibility
+ */
+export const updateFeatureFlag = async (featureKey: string,
+    featureFlagUpdate: FeatureFlagUpdate, options?: Parameters<typeof customFetch>[1]): Promise<FeatureFlag> => {
+
+  return customFetch<FeatureFlag>(getUpdateFeatureFlagUrl(featureKey),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(featureFlagUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateFeatureFlagMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFeatureFlag>>, TError,{featureKey: string;data: BodyType<FeatureFlagUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFeatureFlag>>, TError,{featureKey: string;data: BodyType<FeatureFlagUpdate>}, TContext> => {
+
+const mutationKey = ['updateFeatureFlag'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFeatureFlag>>, {featureKey: string;data: BodyType<FeatureFlagUpdate>}> = (props) => {
+          const {featureKey,data} = props ?? {};
+
+          return  updateFeatureFlag(featureKey,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFeatureFlagMutationResult = NonNullable<Awaited<ReturnType<typeof updateFeatureFlag>>>
+    export type UpdateFeatureFlagMutationBody = BodyType<FeatureFlagUpdate>
+    export type UpdateFeatureFlagMutationError = ErrorType<void>
+
+    /**
+ * @summary Toggle an upcoming feature for tenant visibility
+ */
+export const useUpdateFeatureFlag = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFeatureFlag>>, TError,{featureKey: string;data: BodyType<FeatureFlagUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateFeatureFlag>>,
+        TError,
+        {featureKey: string;data: BodyType<FeatureFlagUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateFeatureFlagMutationOptions(options));
+    }
+
+export const getListFeatureFeedbackUrl = () => {
+
+
+
+
+  return `/api/feedback/features`
+}
+
+/**
+ * @summary List upcoming features available for tenant voting
+ */
+export const listFeatureFeedback = async ( options?: Parameters<typeof customFetch>[1]): Promise<FeatureFeedbackItem[]> => {
+
+  return customFetch<FeatureFeedbackItem[]>(getListFeatureFeedbackUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFeatureFeedbackQueryKey = () => {
+    return [
+    `/api/feedback/features`
+    ] as const;
+    }
+
+
+export const getListFeatureFeedbackQueryOptions = <TData = Awaited<ReturnType<typeof listFeatureFeedback>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFeatureFeedback>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFeatureFeedbackQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFeatureFeedback>>> = ({ signal }) => listFeatureFeedback({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFeatureFeedback>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFeatureFeedbackQueryResult = NonNullable<Awaited<ReturnType<typeof listFeatureFeedback>>>
+export type ListFeatureFeedbackQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List upcoming features available for tenant voting
+ */
+
+export function useListFeatureFeedback<TData = Awaited<ReturnType<typeof listFeatureFeedback>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFeatureFeedback>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFeatureFeedbackQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getVoteForFeatureUrl = () => {
+
+
+
+
+  return `/api/feedback/vote`
+}
+
+/**
+ * @summary Cast the current tenant user's feature vote
+ */
+export const voteForFeature = async (featureFeedbackVoteInput: FeatureFeedbackVoteInput, options?: Parameters<typeof customFetch>[1]): Promise<FeatureFeedbackItem[]> => {
+
+  return customFetch<FeatureFeedbackItem[]>(getVoteForFeatureUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(featureFeedbackVoteInput)
+  }
+);}
+
+
+
+
+
+export const getVoteForFeatureMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voteForFeature>>, TError,{data: BodyType<FeatureFeedbackVoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof voteForFeature>>, TError,{data: BodyType<FeatureFeedbackVoteInput>}, TContext> => {
+
+const mutationKey = ['voteForFeature'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof voteForFeature>>, {data: BodyType<FeatureFeedbackVoteInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  voteForFeature(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VoteForFeatureMutationResult = NonNullable<Awaited<ReturnType<typeof voteForFeature>>>
+    export type VoteForFeatureMutationBody = BodyType<FeatureFeedbackVoteInput>
+    export type VoteForFeatureMutationError = ErrorType<void>
+
+    /**
+ * @summary Cast the current tenant user's feature vote
+ */
+export const useVoteForFeature = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voteForFeature>>, TError,{data: BodyType<FeatureFeedbackVoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof voteForFeature>>,
+        TError,
+        {data: BodyType<FeatureFeedbackVoteInput>},
+        TContext
+      > => {
+      return useMutation(getVoteForFeatureMutationOptions(options));
     }
 
 export const getListTenantMembersUrl = () => {

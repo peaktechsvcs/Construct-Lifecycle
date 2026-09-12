@@ -475,6 +475,39 @@ paths:
               schema: { $ref: "#/components/schemas/FeatureFlag" }
         "400": { description: Invalid feature key or update }
         "403": { description: Platform administrator permission required }
+  /feedback/features:
+    get:
+      operationId: listFeatureFeedback
+      tags: [feedback]
+      summary: List upcoming features available for tenant voting
+      responses:
+        "200":
+          description: Upcoming feature poll
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FeatureFeedbackItem" }
+  /feedback/vote:
+    post:
+      operationId: voteForFeature
+      tags: [feedback]
+      summary: Cast the current tenant user's feature vote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeatureFeedbackVoteInput"
+      responses:
+        "200":
+          description: Updated upcoming feature poll
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FeatureFeedbackItem" }
+        "400": { description: Invalid or unavailable feature }
   /tenant/members:
     get:
       operationId: listTenantMembers
@@ -1344,6 +1377,21 @@ components:
       required: [enabled]
       properties:
         enabled: { type: boolean }
+    FeatureFeedbackItem:
+      type: object
+      required: [key, label, section, description, voteCount, votedByCurrentUser]
+      properties:
+        key: { type: string }
+        label: { type: string }
+        section: { type: string }
+        description: { type: string }
+        voteCount: { type: integer, minimum: 0 }
+        votedByCurrentUser: { type: boolean }
+    FeatureFeedbackVoteInput:
+      type: object
+      required: [featureKey]
+      properties:
+        featureKey: { type: string, pattern: "^[a-z][a-z0-9-]{1,62}$" }
     SwitchTenantInput:
       type: object
       required: [tenantId]

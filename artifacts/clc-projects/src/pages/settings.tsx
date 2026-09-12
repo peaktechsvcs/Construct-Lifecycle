@@ -7,6 +7,7 @@ import { EmptyState, LoadingPanel, PageTitle } from '@/components/app-ui';
 import { useTenant } from '@/providers/tenant-provider';
 import { BillingAdmin } from '@/pages/billing';
 import { WorkflowsAdmin } from '@/pages/workflows';
+import { getListFeatureFlagsQueryKey, useListFeatureFlags } from '@workspace/api-client-react';
 
 type SettingsSection = 'profile' | 'branding' | 'integrations' | 'billing' | 'administration';
 type AdministrationSection = 'users' | 'roles' | 'access' | 'workflows';
@@ -28,14 +29,19 @@ const administrationSections: Array<{ key: AdministrationSection; label: string;
 
 function AdministrationSettings() {
   const [location] = useLocation();
+  const featureFlagsQuery = useListFeatureFlags({
+    query: { queryKey: getListFeatureFlagsQueryKey(), staleTime: 30000, retry: false },
+  });
   const requested = location.split('/')[3] as AdministrationSection | undefined;
-  const section: AdministrationSection = administrationSections.some((item) => item.key === requested) ? requested! : 'users';
+  const rolesEnabled = featureFlagsQuery.data?.some((feature) => feature.key === 'roles') ?? false;
+  const visibleSections = administrationSections.filter((item) => item.key !== 'roles' || rolesEnabled);
+  const section: AdministrationSection = visibleSections.some((item) => item.key === requested) ? requested! : 'users';
 
   return (
     <div className="animate-rise">
       <PageTitle eyebrow="Settings / Administration" title="Administration" description="Manage workspace users, roles, and access memberships." />
       <nav className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-2" aria-label="Administration navigation">
-        {administrationSections.map(({ key, label, description, icon: Icon }) => (
+        {visibleSections.map(({ key, label, description, icon: Icon }) => (
           <Link
             key={key}
             href={`/settings/administration/${key}`}
