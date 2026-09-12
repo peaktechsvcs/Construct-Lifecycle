@@ -1,8 +1,11 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { ClipboardCheck, ExternalLink, FileText, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ClipboardCheck, ExternalLink, FileText, Link2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import {
+  SubmittalCoordination,
+  SubmittalCoordinationStatus,
+  SubmittalCoordinationType,
   SubmittalItemType,
   SubmittalItemStatus,
   SubmittalOriginType,
@@ -17,15 +20,20 @@ import {
   useDeleteSubmittalPackage,
   useRequestSubmittalDocumentUpload,
   useCompleteSubmittalDocumentUpload,
+  useCreateSubmittalCoordination,
   useGetSubmittalPackage,
+  useListSubmittalCoordination,
   useListBids,
   useListProjects,
   useListSubmittalPackages,
   useUpdateSubmittalPackage,
+  useUpdateSubmittalCoordination,
+  useDeleteSubmittalCoordination,
   getGetSubmittalPackageQueryKey,
   getListBidsQueryKey,
   getListProjectsQueryKey,
   getListSubmittalPackagesQueryKey,
+  getListSubmittalCoordinationQueryKey,
 } from '@workspace/api-client-react';
 import { Badge, Button, EmptyState, ErrorPanel, LoadingPanel, Modal, PageTitle, shortDate } from '@/components/app-ui';
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
@@ -66,6 +74,19 @@ const itemStatuses: { value: SubmittalItemStatus; label: string }[] = [
   { value: 'needs_revision', label: 'Needs revision' },
   { value: 'accepted', label: 'Accepted' },
   { value: 'superseded', label: 'Superseded' },
+];
+const coordinationTypes: { value: SubmittalCoordinationType; label: string }[] = [
+  { value: 'procurement', label: 'Procurement' },
+  { value: 'fabrication', label: 'Fabrication' },
+  { value: 'installation', label: 'Installation' },
+  { value: 'schedule', label: 'Project schedule' },
+];
+const coordinationStatuses: { value: SubmittalCoordinationStatus; label: string }[] = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'blocked', label: 'Blocked' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'failed', label: 'Failed' },
 ];
 const label = (items: { value: string; label: string }[], value: string) => items.find((item) => item.value === value)?.label ?? value;
 const tone = (status: string) => {
@@ -186,6 +207,67 @@ function RevisionForm({ packageId, onClose, onSaved }: { packageId: number; onCl
   </form></Modal>;
 }
 
+function CoordinationForm({ packageId, revisions, onClose, onSaved }: { packageId: number; revisions: SubmittalPackage['revisions']; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({
+    coordinationType: 'procurement' as SubmittalCoordinationType,
+    status: 'pending' as SubmittalCoordinationStatus,
+    revisionId: '',
+    ownerName: '',
+    externalReference: '',
+    dueDate: '',
+    notes: '',
+    failureReason: '',
+  });
+  const create = useCreateSubmittalCoordination();
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    create.mutate({
+      submittalId: packageId,
+      data: {
+        coordinationType: form.coordinationType,
+        status: form.status,
+        revisionId: form.revisionId ? Number(form.revisionId) : undefined,
+        ownerName: form.ownerName.trim() || undefined,
+        externalReference: form.externalReference.trim() || undefined,
+        dueDate: form.dueDate || undefined,
+        notes: form.notes.trim() || undefined,
+        failureReason: form.status === 'failed' ? form.failureReason.trim() || undefined : undefined,
+      },
+    }, { onSuccess: onSaved });
+  };
+  return <Modal title="Add coordination record" onClose={onClose}><form className="space-y-4" onSubmit={submit}>
+    <div className="grid gap-4 md:grid-cols-2">
+      <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Coordination area</span><Select value={form.coordinationType} onValueChange={(value) => setForm({ ...form, coordinationType: value as SubmittalCoordinationType })}><SelectTrigger aria-label="Coordination area"><SelectValue /></SelectTrigger><SelectContent className="bg-popover">{coordinationTypes.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent></Select></label>
+      <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Status</span><Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value as SubmittalCoordinationStatus })}><SelectTrigger aria-label="Coordination status"><SelectValue /></SelectTrigger><SelectContent className="bg-popover">{coordinationStatuses.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent></Select></label>
+    </div>
+    <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Linked revision</span><Select value={form.revisionId || 'none'} onValueChange={(value) => setForm({ ...form, revisionId: value === 'none' ? '' : value })}><SelectTrigger aria-label="Linked submittal revision"><SelectValue placeholder="No revision linked" /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="none">No revision linked</SelectItem>{revisions.map((revision) => <SelectItem key={revision.id} value={String(revision.id)}>R{revision.revision} · {label(packageStatuses, revision.status)}</SelectItem>)}</SelectContent></Select></label>
+    <div className="grid gap-4 md:grid-cols-2">
+      <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Owner</span><Input value={form.ownerName} onChange={(event) => setForm({ ...form, ownerName: event.target.value })} placeholder="Purchasing or project manager" /></label>
+      <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Due date</span><Input type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} /></label>
+    </div>
+    <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">External reference</span><Input value={form.externalReference} onChange={(event) => setForm({ ...form, externalReference: event.target.value })} placeholder="PO, work package, schedule activity, or provider ID" /></label>
+    <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Notes</span><Textarea rows={3} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="What downstream work must happen after this revision?" /></label>
+    {form.status === 'failed' && <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Failure reason</span><Textarea rows={2} value={form.failureReason} onChange={(event) => setForm({ ...form, failureReason: event.target.value })} placeholder="Explain what blocked the handoff" /></label>}
+    <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={onClose}>Cancel</Button><Button type="submit" disabled={create.isPending}>{create.isPending ? 'Adding…' : 'Add coordination'}</Button></div>
+  </form></Modal>;
+}
+
+function CoordinationPanel({ packageId, revisions, canEdit, onChanged }: { packageId: number; revisions: SubmittalPackage['revisions']; canEdit: boolean; onChanged: () => void }) {
+  const query = useListSubmittalCoordination(packageId, { query: { queryKey: getListSubmittalCoordinationQueryKey(packageId) } });
+  const update = useUpdateSubmittalCoordination();
+  const remove = useDeleteSubmittalCoordination();
+  const [showForm, setShowForm] = useState(false);
+  const records = query.data ?? [];
+  const updateStatus = (record: SubmittalCoordination, status: SubmittalCoordinationStatus) => {
+    update.mutate({ coordinationId: record.id, data: { status, failureReason: status === 'failed' ? record.failureReason : null } }, { onSuccess: onChanged });
+  };
+  return <section className="rounded-xl border border-border bg-card p-5">
+    <div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2"><Link2 size={15} className="text-primary" /><h2 className="text-base font-bold">Downstream coordination</h2></div><p className="mt-1 text-xs text-muted-foreground">Track handoffs into procurement, fabrication, installation, and the project schedule.</p></div>{canEdit && <Button variant="outline" onClick={() => setShowForm(true)}><Plus size={15} /> Add</Button>}</div>
+    {query.isLoading ? <LoadingPanel lines={3} /> : query.isError ? <ErrorPanel onRetry={() => query.refetch()} /> : records.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">No downstream coordination has been recorded.</p> : <div className="mt-4 space-y-3">{records.map((record) => <div key={record.id} className="rounded-lg border border-border bg-secondary/20 p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold">{label(coordinationTypes, record.coordinationType)}</span><Badge tone={record.status === 'completed' ? 'green' : record.status === 'failed' || record.status === 'blocked' ? 'red' : 'neutral'}>{label(coordinationStatuses, record.status)}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{record.ownerName || 'No owner assigned'}{record.dueDate ? ` · Due ${shortDate(record.dueDate)}` : ''}{record.externalReference ? ` · ${record.externalReference}` : ''}</p></div>{canEdit && <Button variant="ghost" className="p-1 text-muted-foreground" aria-label={`Delete ${label(coordinationTypes, record.coordinationType)} coordination`} onClick={() => remove.mutate({ coordinationId: record.id }, { onSuccess: onChanged })}><Trash2 size={13} /></Button>}</div>{canEdit && <Select value={record.status} onValueChange={(value) => updateStatus(record, value as SubmittalCoordinationStatus)}><SelectTrigger aria-label={`Status for ${label(coordinationTypes, record.coordinationType)}`} className="mt-3 h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent className="bg-popover">{coordinationStatuses.map((status) => <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>)}</SelectContent></Select>}{record.notes && <p className="mt-2 text-xs leading-5 text-muted-foreground">{record.notes}</p>}{record.failureReason && <p className="mt-2 text-xs text-destructive">Failure: {record.failureReason}</p>}</div>)}</div>}
+    {showForm && <CoordinationForm packageId={packageId} revisions={revisions} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); onChanged(); }} />}
+  </section>;
+}
+
 function DocumentUpload({ itemId, onUploaded }: { itemId: number; onUploaded: () => void }) {
   const requestUpload = useRequestSubmittalDocumentUpload();
   const completeUpload = useCompleteSubmittalDocumentUpload();
@@ -278,6 +360,7 @@ function PackageDetail({ id }: { id: number }) {
         {pkg.items.length === 0 ? <div className="p-5"><EmptyState icon={FileText} title="No items in this package" text="Add shop drawings, product data, samples, or other required documentation." action={canEdit ? <Button onClick={() => setShowItem(true)}><Plus size={15} /> Add first item</Button> : undefined} /></div> : <div className="divide-y divide-border">{pkg.items.map((item) => <div key={item.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="mono text-[10px] text-accent">{item.itemNumber}</span><Badge tone={tone(item.status)}>{label(itemStatuses, item.status)}</Badge></div><p className="mt-1 text-sm font-bold">{item.name}</p><p className="text-xs text-muted-foreground">{label(itemTypes, item.itemType)}{item.description ? ` · ${item.description}` : ''}</p>{item.documentName && <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">{item.documentUrl ? <a className="inline-flex items-center gap-1 text-accent hover:underline" href={item.documentUrl} target="_blank" rel="noreferrer">{item.documentName} <ExternalLink size={12} /></a> : item.documentName}</p>}{item.documents && item.documents.length > 0 && <div className="mt-3 space-y-1 text-xs">{item.documents.map((document) => <DocumentLink key={document.id} document={document} canEdit={canEdit} onChanged={refresh} />)}</div>}{canEdit && <DocumentUpload itemId={item.id} onUploaded={refresh} />}</div>{canEdit && <Button variant="ghost" className="self-end p-2 sm:self-start" aria-label={`Delete ${item.name}`} onClick={() => { if (window.confirm(`Delete ${item.name}?`)) removeItem.mutate({ itemId: item.id }, { onSuccess: refresh }); }}><Trash2 size={15} /></Button>}</div>)}</div>}
       </section>
       <div className="space-y-5">
+        <CoordinationPanel packageId={pkg.id} revisions={pkg.revisions} canEdit={canEdit} onChanged={refresh} />
         <section className="rounded-xl border border-border bg-card p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="text-base font-bold">Review history</h2><p className="mt-1 text-xs text-muted-foreground">Every disposition creates an immutable revision record.</p></div>{canEdit && <Button variant="outline" onClick={() => setShowRevision(true)}><Plus size={15} /> Revision</Button>}</div><div className="mt-4 space-y-4">{pkg.revisions.length === 0 ? <p className="text-sm text-muted-foreground">No formal review recorded yet.</p> : pkg.revisions.map((revision) => <div key={revision.id} className="border-l-2 border-primary/25 pl-3"><div className="flex flex-wrap items-center gap-2"><span className="mono text-[10px] text-muted-foreground">R{revision.revision}</span><Badge tone={tone(revision.status)}>{label(packageStatuses, revision.status)}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{revision.reviewerName || 'Team review'} · {shortDate(revision.createdAt)}</p>{revision.reviewComments && <p className="mt-2 text-sm">{revision.reviewComments}</p>}</div>)}</div></section>
         <section className="rounded-xl border border-border bg-card p-5"><h2 className="text-base font-bold">Package context</h2><dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Origin</dt><dd className="text-right font-semibold">{label(originTypes, pkg.originType)}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Specification</dt><dd className="text-right font-semibold">{pkg.specificationSection || 'Not assigned'}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Responsible party</dt><dd className="text-right font-semibold">{pkg.responsibleParty || 'Not assigned'}</dd></div>{pkg.sourceBidNumber && <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Source bid</dt><dd className="text-right font-semibold">{pkg.sourceBidNumber}</dd></div>}</dl>{pkg.description && <p className="mt-4 border-t border-border pt-4 text-sm leading-6 text-muted-foreground">{pkg.description}</p>}</section>
         {activeRole === 'owner' || activeRole === 'admin' ? <Button variant="danger" className="w-full justify-center" onClick={() => { if (window.confirm(`Delete ${pkg.name}?`)) removePackage.mutate({ submittalId: pkg.id }, { onSuccess: () => navigate('/submittals') }); }}>Delete package</Button> : null}

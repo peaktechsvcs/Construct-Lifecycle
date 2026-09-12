@@ -2035,6 +2035,130 @@ export const CreateSubmittalRevisionResponse = zod.object({
 
 
 /**
+ * @summary List procurement, fabrication, installation, and schedule coordination records
+ */
+export const ListSubmittalCoordinationParams = zod.object({
+  "submittalId": zod.coerce.number().int()
+})
+
+export const ListSubmittalCoordinationResponseItem = zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "revisionId": zod.number().int().nullable(),
+  "coordinationType": zod.enum(['procurement', 'fabrication', 'installation', 'schedule']),
+  "status": zod.enum(['pending', 'in_progress', 'blocked', 'completed', 'failed']),
+  "ownerName": zod.string().nullable(),
+  "externalReference": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "dueDate": zod.coerce.date().nullable(),
+  "failureReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListSubmittalCoordinationResponse = zod.array(ListSubmittalCoordinationResponseItem)
+
+
+/**
+ * @summary Add a downstream coordination record to a submittal package
+ */
+export const CreateSubmittalCoordinationParams = zod.object({
+  "submittalId": zod.coerce.number().int()
+})
+
+
+export const createSubmittalCoordinationBodyOwnerNameMax = 180;
+
+export const createSubmittalCoordinationBodyExternalReferenceMax = 180;
+
+export const createSubmittalCoordinationBodyNotesMax = 5000;
+
+export const createSubmittalCoordinationBodyFailureReasonMax = 2000;
+
+
+
+export const CreateSubmittalCoordinationBody = zod.object({
+  "revisionId": zod.number().int().min(1).optional(),
+  "coordinationType": zod.enum(['procurement', 'fabrication', 'installation', 'schedule']),
+  "status": zod.enum(['pending', 'in_progress', 'blocked', 'completed', 'failed']).optional(),
+  "ownerName": zod.string().max(createSubmittalCoordinationBodyOwnerNameMax).optional(),
+  "externalReference": zod.string().max(createSubmittalCoordinationBodyExternalReferenceMax).optional(),
+  "notes": zod.string().max(createSubmittalCoordinationBodyNotesMax).optional(),
+  "dueDate": zod.coerce.date().optional(),
+  "failureReason": zod.string().max(createSubmittalCoordinationBodyFailureReasonMax).optional()
+})
+
+export const CreateSubmittalCoordinationResponse = zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "revisionId": zod.number().int().nullable(),
+  "coordinationType": zod.enum(['procurement', 'fabrication', 'installation', 'schedule']),
+  "status": zod.enum(['pending', 'in_progress', 'blocked', 'completed', 'failed']),
+  "ownerName": zod.string().nullable(),
+  "externalReference": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "dueDate": zod.coerce.date().nullable(),
+  "failureReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update coordination ownership or status
+ */
+export const UpdateSubmittalCoordinationParams = zod.object({
+  "coordinationId": zod.coerce.number().int()
+})
+
+
+export const updateSubmittalCoordinationBodyOwnerNameMax = 180;
+
+export const updateSubmittalCoordinationBodyExternalReferenceMax = 180;
+
+export const updateSubmittalCoordinationBodyNotesMax = 5000;
+
+export const updateSubmittalCoordinationBodyFailureReasonMax = 2000;
+
+
+
+export const UpdateSubmittalCoordinationBody = zod.object({
+  "revisionId": zod.number().int().min(1).nullish(),
+  "coordinationType": zod.enum(['procurement', 'fabrication', 'installation', 'schedule']).optional(),
+  "status": zod.enum(['pending', 'in_progress', 'blocked', 'completed', 'failed']).optional(),
+  "ownerName": zod.string().max(updateSubmittalCoordinationBodyOwnerNameMax).nullish(),
+  "externalReference": zod.string().max(updateSubmittalCoordinationBodyExternalReferenceMax).nullish(),
+  "notes": zod.string().max(updateSubmittalCoordinationBodyNotesMax).nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "failureReason": zod.string().max(updateSubmittalCoordinationBodyFailureReasonMax).nullish()
+})
+
+export const UpdateSubmittalCoordinationResponse = zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "revisionId": zod.number().int().nullable(),
+  "coordinationType": zod.enum(['procurement', 'fabrication', 'installation', 'schedule']),
+  "status": zod.enum(['pending', 'in_progress', 'blocked', 'completed', 'failed']),
+  "ownerName": zod.string().nullable(),
+  "externalReference": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "dueDate": zod.coerce.date().nullable(),
+  "failureReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a coordination record
+ */
+export const DeleteSubmittalCoordinationParams = zod.object({
+  "coordinationId": zod.coerce.number().int()
+})
+
+export const DeleteSubmittalCoordinationResponse = zod.void()
+
+
+/**
  * @summary List project activity
  */
 export const ListProjectActivityParams = zod.object({

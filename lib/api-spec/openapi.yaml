@@ -1664,6 +1664,12 @@ components:
       required: true
       schema:
         type: integer
+    SubmittalCoordinationId:
+      in: path
+      name: coordinationId
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
@@ -2105,6 +2111,51 @@ components:
         submittedAt: { type: ["string", "null"], format: date-time }
         reviewedAt: { type: ["string", "null"], format: date-time }
         createdAt: { type: string, format: date-time }
+    SubmittalCoordinationType:
+      type: string
+      enum: [procurement, fabrication, installation, schedule]
+    SubmittalCoordinationStatus:
+      type: string
+      enum: [pending, in_progress, blocked, completed, failed]
+    SubmittalCoordination:
+      type: object
+      required: [id, packageId, revisionId, coordinationType, status, ownerName, externalReference, notes, dueDate, failureReason, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        packageId: { type: integer }
+        revisionId: { type: ["integer", "null"] }
+        coordinationType: { $ref: "#/components/schemas/SubmittalCoordinationType" }
+        status: { $ref: "#/components/schemas/SubmittalCoordinationStatus" }
+        ownerName: { type: ["string", "null"] }
+        externalReference: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        dueDate: { type: ["string", "null"], format: date }
+        failureReason: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SubmittalCoordinationInput:
+      type: object
+      required: [coordinationType]
+      properties:
+        revisionId: { type: integer, minimum: 1 }
+        coordinationType: { $ref: "#/components/schemas/SubmittalCoordinationType" }
+        status: { $ref: "#/components/schemas/SubmittalCoordinationStatus" }
+        ownerName: { type: string, maxLength: 180 }
+        externalReference: { type: string, maxLength: 180 }
+        notes: { type: string, maxLength: 5000 }
+        dueDate: { type: string, format: date }
+        failureReason: { type: string, maxLength: 2000 }
+    SubmittalCoordinationUpdate:
+      type: object
+      properties:
+        revisionId: { type: ["integer", "null"], minimum: 1 }
+        coordinationType: { $ref: "#/components/schemas/SubmittalCoordinationType" }
+        status: { $ref: "#/components/schemas/SubmittalCoordinationStatus" }
+        ownerName: { type: ["string", "null"], maxLength: 180 }
+        externalReference: { type: ["string", "null"], maxLength: 180 }
+        notes: { type: ["string", "null"], maxLength: 5000 }
+        dueDate: { type: ["string", "null"], format: date }
+        failureReason: { type: ["string", "null"], maxLength: 2000 }
     SubmittalPackage:
       type: object
       required: [id, environmentId, packageNumber, projectId, projectNumber, projectName, customerName, sourceBidId, sourceBidNumber, originType, name, description, specificationSection, responsibleParty, status, dueDate, revision, reviewerName, reviewComments, submittedAt, reviewedAt, itemCount, items, revisions, createdAt, updatedAt]

@@ -907,6 +907,96 @@ export interface SubmittalRevision {
   createdAt: string;
 }
 
+export type SubmittalCoordinationType = typeof SubmittalCoordinationType[keyof typeof SubmittalCoordinationType];
+
+
+export const SubmittalCoordinationType = {
+  procurement: 'procurement',
+  fabrication: 'fabrication',
+  installation: 'installation',
+  schedule: 'schedule',
+} as const;
+
+export type SubmittalCoordinationStatus = typeof SubmittalCoordinationStatus[keyof typeof SubmittalCoordinationStatus];
+
+
+export const SubmittalCoordinationStatus = {
+  pending: 'pending',
+  in_progress: 'in_progress',
+  blocked: 'blocked',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+export interface SubmittalCoordination {
+  id: number;
+  packageId: number;
+  /** @nullable */
+  revisionId: number | null;
+  coordinationType: SubmittalCoordinationType;
+  status: SubmittalCoordinationStatus;
+  /** @nullable */
+  ownerName: string | null;
+  /** @nullable */
+  externalReference: string | null;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  dueDate: string | null;
+  /** @nullable */
+  failureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubmittalCoordinationInput {
+  /** @minimum 1 */
+  revisionId?: number;
+  coordinationType: SubmittalCoordinationType;
+  status?: SubmittalCoordinationStatus;
+  /** @maxLength 180 */
+  ownerName?: string;
+  /** @maxLength 180 */
+  externalReference?: string;
+  /** @maxLength 5000 */
+  notes?: string;
+  dueDate?: string;
+  /** @maxLength 2000 */
+  failureReason?: string;
+}
+
+export interface SubmittalCoordinationUpdate {
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  revisionId?: number | null;
+  coordinationType?: SubmittalCoordinationType;
+  status?: SubmittalCoordinationStatus;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  ownerName?: string | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  externalReference?: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  notes?: string | null;
+  /** @nullable */
+  dueDate?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  failureReason?: string | null;
+}
+
 export interface SubmittalPackage {
   id: number;
   environmentId: number;

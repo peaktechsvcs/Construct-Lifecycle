@@ -7,6 +7,7 @@ import {
   db,
   platformAuditEventsTable,
   projectsTable,
+  submittalCoordinationTable,
   submittalDocumentsTable,
   submittalItemsTable,
   submittalPackagesTable,
@@ -38,6 +39,8 @@ const packageStatuses = ["draft", "submitted", "under_review", "approved", "appr
 const originTypes = ["contract", "accepted_substitution", "accepted_alternate", "early_procurement"] as const;
 const itemTypes = ["shop_drawing", "product_data", "sample", "mockup", "calculation", "certificate", "warranty", "closeout", "other"] as const;
 const itemStatuses = ["pending", "included", "needs_revision", "accepted", "superseded"] as const;
+const coordinationTypes = ["procurement", "fabrication", "installation", "schedule"] as const;
+const coordinationStatuses = ["pending", "in_progress", "blocked", "completed", "failed"] as const;
 const objectStorage = new ObjectStorageService();
 const maxDocumentSize = 100 * 1024 * 1024;
 const uploadRateWindowMs = 60_000;
@@ -47,6 +50,24 @@ const documentRequestBody = z.object({
   originalName: z.string().trim().min(1).max(255),
   size: z.number().int().min(1).max(maxDocumentSize),
   contentType: z.string().trim().min(1).max(160),
+});
+const coordinationInput = z.object({
+  revisionId: z.number().int().positive().optional(),
+  coordinationType: z.enum(coordinationTypes),
+  status: z.enum(coordinationStatuses).optional(),
+  ownerName: z.string().trim().max(180).optional(),
+  externalReference: z.string().trim().max(180).optional(),
+  notes: z.string().trim().max(5000).optional(),
+  dueDate: z.string().date().optional(),
+  failureReason: z.string().trim().max(2000).optional(),
+});
+const coordinationUpdate = coordinationInput.partial().extend({
+  revisionId: z.number().int().positive().nullable().optional(),
+  ownerName: z.string().trim().max(180).nullable().optional(),
+  externalReference: z.string().trim().max(180).nullable().optional(),
+  notes: z.string().trim().max(5000).nullable().optional(),
+  dueDate: z.string().date().nullable().optional(),
+  failureReason: z.string().trim().max(2000).nullable().optional(),
 });
 const sanitizeFileName = (value: string) =>
   value.replace(/[\u0000-\u001f\u007f]/g, "").split(/[\\/]/).pop()?.trim().slice(0, 255) || "submittal-document";
@@ -176,6 +197,21 @@ const serializeRevision = (revision: typeof submittalRevisionsTable.$inferSelect
   createdAt: revision.createdAt,
 });
 
+const serializeCoordination = (record: typeof submittalCoordinationTable.$inferSelect) => ({
+  id: record.id,
+  packageId: record.packageId,
+  revisionId: record.revisionId,
+  coordinationType: record.coordinationType,
+  status: record.status,
+  ownerName: record.ownerName,
+  externalReference: record.externalReference,
+  notes: record.notes,
+  dueDate: record.dueDate,
+  failureReason: record.failureReason,
+  createdAt: record.createdAt,
+  updatedAt: record.updatedAt,
+});
+
 const serializePackage = async (row: Awaited<ReturnType<typeof getPackageBase>>) => {
   if (!row) return null;
   const [items, revisions] = await Promise.all([
@@ -242,6 +278,16 @@ const serializePackage = async (row: Awaited<ReturnType<typeof getPackageBase>>)
 const getPackageForMutation = async (req: TenantRequest, submittalId: number) => {
   const row = await getPackageBase(req, submittalId);
   return row?.package;
+};
+
+const getRevisionInPackage = async (req: TenantRequest, packageId: number, revisionId: number) => {
+  const [revision] = await db.select({ id: submittalRevisionsTable.id }).from(submittalRevisionsTable).where(and(
+    eq(submittalRevisionsTable.id, revisionId),
+    eq(submittalRevisionsTable.packageId, packageId),
+    eq(submittalRevisionsTable.tenantId, req.tenantId!),
+    eq(submittalRevisionsTable.environmentId, req.environmentId!),
+  ));
+  return revision;
 };
 
 router.get("/submittals", async (req: TenantRequest, res) => {
@@ -756,6 +802,114 @@ router.post("/submittals/:submittalId/revisions", requireRole("owner", "admin", 
     eq(submittalPackagesTable.environmentId, req.environmentId!),
   ));
   res.status(201).json(serializeRevision(created));
+});
+
+router.get("/submittals/:submittalId/coordination", async (req: TenantRequest, res) => {
+  const submittalId = Number(req.params.submittalId);
+  if (!Number.isInteger(submittalId) || submittalId < 1) {
+    res.status(400).json({ error: "Invalid submittal package id" });
+    return;
+  }
+  const pkg = await getPackageBase(req, submittalId);
+  if (!pkg) {
+    res.status(404).json({ error: "Submittal package not found" });
+    return;
+  }
+  const records = await db.select().from(submittalCoordinationTable).where(and(
+    eq(submittalCoordinationTable.packageId, submittalId),
+    eq(submittalCoordinationTable.tenantId, req.tenantId!),
+    eq(submittalCoordinationTable.environmentId, req.environmentId!),
+  )).orderBy(desc(submittalCoordinationTable.updatedAt));
+  res.json(records.map(serializeCoordination));
+});
+
+router.post("/submittals/:submittalId/coordination", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const submittalId = Number(req.params.submittalId);
+  const parsed = coordinationInput.safeParse(req.body);
+  if (!Number.isInteger(submittalId) || submittalId < 1 || !parsed.success) {
+    res.status(400).json({ error: "Invalid coordination details" });
+    return;
+  }
+  const pkg = await getPackageForMutation(req, submittalId);
+  if (!pkg) {
+    res.status(404).json({ error: "Submittal package not found" });
+    return;
+  }
+  if (parsed.data.revisionId && !(await getRevisionInPackage(req, pkg.id, parsed.data.revisionId))) {
+    res.status(400).json({ error: "Revision does not belong to this submittal package" });
+    return;
+  }
+  const [created] = await db.insert(submittalCoordinationTable).values({
+    packageId: pkg.id,
+    revisionId: parsed.data.revisionId ?? null,
+    coordinationType: parsed.data.coordinationType,
+    status: parsed.data.status ?? "pending",
+    ownerName: parsed.data.ownerName || null,
+    externalReference: parsed.data.externalReference || null,
+    notes: parsed.data.notes || null,
+    dueDate: parsed.data.dueDate ?? null,
+    failureReason: parsed.data.failureReason || null,
+    createdByUserId: req.localUserId!,
+    tenantId: req.tenantId!,
+    environmentId: req.environmentId!,
+  }).returning();
+  res.status(201).json(serializeCoordination(created));
+});
+
+router.patch("/submittal-coordination/:coordinationId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const coordinationId = Number(req.params.coordinationId);
+  const parsed = coordinationUpdate.safeParse(req.body);
+  if (!Number.isInteger(coordinationId) || coordinationId < 1 || !parsed.success) {
+    res.status(400).json({ error: "Invalid coordination update" });
+    return;
+  }
+  const [existing] = await db.select().from(submittalCoordinationTable).where(and(
+    eq(submittalCoordinationTable.id, coordinationId),
+    eq(submittalCoordinationTable.tenantId, req.tenantId!),
+    eq(submittalCoordinationTable.environmentId, req.environmentId!),
+  ));
+  if (!existing) {
+    res.status(404).json({ error: "Coordination record not found" });
+    return;
+  }
+  if (parsed.data.revisionId && !(await getRevisionInPackage(req, existing.packageId, parsed.data.revisionId))) {
+    res.status(400).json({ error: "Revision does not belong to this submittal package" });
+    return;
+  }
+  const [updated] = await db.update(submittalCoordinationTable).set({
+    ...(parsed.data.revisionId !== undefined ? { revisionId: parsed.data.revisionId } : {}),
+    ...(parsed.data.coordinationType !== undefined ? { coordinationType: parsed.data.coordinationType } : {}),
+    ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
+    ...(parsed.data.ownerName !== undefined ? { ownerName: parsed.data.ownerName || null } : {}),
+    ...(parsed.data.externalReference !== undefined ? { externalReference: parsed.data.externalReference || null } : {}),
+    ...(parsed.data.notes !== undefined ? { notes: parsed.data.notes || null } : {}),
+    ...(parsed.data.dueDate !== undefined ? { dueDate: parsed.data.dueDate } : {}),
+    ...(parsed.data.failureReason !== undefined ? { failureReason: parsed.data.failureReason || null } : {}),
+    updatedAt: new Date(),
+  }).where(and(
+    eq(submittalCoordinationTable.id, coordinationId),
+    eq(submittalCoordinationTable.tenantId, req.tenantId!),
+    eq(submittalCoordinationTable.environmentId, req.environmentId!),
+  )).returning();
+  res.json(serializeCoordination(updated));
+});
+
+router.delete("/submittal-coordination/:coordinationId", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+  const coordinationId = Number(req.params.coordinationId);
+  if (!Number.isInteger(coordinationId) || coordinationId < 1) {
+    res.status(400).json({ error: "Invalid coordination id" });
+    return;
+  }
+  const deleted = await db.delete(submittalCoordinationTable).where(and(
+    eq(submittalCoordinationTable.id, coordinationId),
+    eq(submittalCoordinationTable.tenantId, req.tenantId!),
+    eq(submittalCoordinationTable.environmentId, req.environmentId!),
+  )).returning({ id: submittalCoordinationTable.id });
+  if (!deleted.length) {
+    res.status(404).json({ error: "Coordination record not found" });
+    return;
+  }
+  res.status(204).send();
 });
 
 export default router;

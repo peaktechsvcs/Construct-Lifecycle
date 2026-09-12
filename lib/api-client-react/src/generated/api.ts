@@ -89,6 +89,9 @@ import type {
   ProposalInput,
   ProposalUpdate,
   PublishedBrandingContext,
+  SubmittalCoordination,
+  SubmittalCoordinationInput,
+  SubmittalCoordinationUpdate,
   SubmittalDocument,
   SubmittalDocumentUpload,
   SubmittalDocumentUploadInput,
@@ -3043,6 +3046,298 @@ export const useCreateSubmittalRevision = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateSubmittalRevisionMutationOptions(options));
+    }
+
+export const getListSubmittalCoordinationUrl = (submittalId: number,) => {
+
+
+
+
+  return `/api/submittals/${submittalId}/coordination`
+}
+
+/**
+ * @summary List procurement, fabrication, installation, and schedule coordination records
+ */
+export const listSubmittalCoordination = async (submittalId: number, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalCoordination[]> => {
+
+  return customFetch<SubmittalCoordination[]>(getListSubmittalCoordinationUrl(submittalId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSubmittalCoordinationQueryKey = (submittalId: number,) => {
+    return [
+    `/api/submittals/${submittalId}/coordination`
+    ] as const;
+    }
+
+
+export const getListSubmittalCoordinationQueryOptions = <TData = Awaited<ReturnType<typeof listSubmittalCoordination>>, TError = ErrorType<unknown>>(submittalId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubmittalCoordination>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSubmittalCoordinationQueryKey(submittalId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSubmittalCoordination>>> = ({ signal }) => listSubmittalCoordination(submittalId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: submittalId !== null && submittalId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSubmittalCoordination>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSubmittalCoordinationQueryResult = NonNullable<Awaited<ReturnType<typeof listSubmittalCoordination>>>
+export type ListSubmittalCoordinationQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List procurement, fabrication, installation, and schedule coordination records
+ */
+
+export function useListSubmittalCoordination<TData = Awaited<ReturnType<typeof listSubmittalCoordination>>, TError = ErrorType<unknown>>(
+ submittalId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubmittalCoordination>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSubmittalCoordinationQueryOptions(submittalId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSubmittalCoordinationUrl = (submittalId: number,) => {
+
+
+
+
+  return `/api/submittals/${submittalId}/coordination`
+}
+
+/**
+ * @summary Add a downstream coordination record to a submittal package
+ */
+export const createSubmittalCoordination = async (submittalId: number,
+    submittalCoordinationInput: SubmittalCoordinationInput, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalCoordination> => {
+
+  return customFetch<SubmittalCoordination>(getCreateSubmittalCoordinationUrl(submittalId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalCoordinationInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSubmittalCoordinationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmittalCoordination>>, TError,{submittalId: number;data: BodyType<SubmittalCoordinationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSubmittalCoordination>>, TError,{submittalId: number;data: BodyType<SubmittalCoordinationInput>}, TContext> => {
+
+const mutationKey = ['createSubmittalCoordination'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubmittalCoordination>>, {submittalId: number;data: BodyType<SubmittalCoordinationInput>}> = (props) => {
+          const {submittalId,data} = props ?? {};
+
+          return  createSubmittalCoordination(submittalId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSubmittalCoordinationMutationResult = NonNullable<Awaited<ReturnType<typeof createSubmittalCoordination>>>
+    export type CreateSubmittalCoordinationMutationBody = BodyType<SubmittalCoordinationInput>
+    export type CreateSubmittalCoordinationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a downstream coordination record to a submittal package
+ */
+export const useCreateSubmittalCoordination = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmittalCoordination>>, TError,{submittalId: number;data: BodyType<SubmittalCoordinationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSubmittalCoordination>>,
+        TError,
+        {submittalId: number;data: BodyType<SubmittalCoordinationInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSubmittalCoordinationMutationOptions(options));
+    }
+
+export const getUpdateSubmittalCoordinationUrl = (coordinationId: number,) => {
+
+
+
+
+  return `/api/submittal-coordination/${coordinationId}`
+}
+
+/**
+ * @summary Update coordination ownership or status
+ */
+export const updateSubmittalCoordination = async (coordinationId: number,
+    submittalCoordinationUpdate: SubmittalCoordinationUpdate, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalCoordination> => {
+
+  return customFetch<SubmittalCoordination>(getUpdateSubmittalCoordinationUrl(coordinationId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalCoordinationUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateSubmittalCoordinationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSubmittalCoordination>>, TError,{coordinationId: number;data: BodyType<SubmittalCoordinationUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSubmittalCoordination>>, TError,{coordinationId: number;data: BodyType<SubmittalCoordinationUpdate>}, TContext> => {
+
+const mutationKey = ['updateSubmittalCoordination'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSubmittalCoordination>>, {coordinationId: number;data: BodyType<SubmittalCoordinationUpdate>}> = (props) => {
+          const {coordinationId,data} = props ?? {};
+
+          return  updateSubmittalCoordination(coordinationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSubmittalCoordinationMutationResult = NonNullable<Awaited<ReturnType<typeof updateSubmittalCoordination>>>
+    export type UpdateSubmittalCoordinationMutationBody = BodyType<SubmittalCoordinationUpdate>
+    export type UpdateSubmittalCoordinationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update coordination ownership or status
+ */
+export const useUpdateSubmittalCoordination = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSubmittalCoordination>>, TError,{coordinationId: number;data: BodyType<SubmittalCoordinationUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSubmittalCoordination>>,
+        TError,
+        {coordinationId: number;data: BodyType<SubmittalCoordinationUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateSubmittalCoordinationMutationOptions(options));
+    }
+
+export const getDeleteSubmittalCoordinationUrl = (coordinationId: number,) => {
+
+
+
+
+  return `/api/submittal-coordination/${coordinationId}`
+}
+
+/**
+ * @summary Delete a coordination record
+ */
+export const deleteSubmittalCoordination = async (coordinationId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteSubmittalCoordinationUrl(coordinationId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteSubmittalCoordinationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSubmittalCoordination>>, TError,{coordinationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSubmittalCoordination>>, TError,{coordinationId: number}, TContext> => {
+
+const mutationKey = ['deleteSubmittalCoordination'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSubmittalCoordination>>, {coordinationId: number}> = (props) => {
+          const {coordinationId} = props ?? {};
+
+          return  deleteSubmittalCoordination(coordinationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSubmittalCoordinationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSubmittalCoordination>>>
+
+    export type DeleteSubmittalCoordinationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a coordination record
+ */
+export const useDeleteSubmittalCoordination = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSubmittalCoordination>>, TError,{coordinationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSubmittalCoordination>>,
+        TError,
+        {coordinationId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSubmittalCoordinationMutationOptions(options));
     }
 
 export const getListProjectActivityUrl = (projectId: number,) => {
