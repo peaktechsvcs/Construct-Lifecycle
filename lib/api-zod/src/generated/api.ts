@@ -777,6 +777,283 @@ export const DeleteBidResponse = zod.void()
 
 
 /**
+ * @summary List estimates for the active customer environment
+ */
+export const listEstimatesQuerySearchMax = 120;
+
+
+
+
+export const ListEstimatesQueryParams = zod.object({
+  "search": zod.coerce.string().max(listEstimatesQuerySearchMax).optional(),
+  "stage": zod.enum(['draft', 'takeoff', 'estimating', 'review', 'approved', 'rejected']).optional(),
+  "ownerUserId": zod.coerce.number().int().min(1).optional(),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']).optional()
+})
+
+export const ListEstimatesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "estimateNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "bidId": zod.number().int().nullable(),
+  "bidNumber": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['draft', 'takeoff', 'estimating', 'review', 'approved', 'rejected']),
+  "laborValue": zod.number(),
+  "materialValue": zod.number(),
+  "subcontractValue": zod.number(),
+  "otherValue": zod.number(),
+  "contingencyValue": zod.number(),
+  "totalValue": zod.number(),
+  "dueDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "integrationProviderKey": zod.string().nullable(),
+  "integrationKind": zod.union([zod.enum(['takeoff_estimating', 'accounting', 'pricing', 'other']),zod.null()]),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
+  "externalReference": zod.string().nullable(),
+  "lastSyncedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListEstimatesResponse = zod.array(ListEstimatesResponseItem)
+
+
+/**
+ * @summary Create an estimate
+ */
+
+
+export const createEstimateBodyNameMax = 180;
+
+export const createEstimateBodyDescriptionMax = 5000;
+
+export const createEstimateBodyLaborValueMin = 0;
+export const createEstimateBodyLaborValueMax = 999999999999;
+
+export const createEstimateBodyMaterialValueMin = 0;
+export const createEstimateBodyMaterialValueMax = 999999999999;
+
+export const createEstimateBodySubcontractValueMin = 0;
+export const createEstimateBodySubcontractValueMax = 999999999999;
+
+export const createEstimateBodyOtherValueMin = 0;
+export const createEstimateBodyOtherValueMax = 999999999999;
+
+export const createEstimateBodyContingencyValueMin = 0;
+export const createEstimateBodyContingencyValueMax = 999999999999;
+
+
+export const createEstimateBodyIntegrationProviderKeyMax = 80;
+
+
+export const createEstimateBodyIntegrationProviderKeyRegExp = new RegExp('^[a-z][a-z0-9_]{1,63}$');
+export const createEstimateBodyExternalReferenceMax = 180;
+
+
+
+export const CreateEstimateBody = zod.object({
+  "businessCustomerId": zod.number().int().min(1),
+  "bidId": zod.number().int().min(1).optional(),
+  "name": zod.string().min(1).max(createEstimateBodyNameMax),
+  "description": zod.string().max(createEstimateBodyDescriptionMax).optional(),
+  "stage": zod.enum(['draft', 'takeoff', 'estimating', 'review', 'approved', 'rejected']).optional(),
+  "laborValue": zod.number().min(createEstimateBodyLaborValueMin).max(createEstimateBodyLaborValueMax).optional(),
+  "materialValue": zod.number().min(createEstimateBodyMaterialValueMin).max(createEstimateBodyMaterialValueMax).optional(),
+  "subcontractValue": zod.number().min(createEstimateBodySubcontractValueMin).max(createEstimateBodySubcontractValueMax).optional(),
+  "otherValue": zod.number().min(createEstimateBodyOtherValueMin).max(createEstimateBodyOtherValueMax).optional(),
+  "contingencyValue": zod.number().min(createEstimateBodyContingencyValueMin).max(createEstimateBodyContingencyValueMax).optional(),
+  "dueDate": zod.coerce.date().optional(),
+  "ownerUserId": zod.number().int().min(1).optional(),
+  "integrationProviderKey": zod.string().max(createEstimateBodyIntegrationProviderKeyMax).regex(createEstimateBodyIntegrationProviderKeyRegExp).optional(),
+  "integrationKind": zod.enum(['takeoff_estimating', 'accounting', 'pricing', 'other']).optional(),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']).optional(),
+  "externalReference": zod.string().max(createEstimateBodyExternalReferenceMax).optional()
+})
+
+export const CreateEstimateResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "estimateNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "bidId": zod.number().int().nullable(),
+  "bidNumber": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['draft', 'takeoff', 'estimating', 'review', 'approved', 'rejected']),
+  "laborValue": zod.number(),
+  "materialValue": zod.number(),
+  "subcontractValue": zod.number(),
+  "otherValue": zod.number(),
+  "contingencyValue": zod.number(),
+  "totalValue": zod.number(),
+  "dueDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "integrationProviderKey": zod.string().nullable(),
+  "integrationKind": zod.union([zod.enum(['takeoff_estimating', 'accounting', 'pricing', 'other']),zod.null()]),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
+  "externalReference": zod.string().nullable(),
+  "lastSyncedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get an estimate
+ */
+export const GetEstimateParams = zod.object({
+  "estimateId": zod.coerce.number().int()
+})
+
+export const GetEstimateResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "estimateNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "bidId": zod.number().int().nullable(),
+  "bidNumber": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['draft', 'takeoff', 'estimating', 'review', 'approved', 'rejected']),
+  "laborValue": zod.number(),
+  "materialValue": zod.number(),
+  "subcontractValue": zod.number(),
+  "otherValue": zod.number(),
+  "contingencyValue": zod.number(),
+  "totalValue": zod.number(),
+  "dueDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "integrationProviderKey": zod.string().nullable(),
+  "integrationKind": zod.union([zod.enum(['takeoff_estimating', 'accounting', 'pricing', 'other']),zod.null()]),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
+  "externalReference": zod.string().nullable(),
+  "lastSyncedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update an estimate
+ */
+export const UpdateEstimateParams = zod.object({
+  "estimateId": zod.coerce.number().int()
+})
+
+
+
+export const updateEstimateBodyNameMax = 180;
+
+export const updateEstimateBodyDescriptionMax = 5000;
+
+export const updateEstimateBodyLaborValueMin = 0;
+export const updateEstimateBodyLaborValueMax = 999999999999;
+
+export const updateEstimateBodyMaterialValueMin = 0;
+export const updateEstimateBodyMaterialValueMax = 999999999999;
+
+export const updateEstimateBodySubcontractValueMin = 0;
+export const updateEstimateBodySubcontractValueMax = 999999999999;
+
+export const updateEstimateBodyOtherValueMin = 0;
+export const updateEstimateBodyOtherValueMax = 999999999999;
+
+export const updateEstimateBodyContingencyValueMin = 0;
+export const updateEstimateBodyContingencyValueMax = 999999999999;
+
+
+export const updateEstimateBodyIntegrationProviderKeyMax = 80;
+
+
+export const updateEstimateBodyIntegrationProviderKeyRegExp = new RegExp('^[a-z][a-z0-9_]{1,63}$');
+export const updateEstimateBodyExternalReferenceMax = 180;
+
+
+
+export const UpdateEstimateBody = zod.object({
+  "businessCustomerId": zod.number().int().min(1).optional(),
+  "bidId": zod.number().int().min(1).nullish(),
+  "name": zod.string().min(1).max(updateEstimateBodyNameMax).optional(),
+  "description": zod.string().max(updateEstimateBodyDescriptionMax).nullish(),
+  "stage": zod.enum(['draft', 'takeoff', 'estimating', 'review', 'approved', 'rejected']).optional(),
+  "laborValue": zod.number().min(updateEstimateBodyLaborValueMin).max(updateEstimateBodyLaborValueMax).optional(),
+  "materialValue": zod.number().min(updateEstimateBodyMaterialValueMin).max(updateEstimateBodyMaterialValueMax).optional(),
+  "subcontractValue": zod.number().min(updateEstimateBodySubcontractValueMin).max(updateEstimateBodySubcontractValueMax).optional(),
+  "otherValue": zod.number().min(updateEstimateBodyOtherValueMin).max(updateEstimateBodyOtherValueMax).optional(),
+  "contingencyValue": zod.number().min(updateEstimateBodyContingencyValueMin).max(updateEstimateBodyContingencyValueMax).optional(),
+  "dueDate": zod.coerce.date().nullish(),
+  "ownerUserId": zod.number().int().min(1).nullish(),
+  "integrationProviderKey": zod.string().max(updateEstimateBodyIntegrationProviderKeyMax).regex(updateEstimateBodyIntegrationProviderKeyRegExp).nullish(),
+  "integrationKind": zod.union([zod.enum(['takeoff_estimating', 'accounting', 'pricing', 'other']),zod.null()]).optional(),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']).optional(),
+  "externalReference": zod.string().max(updateEstimateBodyExternalReferenceMax).nullish()
+})
+
+export const UpdateEstimateResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "estimateNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "bidId": zod.number().int().nullable(),
+  "bidNumber": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['draft', 'takeoff', 'estimating', 'review', 'approved', 'rejected']),
+  "laborValue": zod.number(),
+  "materialValue": zod.number(),
+  "subcontractValue": zod.number(),
+  "otherValue": zod.number(),
+  "contingencyValue": zod.number(),
+  "totalValue": zod.number(),
+  "dueDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "integrationProviderKey": zod.string().nullable(),
+  "integrationKind": zod.union([zod.enum(['takeoff_estimating', 'accounting', 'pricing', 'other']),zod.null()]),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
+  "externalReference": zod.string().nullable(),
+  "lastSyncedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete an estimate
+ */
+export const DeleteEstimateParams = zod.object({
+  "estimateId": zod.coerce.number().int()
+})
+
+export const DeleteEstimateResponse = zod.void()
+
+
+/**
  * @summary List project activity
  */
 export const ListProjectActivityParams = zod.object({

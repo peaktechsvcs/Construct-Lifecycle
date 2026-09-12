@@ -316,6 +316,193 @@ export interface BidUpdate {
   estimatingCoverage?: BidIntegrationCoverage;
 }
 
+export type EstimateStage = typeof EstimateStage[keyof typeof EstimateStage];
+
+
+export const EstimateStage = {
+  draft: 'draft',
+  takeoff: 'takeoff',
+  estimating: 'estimating',
+  review: 'review',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type EstimateIntegrationKind = typeof EstimateIntegrationKind[keyof typeof EstimateIntegrationKind];
+
+
+export const EstimateIntegrationKind = {
+  takeoff_estimating: 'takeoff_estimating',
+  accounting: 'accounting',
+  pricing: 'pricing',
+  other: 'other',
+} as const;
+
+export type EstimateIntegrationStatus = typeof EstimateIntegrationStatus[keyof typeof EstimateIntegrationStatus];
+
+
+export const EstimateIntegrationStatus = {
+  manual: 'manual',
+  pending: 'pending',
+  synced: 'synced',
+  error: 'error',
+} as const;
+
+export interface Estimate {
+  id: number;
+  environmentId: number;
+  estimateNumber: string;
+  businessCustomerId: number;
+  customerName: string;
+  /** @nullable */
+  bidId: number | null;
+  /** @nullable */
+  bidNumber: string | null;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  stage: EstimateStage;
+  laborValue: number;
+  materialValue: number;
+  subcontractValue: number;
+  otherValue: number;
+  contingencyValue: number;
+  totalValue: number;
+  /** @nullable */
+  dueDate: string | null;
+  /** @nullable */
+  ownerUserId: number | null;
+  owner: BidOwner | null;
+  /** @nullable */
+  integrationProviderKey: string | null;
+  integrationKind: EstimateIntegrationKind | null;
+  integrationStatus: EstimateIntegrationStatus;
+  /** @nullable */
+  externalReference: string | null;
+  /** @nullable */
+  lastSyncedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EstimateInput {
+  /** @minimum 1 */
+  businessCustomerId: number;
+  /** @minimum 1 */
+  bidId?: number;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  /** @maxLength 5000 */
+  description?: string;
+  stage?: EstimateStage;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  laborValue?: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  materialValue?: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  subcontractValue?: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  otherValue?: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  contingencyValue?: number;
+  dueDate?: string;
+  /** @minimum 1 */
+  ownerUserId?: number;
+  /**
+     * @maxLength 80
+     * @pattern ^[a-z][a-z0-9_]{1,63}$
+     */
+  integrationProviderKey?: string;
+  integrationKind?: EstimateIntegrationKind;
+  integrationStatus?: EstimateIntegrationStatus;
+  /** @maxLength 180 */
+  externalReference?: string;
+}
+
+export interface EstimateUpdate {
+  /** @minimum 1 */
+  businessCustomerId?: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  bidId?: number | null;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name?: string;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  description?: string | null;
+  stage?: EstimateStage;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  laborValue?: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  materialValue?: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  subcontractValue?: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  otherValue?: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  contingencyValue?: number;
+  /** @nullable */
+  dueDate?: string | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  ownerUserId?: number | null;
+  /**
+     * @maxLength 80
+     * @nullable
+     * @pattern ^[a-z][a-z0-9_]{1,63}$
+     */
+  integrationProviderKey?: string | null;
+  integrationKind?: EstimateIntegrationKind | null;
+  integrationStatus?: EstimateIntegrationStatus;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  externalReference?: string | null;
+}
+
 export type ProposalStatus = typeof ProposalStatus[keyof typeof ProposalStatus];
 
 
@@ -1568,6 +1755,19 @@ stage?: BidStage;
 ownerUserId?: number;
 bidType?: BidType;
 scopeMode?: BidScopeMode;
+};
+
+export type ListEstimatesParams = {
+/**
+ * @maxLength 120
+ */
+search?: string;
+stage?: EstimateStage;
+/**
+ * @minimum 1
+ */
+ownerUserId?: number;
+integrationStatus?: EstimateIntegrationStatus;
 };
 
 export type ListBusinessCustomersParams = {

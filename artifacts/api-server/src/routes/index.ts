@@ -15,6 +15,7 @@ import featuresRouter from "./features";
 import notificationsRouter from "./notifications";
 import opportunitiesRouter from "./opportunities";
 import bidsRouter from "./bids";
+import estimatesRouter from "./estimates";
 
 const router: IRouter = Router();
 
@@ -29,6 +30,7 @@ router.use(featuresRouter);
 router.use(notificationsRouter);
 router.use(opportunitiesRouter);
 router.use(bidsRouter);
+router.use(estimatesRouter);
 router.use(tenantAdminRouter);
 router.use(workflowsRouter);
 router.use(integrationsRouter);

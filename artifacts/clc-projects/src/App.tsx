@@ -17,6 +17,7 @@ import { DashboardDrilldown } from '@/pages/dashboard-drilldown';
 import { Projects } from '@/pages/projects';
 import { Opportunities } from '@/pages/opportunities';
 import { Bids } from '@/pages/bids';
+import { Estimates } from '@/pages/estimates';
 import { ProjectDetail } from '@/pages/project-detail';
 import { Customers } from '@/pages/customers';
 import { CustomerDetail } from '@/pages/customer-detail';
@@ -215,6 +216,12 @@ function AppRouter() {
         </Route>
         <Route path="/bids/:id">
           <Shell><ProtectedRoute component={Bids} /></Shell>
+        </Route>
+        <Route path="/estimates">
+          <Shell><ProtectedRoute component={Estimates} /></Shell>
+        </Route>
+        <Route path="/estimates/:id">
+          <Shell><ProtectedRoute component={Estimates} /></Shell>
         </Route>
         <Route path="/customers">
           <Shell><ProtectedRoute component={Customers} /></Shell>

@@ -159,6 +159,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/projects': 'Projects',
   '/opportunities': 'Opportunities',
   '/bids': 'Bids',
+  '/estimates': 'Estimates',
   '/customers': 'Customers',
   '/follow-ups': 'Follow-ups',
   '/feedback': 'Feature Feedback',
@@ -182,7 +183,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     items: [
       { href: '/opportunities', label: 'Opportunities', icon: Lightbulb },
       { href: '/bids', label: 'Bids', icon: Gavel },
-      { href: '/coming-soon/estimates', label: 'Estimates', icon: Calculator },
+      { href: '/estimates', label: 'Estimates', icon: Calculator },
       { href: '/coming-soon/proposals', label: 'Proposals', icon: FileText },
     ],
   },
