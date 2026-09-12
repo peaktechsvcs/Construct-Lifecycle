@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Building2, Copy, CreditCard, Megaphone, Pause, Play, Plus, ShieldAlert } from 'lucide-react';
-import { Link } from 'wouter';
+import { ArrowRight, Building2, CheckCircle2, Copy, CreditCard, Megaphone, Pause, Play, Plus, Rocket, ShieldAlert, Workflow } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
 import {
   PlatformCustomerStatus,
   UpdatePlatformCustomerInputStatus,
   getListPlatformBillingPlansQueryKey,
   getListPlatformCustomersQueryKey,
+  getGetTenantContextQueryKey,
   useCreatePlatformBillingPlan,
   useCreatePlatformCustomer,
   useListPlatformBillingPlans,
   useListPlatformCustomers,
   useUpdatePlatformCustomer,
+  useSwitchTenant,
 } from '@workspace/api-client-react';
 import { Badge, Button, EmptyState, ErrorPanel, LoadingPanel, PageTitle } from '@/components/app-ui';
 
@@ -34,6 +36,8 @@ export function PlatformCustomers() {
   const create = useCreatePlatformCustomer();
   const update = useUpdatePlatformCustomer();
   const createPlan = useCreatePlatformBillingPlan();
+  const switchTenant = useSwitchTenant();
+  const [, setLocation] = useLocation();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
@@ -42,6 +46,7 @@ export function PlatformCustomers() {
   const [planName, setPlanName] = useState('');
   const [monthlyAmount, setMonthlyAmount] = useState('');
   const [annualAmount, setAnnualAmount] = useState('');
+  const [onboardedCustomer, setOnboardedCustomer] = useState<{ id: number; name: string; invitationToken?: string | null } | null>(null);
 
   if (customers.isLoading) return <><PageTitle eyebrow="Platform" title="Customers" description="Onboard and control customer workspaces." /><LoadingPanel lines={6} /></>;
   if (customers.isError) {
@@ -62,6 +67,15 @@ export function PlatformCustomers() {
   }
 
   const refresh = () => qc.invalidateQueries({ queryKey: getListPlatformCustomersQueryKey() });
+  const openWorkflowManager = (tenantId: number) => {
+    switchTenant.mutate({ data: { tenantId } }, {
+      onSuccess: (context) => {
+        qc.setQueryData(getGetTenantContextQueryKey(), context);
+        qc.clear();
+        setLocation('/settings/administration/workflows');
+      },
+    });
+  };
   const refreshPlans = () => qc.invalidateQueries({ queryKey: getListPlatformBillingPlansQueryKey() });
   return (
     <div className="animate-rise">
@@ -74,11 +88,11 @@ export function PlatformCustomers() {
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <section className="rounded-xl border border-border bg-card p-5">
           <h2 className="mb-4 text-base font-bold">Customer workspaces</h2>
-          {(customers.data ?? []).length === 0 ? <EmptyState icon={Building2} title="No customers yet" text="Create a customer workspace to get started." /> : <div className="space-y-3">{(customers.data ?? []).map((customer) => <div key={customer.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-4"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{customer.name}</p><p className="mono truncate text-[10px] text-muted-foreground">{customer.slug} · {customer.memberCount} members · {customer.pendingInvitationCount} pending</p></div><Badge tone={customer.status === PlatformCustomerStatus.active ? 'green' : 'red'}>{customer.status}</Badge><Button variant="outline" disabled={update.isPending} onClick={() => update.mutate({ tenantId: customer.id, data: { status: customer.status === 'active' ? UpdatePlatformCustomerInputStatus.suspended : UpdatePlatformCustomerInputStatus.active } }, { onSuccess: refresh })}>{customer.status === 'active' ? <><Pause size={14} /> Suspend</> : <><Play size={14} /> Reactivate</>}</Button></div>)}</div>}
+          {(customers.data ?? []).length === 0 ? <EmptyState icon={Building2} title="No customers yet" text="Create a customer workspace to get started." /> : <div className="space-y-3">{(customers.data ?? []).map((customer) => <div key={customer.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-4"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{customer.name}</p><p className="mono truncate text-[10px] text-muted-foreground">{customer.slug} · {customer.memberCount} members · {customer.pendingInvitationCount} pending · {customer.environments.length} environments</p></div><Badge tone={customer.status === PlatformCustomerStatus.active ? 'green' : 'red'}>{customer.status}</Badge><Button variant="outline" disabled={customer.status !== 'active' || switchTenant.isPending} onClick={() => openWorkflowManager(customer.id)}><Workflow size={14} /> Manage workflow</Button><Button variant="outline" disabled={update.isPending} onClick={() => update.mutate({ tenantId: customer.id, data: { status: customer.status === 'active' ? UpdatePlatformCustomerInputStatus.suspended : UpdatePlatformCustomerInputStatus.active } }, { onSuccess: refresh })}>{customer.status === 'active' ? <><Pause size={14} /> Suspend</> : <><Play size={14} /> Reactivate</>}</Button></div>)}</div>}
         </section>
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="mb-5 flex items-center gap-3 border-b border-border pb-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary"><Plus size={16} /></span><h2 className="text-base font-bold">Create customer</h2></div>
-          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); create.mutate({ data: { name, slug, ownerEmail: ownerEmail || null } }, { onSuccess: (result) => { setName(''); setSlug(''); setOwnerEmail(''); refresh(); if (result.invitationToken) setLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${result.invitationToken}`); } }); }}>
+          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); create.mutate({ data: { name, slug, ownerEmail: ownerEmail || null } }, { onSuccess: (result) => { setName(''); setSlug(''); setOwnerEmail(''); setOnboardedCustomer({ id: result.customer.id, name: result.customer.name, invitationToken: result.invitationToken }); refresh(); if (result.invitationToken) setLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${result.invitationToken}`); } }); }}>
             <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Customer name</span><input required minLength={2} value={name} onChange={(event) => setName(event.target.value)} className={inputClass} /></label>
             <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Slug</span><input required pattern="[a-z0-9][a-z0-9-]{2,62}" value={slug} onChange={(event) => setSlug(event.target.value.toLowerCase())} className={inputClass} placeholder="acme-builders" /></label>
             <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Owner email <span className="font-normal text-muted-foreground">(optional)</span></span><input type="email" value={ownerEmail} onChange={(event) => setOwnerEmail(event.target.value)} className={inputClass} /></label>
@@ -88,6 +102,27 @@ export function PlatformCustomers() {
           {link && <div className="mt-5 rounded-lg border border-primary/20 bg-primary/5 p-4"><p className="text-xs font-semibold">One-time owner invitation link</p><div className="mt-2 flex gap-2"><input readOnly value={link} aria-label="Owner invitation link" className={`${inputClass} text-xs`} /><Button variant="outline" onClick={() => { navigator.clipboard.writeText(link); setCopied(true); }}><Copy size={14} /> {copied ? 'Copied' : 'Copy'}</Button></div></div>}
         </section>
       </div>
+      {onboardedCustomer && (
+        <section className="mt-6 rounded-xl border border-primary/25 bg-primary/5 p-5">
+          <div className="flex flex-wrap items-start gap-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Rocket size={19} /></span>
+            <div className="min-w-0 flex-1">
+              <p className="mono text-[10px] font-bold uppercase tracking-[.14em] text-primary">Onboarding started</p>
+              <h2 className="mt-1 text-base font-bold">{onboardedCustomer.name} is ready for setup</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">Both customer environments and their default lifecycle workflows are provisioned. Finish the workflow review, then share the owner invitation.</p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <div className="flex items-center gap-2 text-xs font-semibold"><CheckCircle2 size={15} className="text-status-success" /> Workspace created</div>
+                <div className="flex items-center gap-2 text-xs font-semibold"><CheckCircle2 size={15} className="text-status-success" /> Environments ready</div>
+                <div className="flex items-center gap-2 text-xs font-semibold"><CheckCircle2 size={15} className="text-status-success" /> Default workflows ready</div>
+              </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Button onClick={() => openWorkflowManager(onboardedCustomer.id)} disabled={switchTenant.isPending}><Workflow size={14} /> Review workflow <ArrowRight size={14} /></Button>
+                {onboardedCustomer.invitationToken && <Button variant="outline" onClick={() => setLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${onboardedCustomer.invitationToken}`)}>View owner invite</Button>}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
       <section className="mt-6 rounded-xl border border-border bg-card p-5">
         <div className="mb-5 flex items-center gap-3 border-b border-border pb-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary"><CreditCard size={16} /></span><div><h2 className="text-base font-bold">Subscription plans</h2><p className="text-xs text-muted-foreground">Products and monthly/annual prices are created in Stripe.</p></div></div>
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">

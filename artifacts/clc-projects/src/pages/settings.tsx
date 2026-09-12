@@ -29,13 +29,18 @@ const administrationSections: Array<{ key: AdministrationSection; label: string;
 
 function AdministrationSettings() {
   const [location] = useLocation();
+  const { isPlatformAdmin } = useTenant();
   const featureFlagsQuery = useListFeatureFlags({
     query: { queryKey: getListFeatureFlagsQueryKey(), staleTime: 30000, retry: false },
   });
   const requested = location.split('/')[3] as AdministrationSection | undefined;
   const rolesEnabled = featureFlagsQuery.data?.some((feature) => feature.key === 'roles') ?? false;
-  const visibleSections = administrationSections.filter((item) => item.key !== 'roles' || rolesEnabled);
-  const section: AdministrationSection = visibleSections.some((item) => item.key === requested) ? requested! : 'users';
+  const visibleSections = isPlatformAdmin
+    ? administrationSections.filter((item) => item.key === 'workflows')
+    : administrationSections.filter((item) => item.key !== 'roles' || rolesEnabled);
+  const section: AdministrationSection = visibleSections.some((item) => item.key === requested)
+    ? requested!
+    : isPlatformAdmin ? 'workflows' : 'users';
 
   return (
     <div className="animate-rise">
@@ -123,13 +128,14 @@ function OrganizationProfile() {
 
 export function SettingsPage() {
   const [location] = useLocation();
-  const { activeRole, isLoading } = useTenant();
+  const { activeRole, isPlatformAdmin, isLoading } = useTenant();
   const requested = location.split('/')[2] as SettingsSection | undefined;
   const section: SettingsSection = settingsSections.some((item) => item.key === requested) ? requested! : 'profile';
-  const canManageSettings = activeRole === 'owner' || activeRole === 'admin';
+  const canManageSettings = activeRole === 'owner' || activeRole === 'admin' || isPlatformAdmin;
 
   if (isLoading) return <LoadingPanel lines={6} />;
   if (!canManageSettings) return <Redirect to="/overview" />;
+  if (isPlatformAdmin && section !== 'administration') return <Redirect to="/administration/platform/customers" />;
 
   const content = section === 'profile'
     ? <OrganizationProfile />
@@ -146,7 +152,7 @@ export function SettingsPage() {
       <div className="grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
         <aside className="h-fit rounded-xl border border-border bg-card p-2" aria-label="Settings navigation">
           <nav className="space-y-1">
-            {settingsSections.map(({ key, label, description, icon: Icon }) => {
+            {settingsSections.filter((item) => !isPlatformAdmin || item.key === 'administration').map(({ key, label, description, icon: Icon }) => {
               const href = key === 'profile' ? '/settings' : `/settings/${key}`;
               const isActive = section === key;
               return (

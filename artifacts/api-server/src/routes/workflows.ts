@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { z } from "zod/v4";
 import { db, platformAuditEventsTable } from "@workspace/db";
 import type { TenantRequest } from "../middlewares/tenantContext";
-import { requireRole } from "../middlewares/rbac";
+import { requireWorkflowManager } from "../middlewares/rbac";
 import {
   clonePublishedWorkflowToDraft,
   ensurePublishedWorkflow,
@@ -71,12 +71,12 @@ router.get("/workflow/config", async (req: TenantRequest, res) => {
   res.json(await readConfig(req));
 });
 
-router.post("/workflow/draft", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+router.post("/workflow/draft", requireWorkflowManager("owner", "admin"), async (req: TenantRequest, res) => {
   const draft = await clonePublishedWorkflowToDraft(req.tenantId!, req.environmentId!, req.localUserId!);
   res.status(201).json({ draft: serialize(draft) });
 });
 
-router.put("/workflow/draft", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+router.put("/workflow/draft", requireWorkflowManager("owner", "admin"), async (req: TenantRequest, res) => {
   const parsed = workflowConfigInput.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid workflow configuration", details: parsed.error.issues });
@@ -95,7 +95,7 @@ router.put("/workflow/draft", requireRole("owner", "admin"), async (req: TenantR
   res.json(await readConfig(req));
 });
 
-router.post("/workflow/draft/publish", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+router.post("/workflow/draft/publish", requireWorkflowManager("owner", "admin"), async (req: TenantRequest, res) => {
   const draft = await getDraftWorkflow(req.tenantId!, req.environmentId!);
   if (!draft) {
     res.status(404).json({ error: "No workflow draft exists" });

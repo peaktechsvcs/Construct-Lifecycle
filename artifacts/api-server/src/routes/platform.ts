@@ -15,6 +15,7 @@ import {
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requirePlatformAdmin } from "../middlewares/platformAdmin";
 import { createTenantInvitation, serializeInvitation } from "./tenant-admin";
+import { ensurePublishedWorkflow } from "../lib/workflow";
 
 const router: IRouter = Router();
 
@@ -111,6 +112,11 @@ router.post("/platform/customers", async (req: TenantRequest, res) => {
       status: "active",
     },
   ]);
+  const environments = await db
+    .select({ id: environmentsTable.id })
+    .from(environmentsTable)
+    .where(eq(environmentsTable.tenantId, tenant.id));
+  await Promise.all(environments.map((environment) => ensurePublishedWorkflow(tenant.id, environment.id, req.localUserId)));
 
   let invitation: ReturnType<typeof serializeInvitation> | null = null;
   let invitationToken: string | null = null;
