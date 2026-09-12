@@ -38,6 +38,8 @@ tags:
     description: Subscription plans, billing actions, entitlements, and audit history
   - name: workflows
     description: Tenant-configurable project lifecycle states, statuses, and transitions
+  - name: submittals
+    description: Bid-linked and post-award construction submittal packages
 paths:
   /healthz:
     get:
@@ -456,6 +458,145 @@ paths:
         - $ref: "#/components/parameters/ProposalId"
       responses:
         "204": { description: Proposal deleted }
+  /submittals:
+    get:
+      operationId: listSubmittalPackages
+      tags: [submittals]
+      summary: List submittal packages
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 120 }
+        - in: query
+          name: status
+          schema: { $ref: "#/components/schemas/SubmittalPackageStatus" }
+        - in: query
+          name: projectId
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Submittal packages
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SubmittalPackage" }
+    post:
+      operationId: createSubmittalPackage
+      tags: [submittals]
+      summary: Create a submittal package
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalPackageInput" }
+      responses:
+        "201":
+          description: Submittal package created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalPackage" }
+  /submittals/{submittalId}:
+    get:
+      operationId: getSubmittalPackage
+      tags: [submittals]
+      summary: Get a submittal package
+      parameters:
+        - $ref: "#/components/parameters/SubmittalId"
+      responses:
+        "200":
+          description: Submittal package
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalPackage" }
+        "404": { description: Submittal package not found }
+    patch:
+      operationId: updateSubmittalPackage
+      tags: [submittals]
+      summary: Update a submittal package
+      parameters:
+        - $ref: "#/components/parameters/SubmittalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalPackageUpdate" }
+      responses:
+        "200":
+          description: Updated submittal package
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalPackage" }
+    delete:
+      operationId: deleteSubmittalPackage
+      tags: [submittals]
+      summary: Delete a submittal package
+      parameters:
+        - $ref: "#/components/parameters/SubmittalId"
+      responses:
+        "204": { description: Submittal package deleted }
+  /submittals/{submittalId}/items:
+    post:
+      operationId: createSubmittalItem
+      tags: [submittals]
+      summary: Add an item to a submittal package
+      parameters:
+        - $ref: "#/components/parameters/SubmittalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalItemInput" }
+      responses:
+        "201":
+          description: Submittal item created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalItem" }
+  /submittal-items/{itemId}:
+    patch:
+      operationId: updateSubmittalItem
+      tags: [submittals]
+      summary: Update a submittal item
+      parameters:
+        - $ref: "#/components/parameters/SubmittalItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalItemUpdate" }
+      responses:
+        "200":
+          description: Updated submittal item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalItem" }
+    delete:
+      operationId: deleteSubmittalItem
+      tags: [submittals]
+      summary: Delete a submittal item
+      parameters:
+        - $ref: "#/components/parameters/SubmittalItemId"
+      responses:
+        "204": { description: Submittal item deleted }
+  /submittals/{submittalId}/revisions:
+    post:
+      operationId: createSubmittalRevision
+      tags: [submittals]
+      summary: Add a revision and review disposition to a submittal package
+      parameters:
+        - $ref: "#/components/parameters/SubmittalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalRevisionInput" }
+      responses:
+        "201":
+          description: Submittal revision created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalRevision" }
   /projects/{projectId}/activity:
     get:
       operationId: listProjectActivity
@@ -1399,6 +1540,18 @@ components:
       required: true
       schema:
         type: integer
+    SubmittalId:
+      in: path
+      name: submittalId
+      required: true
+      schema:
+        type: integer
+    SubmittalItemId:
+      in: path
+      name: itemId
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
@@ -1768,6 +1921,133 @@ components:
         integrationKind: { oneOf: [{ $ref: "#/components/schemas/ProposalIntegrationKind" }, { type: "null" }] }
         integrationStatus: { $ref: "#/components/schemas/ProposalIntegrationStatus" }
         externalReference: { type: ["string", "null"], maxLength: 180 }
+    SubmittalPackageStatus:
+      type: string
+      enum: [draft, submitted, under_review, approved, approved_as_noted, revise_and_resubmit, rejected, superseded]
+    SubmittalOriginType:
+      type: string
+      enum: [contract, accepted_substitution, accepted_alternate, early_procurement]
+    SubmittalItemType:
+      type: string
+      enum: [shop_drawing, product_data, sample, mockup, calculation, certificate, warranty, closeout, other]
+    SubmittalItemStatus:
+      type: string
+      enum: [pending, included, needs_revision, accepted, superseded]
+    SubmittalItem:
+      type: object
+      required: [id, packageId, itemNumber, itemType, name, description, status, documentName, documentUrl, revision, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        packageId: { type: integer }
+        itemNumber: { type: string }
+        itemType: { $ref: "#/components/schemas/SubmittalItemType" }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        status: { $ref: "#/components/schemas/SubmittalItemStatus" }
+        documentName: { type: ["string", "null"] }
+        documentUrl: { type: ["string", "null"], maxLength: 2000 }
+        revision: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SubmittalRevision:
+      type: object
+      required: [id, packageId, revision, status, reviewerName, reviewComments, submittedAt, reviewedAt, createdAt]
+      properties:
+        id: { type: integer }
+        packageId: { type: integer }
+        revision: { type: integer }
+        status: { $ref: "#/components/schemas/SubmittalPackageStatus" }
+        reviewerName: { type: ["string", "null"] }
+        reviewComments: { type: ["string", "null"] }
+        submittedAt: { type: ["string", "null"], format: date-time }
+        reviewedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+    SubmittalPackage:
+      type: object
+      required: [id, environmentId, packageNumber, projectId, projectNumber, projectName, customerName, sourceBidId, sourceBidNumber, originType, name, description, specificationSection, responsibleParty, status, dueDate, revision, reviewerName, reviewComments, submittedAt, reviewedAt, itemCount, items, revisions, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        environmentId: { type: integer }
+        packageNumber: { type: string }
+        projectId: { type: integer }
+        projectNumber: { type: string }
+        projectName: { type: string }
+        customerName: { type: string }
+        sourceBidId: { type: ["integer", "null"] }
+        sourceBidNumber: { type: ["string", "null"] }
+        originType: { $ref: "#/components/schemas/SubmittalOriginType" }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        specificationSection: { type: ["string", "null"] }
+        responsibleParty: { type: ["string", "null"] }
+        status: { $ref: "#/components/schemas/SubmittalPackageStatus" }
+        dueDate: { type: ["string", "null"], format: date }
+        revision: { type: integer }
+        reviewerName: { type: ["string", "null"] }
+        reviewComments: { type: ["string", "null"] }
+        submittedAt: { type: ["string", "null"], format: date-time }
+        reviewedAt: { type: ["string", "null"], format: date-time }
+        itemCount: { type: integer }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/SubmittalItem" }
+        revisions:
+          type: array
+          items: { $ref: "#/components/schemas/SubmittalRevision" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SubmittalPackageInput:
+      type: object
+      required: [projectId, name]
+      properties:
+        projectId: { type: integer, minimum: 1 }
+        sourceBidId: { type: integer, minimum: 1 }
+        originType: { $ref: "#/components/schemas/SubmittalOriginType" }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: string, maxLength: 5000 }
+        specificationSection: { type: string, maxLength: 120 }
+        responsibleParty: { type: string, maxLength: 180 }
+        status: { $ref: "#/components/schemas/SubmittalPackageStatus" }
+        dueDate: { type: string, format: date }
+    SubmittalPackageUpdate:
+      type: object
+      properties:
+        sourceBidId: { type: ["integer", "null"], minimum: 1 }
+        originType: { $ref: "#/components/schemas/SubmittalOriginType" }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: ["string", "null"], maxLength: 5000 }
+        specificationSection: { type: ["string", "null"], maxLength: 120 }
+        responsibleParty: { type: ["string", "null"], maxLength: 180 }
+        status: { $ref: "#/components/schemas/SubmittalPackageStatus" }
+        dueDate: { type: ["string", "null"], format: date }
+        reviewerName: { type: ["string", "null"], maxLength: 180 }
+        reviewComments: { type: ["string", "null"], maxLength: 5000 }
+    SubmittalItemInput:
+      type: object
+      required: [name]
+      properties:
+        itemType: { $ref: "#/components/schemas/SubmittalItemType" }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: string, maxLength: 5000 }
+        status: { $ref: "#/components/schemas/SubmittalItemStatus" }
+        documentName: { type: string, maxLength: 240 }
+        documentUrl: { type: string, maxLength: 2000 }
+    SubmittalItemUpdate:
+      type: object
+      properties:
+        itemType: { $ref: "#/components/schemas/SubmittalItemType" }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: ["string", "null"], maxLength: 5000 }
+        status: { $ref: "#/components/schemas/SubmittalItemStatus" }
+        documentName: { type: ["string", "null"], maxLength: 240 }
+        documentUrl: { type: ["string", "null"], maxLength: 2000 }
+    SubmittalRevisionInput:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: "#/components/schemas/SubmittalPackageStatus" }
+        reviewerName: { type: string, maxLength: 180 }
+        reviewComments: { type: string, maxLength: 5000 }
     ProposalStatus:
       type: string
       enum: [not_started, drafting, submitted, revised, accepted]

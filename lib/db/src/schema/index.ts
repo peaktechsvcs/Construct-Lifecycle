@@ -11,3 +11,4 @@ export * from "./bids";
 export * from "./estimates";
 export * from "./proposals";
 export * from "./proposal-templates";
+export * from "./submittals";
