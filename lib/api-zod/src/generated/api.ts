@@ -1054,6 +1054,267 @@ export const DeleteEstimateResponse = zod.void()
 
 
 /**
+ * @summary List proposals for the active customer environment
+ */
+export const listProposalsQuerySearchMax = 120;
+
+
+
+
+export const ListProposalsQueryParams = zod.object({
+  "search": zod.coerce.string().max(listProposalsQuerySearchMax).optional(),
+  "stage": zod.enum(['draft', 'internal_review', 'ready', 'sent', 'viewed', 'accepted', 'declined', 'expired']).optional(),
+  "ownerUserId": zod.coerce.number().int().min(1).optional(),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']).optional()
+})
+
+export const ListProposalsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "proposalNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "estimateId": zod.number().int().nullable(),
+  "estimateNumber": zod.string().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "bidNumber": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['draft', 'internal_review', 'ready', 'sent', 'viewed', 'accepted', 'declined', 'expired']),
+  "proposalValue": zod.number(),
+  "validUntil": zod.coerce.date().nullable(),
+  "recipientName": zod.string().nullable(),
+  "recipientEmail": zod.string().email().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "integrationProviderKey": zod.string().nullable(),
+  "integrationKind": zod.union([zod.enum(['document', 'crm', 'accounting', 'e_signature', 'other']),zod.null()]),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
+  "externalReference": zod.string().nullable(),
+  "sentAt": zod.coerce.date().nullable(),
+  "respondedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListProposalsResponse = zod.array(ListProposalsResponseItem)
+
+
+/**
+ * @summary Create a proposal
+ */
+
+
+
+export const createProposalBodyNameMax = 180;
+
+export const createProposalBodyDescriptionMax = 5000;
+
+export const createProposalBodyProposalValueMin = 0;
+export const createProposalBodyProposalValueMax = 999999999999;
+
+export const createProposalBodyRecipientNameMax = 160;
+
+export const createProposalBodyRecipientEmailMax = 320;
+
+
+export const createProposalBodyIntegrationProviderKeyMax = 80;
+
+
+export const createProposalBodyIntegrationProviderKeyRegExp = new RegExp('^[a-z][a-z0-9_]{1,63}$');
+export const createProposalBodyExternalReferenceMax = 180;
+
+
+
+export const CreateProposalBody = zod.object({
+  "businessCustomerId": zod.number().int().min(1),
+  "estimateId": zod.number().int().min(1).optional(),
+  "bidId": zod.number().int().min(1).optional(),
+  "name": zod.string().min(1).max(createProposalBodyNameMax),
+  "description": zod.string().max(createProposalBodyDescriptionMax).optional(),
+  "stage": zod.enum(['draft', 'internal_review', 'ready', 'sent', 'viewed', 'accepted', 'declined', 'expired']).optional(),
+  "proposalValue": zod.number().min(createProposalBodyProposalValueMin).max(createProposalBodyProposalValueMax).optional(),
+  "validUntil": zod.coerce.date().optional(),
+  "recipientName": zod.string().max(createProposalBodyRecipientNameMax).optional(),
+  "recipientEmail": zod.string().email().max(createProposalBodyRecipientEmailMax).optional(),
+  "ownerUserId": zod.number().int().min(1).optional(),
+  "integrationProviderKey": zod.string().max(createProposalBodyIntegrationProviderKeyMax).regex(createProposalBodyIntegrationProviderKeyRegExp).optional(),
+  "integrationKind": zod.enum(['document', 'crm', 'accounting', 'e_signature', 'other']).optional(),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']).optional(),
+  "externalReference": zod.string().max(createProposalBodyExternalReferenceMax).optional()
+})
+
+export const CreateProposalResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "proposalNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "estimateId": zod.number().int().nullable(),
+  "estimateNumber": zod.string().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "bidNumber": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['draft', 'internal_review', 'ready', 'sent', 'viewed', 'accepted', 'declined', 'expired']),
+  "proposalValue": zod.number(),
+  "validUntil": zod.coerce.date().nullable(),
+  "recipientName": zod.string().nullable(),
+  "recipientEmail": zod.string().email().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "integrationProviderKey": zod.string().nullable(),
+  "integrationKind": zod.union([zod.enum(['document', 'crm', 'accounting', 'e_signature', 'other']),zod.null()]),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
+  "externalReference": zod.string().nullable(),
+  "sentAt": zod.coerce.date().nullable(),
+  "respondedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a proposal
+ */
+export const GetProposalParams = zod.object({
+  "proposalId": zod.coerce.number().int()
+})
+
+export const GetProposalResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "proposalNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "estimateId": zod.number().int().nullable(),
+  "estimateNumber": zod.string().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "bidNumber": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['draft', 'internal_review', 'ready', 'sent', 'viewed', 'accepted', 'declined', 'expired']),
+  "proposalValue": zod.number(),
+  "validUntil": zod.coerce.date().nullable(),
+  "recipientName": zod.string().nullable(),
+  "recipientEmail": zod.string().email().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "integrationProviderKey": zod.string().nullable(),
+  "integrationKind": zod.union([zod.enum(['document', 'crm', 'accounting', 'e_signature', 'other']),zod.null()]),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
+  "externalReference": zod.string().nullable(),
+  "sentAt": zod.coerce.date().nullable(),
+  "respondedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a proposal
+ */
+export const UpdateProposalParams = zod.object({
+  "proposalId": zod.coerce.number().int()
+})
+
+
+
+
+export const updateProposalBodyNameMax = 180;
+
+export const updateProposalBodyDescriptionMax = 5000;
+
+export const updateProposalBodyProposalValueMin = 0;
+export const updateProposalBodyProposalValueMax = 999999999999;
+
+export const updateProposalBodyRecipientNameMax = 160;
+
+export const updateProposalBodyRecipientEmailMax = 320;
+
+
+export const updateProposalBodyIntegrationProviderKeyMax = 80;
+
+
+export const updateProposalBodyIntegrationProviderKeyRegExp = new RegExp('^[a-z][a-z0-9_]{1,63}$');
+export const updateProposalBodyExternalReferenceMax = 180;
+
+
+
+export const UpdateProposalBody = zod.object({
+  "businessCustomerId": zod.number().int().min(1).optional(),
+  "estimateId": zod.number().int().min(1).nullish(),
+  "bidId": zod.number().int().min(1).nullish(),
+  "name": zod.string().min(1).max(updateProposalBodyNameMax).optional(),
+  "description": zod.string().max(updateProposalBodyDescriptionMax).nullish(),
+  "stage": zod.enum(['draft', 'internal_review', 'ready', 'sent', 'viewed', 'accepted', 'declined', 'expired']).optional(),
+  "proposalValue": zod.number().min(updateProposalBodyProposalValueMin).max(updateProposalBodyProposalValueMax).optional(),
+  "validUntil": zod.coerce.date().nullish(),
+  "recipientName": zod.string().max(updateProposalBodyRecipientNameMax).nullish(),
+  "recipientEmail": zod.string().email().max(updateProposalBodyRecipientEmailMax).nullish(),
+  "ownerUserId": zod.number().int().min(1).nullish(),
+  "integrationProviderKey": zod.string().max(updateProposalBodyIntegrationProviderKeyMax).regex(updateProposalBodyIntegrationProviderKeyRegExp).nullish(),
+  "integrationKind": zod.union([zod.enum(['document', 'crm', 'accounting', 'e_signature', 'other']),zod.null()]).optional(),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']).optional(),
+  "externalReference": zod.string().max(updateProposalBodyExternalReferenceMax).nullish()
+})
+
+export const UpdateProposalResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "proposalNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "estimateId": zod.number().int().nullable(),
+  "estimateNumber": zod.string().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "bidNumber": zod.string().nullable(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['draft', 'internal_review', 'ready', 'sent', 'viewed', 'accepted', 'declined', 'expired']),
+  "proposalValue": zod.number(),
+  "validUntil": zod.coerce.date().nullable(),
+  "recipientName": zod.string().nullable(),
+  "recipientEmail": zod.string().email().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "integrationProviderKey": zod.string().nullable(),
+  "integrationKind": zod.union([zod.enum(['document', 'crm', 'accounting', 'e_signature', 'other']),zod.null()]),
+  "integrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
+  "externalReference": zod.string().nullable(),
+  "sentAt": zod.coerce.date().nullable(),
+  "respondedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a proposal
+ */
+export const DeleteProposalParams = zod.object({
+  "proposalId": zod.coerce.number().int()
+})
+
+export const DeleteProposalResponse = zod.void()
+
+
+/**
  * @summary List project activity
  */
 export const ListProjectActivityParams = zod.object({

@@ -503,6 +503,182 @@ export interface EstimateUpdate {
   externalReference?: string | null;
 }
 
+export type ProposalStage = typeof ProposalStage[keyof typeof ProposalStage];
+
+
+export const ProposalStage = {
+  draft: 'draft',
+  internal_review: 'internal_review',
+  ready: 'ready',
+  sent: 'sent',
+  viewed: 'viewed',
+  accepted: 'accepted',
+  declined: 'declined',
+  expired: 'expired',
+} as const;
+
+export type ProposalIntegrationKind = typeof ProposalIntegrationKind[keyof typeof ProposalIntegrationKind];
+
+
+export const ProposalIntegrationKind = {
+  document: 'document',
+  crm: 'crm',
+  accounting: 'accounting',
+  e_signature: 'e_signature',
+  other: 'other',
+} as const;
+
+export type ProposalIntegrationStatus = typeof ProposalIntegrationStatus[keyof typeof ProposalIntegrationStatus];
+
+
+export const ProposalIntegrationStatus = {
+  manual: 'manual',
+  pending: 'pending',
+  synced: 'synced',
+  error: 'error',
+} as const;
+
+export interface Proposal {
+  id: number;
+  environmentId: number;
+  proposalNumber: string;
+  businessCustomerId: number;
+  customerName: string;
+  /** @nullable */
+  estimateId: number | null;
+  /** @nullable */
+  estimateNumber: string | null;
+  /** @nullable */
+  bidId: number | null;
+  /** @nullable */
+  bidNumber: string | null;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  stage: ProposalStage;
+  proposalValue: number;
+  /** @nullable */
+  validUntil: string | null;
+  /** @nullable */
+  recipientName: string | null;
+  /** @nullable */
+  recipientEmail: string | null;
+  /** @nullable */
+  ownerUserId: number | null;
+  owner: BidOwner | null;
+  /** @nullable */
+  integrationProviderKey: string | null;
+  integrationKind: ProposalIntegrationKind | null;
+  integrationStatus: ProposalIntegrationStatus;
+  /** @nullable */
+  externalReference: string | null;
+  /** @nullable */
+  sentAt: string | null;
+  /** @nullable */
+  respondedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProposalInput {
+  /** @minimum 1 */
+  businessCustomerId: number;
+  /** @minimum 1 */
+  estimateId?: number;
+  /** @minimum 1 */
+  bidId?: number;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  /** @maxLength 5000 */
+  description?: string;
+  stage?: ProposalStage;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  proposalValue?: number;
+  validUntil?: string;
+  /** @maxLength 160 */
+  recipientName?: string;
+  /** @maxLength 320 */
+  recipientEmail?: string;
+  /** @minimum 1 */
+  ownerUserId?: number;
+  /**
+     * @maxLength 80
+     * @pattern ^[a-z][a-z0-9_]{1,63}$
+     */
+  integrationProviderKey?: string;
+  integrationKind?: ProposalIntegrationKind;
+  integrationStatus?: ProposalIntegrationStatus;
+  /** @maxLength 180 */
+  externalReference?: string;
+}
+
+export interface ProposalUpdate {
+  /** @minimum 1 */
+  businessCustomerId?: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  estimateId?: number | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  bidId?: number | null;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name?: string;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  description?: string | null;
+  stage?: ProposalStage;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  proposalValue?: number;
+  /** @nullable */
+  validUntil?: string | null;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  recipientName?: string | null;
+  /**
+     * @maxLength 320
+     * @nullable
+     */
+  recipientEmail?: string | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  ownerUserId?: number | null;
+  /**
+     * @maxLength 80
+     * @nullable
+     * @pattern ^[a-z][a-z0-9_]{1,63}$
+     */
+  integrationProviderKey?: string | null;
+  integrationKind?: ProposalIntegrationKind | null;
+  integrationStatus?: ProposalIntegrationStatus;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  externalReference?: string | null;
+}
+
 export type ProposalStatus = typeof ProposalStatus[keyof typeof ProposalStatus];
 
 
@@ -1768,6 +1944,19 @@ stage?: EstimateStage;
  */
 ownerUserId?: number;
 integrationStatus?: EstimateIntegrationStatus;
+};
+
+export type ListProposalsParams = {
+/**
+ * @maxLength 120
+ */
+search?: string;
+stage?: ProposalStage;
+/**
+ * @minimum 1
+ */
+ownerUserId?: number;
+integrationStatus?: ProposalIntegrationStatus;
 };
 
 export type ListBusinessCustomersParams = {
