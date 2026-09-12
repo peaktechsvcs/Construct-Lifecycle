@@ -1,4 +1,4 @@
-import { getAuth } from "@clerk/express";
+import { clerkClient, getAuth } from "@clerk/express";
 import { and, eq, sql } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
 import {
@@ -29,8 +29,8 @@ async function upsertAuthenticatedUser(req: TenantRequest) {
   const clerkUserId = auth?.userId;
   if (!clerkUserId) return null;
   const claims = auth.sessionClaims as Record<string, unknown> | undefined;
-  const email = typeof claims?.email === "string" ? claims.email : undefined;
-  const displayName =
+  let email = typeof claims?.email === "string" ? claims.email : undefined;
+  let displayName =
     typeof claims?.name === "string"
       ? claims.name
       : typeof claims?.full_name === "string"
@@ -43,8 +43,34 @@ async function upsertAuthenticatedUser(req: TenantRequest) {
     .where(eq(usersTable.clerkUserId, clerkUserId))
     .limit(1);
 
+  // Replit-managed Clerk session claims do not always include profile fields.
+  // Hydrate missing values from Clerk's server-side user resource instead of
+  // persisting NULLs to the local user bridge.
+  if (!email || !displayName) {
+    try {
+      const clerkUser = await clerkClient.users.getUser(clerkUserId);
+      const primaryEmail = clerkUser.primaryEmailAddress;
+      if (
+        !email &&
+        primaryEmail?.verification?.status === "verified"
+      ) {
+        email = primaryEmail.emailAddress;
+      }
+      if (!displayName) {
+        displayName =
+          clerkUser.fullName
+          ?? ([clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || undefined);
+      }
+    } catch (error) {
+      req.log?.warn({ err: error }, "failed to hydrate Clerk user profile");
+    }
+  }
+
   if (existingUser) {
-    if (email || displayName) {
+    if (
+      (email && email.toLowerCase() !== existingUser.email) ||
+      (displayName && displayName !== existingUser.displayName)
+    ) {
       const [updatedUser] = await db
         .update(usersTable)
         .set({
