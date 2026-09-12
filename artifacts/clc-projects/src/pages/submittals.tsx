@@ -239,10 +239,11 @@ function DocumentUpload({ itemId, onUploaded }: { itemId: number; onUploaded: ()
 
 function DocumentLink({ document, canEdit, onChanged }: { document: SubmittalDocument; canEdit: boolean; onChanged: () => void }) {
   const remove = useDeleteSubmittalDocument();
+  const statusLabel = document.status === 'rejected' ? 'rejected by safety screening' : 'pending';
   return <div className="flex items-center gap-2">
     {document.status === 'uploaded'
       ? <a className="inline-flex min-w-0 items-center gap-1 text-accent hover:underline" href={document.downloadUrl} target="_blank" rel="noreferrer"><span className="truncate">V{document.version} · {document.originalName}</span><ExternalLink size={12} /></a>
-      : <span className="text-muted-foreground">{document.originalName} · pending</span>}
+      : <span className={document.status === 'rejected' ? 'text-destructive' : 'text-muted-foreground'}>{document.originalName} · {statusLabel}</span>}
     <span className="mono text-[10px] text-muted-foreground">{Math.ceil(document.size / 1024)} KB</span>
     {canEdit && <Button variant="ghost" className="p-1 text-muted-foreground" aria-label={`Delete ${document.originalName}`} onClick={() => remove.mutate({ documentId: document.id }, { onSuccess: onChanged })}><Trash2 size={13} /></Button>}
   </div>;

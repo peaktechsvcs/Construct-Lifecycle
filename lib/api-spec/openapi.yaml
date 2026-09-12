@@ -2016,7 +2016,7 @@ components:
         contentType: { type: string }
         size: { type: integer }
         version: { type: integer, minimum: 1 }
-        status: { type: string, enum: [pending, uploaded] }
+        status: { type: string, enum: [pending, uploaded, rejected] }
         uploadedAt: { type: ["string", "null"], format: date-time }
         createdAt: { type: string, format: date-time }
         downloadUrl: { type: string }

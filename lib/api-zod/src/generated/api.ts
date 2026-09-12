@@ -1475,7 +1475,7 @@ export const ListSubmittalPackagesResponseItem = zod.object({
   "contentType": zod.string(),
   "size": zod.number().int(),
   "version": zod.number().int().min(1),
-  "status": zod.enum(['pending', 'uploaded']),
+  "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -1573,7 +1573,7 @@ export const CreateSubmittalPackageResponse = zod.object({
   "contentType": zod.string(),
   "size": zod.number().int(),
   "version": zod.number().int().min(1),
-  "status": zod.enum(['pending', 'uploaded']),
+  "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -1650,7 +1650,7 @@ export const GetSubmittalPackageResponse = zod.object({
   "contentType": zod.string(),
   "size": zod.number().int(),
   "version": zod.number().int().min(1),
-  "status": zod.enum(['pending', 'uploaded']),
+  "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -1755,7 +1755,7 @@ export const UpdateSubmittalPackageResponse = zod.object({
   "contentType": zod.string(),
   "size": zod.number().int(),
   "version": zod.number().int().min(1),
-  "status": zod.enum(['pending', 'uploaded']),
+  "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -1838,7 +1838,7 @@ export const CreateSubmittalItemResponse = zod.object({
   "contentType": zod.string(),
   "size": zod.number().int(),
   "version": zod.number().int().min(1),
-  "status": zod.enum(['pending', 'uploaded']),
+  "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -1897,7 +1897,7 @@ export const UpdateSubmittalItemResponse = zod.object({
   "contentType": zod.string(),
   "size": zod.number().int(),
   "version": zod.number().int().min(1),
-  "status": zod.enum(['pending', 'uploaded']),
+  "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -1949,7 +1949,7 @@ export const RequestSubmittalDocumentUploadResponse = zod.object({
   "contentType": zod.string(),
   "size": zod.number().int(),
   "version": zod.number().int().min(1),
-  "status": zod.enum(['pending', 'uploaded']),
+  "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -1975,7 +1975,7 @@ export const CompleteSubmittalDocumentUploadResponse = zod.object({
   "contentType": zod.string(),
   "size": zod.number().int(),
   "version": zod.number().int().min(1),
-  "status": zod.enum(['pending', 'uploaded']),
+  "status": zod.enum(['pending', 'uploaded', 'rejected']),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()

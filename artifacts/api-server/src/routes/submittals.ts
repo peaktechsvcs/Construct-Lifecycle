@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Response } from "express";
 import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
@@ -30,6 +30,7 @@ import {
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
 import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
+import { screenStoredDocument } from "../lib/documentScreening";
 
 const router: IRouter = Router();
 
@@ -39,6 +40,9 @@ const itemTypes = ["shop_drawing", "product_data", "sample", "mockup", "calculat
 const itemStatuses = ["pending", "included", "needs_revision", "accepted", "superseded"] as const;
 const objectStorage = new ObjectStorageService();
 const maxDocumentSize = 100 * 1024 * 1024;
+const uploadRateWindowMs = 60_000;
+const uploadRateLimit = 20;
+const uploadAttempts = new Map<string, { count: number; resetAt: number }>();
 const documentRequestBody = z.object({
   originalName: z.string().trim().min(1).max(255),
   size: z.number().int().min(1).max(maxDocumentSize),
@@ -49,11 +53,40 @@ const sanitizeFileName = (value: string) =>
 const isAllowedDocumentType = (contentType: string) =>
   contentType === "application/pdf"
   || contentType === "application/octet-stream"
-  || contentType.startsWith("image/")
-  || contentType.startsWith("text/")
-  || contentType.startsWith("audio/")
+  || ["image/gif", "image/jpeg", "image/png", "image/webp", "image/tiff"].includes(contentType)
+  || ["text/plain", "text/csv"].includes(contentType)
   || contentType === "application/zip"
-  || contentType.startsWith("application/vnd.");
+  || [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ].includes(contentType);
+
+const takeUploadAttempt = (req: TenantRequest) => {
+  const key = `${req.tenantId}:${req.environmentId}:${req.localUserId}`;
+  const now = Date.now();
+  const current = uploadAttempts.get(key);
+  if (!current || current.resetAt <= now) {
+    uploadAttempts.set(key, { count: 1, resetAt: now + uploadRateWindowMs });
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+  current.count += 1;
+  if (current.count > uploadRateLimit) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)),
+    };
+  }
+  return { allowed: true, retryAfterSeconds: 0 };
+};
+
+const rejectUploadRate = (req: TenantRequest, res: Response) => {
+  const attempt = takeUploadAttempt(req);
+  if (attempt.allowed) return false;
+  res.setHeader("Retry-After", String(attempt.retryAfterSeconds));
+  res.status(429).json({ error: "Too many document upload attempts. Try again shortly." });
+  return true;
+};
 
 const dateString = (value: Date | string | null | undefined) => {
   if (!value) return null;
@@ -498,6 +531,7 @@ router.delete("/submittal-items/:itemId", requireRole("owner", "admin"), async (
 });
 
 router.post("/submittal-items/:itemId/documents/request-upload", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  if (rejectUploadRate(req, res)) return;
   const itemId = Number(req.params.itemId);
   const parsed = documentRequestBody.safeParse(req.body);
   if (!Number.isInteger(itemId) || itemId < 1 || !parsed.success || !isAllowedDocumentType(parsed.data.contentType)) {
@@ -513,8 +547,10 @@ router.post("/submittal-items/:itemId/documents/request-upload", requireRole("ow
     res.status(404).json({ error: "Submittal item not found" });
     return;
   }
+  let objectPath: string | undefined;
   try {
-    const { uploadURL, objectPath } = await objectStorage.requestUpload();
+    const upload = await objectStorage.requestUpload();
+    objectPath = upload.objectPath;
     const [{ maxVersion }] = await db.select({
       maxVersion: sql<number | null>`max(${submittalDocumentsTable.version})`,
     }).from(submittalDocumentsTable).where(and(
@@ -533,14 +569,22 @@ router.post("/submittal-items/:itemId/documents/request-upload", requireRole("ow
       tenantId: req.tenantId!,
       environmentId: req.environmentId!,
     }).returning();
-    res.status(201).json({ ...serializeDocument(document), uploadURL });
+    res.status(201).json({ ...serializeDocument(document), uploadURL: upload.uploadURL });
   } catch (error) {
+    if (objectPath) {
+      try {
+        await objectStorage.deleteObject(objectPath);
+      } catch (cleanupError) {
+        req.log.warn({ err: cleanupError }, "Unable to clean up failed submittal upload reservation");
+      }
+    }
     req.log.error({ err: error }, "Failed to create submittal document upload");
     res.status(503).json({ error: "Document storage is temporarily unavailable" });
   }
 });
 
 router.post("/submittal-documents/:documentId/complete", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  if (rejectUploadRate(req, res)) return;
   const documentId = Number(req.params.documentId);
   if (!Number.isInteger(documentId) || documentId < 1) {
     res.status(400).json({ error: "Invalid document id" });
@@ -558,8 +602,26 @@ router.post("/submittal-documents/:documentId/complete", requireRole("owner", "a
   try {
     const file = await objectStorage.getObjectFile(document.objectPath);
     const [metadata] = await file.getMetadata();
-    if (Number(metadata.size ?? 0) > document.size) {
+    const storedSize = Number(metadata.size ?? 0);
+    const storedContentType = typeof metadata.contentType === "string" ? metadata.contentType : null;
+    if (storedSize <= 0 || storedSize > document.size) {
+      await objectStorage.deleteObject(document.objectPath).catch(() => undefined);
+      await db.update(submittalDocumentsTable).set({ status: "rejected" }).where(eq(submittalDocumentsTable.id, document.id));
       res.status(413).json({ error: "Uploaded document exceeds the declared size" });
+      return;
+    }
+    if (storedContentType && storedContentType !== document.contentType) {
+      await objectStorage.deleteObject(document.objectPath).catch(() => undefined);
+      await db.update(submittalDocumentsTable).set({ status: "rejected" }).where(eq(submittalDocumentsTable.id, document.id));
+      res.status(415).json({ error: "Uploaded document content type does not match its declared type" });
+      return;
+    }
+    const screening = await screenStoredDocument(file, document.contentType, storedSize);
+    if (screening.status === "rejected") {
+      await objectStorage.deleteObject(document.objectPath).catch(() => undefined);
+      await db.update(submittalDocumentsTable).set({ status: "rejected" }).where(eq(submittalDocumentsTable.id, document.id));
+      const statusCode = screening.reason === "content_mismatch" ? 415 : 422;
+      res.status(statusCode).json({ error: "Document failed upload safety screening" });
       return;
     }
     const [updated] = await db.update(submittalDocumentsTable).set({
@@ -603,10 +665,13 @@ router.get("/submittal-documents/:documentId", async (req: TenantRequest, res) =
   try {
     const file = await objectStorage.getObjectFile(document.objectPath);
     const [metadata] = await file.getMetadata();
-    res.setHeader("Content-Type", metadata.contentType || document.contentType);
+    const responseContentType = metadata.contentType || document.contentType;
+    const canPreviewInline = responseContentType === "application/pdf" || responseContentType.startsWith("image/");
+    res.setHeader("Content-Type", responseContentType);
     res.setHeader("Content-Length", String(metadata.size ?? document.size));
     res.setHeader("Cache-Control", "private, no-store");
-    res.setHeader("Content-Disposition", `inline; filename="${document.originalName.replace(/["\r\n]/g, "")}"`);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Disposition", `${canPreviewInline ? "inline" : "attachment"}; filename="${document.originalName.replace(/["\r\n]/g, "")}"`);
     file.createReadStream().on("error", (error) => {
       req.log.error({ err: error, documentId }, "Failed to stream submittal document");
       if (!res.headersSent) res.status(500).json({ error: "Failed to read document" });
@@ -623,6 +688,10 @@ router.get("/submittal-documents/:documentId", async (req: TenantRequest, res) =
 
 router.delete("/submittal-documents/:documentId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
   const documentId = Number(req.params.documentId);
+  if (!Number.isInteger(documentId) || documentId < 1) {
+    res.status(400).json({ error: "Invalid document id" });
+    return;
+  }
   const [document] = await db.select().from(submittalDocumentsTable).where(and(
     eq(submittalDocumentsTable.id, documentId),
     eq(submittalDocumentsTable.tenantId, req.tenantId!),

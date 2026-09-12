@@ -829,6 +829,7 @@ export type SubmittalDocumentStatus = typeof SubmittalDocumentStatus[keyof typeo
 export const SubmittalDocumentStatus = {
   pending: 'pending',
   uploaded: 'uploaded',
+  rejected: 'rejected',
 } as const;
 
 export interface SubmittalDocument {
