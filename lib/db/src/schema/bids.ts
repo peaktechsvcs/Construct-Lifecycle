@@ -1,12 +1,13 @@
 import { date, index, integer, numeric, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { businessCustomersTable } from "./business-customers";
 import { environmentsTable, tenantsTable, usersTable } from "./tenants";
+import { opportunitiesTable } from "./opportunities";
 
 export const bidsTable = pgTable("bids", {
   id: serial("id").primaryKey(),
   bidNumber: text("bid_number").notNull(),
   businessCustomerId: integer("business_customer_id").notNull().references(() => businessCustomersTable.id, { onDelete: "restrict" }),
-  opportunityId: integer("opportunity_id"),
+  opportunityId: integer("opportunity_id").references(() => opportunitiesTable.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   description: text("description"),
   stage: text("stage").notNull().default("invited"),

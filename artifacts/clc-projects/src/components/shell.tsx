@@ -158,6 +158,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/overview': 'Dashboard',
   '/projects': 'Projects',
   '/opportunities': 'Opportunities',
+  '/bids': 'Bids',
   '/customers': 'Customers',
   '/follow-ups': 'Follow-ups',
   '/feedback': 'Feature Feedback',
@@ -180,7 +181,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     label: 'Pipeline',
     items: [
       { href: '/opportunities', label: 'Opportunities', icon: Lightbulb },
-      { href: '/coming-soon/bids', label: 'Bids', icon: Gavel },
+      { href: '/bids', label: 'Bids', icon: Gavel },
       { href: '/coming-soon/estimates', label: 'Estimates', icon: Calculator },
       { href: '/coming-soon/proposals', label: 'Proposals', icon: FileText },
     ],
@@ -248,6 +249,7 @@ function getBreadcrumbLabel(location: string): string {
   if (location.includes('/administration/platform/features')) return 'Feature Visibility';
   if (location.startsWith('/projects')) return 'All Projects';
   if (location.startsWith('/opportunities')) return 'Opportunities';
+  if (location.startsWith('/bids')) return 'Bids';
   if (location.startsWith('/customers')) return 'Customers';
   if (location.startsWith('/coming-soon/')) {
     return location.slice('/coming-soon/'.length).replace(/-/g, ' ');

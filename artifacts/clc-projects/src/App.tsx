@@ -16,6 +16,7 @@ import { Dashboard } from '@/pages/dashboard';
 import { DashboardDrilldown } from '@/pages/dashboard-drilldown';
 import { Projects } from '@/pages/projects';
 import { Opportunities } from '@/pages/opportunities';
+import { Bids } from '@/pages/bids';
 import { ProjectDetail } from '@/pages/project-detail';
 import { Customers } from '@/pages/customers';
 import { CustomerDetail } from '@/pages/customer-detail';
@@ -208,6 +209,12 @@ function AppRouter() {
         </Route>
         <Route path="/opportunities/:id">
           <Shell><ProtectedRoute component={Opportunities} /></Shell>
+        </Route>
+        <Route path="/bids">
+          <Shell><ProtectedRoute component={Bids} /></Shell>
+        </Route>
+        <Route path="/bids/:id">
+          <Shell><ProtectedRoute component={Bids} /></Shell>
         </Route>
         <Route path="/customers">
           <Shell><ProtectedRoute component={Customers} /></Shell>
