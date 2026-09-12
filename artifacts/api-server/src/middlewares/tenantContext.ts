@@ -133,9 +133,23 @@ export async function requireTenantContext(
       .from(membershipsTable)
       .where(eq(membershipsTable.userId, user.id));
 
+    // Platform administrators can inspect any active customer workspace without
+    // being copied into every customer's membership list. Keep the synthetic
+    // role distinct from customer roles so tenant-admin mutations remain
+    // customer-owner/admin controlled.
+    if (user.isPlatformAdmin) {
+      userMemberships = await db
+        .select({
+          tenantId: tenantsTable.id,
+          role: sql<string>`'platform_admin'`,
+        })
+        .from(tenantsTable)
+        .where(eq(tenantsTable.status, "active"));
+    }
+
     // Preserve the populated demo experience for the first development user,
     // while keeping production access invitation/membership controlled.
-    if (userMemberships.length === 0 && APP_ENV !== "production") {
+    if (userMemberships.length === 0 && !user.isPlatformAdmin && APP_ENV !== "production") {
       const [{ count: membershipCount }] = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(membershipsTable);

@@ -50,8 +50,27 @@ const validateContrast = (data: Record<string, unknown>) => {
   });
 };
 const context = async (req: TenantRequest) => {
-  const memberships = await db.select({ id: tenantsTable.id, name: tenantsTable.name, slug: tenantsTable.slug, status: tenantsTable.status, role: membershipsTable.role })
-    .from(membershipsTable).innerJoin(tenantsTable, eq(membershipsTable.tenantId, tenantsTable.id)).where(eq(membershipsTable.userId, req.localUserId!));
+  const memberships = req.isPlatformAdmin
+    ? await db.select({
+        id: tenantsTable.id,
+        name: tenantsTable.name,
+        slug: tenantsTable.slug,
+        status: tenantsTable.status,
+        role: sql<string>`'platform_admin'`,
+      })
+        .from(tenantsTable)
+        .where(eq(tenantsTable.status, "active"))
+        .orderBy(tenantsTable.name)
+    : await db.select({
+        id: tenantsTable.id,
+        name: tenantsTable.name,
+        slug: tenantsTable.slug,
+        status: tenantsTable.status,
+        role: membershipsTable.role,
+      })
+        .from(membershipsTable)
+        .innerJoin(tenantsTable, eq(membershipsTable.tenantId, tenantsTable.id))
+        .where(eq(membershipsTable.userId, req.localUserId!));
   const environments = await db.select().from(environmentsTable)
     .where(eq(environmentsTable.tenantId, req.tenantId!)).orderBy(environmentsTable.name);
   const activeEnvironment = environments.find(x => x.id === req.environmentId) ?? environments[0];
@@ -69,8 +88,15 @@ router.get("/tenant/context", async (req: TenantRequest, res) => res.json(await 
 router.post("/tenant/context", async (req: TenantRequest, res) => {
   const parsed = SwitchTenantBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid tenant" }); return; }
-  const [membership] = await db.select().from(membershipsTable).where(and(eq(membershipsTable.userId, req.localUserId!), eq(membershipsTable.tenantId, parsed.data.tenantId)));
-  if (!membership) { res.status(403).json({ error: "Tenant membership required" }); return; }
+  if (!req.isPlatformAdmin) {
+    const [membership] = await db.select().from(membershipsTable).where(and(eq(membershipsTable.userId, req.localUserId!), eq(membershipsTable.tenantId, parsed.data.tenantId)));
+    if (!membership) { res.status(403).json({ error: "Tenant membership required" }); return; }
+  }
+  const [tenant] = await db.select({ id: tenantsTable.id, status: tenantsTable.status })
+    .from(tenantsTable)
+    .where(and(eq(tenantsTable.id, parsed.data.tenantId), eq(tenantsTable.status, "active")))
+    .limit(1);
+  if (!tenant) { res.status(404).json({ error: "Customer workspace not found" }); return; }
   const [environment] = await db.select().from(environmentsTable)
     .where(eq(environmentsTable.tenantId, parsed.data.tenantId))
     .orderBy(sql`case when ${environmentsTable.kind} = 'dtd' then 0 else 1 end`, environmentsTable.id)

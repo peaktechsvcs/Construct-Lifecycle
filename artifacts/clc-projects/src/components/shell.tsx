@@ -7,6 +7,7 @@ import {
   Lightbulb, Gavel, Calculator, FileText, FolderKanban, FileCheck2, Milestone,
   Package, ListChecks, ShoppingCart, ClipboardList, Truck, PackageCheck,
   TrendingUp, HandCoins, Receipt, BadgeDollarSign, FilePenLine, Percent,
+  ShieldCheck,
   Files, ReceiptText, Archive, BarChart3, LineChart, type LucideIcon,
 } from 'lucide-react';
 import { useTenant } from '@/providers/tenant-provider';
@@ -244,7 +245,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { activeTenant, memberships, branding, activeEnvironment, activeRole } = useTenant();
+  const { activeTenant, memberships, branding, activeEnvironment, activeRole, isPlatformAdmin } = useTenant();
   const { user } = useUser();
   const { signOut } = useClerk();
   const switchTenant = useSwitchTenant();
@@ -417,6 +418,23 @@ export function Shell({ children }: { children: ReactNode }) {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {isPlatformAdmin && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href="/administration/platform/customers"
+                    aria-label="Open platform administration"
+                    data-testid="link-platform-administration"
+                    className={`inline-flex h-9 items-center gap-2 rounded-lg border border-accent/25 bg-accent/10 px-2.5 text-accent hover:bg-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sidebarCollapsed ? 'w-9 justify-center px-0' : ''}`}
+                  >
+                    <ShieldCheck size={16} />
+                    {!sidebarCollapsed && <span className="text-[10px] font-bold uppercase tracking-[.08em]">Platform</span>}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-popover text-popover-foreground">Platform administration</TooltipContent>
+              </Tooltip>
+            )}
 
             <div className="flex items-center gap-2">
               <DropdownMenu>
