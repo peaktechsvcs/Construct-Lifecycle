@@ -376,6 +376,86 @@ paths:
         - $ref: "#/components/parameters/EstimateId"
       responses:
         "204": { description: Estimate deleted }
+  /proposals:
+    get:
+      operationId: listProposals
+      tags: [proposals]
+      summary: List proposals for the active customer environment
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 120 }
+        - in: query
+          name: stage
+          schema: { $ref: "#/components/schemas/ProposalStage" }
+        - in: query
+          name: ownerUserId
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: integrationStatus
+          schema: { $ref: "#/components/schemas/ProposalIntegrationStatus" }
+      responses:
+        "200":
+          description: Proposals
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Proposal" }
+    post:
+      operationId: createProposal
+      tags: [proposals]
+      summary: Create a proposal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProposalInput" }
+      responses:
+        "201":
+          description: Proposal created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Proposal" }
+  /proposals/{proposalId}:
+    get:
+      operationId: getProposal
+      tags: [proposals]
+      summary: Get a proposal
+      parameters:
+        - $ref: "#/components/parameters/ProposalId"
+      responses:
+        "200":
+          description: Proposal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Proposal" }
+        "404": { description: Proposal not found }
+    patch:
+      operationId: updateProposal
+      tags: [proposals]
+      summary: Update a proposal
+      parameters:
+        - $ref: "#/components/parameters/ProposalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProposalUpdate" }
+      responses:
+        "200":
+          description: Updated proposal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Proposal" }
+    delete:
+      operationId: deleteProposal
+      tags: [proposals]
+      summary: Delete a proposal
+      parameters:
+        - $ref: "#/components/parameters/ProposalId"
+      responses:
+        "204": { description: Proposal deleted }
   /projects/{projectId}/activity:
     get:
       operationId: listProjectActivity
@@ -1313,6 +1393,12 @@ components:
       required: true
       schema:
         type: integer
+    ProposalId:
+      in: path
+      name: proposalId
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
@@ -1568,6 +1654,82 @@ components:
         integrationProviderKey: { type: ["string", "null"], maxLength: 80, pattern: "^[a-z][a-z0-9_]{1,63}$" }
         integrationKind: { oneOf: [{ $ref: "#/components/schemas/EstimateIntegrationKind" }, { type: "null" }] }
         integrationStatus: { $ref: "#/components/schemas/EstimateIntegrationStatus" }
+        externalReference: { type: ["string", "null"], maxLength: 180 }
+    ProposalStage:
+      type: string
+      enum: [draft, internal_review, ready, sent, viewed, accepted, declined, expired]
+    ProposalIntegrationKind:
+      type: string
+      enum: [document, crm, accounting, e_signature, other]
+    ProposalIntegrationStatus:
+      type: string
+      enum: [manual, pending, synced, error]
+    Proposal:
+      type: object
+      required: [id, environmentId, proposalNumber, businessCustomerId, customerName, estimateId, estimateNumber, bidId, bidNumber, name, stage, proposalValue, validUntil, recipientName, recipientEmail, ownerUserId, owner, integrationProviderKey, integrationKind, integrationStatus, externalReference, sentAt, respondedAt, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        environmentId: { type: integer }
+        proposalNumber: { type: string }
+        businessCustomerId: { type: integer }
+        customerName: { type: string }
+        estimateId: { type: ["integer", "null"] }
+        estimateNumber: { type: ["string", "null"] }
+        bidId: { type: ["integer", "null"] }
+        bidNumber: { type: ["string", "null"] }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        stage: { $ref: "#/components/schemas/ProposalStage" }
+        proposalValue: { type: number }
+        validUntil: { type: ["string", "null"], format: date }
+        recipientName: { type: ["string", "null"] }
+        recipientEmail: { type: ["string", "null"], format: email }
+        ownerUserId: { type: ["integer", "null"] }
+        owner: { oneOf: [{ $ref: "#/components/schemas/BidOwner" }, { type: "null" }] }
+        integrationProviderKey: { type: ["string", "null"] }
+        integrationKind: { oneOf: [{ $ref: "#/components/schemas/ProposalIntegrationKind" }, { type: "null" }] }
+        integrationStatus: { $ref: "#/components/schemas/ProposalIntegrationStatus" }
+        externalReference: { type: ["string", "null"] }
+        sentAt: { type: ["string", "null"], format: date-time }
+        respondedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProposalInput:
+      type: object
+      required: [businessCustomerId, name]
+      properties:
+        businessCustomerId: { type: integer, minimum: 1 }
+        estimateId: { type: integer, minimum: 1 }
+        bidId: { type: integer, minimum: 1 }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: string, maxLength: 5000 }
+        stage: { $ref: "#/components/schemas/ProposalStage" }
+        proposalValue: { type: number, minimum: 0, maximum: 999999999999 }
+        validUntil: { type: string, format: date }
+        recipientName: { type: string, maxLength: 160 }
+        recipientEmail: { type: string, format: email, maxLength: 320 }
+        ownerUserId: { type: integer, minimum: 1 }
+        integrationProviderKey: { type: string, maxLength: 80, pattern: "^[a-z][a-z0-9_]{1,63}$" }
+        integrationKind: { $ref: "#/components/schemas/ProposalIntegrationKind" }
+        integrationStatus: { $ref: "#/components/schemas/ProposalIntegrationStatus" }
+        externalReference: { type: string, maxLength: 180 }
+    ProposalUpdate:
+      type: object
+      properties:
+        businessCustomerId: { type: integer, minimum: 1 }
+        estimateId: { type: ["integer", "null"], minimum: 1 }
+        bidId: { type: ["integer", "null"], minimum: 1 }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: ["string", "null"], maxLength: 5000 }
+        stage: { $ref: "#/components/schemas/ProposalStage" }
+        proposalValue: { type: number, minimum: 0, maximum: 999999999999 }
+        validUntil: { type: ["string", "null"], format: date }
+        recipientName: { type: ["string", "null"], maxLength: 160 }
+        recipientEmail: { type: ["string", "null"], format: email, maxLength: 320 }
+        ownerUserId: { type: ["integer", "null"], minimum: 1 }
+        integrationProviderKey: { type: ["string", "null"], maxLength: 80, pattern: "^[a-z][a-z0-9_]{1,63}$" }
+        integrationKind: { oneOf: [{ $ref: "#/components/schemas/ProposalIntegrationKind" }, { type: "null" }] }
+        integrationStatus: { $ref: "#/components/schemas/ProposalIntegrationStatus" }
         externalReference: { type: ["string", "null"], maxLength: 180 }
     ProposalStatus:
       type: string
