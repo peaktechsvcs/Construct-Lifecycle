@@ -6,6 +6,7 @@ import {
   FlaskConical, Globe, PanelLeftClose, PanelLeftOpen, X,
   Lightbulb, Gavel, Calculator, FileText, FolderKanban, FileCheck2, Milestone,
   Package, ListChecks, ShoppingCart, ClipboardList, Truck, PackageCheck,
+  Rocket,
   TrendingUp, HandCoins, Receipt, BadgeDollarSign, FilePenLine, Percent,
   Files, ReceiptText, Archive, BarChart3, LineChart, type LucideIcon,
 } from 'lucide-react';
@@ -224,6 +225,12 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       { href: '/coming-soon/construct-intelligence', label: 'Construct Intelligence', icon: Sparkles },
     ],
   },
+  {
+    label: 'Release safety',
+    items: [
+      { href: '/administration/platform/releases', label: 'Releases', icon: Rocket },
+    ],
+  },
 ];
 
 function getBreadcrumbLabel(location: string): string {
@@ -232,6 +239,7 @@ function getBreadcrumbLabel(location: string): string {
   if (location.startsWith('/settings/administration')) return 'Administration';
   if (location === '/settings' || location.startsWith('/settings/')) return 'Settings';
   if (location.includes('/administration/platform/customers')) return 'Platform Customers';
+  if (location.includes('/administration/platform/releases')) return 'Release management';
   if (location.startsWith('/projects')) return 'All Projects';
   if (location.startsWith('/customers')) return 'Customers';
   if (location.startsWith('/coming-soon/')) {

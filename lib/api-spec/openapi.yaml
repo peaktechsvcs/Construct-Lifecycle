@@ -2828,7 +2828,7 @@ paths:
   /platform/releases:
     get:
       operationId: listPlatformReleases
-      tags: [environments]
+      tags: [platform]
       summary: List platform releases and environment assignments
       responses:
         "200":
@@ -2838,6 +2838,142 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/PlatformRelease" }
+    post:
+      operationId: createPlatformRelease
+      tags: [platform]
+      summary: Create an immutable, versioned application/configuration release
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformReleaseInput" }
+      responses:
+        "201":
+          description: Platform release created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformRelease" }
+        "400": { description: Invalid release metadata }
+        "403": { description: Platform administrator permission required }
+        "409": { description: Release version already exists }
+  /platform/releases/{releaseId}/assign:
+    post:
+      operationId: assignPlatformRelease
+      tags: [platform]
+      summary: Assign a release to a customer environment
+      parameters:
+        - in: path
+          name: releaseId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformReleaseAssignmentInput" }
+      responses:
+        "201":
+          description: Release assignment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvironmentReleaseAssignment" }
+        "403": { description: Platform administrator permission required }
+        "409": { description: Assignment or release state prevents this transition }
+  /platform/releases/{releaseId}/deploy:
+    post:
+      operationId: deployPlatformRelease
+      tags: [platform]
+      summary: Deploy an assigned release to an environment
+      parameters:
+        - in: path
+          name: releaseId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformReleaseDeployInput" }
+      responses:
+        "200":
+          description: Deployed release assignment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvironmentReleaseAssignment" }
+        "403": { description: Platform administrator permission required }
+        "409": { description: Validation or approval prerequisites are incomplete }
+  /tenant/releases:
+    get:
+      operationId: listTenantReleaseAssignments
+      tags: [environments]
+      summary: List releases assigned to the active customer
+      responses:
+        "200":
+          description: Customer release assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TenantReleaseAssignment" }
+  /tenant/releases/{assignmentId}/validate:
+    post:
+      operationId: validateTenantRelease
+      tags: [environments]
+      summary: Record successful Customer DTD validation for a feature release
+      parameters:
+        - in: path
+          name: assignmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Validated release assignment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvironmentReleaseAssignment" }
+        "403": { description: Customer owner or administrator permission required }
+        "409": { description: Release is not assigned to Customer DTD }
+  /tenant/releases/{assignmentId}/approve:
+    post:
+      operationId: approveTenantRelease
+      tags: [environments]
+      summary: Approve a validated feature release for promotion
+      parameters:
+        - in: path
+          name: assignmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Approved release assignment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvironmentReleaseAssignment" }
+        "403": { description: Customer owner or administrator permission required }
+        "409": { description: DTD validation is required before approval }
+  /tenant/releases/{assignmentId}/reject:
+    post:
+      operationId: rejectTenantRelease
+      tags: [environments]
+      summary: Reject a validated feature release
+      parameters:
+        - in: path
+          name: assignmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformReleaseRejectionInput" }
+      responses:
+        "200":
+          description: Rejected release assignment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvironmentReleaseAssignment" }
+        "403": { description: Customer owner or administrator permission required }
+        "409": { description: DTD validation is required before rejection }
   /billing/plans:
     get:
       operationId: listBillingPlans
@@ -5452,24 +5588,140 @@ components:
           items: { type: string }
     PlatformRelease:
       type: object
-      required: [id, releaseType, status, version]
+      required: [id, releaseType, status, version, appPayload, configPayload, mandatory, createdAt, updatedAt, assignments, events]
       properties:
         id: { type: integer }
         releaseType: { type: string, enum: [security, platform, feature] }
         status: { type: string, enum: [draft, released, deprecated] }
         version: { type: string }
         notes: { type: ["string", "null"] }
+        appPayload: { $ref: "#/components/schemas/ApplicationArtifactMetadata" }
+        configPayload: { $ref: "#/components/schemas/ConfigurationArtifactMetadata" }
+        mandatory: { type: boolean }
+        createdByUserId: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
         assignments:
           type: array
           items: { $ref: "#/components/schemas/EnvironmentReleaseAssignment" }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/ReleaseAssignmentEvent" }
+    PlatformReleaseInput:
+      type: object
+      required: [releaseType, version, appPayload, configPayload]
+      properties:
+        releaseType: { type: string, enum: [security, platform, feature] }
+        version: { type: string, minLength: 1, maxLength: 120 }
+        notes: { type: string, maxLength: 2000 }
+        appPayload: { $ref: "#/components/schemas/ApplicationArtifactMetadata" }
+        configPayload: { $ref: "#/components/schemas/ConfigurationArtifactMetadata" }
+        mandatory: { type: boolean, default: false }
+    PlatformReleaseAssignmentInput:
+      type: object
+      required: [environmentId]
+      properties:
+        environmentId: { type: integer, minimum: 1 }
+    PlatformReleaseDeployInput:
+      type: object
+      required: [environmentId]
+      properties:
+        environmentId: { type: integer, minimum: 1 }
+    PlatformReleaseRejectionInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 2000 }
     EnvironmentReleaseAssignment:
       type: object
-      required: [environmentId, releaseId, approvalStatus]
+      required: [id, environmentId, releaseId, status, approvalStatus, validationStatus, deploymentStatus, assignedAt, updatedAt, sourceDtdAssignmentId, events]
       properties:
+        id: { type: integer }
         environmentId: { type: integer }
         releaseId: { type: integer }
-        approvalStatus: { type: string, enum: [pending, approved, rejected, mandatory] }
+        sourceDtdAssignmentId: { type: ["integer", "null"] }
+        status: { type: string, enum: [assigned, rejected, deployed] }
+        assignedByUserId: { type: ["integer", "null"] }
+        validationStatus: { type: string, enum: [not_required, pending, validated] }
+        validatedByUserId: { type: ["integer", "null"] }
+        validatedAt: { type: ["string", "null"], format: date-time }
+        approvalStatus: { type: string, enum: [pending, approved, rejected, mandatory, not_required] }
+        approvedByUserId: { type: ["integer", "null"] }
         approvedAt: { type: ["string", "null"], format: date-time }
+        rejectionReason: { type: ["string", "null"] }
+        rejectedByUserId: { type: ["integer", "null"] }
+        rejectedAt: { type: ["string", "null"], format: date-time }
+        deploymentStatus: { type: string, enum: [pending, deployed] }
+        deployedByUserId: { type: ["integer", "null"] }
+        deployedAt: { type: ["string", "null"], format: date-time }
+        assignedAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/ReleaseAssignmentEvent" }
+    TenantReleaseAssignment:
+      allOf:
+        - $ref: "#/components/schemas/EnvironmentReleaseAssignment"
+        - type: object
+          required: [release, environment]
+          properties:
+            release:
+              type: object
+              required: [id, releaseType, status, version, appPayload, configPayload, mandatory]
+              properties:
+                id: { type: integer }
+                releaseType: { type: string, enum: [security, platform, feature] }
+                status: { type: string, enum: [draft, released, deprecated] }
+                version: { type: string }
+                notes: { type: ["string", "null"] }
+                appPayload: { $ref: "#/components/schemas/ApplicationArtifactMetadata" }
+                configPayload: { $ref: "#/components/schemas/ConfigurationArtifactMetadata" }
+                mandatory: { type: boolean }
+                createdAt: { type: string, format: date-time }
+                updatedAt: { type: string, format: date-time }
+            environment:
+              type: object
+              required: [id, name, slug, kind]
+              properties:
+                id: { type: integer }
+                name: { type: string }
+                slug: { type: string }
+                kind: { type: string }
+    ApplicationArtifactMetadata:
+      type: object
+      additionalProperties: false
+      required: [artifactName, artifactVersion, digest]
+      properties:
+        artifactName: { type: string, minLength: 1, maxLength: 160 }
+        artifactVersion: { type: string, minLength: 1, maxLength: 120 }
+        digest: { type: string, pattern: "^[A-Za-z0-9:_./+=-]{8,256}$" }
+        sourceCommit: { type: string, maxLength: 120 }
+        buildId: { type: string, maxLength: 160 }
+        entrypoint: { type: string, maxLength: 300 }
+    ConfigurationArtifactMetadata:
+      type: object
+      additionalProperties: false
+      required: [configName, configVersion, digest]
+      properties:
+        configName: { type: string, minLength: 1, maxLength: 160 }
+        configVersion: { type: string, minLength: 1, maxLength: 120 }
+        digest: { type: string, pattern: "^[A-Za-z0-9:_./+=-]{8,256}$" }
+        schemaVersion: { type: string, maxLength: 120 }
+        sourceCommit: { type: string, maxLength: 120 }
+        buildId: { type: string, maxLength: 160 }
+    ReleaseAssignmentEvent:
+      type: object
+      required: [id, releaseId, action, details, occurredAt]
+      properties:
+        id: { type: integer }
+        releaseId: { type: integer }
+        assignmentId: { type: ["integer", "null"] }
+        actorUserId: { type: ["integer", "null"] }
+        action: { type: string }
+        fromStatus: { type: ["string", "null"] }
+        toStatus: { type: ["string", "null"] }
+        details: { type: object, additionalProperties: true }
+        occurredAt: { type: string, format: date-time }
     BrandingInput:
       type: object
       additionalProperties: true

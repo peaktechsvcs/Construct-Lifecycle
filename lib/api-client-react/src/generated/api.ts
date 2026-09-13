@@ -57,6 +57,7 @@ import type {
   EntitlementOverride,
   EntitlementOverrideInput,
   Environment,
+  EnvironmentReleaseAssignment,
   Estimate,
   EstimateInput,
   EstimateUpdate,
@@ -108,6 +109,10 @@ import type {
   PlatformCustomerDetails,
   PlatformCustomerMember,
   PlatformRelease,
+  PlatformReleaseAssignmentInput,
+  PlatformReleaseDeployInput,
+  PlatformReleaseInput,
+  PlatformReleaseRejectionInput,
   PreviewItbMailboxParams,
   Project,
   ProjectChangeOrder,
@@ -212,6 +217,7 @@ import type {
   TenantContext,
   TenantInvitation,
   TenantMember,
+  TenantReleaseAssignment,
   TradePartner,
   TradePartnerDetail,
   TradePartnerInput,
@@ -12727,6 +12733,512 @@ export function useListPlatformReleases<TData = Awaited<ReturnType<typeof listPl
 
 
 
+
+export const getCreatePlatformReleaseUrl = () => {
+
+
+
+
+  return `/api/platform/releases`
+}
+
+/**
+ * @summary Create an immutable, versioned application/configuration release
+ */
+export const createPlatformRelease = async (platformReleaseInput: PlatformReleaseInput, options?: Parameters<typeof customFetch>[1]): Promise<PlatformRelease> => {
+
+  return customFetch<PlatformRelease>(getCreatePlatformReleaseUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(platformReleaseInput)
+  }
+);}
+
+
+
+
+
+export const getCreatePlatformReleaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformRelease>>, TError,{data: BodyType<PlatformReleaseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPlatformRelease>>, TError,{data: BodyType<PlatformReleaseInput>}, TContext> => {
+
+const mutationKey = ['createPlatformRelease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPlatformRelease>>, {data: BodyType<PlatformReleaseInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPlatformRelease(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePlatformReleaseMutationResult = NonNullable<Awaited<ReturnType<typeof createPlatformRelease>>>
+    export type CreatePlatformReleaseMutationBody = BodyType<PlatformReleaseInput>
+    export type CreatePlatformReleaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Create an immutable, versioned application/configuration release
+ */
+export const useCreatePlatformRelease = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformRelease>>, TError,{data: BodyType<PlatformReleaseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPlatformRelease>>,
+        TError,
+        {data: BodyType<PlatformReleaseInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePlatformReleaseMutationOptions(options));
+    }
+
+export const getAssignPlatformReleaseUrl = (releaseId: number,) => {
+
+
+
+
+  return `/api/platform/releases/${releaseId}/assign`
+}
+
+/**
+ * @summary Assign a release to a customer environment
+ */
+export const assignPlatformRelease = async (releaseId: number,
+    platformReleaseAssignmentInput: PlatformReleaseAssignmentInput, options?: Parameters<typeof customFetch>[1]): Promise<EnvironmentReleaseAssignment> => {
+
+  return customFetch<EnvironmentReleaseAssignment>(getAssignPlatformReleaseUrl(releaseId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(platformReleaseAssignmentInput)
+  }
+);}
+
+
+
+
+
+export const getAssignPlatformReleaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignPlatformRelease>>, TError,{releaseId: number;data: BodyType<PlatformReleaseAssignmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof assignPlatformRelease>>, TError,{releaseId: number;data: BodyType<PlatformReleaseAssignmentInput>}, TContext> => {
+
+const mutationKey = ['assignPlatformRelease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assignPlatformRelease>>, {releaseId: number;data: BodyType<PlatformReleaseAssignmentInput>}> = (props) => {
+          const {releaseId,data} = props ?? {};
+
+          return  assignPlatformRelease(releaseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssignPlatformReleaseMutationResult = NonNullable<Awaited<ReturnType<typeof assignPlatformRelease>>>
+    export type AssignPlatformReleaseMutationBody = BodyType<PlatformReleaseAssignmentInput>
+    export type AssignPlatformReleaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Assign a release to a customer environment
+ */
+export const useAssignPlatformRelease = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignPlatformRelease>>, TError,{releaseId: number;data: BodyType<PlatformReleaseAssignmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof assignPlatformRelease>>,
+        TError,
+        {releaseId: number;data: BodyType<PlatformReleaseAssignmentInput>},
+        TContext
+      > => {
+      return useMutation(getAssignPlatformReleaseMutationOptions(options));
+    }
+
+export const getDeployPlatformReleaseUrl = (releaseId: number,) => {
+
+
+
+
+  return `/api/platform/releases/${releaseId}/deploy`
+}
+
+/**
+ * @summary Deploy an assigned release to an environment
+ */
+export const deployPlatformRelease = async (releaseId: number,
+    platformReleaseDeployInput: PlatformReleaseDeployInput, options?: Parameters<typeof customFetch>[1]): Promise<EnvironmentReleaseAssignment> => {
+
+  return customFetch<EnvironmentReleaseAssignment>(getDeployPlatformReleaseUrl(releaseId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(platformReleaseDeployInput)
+  }
+);}
+
+
+
+
+
+export const getDeployPlatformReleaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deployPlatformRelease>>, TError,{releaseId: number;data: BodyType<PlatformReleaseDeployInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deployPlatformRelease>>, TError,{releaseId: number;data: BodyType<PlatformReleaseDeployInput>}, TContext> => {
+
+const mutationKey = ['deployPlatformRelease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deployPlatformRelease>>, {releaseId: number;data: BodyType<PlatformReleaseDeployInput>}> = (props) => {
+          const {releaseId,data} = props ?? {};
+
+          return  deployPlatformRelease(releaseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeployPlatformReleaseMutationResult = NonNullable<Awaited<ReturnType<typeof deployPlatformRelease>>>
+    export type DeployPlatformReleaseMutationBody = BodyType<PlatformReleaseDeployInput>
+    export type DeployPlatformReleaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Deploy an assigned release to an environment
+ */
+export const useDeployPlatformRelease = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deployPlatformRelease>>, TError,{releaseId: number;data: BodyType<PlatformReleaseDeployInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deployPlatformRelease>>,
+        TError,
+        {releaseId: number;data: BodyType<PlatformReleaseDeployInput>},
+        TContext
+      > => {
+      return useMutation(getDeployPlatformReleaseMutationOptions(options));
+    }
+
+export const getListTenantReleaseAssignmentsUrl = () => {
+
+
+
+
+  return `/api/tenant/releases`
+}
+
+/**
+ * @summary List releases assigned to the active customer
+ */
+export const listTenantReleaseAssignments = async ( options?: Parameters<typeof customFetch>[1]): Promise<TenantReleaseAssignment[]> => {
+
+  return customFetch<TenantReleaseAssignment[]>(getListTenantReleaseAssignmentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTenantReleaseAssignmentsQueryKey = () => {
+    return [
+    `/api/tenant/releases`
+    ] as const;
+    }
+
+
+export const getListTenantReleaseAssignmentsQueryOptions = <TData = Awaited<ReturnType<typeof listTenantReleaseAssignments>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTenantReleaseAssignments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTenantReleaseAssignmentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTenantReleaseAssignments>>> = ({ signal }) => listTenantReleaseAssignments({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTenantReleaseAssignments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTenantReleaseAssignmentsQueryResult = NonNullable<Awaited<ReturnType<typeof listTenantReleaseAssignments>>>
+export type ListTenantReleaseAssignmentsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List releases assigned to the active customer
+ */
+
+export function useListTenantReleaseAssignments<TData = Awaited<ReturnType<typeof listTenantReleaseAssignments>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTenantReleaseAssignments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTenantReleaseAssignmentsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getValidateTenantReleaseUrl = (assignmentId: number,) => {
+
+
+
+
+  return `/api/tenant/releases/${assignmentId}/validate`
+}
+
+/**
+ * @summary Record successful Customer DTD validation for a feature release
+ */
+export const validateTenantRelease = async (assignmentId: number, options?: Parameters<typeof customFetch>[1]): Promise<EnvironmentReleaseAssignment> => {
+
+  return customFetch<EnvironmentReleaseAssignment>(getValidateTenantReleaseUrl(assignmentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getValidateTenantReleaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateTenantRelease>>, TError,{assignmentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof validateTenantRelease>>, TError,{assignmentId: number}, TContext> => {
+
+const mutationKey = ['validateTenantRelease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof validateTenantRelease>>, {assignmentId: number}> = (props) => {
+          const {assignmentId} = props ?? {};
+
+          return  validateTenantRelease(assignmentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ValidateTenantReleaseMutationResult = NonNullable<Awaited<ReturnType<typeof validateTenantRelease>>>
+
+    export type ValidateTenantReleaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Record successful Customer DTD validation for a feature release
+ */
+export const useValidateTenantRelease = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateTenantRelease>>, TError,{assignmentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof validateTenantRelease>>,
+        TError,
+        {assignmentId: number},
+        TContext
+      > => {
+      return useMutation(getValidateTenantReleaseMutationOptions(options));
+    }
+
+export const getApproveTenantReleaseUrl = (assignmentId: number,) => {
+
+
+
+
+  return `/api/tenant/releases/${assignmentId}/approve`
+}
+
+/**
+ * @summary Approve a validated feature release for promotion
+ */
+export const approveTenantRelease = async (assignmentId: number, options?: Parameters<typeof customFetch>[1]): Promise<EnvironmentReleaseAssignment> => {
+
+  return customFetch<EnvironmentReleaseAssignment>(getApproveTenantReleaseUrl(assignmentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveTenantReleaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveTenantRelease>>, TError,{assignmentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveTenantRelease>>, TError,{assignmentId: number}, TContext> => {
+
+const mutationKey = ['approveTenantRelease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveTenantRelease>>, {assignmentId: number}> = (props) => {
+          const {assignmentId} = props ?? {};
+
+          return  approveTenantRelease(assignmentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveTenantReleaseMutationResult = NonNullable<Awaited<ReturnType<typeof approveTenantRelease>>>
+
+    export type ApproveTenantReleaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Approve a validated feature release for promotion
+ */
+export const useApproveTenantRelease = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveTenantRelease>>, TError,{assignmentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveTenantRelease>>,
+        TError,
+        {assignmentId: number},
+        TContext
+      > => {
+      return useMutation(getApproveTenantReleaseMutationOptions(options));
+    }
+
+export const getRejectTenantReleaseUrl = (assignmentId: number,) => {
+
+
+
+
+  return `/api/tenant/releases/${assignmentId}/reject`
+}
+
+/**
+ * @summary Reject a validated feature release
+ */
+export const rejectTenantRelease = async (assignmentId: number,
+    platformReleaseRejectionInput: PlatformReleaseRejectionInput, options?: Parameters<typeof customFetch>[1]): Promise<EnvironmentReleaseAssignment> => {
+
+  return customFetch<EnvironmentReleaseAssignment>(getRejectTenantReleaseUrl(assignmentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(platformReleaseRejectionInput)
+  }
+);}
+
+
+
+
+
+export const getRejectTenantReleaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectTenantRelease>>, TError,{assignmentId: number;data: BodyType<PlatformReleaseRejectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectTenantRelease>>, TError,{assignmentId: number;data: BodyType<PlatformReleaseRejectionInput>}, TContext> => {
+
+const mutationKey = ['rejectTenantRelease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectTenantRelease>>, {assignmentId: number;data: BodyType<PlatformReleaseRejectionInput>}> = (props) => {
+          const {assignmentId,data} = props ?? {};
+
+          return  rejectTenantRelease(assignmentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectTenantReleaseMutationResult = NonNullable<Awaited<ReturnType<typeof rejectTenantRelease>>>
+    export type RejectTenantReleaseMutationBody = BodyType<PlatformReleaseRejectionInput>
+    export type RejectTenantReleaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Reject a validated feature release
+ */
+export const useRejectTenantRelease = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectTenantRelease>>, TError,{assignmentId: number;data: BodyType<PlatformReleaseRejectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rejectTenantRelease>>,
+        TError,
+        {assignmentId: number;data: BodyType<PlatformReleaseRejectionInput>},
+        TContext
+      > => {
+      return useMutation(getRejectTenantReleaseMutationOptions(options));
+    }
 
 export const getListBillingPlansUrl = () => {
 

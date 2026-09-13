@@ -5,9 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ApplicationArtifactMetadata } from './applicationArtifactMetadata';
+import type { ConfigurationArtifactMetadata } from './configurationArtifactMetadata';
 import type { EnvironmentReleaseAssignment } from './environmentReleaseAssignment';
 import type { PlatformReleaseReleaseType } from './platformReleaseReleaseType';
 import type { PlatformReleaseStatus } from './platformReleaseStatus';
+import type { ReleaseAssignmentEvent } from './releaseAssignmentEvent';
 
 export interface PlatformRelease {
   id: number;
@@ -16,5 +19,13 @@ export interface PlatformRelease {
   version: string;
   /** @nullable */
   notes?: string | null;
-  assignments?: EnvironmentReleaseAssignment[];
+  appPayload: ApplicationArtifactMetadata;
+  configPayload: ConfigurationArtifactMetadata;
+  mandatory: boolean;
+  /** @nullable */
+  createdByUserId?: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  assignments: EnvironmentReleaseAssignment[];
+  events: ReleaseAssignmentEvent[];
 }

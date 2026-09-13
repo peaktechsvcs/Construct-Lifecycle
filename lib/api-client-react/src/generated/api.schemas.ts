@@ -3804,6 +3804,66 @@ export const PlatformReleaseStatus = {
   deprecated: 'deprecated',
 } as const;
 
+export interface ApplicationArtifactMetadata {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  artifactName: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  artifactVersion: string;
+  /** @pattern ^[A-Za-z0-9:_./+=-]{8,256}$ */
+  digest: string;
+  /** @maxLength 120 */
+  sourceCommit?: string;
+  /** @maxLength 160 */
+  buildId?: string;
+  /** @maxLength 300 */
+  entrypoint?: string;
+}
+
+export interface ConfigurationArtifactMetadata {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  configName: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  configVersion: string;
+  /** @pattern ^[A-Za-z0-9:_./+=-]{8,256}$ */
+  digest: string;
+  /** @maxLength 120 */
+  schemaVersion?: string;
+  /** @maxLength 120 */
+  sourceCommit?: string;
+  /** @maxLength 160 */
+  buildId?: string;
+}
+
+export type EnvironmentReleaseAssignmentStatus = typeof EnvironmentReleaseAssignmentStatus[keyof typeof EnvironmentReleaseAssignmentStatus];
+
+
+export const EnvironmentReleaseAssignmentStatus = {
+  assigned: 'assigned',
+  rejected: 'rejected',
+  deployed: 'deployed',
+} as const;
+
+export type EnvironmentReleaseAssignmentValidationStatus = typeof EnvironmentReleaseAssignmentValidationStatus[keyof typeof EnvironmentReleaseAssignmentValidationStatus];
+
+
+export const EnvironmentReleaseAssignmentValidationStatus = {
+  not_required: 'not_required',
+  pending: 'pending',
+  validated: 'validated',
+} as const;
+
 export type EnvironmentReleaseAssignmentApprovalStatus = typeof EnvironmentReleaseAssignmentApprovalStatus[keyof typeof EnvironmentReleaseAssignmentApprovalStatus];
 
 
@@ -3812,14 +3872,68 @@ export const EnvironmentReleaseAssignmentApprovalStatus = {
   approved: 'approved',
   rejected: 'rejected',
   mandatory: 'mandatory',
+  not_required: 'not_required',
 } as const;
 
+export type EnvironmentReleaseAssignmentDeploymentStatus = typeof EnvironmentReleaseAssignmentDeploymentStatus[keyof typeof EnvironmentReleaseAssignmentDeploymentStatus];
+
+
+export const EnvironmentReleaseAssignmentDeploymentStatus = {
+  pending: 'pending',
+  deployed: 'deployed',
+} as const;
+
+export type ReleaseAssignmentEventDetails = { [key: string]: unknown };
+
+export interface ReleaseAssignmentEvent {
+  id: number;
+  releaseId: number;
+  /** @nullable */
+  assignmentId?: number | null;
+  /** @nullable */
+  actorUserId?: number | null;
+  action: string;
+  /** @nullable */
+  fromStatus?: string | null;
+  /** @nullable */
+  toStatus?: string | null;
+  details: ReleaseAssignmentEventDetails;
+  occurredAt: string;
+}
+
 export interface EnvironmentReleaseAssignment {
+  id: number;
   environmentId: number;
   releaseId: number;
+  /** @nullable */
+  sourceDtdAssignmentId: number | null;
+  status: EnvironmentReleaseAssignmentStatus;
+  /** @nullable */
+  assignedByUserId?: number | null;
+  validationStatus: EnvironmentReleaseAssignmentValidationStatus;
+  /** @nullable */
+  validatedByUserId?: number | null;
+  /** @nullable */
+  validatedAt?: string | null;
   approvalStatus: EnvironmentReleaseAssignmentApprovalStatus;
   /** @nullable */
+  approvedByUserId?: number | null;
+  /** @nullable */
   approvedAt?: string | null;
+  /** @nullable */
+  rejectionReason?: string | null;
+  /** @nullable */
+  rejectedByUserId?: number | null;
+  /** @nullable */
+  rejectedAt?: string | null;
+  deploymentStatus: EnvironmentReleaseAssignmentDeploymentStatus;
+  /** @nullable */
+  deployedByUserId?: number | null;
+  /** @nullable */
+  deployedAt?: string | null;
+  assignedAt: string;
+  updatedAt: string;
+  events: ReleaseAssignmentEvent[];
 }
 
 export interface PlatformRelease {
@@ -3829,8 +3943,101 @@ export interface PlatformRelease {
   version: string;
   /** @nullable */
   notes?: string | null;
-  assignments?: EnvironmentReleaseAssignment[];
+  appPayload: ApplicationArtifactMetadata;
+  configPayload: ConfigurationArtifactMetadata;
+  mandatory: boolean;
+  /** @nullable */
+  createdByUserId?: number | null;
+  createdAt: string;
+  updatedAt: string;
+  assignments: EnvironmentReleaseAssignment[];
+  events: ReleaseAssignmentEvent[];
 }
+
+export type PlatformReleaseInputReleaseType = typeof PlatformReleaseInputReleaseType[keyof typeof PlatformReleaseInputReleaseType];
+
+
+export const PlatformReleaseInputReleaseType = {
+  security: 'security',
+  platform: 'platform',
+  feature: 'feature',
+} as const;
+
+export interface PlatformReleaseInput {
+  releaseType: PlatformReleaseInputReleaseType;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  version: string;
+  /** @maxLength 2000 */
+  notes?: string;
+  appPayload: ApplicationArtifactMetadata;
+  configPayload: ConfigurationArtifactMetadata;
+  mandatory?: boolean;
+}
+
+export interface PlatformReleaseAssignmentInput {
+  /** @minimum 1 */
+  environmentId: number;
+}
+
+export interface PlatformReleaseDeployInput {
+  /** @minimum 1 */
+  environmentId: number;
+}
+
+export interface PlatformReleaseRejectionInput {
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  reason: string;
+}
+
+export type TenantReleaseAssignmentReleaseReleaseType = typeof TenantReleaseAssignmentReleaseReleaseType[keyof typeof TenantReleaseAssignmentReleaseReleaseType];
+
+
+export const TenantReleaseAssignmentReleaseReleaseType = {
+  security: 'security',
+  platform: 'platform',
+  feature: 'feature',
+} as const;
+
+export type TenantReleaseAssignmentReleaseStatus = typeof TenantReleaseAssignmentReleaseStatus[keyof typeof TenantReleaseAssignmentReleaseStatus];
+
+
+export const TenantReleaseAssignmentReleaseStatus = {
+  draft: 'draft',
+  released: 'released',
+  deprecated: 'deprecated',
+} as const;
+
+export type TenantReleaseAssignmentRelease = {
+  id: number;
+  releaseType: TenantReleaseAssignmentReleaseReleaseType;
+  status: TenantReleaseAssignmentReleaseStatus;
+  version: string;
+  /** @nullable */
+  notes?: string | null;
+  appPayload: ApplicationArtifactMetadata;
+  configPayload: ConfigurationArtifactMetadata;
+  mandatory: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type TenantReleaseAssignmentEnvironment = {
+  id: number;
+  name: string;
+  slug: string;
+  kind: string;
+};
+
+export type TenantReleaseAssignment = EnvironmentReleaseAssignment & {
+  release: TenantReleaseAssignmentRelease;
+  environment: TenantReleaseAssignmentEnvironment;
+};
 
 export interface BrandingInput {
   /** @nullable */

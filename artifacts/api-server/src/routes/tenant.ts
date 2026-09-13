@@ -1,11 +1,14 @@
 import { Router, type IRouter, type NextFunction, type Response } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
   environmentsTable,
+  environmentReleaseAssignmentsTable,
   membershipsTable,
   tenantEnvironmentAccessTable,
   platformAuditEventsTable,
+  platformReleasesTable,
+  releaseAssignmentEventsTable,
   tenantBrandingDraftsTable,
   tenantBrandingVersionsTable,
   tenantsTable,
@@ -17,6 +20,7 @@ import {
   SwitchTenantBody,
   RollbackBrandingParams,
   UpdateTenantBusinessProfileBody,
+  RejectTenantReleaseBody,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
@@ -29,6 +33,71 @@ import {
 } from "../lib/tenant-business-profile";
 
 const router: IRouter = Router();
+const releaseAssignment = async (assignmentId: number, tenantId: number, userId: number, isPlatformAdmin = false) => {
+  const [row] = await db
+    .select({
+      assignment: environmentReleaseAssignmentsTable,
+      release: platformReleasesTable,
+      environment: environmentsTable,
+    })
+    .from(environmentReleaseAssignmentsTable)
+    .innerJoin(platformReleasesTable, eq(environmentReleaseAssignmentsTable.releaseId, platformReleasesTable.id))
+    .innerJoin(environmentsTable, eq(environmentReleaseAssignmentsTable.environmentId, environmentsTable.id))
+    .where(and(
+      eq(environmentReleaseAssignmentsTable.id, assignmentId),
+      eq(environmentsTable.tenantId, tenantId),
+      isPlatformAdmin
+        ? sql`true`
+        : sql`exists (
+          select 1 from tenant_environment_access access
+          where access.tenant_id = ${tenantId}
+            and access.environment_id = ${environmentsTable.id}
+            and access.user_id = ${userId}
+        )`,
+    ))
+    .limit(1);
+  return row;
+};
+
+const serializeReleaseEvent = (event: typeof releaseAssignmentEventsTable.$inferSelect) => ({
+  ...event,
+  details: parse(event.details),
+});
+const assignmentWithEvents = async (assignment: typeof environmentReleaseAssignmentsTable.$inferSelect) => ({
+  ...assignment,
+  events: (await db.select().from(releaseAssignmentEventsTable)
+    .where(eq(releaseAssignmentEventsTable.assignmentId, assignment.id))
+    .orderBy(releaseAssignmentEventsTable.occurredAt)).map(serializeReleaseEvent),
+});
+
+const writeReleaseTransition = async (
+  tx: any,
+  actorUserId: number,
+  releaseId: number,
+  assignmentId: number,
+  action: string,
+  fromStatus: string | null,
+  toStatus: string | null,
+  details: Record<string, unknown> = {},
+) => {
+  await tx.insert(releaseAssignmentEventsTable).values({
+    actorUserId,
+    releaseId,
+    assignmentId,
+    action,
+    fromStatus,
+    toStatus,
+    details: JSON.stringify(details),
+  });
+};
+
+const releaseAdmin = async (req: TenantRequest, res: Response, next: NextFunction) => {
+  if (req.isPlatformAdmin) {
+    next();
+    return;
+  }
+  return requireRole("owner", "admin")(req, res, next);
+};
 const defaults = {
   logoUrl: null,
   primaryColor: "#062B55",
@@ -292,6 +361,197 @@ router.post("/tenant/environments", async (req: TenantRequest, res) => {
     .where(eq(userTenantContextTable.userId, req.localUserId!));
   req.environmentId = environment.id;
   res.json(await context(req));
+});
+
+router.get("/tenant/releases", releaseAdmin, async (req: TenantRequest, res) => {
+  const assignments = await db.select({
+    assignment: environmentReleaseAssignmentsTable,
+    release: platformReleasesTable,
+    environment: environmentsTable,
+  })
+    .from(environmentReleaseAssignmentsTable)
+    .innerJoin(platformReleasesTable, eq(environmentReleaseAssignmentsTable.releaseId, platformReleasesTable.id))
+    .innerJoin(environmentsTable, eq(environmentReleaseAssignmentsTable.environmentId, environmentsTable.id))
+    .where(and(
+      eq(environmentsTable.tenantId, req.tenantId!),
+      req.isPlatformAdmin
+        ? sql`true`
+        : sql`exists (
+          select 1 from tenant_environment_access access
+          where access.tenant_id = ${req.tenantId!}
+            and access.environment_id = ${environmentsTable.id}
+            and access.user_id = ${req.localUserId!}
+        )`,
+    ))
+    .orderBy(sql`${environmentReleaseAssignmentsTable.assignedAt} desc`);
+  const events = assignments.length
+    ? await db.select().from(releaseAssignmentEventsTable)
+      .where(inArray(releaseAssignmentEventsTable.assignmentId, assignments.map(({ assignment }) => assignment.id)))
+      .orderBy(releaseAssignmentEventsTable.occurredAt)
+    : [];
+  res.json(assignments.map(({ assignment, release, environment }) => ({
+    ...assignment,
+    events: events.filter((event) => event.assignmentId === assignment.id).map(serializeReleaseEvent),
+    release: {
+      ...release,
+      appPayload: parse(release.appPayload),
+      configPayload: parse(release.configPayload),
+    },
+    environment: {
+      id: environment.id,
+      name: environment.name,
+      slug: environment.slug,
+      kind: environment.kind,
+    },
+  })));
+});
+
+router.post("/tenant/releases/:assignmentId/validate", releaseAdmin, async (req: TenantRequest, res) => {
+  const assignmentId = Number(req.params.assignmentId);
+  if (!Number.isInteger(assignmentId) || assignmentId < 1) {
+    res.status(400).json({ error: "Invalid release assignment" });
+    return;
+  }
+  const row = await releaseAssignment(assignmentId, req.tenantId!, req.localUserId!, Boolean(req.isPlatformAdmin));
+  if (!row) {
+    res.status(404).json({ error: "Release assignment not found" });
+    return;
+  }
+  if (row.release.releaseType !== "feature" || row.environment.kind !== "dtd") {
+    res.status(409).json({ error: "Only feature releases assigned to Customer DTD can be validated" });
+    return;
+  }
+  if (row.assignment.validationStatus === "validated") {
+    res.json(await assignmentWithEvents(row.assignment));
+    return;
+  }
+  if (row.assignment.approvalStatus === "rejected") {
+    res.status(409).json({ error: "Rejected releases cannot be validated" });
+    return;
+  }
+  if (row.assignment.deploymentStatus !== "deployed") {
+    res.status(409).json({ error: "Feature releases must be deployed to Customer DTD before validation" });
+    return;
+  }
+  const updated = await db.transaction(async (tx) => {
+    const [changed] = await tx.update(environmentReleaseAssignmentsTable).set({
+      validationStatus: "validated", validatedByUserId: req.localUserId!, validatedAt: new Date(), updatedAt: new Date(),
+    }).where(and(
+      eq(environmentReleaseAssignmentsTable.id, assignmentId),
+      eq(environmentReleaseAssignmentsTable.validationStatus, "pending"),
+    )).returning();
+    if (!changed) {
+      const [current] = await tx.select().from(environmentReleaseAssignmentsTable).where(eq(environmentReleaseAssignmentsTable.id, assignmentId));
+      return current ?? row.assignment;
+    }
+    await tx.insert(platformAuditEventsTable).values({
+      actorUserId: req.localUserId!, tenantId: req.tenantId!, action: "platform_release_validated",
+      details: JSON.stringify({ releaseId: row.release.id, assignmentId }),
+    });
+    await writeReleaseTransition(tx, req.localUserId!, row.release.id, assignmentId, "validated", row.assignment.validationStatus, changed.validationStatus);
+    return changed;
+  });
+  res.json(await assignmentWithEvents(updated));
+});
+
+router.post("/tenant/releases/:assignmentId/approve", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+  const assignmentId = Number(req.params.assignmentId);
+  if (!Number.isInteger(assignmentId) || assignmentId < 1) {
+    res.status(400).json({ error: "Invalid release assignment" });
+    return;
+  }
+  const row = await releaseAssignment(assignmentId, req.tenantId!, req.localUserId!, false);
+  if (!row) {
+    res.status(404).json({ error: "Release assignment not found" });
+    return;
+  }
+  if (row.release.releaseType !== "feature" || row.environment.kind !== "dtd") {
+    res.status(409).json({ error: "Only feature releases in Customer DTD require customer approval" });
+    return;
+  }
+  if (row.assignment.validationStatus !== "validated") {
+    res.status(409).json({ error: "Customer DTD validation is required before approval" });
+    return;
+  }
+  if (row.assignment.approvalStatus === "approved") {
+    res.json(await assignmentWithEvents(row.assignment));
+    return;
+  }
+  if (row.assignment.approvalStatus === "rejected") {
+    res.status(409).json({ error: "Rejected releases cannot be approved without a new release assignment" });
+    return;
+  }
+  const updated = await db.transaction(async (tx) => {
+    const [changed] = await tx.update(environmentReleaseAssignmentsTable).set({
+      approvalStatus: "approved", approvedByUserId: req.localUserId!, approvedAt: new Date(), updatedAt: new Date(),
+    }).where(and(
+      eq(environmentReleaseAssignmentsTable.id, assignmentId),
+      eq(environmentReleaseAssignmentsTable.approvalStatus, "pending"),
+      eq(environmentReleaseAssignmentsTable.validationStatus, "validated"),
+    )).returning();
+    if (!changed) {
+      const [current] = await tx.select().from(environmentReleaseAssignmentsTable).where(eq(environmentReleaseAssignmentsTable.id, assignmentId));
+      return current ?? row.assignment;
+    }
+    await tx.insert(platformAuditEventsTable).values({
+      actorUserId: req.localUserId!, tenantId: req.tenantId!, action: "platform_release_approved",
+      details: JSON.stringify({ releaseId: row.release.id, assignmentId }),
+    });
+    await writeReleaseTransition(tx, req.localUserId!, row.release.id, assignmentId, "approved", row.assignment.approvalStatus, changed.approvalStatus);
+    return changed;
+  });
+  res.json(await assignmentWithEvents(updated));
+});
+
+router.post("/tenant/releases/:assignmentId/reject", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+  const assignmentId = Number(req.params.assignmentId);
+  const parsed = RejectTenantReleaseBody.safeParse(req.body);
+  if (!Number.isInteger(assignmentId) || assignmentId < 1 || !parsed.success) {
+    res.status(400).json({ error: "A rejection reason is required" });
+    return;
+  }
+  const row = await releaseAssignment(assignmentId, req.tenantId!, req.localUserId!, false);
+  if (!row) {
+    res.status(404).json({ error: "Release assignment not found" });
+    return;
+  }
+  if (row.release.releaseType !== "feature" || row.environment.kind !== "dtd") {
+    res.status(409).json({ error: "Only feature releases in Customer DTD require customer approval" });
+    return;
+  }
+  if (row.assignment.validationStatus !== "validated") {
+    res.status(409).json({ error: "Customer DTD validation is required before rejection" });
+    return;
+  }
+  if (row.assignment.approvalStatus === "rejected") {
+    res.json(await assignmentWithEvents(row.assignment));
+    return;
+  }
+  if (row.assignment.approvalStatus === "approved") {
+    res.status(409).json({ error: "Approved releases cannot be rejected" });
+    return;
+  }
+  const updated = await db.transaction(async (tx) => {
+    const [changed] = await tx.update(environmentReleaseAssignmentsTable).set({
+      status: "rejected", approvalStatus: "rejected", rejectionReason: parsed.data.reason,
+      rejectedByUserId: req.localUserId!, rejectedAt: new Date(), updatedAt: new Date(),
+    }).where(and(
+      eq(environmentReleaseAssignmentsTable.id, assignmentId),
+      eq(environmentReleaseAssignmentsTable.approvalStatus, "pending"),
+      eq(environmentReleaseAssignmentsTable.validationStatus, "validated"),
+    )).returning();
+    if (!changed) {
+      const [current] = await tx.select().from(environmentReleaseAssignmentsTable).where(eq(environmentReleaseAssignmentsTable.id, assignmentId));
+      return current ?? row.assignment;
+    }
+    await tx.insert(platformAuditEventsTable).values({
+      actorUserId: req.localUserId!, tenantId: req.tenantId!, action: "platform_release_rejected",
+      details: JSON.stringify({ releaseId: row.release.id, assignmentId, reason: parsed.data.reason }),
+    });
+    await writeReleaseTransition(tx, req.localUserId!, row.release.id, assignmentId, "rejected", row.assignment.approvalStatus, changed.approvalStatus, { reason: parsed.data.reason });
+    return changed;
+  });
+  res.json(await assignmentWithEvents(updated));
 });
 async function requireCustomerBranding(
   req: TenantRequest,

@@ -6,11 +6,42 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EnvironmentReleaseAssignmentApprovalStatus } from './environmentReleaseAssignmentApprovalStatus';
+import type { EnvironmentReleaseAssignmentDeploymentStatus } from './environmentReleaseAssignmentDeploymentStatus';
+import type { EnvironmentReleaseAssignmentStatus } from './environmentReleaseAssignmentStatus';
+import type { EnvironmentReleaseAssignmentValidationStatus } from './environmentReleaseAssignmentValidationStatus';
+import type { ReleaseAssignmentEvent } from './releaseAssignmentEvent';
 
 export interface EnvironmentReleaseAssignment {
+  id: number;
   environmentId: number;
   releaseId: number;
+  /** @nullable */
+  sourceDtdAssignmentId: number | null;
+  status: EnvironmentReleaseAssignmentStatus;
+  /** @nullable */
+  assignedByUserId?: number | null;
+  validationStatus: EnvironmentReleaseAssignmentValidationStatus;
+  /** @nullable */
+  validatedByUserId?: number | null;
+  /** @nullable */
+  validatedAt?: Date | null;
   approvalStatus: EnvironmentReleaseAssignmentApprovalStatus;
   /** @nullable */
+  approvedByUserId?: number | null;
+  /** @nullable */
   approvedAt?: Date | null;
+  /** @nullable */
+  rejectionReason?: string | null;
+  /** @nullable */
+  rejectedByUserId?: number | null;
+  /** @nullable */
+  rejectedAt?: Date | null;
+  deploymentStatus: EnvironmentReleaseAssignmentDeploymentStatus;
+  /** @nullable */
+  deployedByUserId?: number | null;
+  /** @nullable */
+  deployedAt?: Date | null;
+  assignedAt: Date;
+  updatedAt: Date;
+  events: ReleaseAssignmentEvent[];
 }

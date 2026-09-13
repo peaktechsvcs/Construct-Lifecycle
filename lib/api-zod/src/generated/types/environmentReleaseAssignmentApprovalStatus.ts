@@ -14,4 +14,5 @@ export const EnvironmentReleaseAssignmentApprovalStatus = {
   approved: 'approved',
   rejected: 'rejected',
   mandatory: 'mandatory',
+  not_required: 'not_required',
 } as const;

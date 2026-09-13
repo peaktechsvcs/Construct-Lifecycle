@@ -127,6 +127,12 @@ export const platformReleasesTable = pgTable("platform_releases", {
   status: text("status").notNull().default("draft"),
   version: text("version").notNull(),
   notes: text("notes"),
+  // These are immutable application/configuration metadata snapshots. Runtime
+  // and transactional DTD data is intentionally not represented here.
+  appPayload: text("app_payload").notNull().default("{}"),
+  configPayload: text("config_payload").notNull().default("{}"),
+  mandatory: boolean("mandatory").notNull().default(false),
+  createdByUserId: integer("created_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [uniqueIndex("platform_releases_type_version_idx").on(table.releaseType, table.version)]);
@@ -135,11 +141,41 @@ export const environmentReleaseAssignmentsTable = pgTable("environment_release_a
   id: serial("id").primaryKey(),
   environmentId: integer("environment_id").notNull().references(() => environmentsTable.id, { onDelete: "cascade" }),
   releaseId: integer("release_id").notNull().references(() => platformReleasesTable.id, { onDelete: "cascade" }),
+  sourceDtdAssignmentId: integer("source_dtd_assignment_id"),
+  status: text("status").notNull().default("assigned"),
+  assignedByUserId: integer("assigned_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
   approvalStatus: text("approval_status").notNull().default("pending"),
   approvedByUserId: integer("approved_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
   approvedAt: timestamp("approved_at", { withTimezone: true }),
+  rejectionReason: text("rejection_reason"),
+  rejectedByUserId: integer("rejected_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+  rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+  validationStatus: text("validation_status").notNull().default("not_required"),
+  validatedByUserId: integer("validated_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+  validatedAt: timestamp("validated_at", { withTimezone: true }),
+  deploymentStatus: text("deployment_status").notNull().default("pending"),
+  deployedByUserId: integer("deployed_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+  deployedAt: timestamp("deployed_at", { withTimezone: true }),
   assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [uniqueIndex("environment_release_assignment_idx").on(table.environmentId, table.releaseId)]);
+
+/** Append-only transition history for release and environment assignment state. */
+export const releaseAssignmentEventsTable = pgTable("release_assignment_events", {
+  id: serial("id").primaryKey(),
+  releaseId: integer("release_id").notNull().references(() => platformReleasesTable.id, { onDelete: "cascade" }),
+  assignmentId: integer("assignment_id").references(() => environmentReleaseAssignmentsTable.id, { onDelete: "cascade" }),
+  actorUserId: integer("actor_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+  action: text("action").notNull(),
+  fromStatus: text("from_status"),
+  toStatus: text("to_status"),
+  details: text("details").notNull().default("{}"),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("release_assignment_events_release_idx").on(table.releaseId),
+  index("release_assignment_events_assignment_idx").on(table.assignmentId),
+  index("release_assignment_events_occurred_idx").on(table.occurredAt),
+]);
 
 export type Tenant = typeof tenantsTable.$inferSelect;
 export type LocalUser = typeof usersTable.$inferSelect;
@@ -147,3 +183,5 @@ export type TenantMembership = typeof membershipsTable.$inferSelect;
 export type Environment = typeof environmentsTable.$inferSelect;
 export type TenantInvitation = typeof tenantInvitationsTable.$inferSelect;
 export type PlatformRelease = typeof platformReleasesTable.$inferSelect;
+export type EnvironmentReleaseAssignment = typeof environmentReleaseAssignmentsTable.$inferSelect;
+export type ReleaseAssignmentEvent = typeof releaseAssignmentEventsTable.$inferSelect;

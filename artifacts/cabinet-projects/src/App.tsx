@@ -20,6 +20,7 @@ import { Customers } from '@/pages/customers';
 import { CustomerDetail } from '@/pages/customer-detail';
 import { FollowUps } from '@/pages/follow-ups';
 import { PlatformCustomers } from '@/pages/platform-customers';
+import { PlatformReleases } from '@/pages/platform-releases';
 import { AcceptInvitation } from '@/pages/accept-invitation';
 import { ComingSoonPage } from '@/pages/coming-soon';
 import { SettingsPage } from '@/pages/settings';
@@ -232,6 +233,9 @@ function AppRouter() {
         </Route>
         <Route path="/administration/platform/customers">
           <Shell><ProtectedRoute component={PlatformCustomers} /></Shell>
+        </Route>
+        <Route path="/administration/platform/releases">
+          <Shell><ProtectedRoute component={PlatformReleases} /></Shell>
         </Route>
         <Route path="/coming-soon/:item">
           <Shell><ProtectedRoute component={ComingSoonPage} /></Shell>

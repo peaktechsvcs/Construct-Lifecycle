@@ -9534,20 +9534,596 @@ export const RemovePlatformCustomerMemberResponse = zod.void()
 /**
  * @summary List platform releases and environment assignments
  */
+export const listPlatformReleasesResponseAppPayloadArtifactNameMax = 160;
+
+export const listPlatformReleasesResponseAppPayloadArtifactVersionMax = 120;
+
+export const listPlatformReleasesResponseAppPayloadDigestRegExp = new RegExp('^[A-Za-z0-9:_./+=-]{8,256}$');
+export const listPlatformReleasesResponseAppPayloadSourceCommitMax = 120;
+
+export const listPlatformReleasesResponseAppPayloadBuildIdMax = 160;
+
+export const listPlatformReleasesResponseAppPayloadEntrypointMax = 300;
+
+export const listPlatformReleasesResponseConfigPayloadConfigNameMax = 160;
+
+export const listPlatformReleasesResponseConfigPayloadConfigVersionMax = 120;
+
+export const listPlatformReleasesResponseConfigPayloadDigestRegExp = new RegExp('^[A-Za-z0-9:_./+=-]{8,256}$');
+export const listPlatformReleasesResponseConfigPayloadSchemaVersionMax = 120;
+
+export const listPlatformReleasesResponseConfigPayloadSourceCommitMax = 120;
+
+export const listPlatformReleasesResponseConfigPayloadBuildIdMax = 160;
+
+
+
 export const ListPlatformReleasesResponseItem = zod.object({
   "id": zod.number().int(),
   "releaseType": zod.enum(['security', 'platform', 'feature']),
   "status": zod.enum(['draft', 'released', 'deprecated']),
   "version": zod.string(),
   "notes": zod.string().nullish(),
+  "appPayload": zod.object({
+  "artifactName": zod.string().min(1).max(listPlatformReleasesResponseAppPayloadArtifactNameMax),
+  "artifactVersion": zod.string().min(1).max(listPlatformReleasesResponseAppPayloadArtifactVersionMax),
+  "digest": zod.string().regex(listPlatformReleasesResponseAppPayloadDigestRegExp),
+  "sourceCommit": zod.string().max(listPlatformReleasesResponseAppPayloadSourceCommitMax).optional(),
+  "buildId": zod.string().max(listPlatformReleasesResponseAppPayloadBuildIdMax).optional(),
+  "entrypoint": zod.string().max(listPlatformReleasesResponseAppPayloadEntrypointMax).optional()
+}),
+  "configPayload": zod.object({
+  "configName": zod.string().min(1).max(listPlatformReleasesResponseConfigPayloadConfigNameMax),
+  "configVersion": zod.string().min(1).max(listPlatformReleasesResponseConfigPayloadConfigVersionMax),
+  "digest": zod.string().regex(listPlatformReleasesResponseConfigPayloadDigestRegExp),
+  "schemaVersion": zod.string().max(listPlatformReleasesResponseConfigPayloadSchemaVersionMax).optional(),
+  "sourceCommit": zod.string().max(listPlatformReleasesResponseConfigPayloadSourceCommitMax).optional(),
+  "buildId": zod.string().max(listPlatformReleasesResponseConfigPayloadBuildIdMax).optional()
+}),
+  "mandatory": zod.boolean(),
+  "createdByUserId": zod.number().int().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
   "assignments": zod.array(zod.object({
+  "id": zod.number().int(),
   "environmentId": zod.number().int(),
   "releaseId": zod.number().int(),
-  "approvalStatus": zod.enum(['pending', 'approved', 'rejected', 'mandatory']),
-  "approvedAt": zod.coerce.date().nullish()
-})).optional()
+  "sourceDtdAssignmentId": zod.number().int().nullable(),
+  "status": zod.enum(['assigned', 'rejected', 'deployed']),
+  "assignedByUserId": zod.number().int().nullish(),
+  "validationStatus": zod.enum(['not_required', 'pending', 'validated']),
+  "validatedByUserId": zod.number().int().nullish(),
+  "validatedAt": zod.coerce.date().nullish(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected', 'mandatory', 'not_required']),
+  "approvedByUserId": zod.number().int().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "rejectedByUserId": zod.number().int().nullish(),
+  "rejectedAt": zod.coerce.date().nullish(),
+  "deploymentStatus": zod.enum(['pending', 'deployed']),
+  "deployedByUserId": zod.number().int().nullish(),
+  "deployedAt": zod.coerce.date().nullish(),
+  "assignedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "assignmentId": zod.number().int().nullish(),
+  "actorUserId": zod.number().int().nullish(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullish(),
+  "toStatus": zod.string().nullish(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "occurredAt": zod.coerce.date()
+}))
+})),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "assignmentId": zod.number().int().nullish(),
+  "actorUserId": zod.number().int().nullish(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullish(),
+  "toStatus": zod.string().nullish(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "occurredAt": zod.coerce.date()
+}))
 })
 export const ListPlatformReleasesResponse = zod.array(ListPlatformReleasesResponseItem)
+
+
+/**
+ * @summary Create an immutable, versioned application/configuration release
+ */
+export const createPlatformReleaseBodyVersionMax = 120;
+
+export const createPlatformReleaseBodyNotesMax = 2000;
+
+export const createPlatformReleaseBodyAppPayloadArtifactNameMax = 160;
+
+export const createPlatformReleaseBodyAppPayloadArtifactVersionMax = 120;
+
+export const createPlatformReleaseBodyAppPayloadDigestRegExp = new RegExp('^[A-Za-z0-9:_./+=-]{8,256}$');
+export const createPlatformReleaseBodyAppPayloadSourceCommitMax = 120;
+
+export const createPlatformReleaseBodyAppPayloadBuildIdMax = 160;
+
+export const createPlatformReleaseBodyAppPayloadEntrypointMax = 300;
+
+export const createPlatformReleaseBodyConfigPayloadConfigNameMax = 160;
+
+export const createPlatformReleaseBodyConfigPayloadConfigVersionMax = 120;
+
+export const createPlatformReleaseBodyConfigPayloadDigestRegExp = new RegExp('^[A-Za-z0-9:_./+=-]{8,256}$');
+export const createPlatformReleaseBodyConfigPayloadSchemaVersionMax = 120;
+
+export const createPlatformReleaseBodyConfigPayloadSourceCommitMax = 120;
+
+export const createPlatformReleaseBodyConfigPayloadBuildIdMax = 160;
+
+export const createPlatformReleaseBodyMandatoryDefault = false;
+
+export const CreatePlatformReleaseBody = zod.object({
+  "releaseType": zod.enum(['security', 'platform', 'feature']),
+  "version": zod.string().min(1).max(createPlatformReleaseBodyVersionMax),
+  "notes": zod.string().max(createPlatformReleaseBodyNotesMax).optional(),
+  "appPayload": zod.object({
+  "artifactName": zod.string().min(1).max(createPlatformReleaseBodyAppPayloadArtifactNameMax),
+  "artifactVersion": zod.string().min(1).max(createPlatformReleaseBodyAppPayloadArtifactVersionMax),
+  "digest": zod.string().regex(createPlatformReleaseBodyAppPayloadDigestRegExp),
+  "sourceCommit": zod.string().max(createPlatformReleaseBodyAppPayloadSourceCommitMax).optional(),
+  "buildId": zod.string().max(createPlatformReleaseBodyAppPayloadBuildIdMax).optional(),
+  "entrypoint": zod.string().max(createPlatformReleaseBodyAppPayloadEntrypointMax).optional()
+}),
+  "configPayload": zod.object({
+  "configName": zod.string().min(1).max(createPlatformReleaseBodyConfigPayloadConfigNameMax),
+  "configVersion": zod.string().min(1).max(createPlatformReleaseBodyConfigPayloadConfigVersionMax),
+  "digest": zod.string().regex(createPlatformReleaseBodyConfigPayloadDigestRegExp),
+  "schemaVersion": zod.string().max(createPlatformReleaseBodyConfigPayloadSchemaVersionMax).optional(),
+  "sourceCommit": zod.string().max(createPlatformReleaseBodyConfigPayloadSourceCommitMax).optional(),
+  "buildId": zod.string().max(createPlatformReleaseBodyConfigPayloadBuildIdMax).optional()
+}),
+  "mandatory": zod.boolean().default(createPlatformReleaseBodyMandatoryDefault)
+})
+
+export const createPlatformReleaseResponseAppPayloadArtifactNameMax = 160;
+
+export const createPlatformReleaseResponseAppPayloadArtifactVersionMax = 120;
+
+export const createPlatformReleaseResponseAppPayloadDigestRegExp = new RegExp('^[A-Za-z0-9:_./+=-]{8,256}$');
+export const createPlatformReleaseResponseAppPayloadSourceCommitMax = 120;
+
+export const createPlatformReleaseResponseAppPayloadBuildIdMax = 160;
+
+export const createPlatformReleaseResponseAppPayloadEntrypointMax = 300;
+
+export const createPlatformReleaseResponseConfigPayloadConfigNameMax = 160;
+
+export const createPlatformReleaseResponseConfigPayloadConfigVersionMax = 120;
+
+export const createPlatformReleaseResponseConfigPayloadDigestRegExp = new RegExp('^[A-Za-z0-9:_./+=-]{8,256}$');
+export const createPlatformReleaseResponseConfigPayloadSchemaVersionMax = 120;
+
+export const createPlatformReleaseResponseConfigPayloadSourceCommitMax = 120;
+
+export const createPlatformReleaseResponseConfigPayloadBuildIdMax = 160;
+
+
+
+export const CreatePlatformReleaseResponse = zod.object({
+  "id": zod.number().int(),
+  "releaseType": zod.enum(['security', 'platform', 'feature']),
+  "status": zod.enum(['draft', 'released', 'deprecated']),
+  "version": zod.string(),
+  "notes": zod.string().nullish(),
+  "appPayload": zod.object({
+  "artifactName": zod.string().min(1).max(createPlatformReleaseResponseAppPayloadArtifactNameMax),
+  "artifactVersion": zod.string().min(1).max(createPlatformReleaseResponseAppPayloadArtifactVersionMax),
+  "digest": zod.string().regex(createPlatformReleaseResponseAppPayloadDigestRegExp),
+  "sourceCommit": zod.string().max(createPlatformReleaseResponseAppPayloadSourceCommitMax).optional(),
+  "buildId": zod.string().max(createPlatformReleaseResponseAppPayloadBuildIdMax).optional(),
+  "entrypoint": zod.string().max(createPlatformReleaseResponseAppPayloadEntrypointMax).optional()
+}),
+  "configPayload": zod.object({
+  "configName": zod.string().min(1).max(createPlatformReleaseResponseConfigPayloadConfigNameMax),
+  "configVersion": zod.string().min(1).max(createPlatformReleaseResponseConfigPayloadConfigVersionMax),
+  "digest": zod.string().regex(createPlatformReleaseResponseConfigPayloadDigestRegExp),
+  "schemaVersion": zod.string().max(createPlatformReleaseResponseConfigPayloadSchemaVersionMax).optional(),
+  "sourceCommit": zod.string().max(createPlatformReleaseResponseConfigPayloadSourceCommitMax).optional(),
+  "buildId": zod.string().max(createPlatformReleaseResponseConfigPayloadBuildIdMax).optional()
+}),
+  "mandatory": zod.boolean(),
+  "createdByUserId": zod.number().int().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "assignments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "sourceDtdAssignmentId": zod.number().int().nullable(),
+  "status": zod.enum(['assigned', 'rejected', 'deployed']),
+  "assignedByUserId": zod.number().int().nullish(),
+  "validationStatus": zod.enum(['not_required', 'pending', 'validated']),
+  "validatedByUserId": zod.number().int().nullish(),
+  "validatedAt": zod.coerce.date().nullish(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected', 'mandatory', 'not_required']),
+  "approvedByUserId": zod.number().int().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "rejectedByUserId": zod.number().int().nullish(),
+  "rejectedAt": zod.coerce.date().nullish(),
+  "deploymentStatus": zod.enum(['pending', 'deployed']),
+  "deployedByUserId": zod.number().int().nullish(),
+  "deployedAt": zod.coerce.date().nullish(),
+  "assignedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "assignmentId": zod.number().int().nullish(),
+  "actorUserId": zod.number().int().nullish(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullish(),
+  "toStatus": zod.string().nullish(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "occurredAt": zod.coerce.date()
+}))
+})),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "assignmentId": zod.number().int().nullish(),
+  "actorUserId": zod.number().int().nullish(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullish(),
+  "toStatus": zod.string().nullish(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "occurredAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Assign a release to a customer environment
+ */
+
+
+
+export const AssignPlatformReleaseParams = zod.object({
+  "releaseId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const AssignPlatformReleaseBody = zod.object({
+  "environmentId": zod.number().int().min(1)
+})
+
+export const AssignPlatformReleaseResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "sourceDtdAssignmentId": zod.number().int().nullable(),
+  "status": zod.enum(['assigned', 'rejected', 'deployed']),
+  "assignedByUserId": zod.number().int().nullish(),
+  "validationStatus": zod.enum(['not_required', 'pending', 'validated']),
+  "validatedByUserId": zod.number().int().nullish(),
+  "validatedAt": zod.coerce.date().nullish(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected', 'mandatory', 'not_required']),
+  "approvedByUserId": zod.number().int().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "rejectedByUserId": zod.number().int().nullish(),
+  "rejectedAt": zod.coerce.date().nullish(),
+  "deploymentStatus": zod.enum(['pending', 'deployed']),
+  "deployedByUserId": zod.number().int().nullish(),
+  "deployedAt": zod.coerce.date().nullish(),
+  "assignedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "assignmentId": zod.number().int().nullish(),
+  "actorUserId": zod.number().int().nullish(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullish(),
+  "toStatus": zod.string().nullish(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "occurredAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Deploy an assigned release to an environment
+ */
+
+
+
+export const DeployPlatformReleaseParams = zod.object({
+  "releaseId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const DeployPlatformReleaseBody = zod.object({
+  "environmentId": zod.number().int().min(1)
+})
+
+export const DeployPlatformReleaseResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "sourceDtdAssignmentId": zod.number().int().nullable(),
+  "status": zod.enum(['assigned', 'rejected', 'deployed']),
+  "assignedByUserId": zod.number().int().nullish(),
+  "validationStatus": zod.enum(['not_required', 'pending', 'validated']),
+  "validatedByUserId": zod.number().int().nullish(),
+  "validatedAt": zod.coerce.date().nullish(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected', 'mandatory', 'not_required']),
+  "approvedByUserId": zod.number().int().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "rejectedByUserId": zod.number().int().nullish(),
+  "rejectedAt": zod.coerce.date().nullish(),
+  "deploymentStatus": zod.enum(['pending', 'deployed']),
+  "deployedByUserId": zod.number().int().nullish(),
+  "deployedAt": zod.coerce.date().nullish(),
+  "assignedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "assignmentId": zod.number().int().nullish(),
+  "actorUserId": zod.number().int().nullish(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullish(),
+  "toStatus": zod.string().nullish(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "occurredAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary List releases assigned to the active customer
+ */
+export const listTenantReleaseAssignmentsResponseTwoReleaseAppPayloadArtifactNameMax = 160;
+
+export const listTenantReleaseAssignmentsResponseTwoReleaseAppPayloadArtifactVersionMax = 120;
+
+export const listTenantReleaseAssignmentsResponseTwoReleaseAppPayloadDigestRegExp = new RegExp('^[A-Za-z0-9:_./+=-]{8,256}$');
+export const listTenantReleaseAssignmentsResponseTwoReleaseAppPayloadSourceCommitMax = 120;
+
+export const listTenantReleaseAssignmentsResponseTwoReleaseAppPayloadBuildIdMax = 160;
+
+export const listTenantReleaseAssignmentsResponseTwoReleaseAppPayloadEntrypointMax = 300;
+
+export const listTenantReleaseAssignmentsResponseTwoReleaseConfigPayloadConfigNameMax = 160;
+
+export const listTenantReleaseAssignmentsResponseTwoReleaseConfigPayloadConfigVersionMax = 120;
+
+export const listTenantReleaseAssignmentsResponseTwoReleaseConfigPayloadDigestRegExp = new RegExp('^[A-Za-z0-9:_./+=-]{8,256}$');
+export const listTenantReleaseAssignmentsResponseTwoReleaseConfigPayloadSchemaVersionMax = 120;
+
+export const listTenantReleaseAssignmentsResponseTwoReleaseConfigPayloadSourceCommitMax = 120;
+
+export const listTenantReleaseAssignmentsResponseTwoReleaseConfigPayloadBuildIdMax = 160;
+
+
+
+export const ListTenantReleaseAssignmentsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "sourceDtdAssignmentId": zod.number().int().nullable(),
+  "status": zod.enum(['assigned', 'rejected', 'deployed']),
+  "assignedByUserId": zod.number().int().nullish(),
+  "validationStatus": zod.enum(['not_required', 'pending', 'validated']),
+  "validatedByUserId": zod.number().int().nullish(),
+  "validatedAt": zod.coerce.date().nullish(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected', 'mandatory', 'not_required']),
+  "approvedByUserId": zod.number().int().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "rejectedByUserId": zod.number().int().nullish(),
+  "rejectedAt": zod.coerce.date().nullish(),
+  "deploymentStatus": zod.enum(['pending', 'deployed']),
+  "deployedByUserId": zod.number().int().nullish(),
+  "deployedAt": zod.coerce.date().nullish(),
+  "assignedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "assignmentId": zod.number().int().nullish(),
+  "actorUserId": zod.number().int().nullish(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullish(),
+  "toStatus": zod.string().nullish(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "occurredAt": zod.coerce.date()
+}))
+}).and(zod.object({
+  "release": zod.object({
+  "id": zod.number().int(),
+  "releaseType": zod.enum(['security', 'platform', 'feature']),
+  "status": zod.enum(['draft', 'released', 'deprecated']),
+  "version": zod.string(),
+  "notes": zod.string().nullish(),
+  "appPayload": zod.object({
+  "artifactName": zod.string().min(1).max(listTenantReleaseAssignmentsResponseTwoReleaseAppPayloadArtifactNameMax),
+  "artifactVersion": zod.string().min(1).max(listTenantReleaseAssignmentsResponseTwoReleaseAppPayloadArtifactVersionMax),
+  "digest": zod.string().regex(listTenantReleaseAssignmentsResponseTwoReleaseAppPayloadDigestRegExp),
+  "sourceCommit": zod.string().max(listTenantReleaseAssignmentsResponseTwoReleaseAppPayloadSourceCommitMax).optional(),
+  "buildId": zod.string().max(listTenantReleaseAssignmentsResponseTwoReleaseAppPayloadBuildIdMax).optional(),
+  "entrypoint": zod.string().max(listTenantReleaseAssignmentsResponseTwoReleaseAppPayloadEntrypointMax).optional()
+}),
+  "configPayload": zod.object({
+  "configName": zod.string().min(1).max(listTenantReleaseAssignmentsResponseTwoReleaseConfigPayloadConfigNameMax),
+  "configVersion": zod.string().min(1).max(listTenantReleaseAssignmentsResponseTwoReleaseConfigPayloadConfigVersionMax),
+  "digest": zod.string().regex(listTenantReleaseAssignmentsResponseTwoReleaseConfigPayloadDigestRegExp),
+  "schemaVersion": zod.string().max(listTenantReleaseAssignmentsResponseTwoReleaseConfigPayloadSchemaVersionMax).optional(),
+  "sourceCommit": zod.string().max(listTenantReleaseAssignmentsResponseTwoReleaseConfigPayloadSourceCommitMax).optional(),
+  "buildId": zod.string().max(listTenantReleaseAssignmentsResponseTwoReleaseConfigPayloadBuildIdMax).optional()
+}),
+  "mandatory": zod.boolean(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}),
+  "environment": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "kind": zod.string()
+})
+}))
+export const ListTenantReleaseAssignmentsResponse = zod.array(ListTenantReleaseAssignmentsResponseItem)
+
+
+/**
+ * @summary Record successful Customer DTD validation for a feature release
+ */
+
+
+
+export const ValidateTenantReleaseParams = zod.object({
+  "assignmentId": zod.coerce.number().int().min(1)
+})
+
+export const ValidateTenantReleaseResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "sourceDtdAssignmentId": zod.number().int().nullable(),
+  "status": zod.enum(['assigned', 'rejected', 'deployed']),
+  "assignedByUserId": zod.number().int().nullish(),
+  "validationStatus": zod.enum(['not_required', 'pending', 'validated']),
+  "validatedByUserId": zod.number().int().nullish(),
+  "validatedAt": zod.coerce.date().nullish(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected', 'mandatory', 'not_required']),
+  "approvedByUserId": zod.number().int().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "rejectedByUserId": zod.number().int().nullish(),
+  "rejectedAt": zod.coerce.date().nullish(),
+  "deploymentStatus": zod.enum(['pending', 'deployed']),
+  "deployedByUserId": zod.number().int().nullish(),
+  "deployedAt": zod.coerce.date().nullish(),
+  "assignedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "assignmentId": zod.number().int().nullish(),
+  "actorUserId": zod.number().int().nullish(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullish(),
+  "toStatus": zod.string().nullish(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "occurredAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Approve a validated feature release for promotion
+ */
+
+
+
+export const ApproveTenantReleaseParams = zod.object({
+  "assignmentId": zod.coerce.number().int().min(1)
+})
+
+export const ApproveTenantReleaseResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "sourceDtdAssignmentId": zod.number().int().nullable(),
+  "status": zod.enum(['assigned', 'rejected', 'deployed']),
+  "assignedByUserId": zod.number().int().nullish(),
+  "validationStatus": zod.enum(['not_required', 'pending', 'validated']),
+  "validatedByUserId": zod.number().int().nullish(),
+  "validatedAt": zod.coerce.date().nullish(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected', 'mandatory', 'not_required']),
+  "approvedByUserId": zod.number().int().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "rejectedByUserId": zod.number().int().nullish(),
+  "rejectedAt": zod.coerce.date().nullish(),
+  "deploymentStatus": zod.enum(['pending', 'deployed']),
+  "deployedByUserId": zod.number().int().nullish(),
+  "deployedAt": zod.coerce.date().nullish(),
+  "assignedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "assignmentId": zod.number().int().nullish(),
+  "actorUserId": zod.number().int().nullish(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullish(),
+  "toStatus": zod.string().nullish(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "occurredAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Reject a validated feature release
+ */
+
+
+
+export const RejectTenantReleaseParams = zod.object({
+  "assignmentId": zod.coerce.number().int().min(1)
+})
+
+export const rejectTenantReleaseBodyReasonMax = 2000;
+
+
+
+export const RejectTenantReleaseBody = zod.object({
+  "reason": zod.string().min(1).max(rejectTenantReleaseBodyReasonMax)
+})
+
+export const RejectTenantReleaseResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "sourceDtdAssignmentId": zod.number().int().nullable(),
+  "status": zod.enum(['assigned', 'rejected', 'deployed']),
+  "assignedByUserId": zod.number().int().nullish(),
+  "validationStatus": zod.enum(['not_required', 'pending', 'validated']),
+  "validatedByUserId": zod.number().int().nullish(),
+  "validatedAt": zod.coerce.date().nullish(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected', 'mandatory', 'not_required']),
+  "approvedByUserId": zod.number().int().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "rejectionReason": zod.string().nullish(),
+  "rejectedByUserId": zod.number().int().nullish(),
+  "rejectedAt": zod.coerce.date().nullish(),
+  "deploymentStatus": zod.enum(['pending', 'deployed']),
+  "deployedByUserId": zod.number().int().nullish(),
+  "deployedAt": zod.coerce.date().nullish(),
+  "assignedAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "releaseId": zod.number().int(),
+  "assignmentId": zod.number().int().nullish(),
+  "actorUserId": zod.number().int().nullish(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullish(),
+  "toStatus": zod.string().nullish(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "occurredAt": zod.coerce.date()
+}))
+})
 
 
 /**

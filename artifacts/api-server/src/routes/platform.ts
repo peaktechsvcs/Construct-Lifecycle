@@ -4,7 +4,10 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
   environmentsTable,
+  environmentReleaseAssignmentsTable,
   membershipsTable,
+  platformReleasesTable,
+  releaseAssignmentEventsTable,
   platformAuditEventsTable,
   tenantBusinessTypesTable,
   tenantEnvironmentAccessTable,
@@ -18,6 +21,9 @@ import {
   CreatePlatformCustomerBody,
   UpdatePlatformCustomerMemberBody,
   UpdatePlatformCustomerBody,
+  CreatePlatformReleaseBody,
+  AssignPlatformReleaseBody,
+  DeployPlatformReleaseBody,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requirePlatformAdmin } from "../middlewares/platformAdmin";
@@ -39,6 +45,87 @@ async function writeAudit(
     tenantId,
     action,
     details: JSON.stringify(details),
+  });
+}
+
+const parsePayload = (value: unknown) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+};
+
+// Orval emits these complete nested schemas inline on the generated request
+// schema. Reuse them for persisted rows instead of duplicating constraints.
+const applicationMetadataSchema = CreatePlatformReleaseBody.shape.appPayload;
+const configurationMetadataSchema = CreatePlatformReleaseBody.shape.configPayload;
+const applicationMetadataKeys = new Set(Object.keys(applicationMetadataSchema.shape));
+const configurationMetadataKeys = new Set(Object.keys(configurationMetadataSchema.shape));
+const isExactMetadata = (value: unknown, keys: Set<string>) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.keys(value).every((key) => keys.has(key));
+};
+const isPersistedMetadata = (
+  value: unknown,
+  schema: { safeParse: (value: unknown) => { success: boolean } },
+  keys: Set<string>,
+) => isExactMetadata(value, keys) && schema.safeParse(value).success;
+const validReleasePayloads = (release: typeof platformReleasesTable.$inferSelect) => {
+  try {
+    return isPersistedMetadata(JSON.parse(release.appPayload), applicationMetadataSchema, applicationMetadataKeys)
+      && isPersistedMetadata(JSON.parse(release.configPayload), configurationMetadataSchema, configurationMetadataKeys);
+  } catch {
+    return false;
+  }
+};
+const parseStoredPayload = (value: string) => {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const serializeEvent = (event: typeof releaseAssignmentEventsTable.$inferSelect) => ({
+  ...event,
+  details: (() => { try { return JSON.parse(event.details) as Record<string, unknown>; } catch { return {}; } })(),
+});
+
+const serializeRelease = (
+  release: typeof platformReleasesTable.$inferSelect,
+  assignments: (typeof environmentReleaseAssignmentsTable.$inferSelect)[],
+  events: (typeof releaseAssignmentEventsTable.$inferSelect)[],
+) => ({
+  ...release,
+  appPayload: parseStoredPayload(release.appPayload),
+  configPayload: parseStoredPayload(release.configPayload),
+  assignments: assignments.map((assignment) => ({
+    ...assignment,
+    events: events.filter((event) => event.assignmentId === assignment.id).map(serializeEvent),
+  })),
+  events: events.filter((event) => event.assignmentId === null).map(serializeEvent),
+});
+
+async function writeAuditIn(tx: any, req: TenantRequest, action: string, tenantId: number | null, details: Record<string, unknown>) {
+  await tx.insert(platformAuditEventsTable).values({
+    actorUserId: req.localUserId!,
+    tenantId,
+    action,
+    details: JSON.stringify(details),
+  });
+}
+
+async function writeReleaseEventIn(
+  tx: any,
+  actorUserId: number,
+  releaseId: number,
+  assignmentId: number | null,
+  action: string,
+  fromStatus: string | null,
+  toStatus: string | null,
+  details: Record<string, unknown> = {},
+) {
+  await tx.insert(releaseAssignmentEventsTable).values({
+    actorUserId, releaseId, assignmentId, action, fromStatus, toStatus, details: JSON.stringify(details),
   });
 }
 
@@ -186,6 +273,243 @@ router.post("/platform/bootstrap", async (req: TenantRequest, res) => {
 });
 
 router.use("/platform", requirePlatformAdmin);
+
+router.get("/platform/releases", async (_req: TenantRequest, res) => {
+  const releases = await db.select().from(platformReleasesTable).orderBy(sql`${platformReleasesTable.createdAt} desc`);
+  const assignments = await db.select().from(environmentReleaseAssignmentsTable);
+  const events = await db.select().from(releaseAssignmentEventsTable).orderBy(releaseAssignmentEventsTable.occurredAt);
+  res.json(releases.map((release) => serializeRelease(
+    release,
+    assignments.filter((assignment) => assignment.releaseId === release.id),
+    events.filter((event) => event.releaseId === release.id),
+  )));
+});
+
+router.post("/platform/releases", async (req: TenantRequest, res) => {
+  const parsed = CreatePlatformReleaseBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid release metadata", details: parsed.error.issues });
+    return;
+  }
+  if (parsed.data.releaseType === "feature" && parsed.data.mandatory) {
+    res.status(400).json({ error: "Only security and platform releases may be mandatory" });
+    return;
+  }
+  const appPayload = parsePayload(parsed.data.appPayload);
+  const configPayload = parsePayload(parsed.data.configPayload);
+  const rawAppPayload = parsePayload(req.body?.appPayload);
+  const rawConfigPayload = parsePayload(req.body?.configPayload);
+  if (
+    !isExactMetadata(appPayload, applicationMetadataKeys)
+    || !isExactMetadata(configPayload, configurationMetadataKeys)
+    || !isExactMetadata(rawAppPayload, applicationMetadataKeys)
+    || !isExactMetadata(rawConfigPayload, configurationMetadataKeys)
+  ) {
+    res.status(400).json({ error: "Application and configuration payloads must use the allowlisted artifact metadata contract" });
+    return;
+  }
+  const release = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(platformReleasesTable).values({
+      releaseType: parsed.data.releaseType,
+      version: parsed.data.version,
+      status: "released",
+      notes: parsed.data.notes,
+      appPayload: JSON.stringify(appPayload),
+      configPayload: JSON.stringify(configPayload),
+      mandatory: parsed.data.mandatory,
+      createdByUserId: req.localUserId!,
+    }).onConflictDoNothing({ target: [platformReleasesTable.releaseType, platformReleasesTable.version] }).returning();
+    if (!created) return null;
+    await writeAuditIn(tx, req, "platform_release_created", null, {
+      releaseId: created.id, releaseType: created.releaseType, version: created.version, mandatory: created.mandatory,
+    });
+    await writeReleaseEventIn(tx, req.localUserId!, created.id, null, "created", null, created.status, {
+      releaseType: created.releaseType, version: created.version,
+    });
+    return created;
+  });
+  if (!release) {
+    res.status(409).json({ error: "A release with this type and version already exists" });
+    return;
+  }
+  const events = await db.select().from(releaseAssignmentEventsTable).where(eq(releaseAssignmentEventsTable.releaseId, release.id));
+  res.status(201).json(serializeRelease(release, [], events));
+});
+
+router.post("/platform/releases/:releaseId/assign", async (req: TenantRequest, res) => {
+  const releaseId = Number(req.params.releaseId);
+  const parsed = AssignPlatformReleaseBody.safeParse(req.body);
+  if (!Number.isInteger(releaseId) || releaseId < 1 || !parsed.success) {
+    res.status(400).json({ error: "Invalid release assignment" });
+    return;
+  }
+  const [release] = await db.select().from(platformReleasesTable).where(eq(platformReleasesTable.id, releaseId)).limit(1);
+  if (!release) {
+    res.status(404).json({ error: "Release not found" });
+    return;
+  }
+  if (release.status !== "released" || !validReleasePayloads(release)) {
+    res.status(409).json({ error: "This legacy or unreleasable release cannot be assigned" });
+    return;
+  }
+  const [environment] = await db.select().from(environmentsTable).where(and(
+    eq(environmentsTable.id, parsed.data.environmentId),
+    eq(environmentsTable.status, "active"),
+  )).limit(1);
+  if (!environment) {
+    res.status(404).json({ error: "Active environment not found" });
+    return;
+  }
+  if (environment.kind === "production" && (release.releaseType === "security" || release.releaseType === "platform") && !release.mandatory) {
+    res.status(409).json({ error: "Security and platform releases must be marked mandatory for direct production assignment" });
+    return;
+  }
+  const sourceDtd = environment.kind === "production" && release.releaseType === "feature"
+    ? (await db.select({
+        id: environmentReleaseAssignmentsTable.id,
+        approvedByUserId: environmentReleaseAssignmentsTable.approvedByUserId,
+        approvedAt: environmentReleaseAssignmentsTable.approvedAt,
+        validatedByUserId: environmentReleaseAssignmentsTable.validatedByUserId,
+        validatedAt: environmentReleaseAssignmentsTable.validatedAt,
+      }).from(environmentReleaseAssignmentsTable)
+        .innerJoin(environmentsTable, eq(environmentReleaseAssignmentsTable.environmentId, environmentsTable.id))
+        .where(and(
+          eq(environmentReleaseAssignmentsTable.releaseId, release.id),
+          eq(environmentsTable.tenantId, environment.tenantId),
+          eq(environmentsTable.kind, "dtd"),
+          eq(environmentReleaseAssignmentsTable.approvalStatus, "approved"),
+          eq(environmentReleaseAssignmentsTable.validationStatus, "validated"),
+          eq(environmentReleaseAssignmentsTable.deploymentStatus, "deployed"),
+        )).limit(1))[0]
+    : undefined;
+  if (environment.kind === "production" && release.releaseType === "feature" && !sourceDtd) {
+    res.status(409).json({ error: "Feature releases require approved Customer DTD validation before production assignment" });
+    return;
+  }
+  const result = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(environmentReleaseAssignmentsTable).values({
+      environmentId: environment.id,
+      releaseId: release.id,
+      sourceDtdAssignmentId: sourceDtd?.id,
+      status: "assigned",
+      assignedByUserId: req.localUserId!,
+      approvalStatus: sourceDtd ? "approved" : release.releaseType === "feature" ? "pending" : release.mandatory ? "mandatory" : "not_required",
+      approvedByUserId: sourceDtd?.approvedByUserId,
+      approvedAt: sourceDtd?.approvedAt,
+      validationStatus: sourceDtd ? "validated" : release.releaseType === "feature" ? "pending" : "not_required",
+      validatedByUserId: sourceDtd?.validatedByUserId,
+      validatedAt: sourceDtd?.validatedAt,
+    }).onConflictDoNothing({
+      target: [environmentReleaseAssignmentsTable.environmentId, environmentReleaseAssignmentsTable.releaseId],
+    }).returning();
+    if (!created) {
+      const [current] = await tx.select().from(environmentReleaseAssignmentsTable).where(and(
+        eq(environmentReleaseAssignmentsTable.environmentId, environment.id),
+        eq(environmentReleaseAssignmentsTable.releaseId, release.id),
+      )).limit(1);
+      return { assignment: current, created: false };
+    }
+    await writeAuditIn(tx, req, "platform_release_assigned", environment.tenantId, {
+      releaseId: release.id, assignmentId: created.id, environmentId: environment.id, sourceDtdAssignmentId: sourceDtd?.id,
+    });
+    await writeReleaseEventIn(tx, req.localUserId!, release.id, created.id, "assigned", null, created.status, {
+      environmentId: environment.id, sourceDtdAssignmentId: sourceDtd?.id,
+    });
+    return { assignment: created, created: true };
+  });
+  const events = await db.select().from(releaseAssignmentEventsTable).where(eq(releaseAssignmentEventsTable.assignmentId, result.assignment!.id));
+  res.status(result.created ? 201 : 200).json({ ...result.assignment, events: events.map(serializeEvent) });
+});
+
+router.post("/platform/releases/:releaseId/deploy", async (req: TenantRequest, res) => {
+  const releaseId = Number(req.params.releaseId);
+  const parsed = DeployPlatformReleaseBody.safeParse(req.body);
+  if (!Number.isInteger(releaseId) || releaseId < 1 || !parsed.success) {
+    res.status(400).json({ error: "Invalid release deployment" });
+    return;
+  }
+  const [release] = await db.select().from(platformReleasesTable).where(eq(platformReleasesTable.id, releaseId)).limit(1);
+  const [environment] = await db.select().from(environmentsTable).where(eq(environmentsTable.id, parsed.data.environmentId)).limit(1);
+  if (!release || !environment) {
+    res.status(404).json({ error: "Release or environment not found" });
+    return;
+  }
+  if (release.status !== "released" || !validReleasePayloads(release)) {
+    res.status(409).json({ error: "This legacy or unreleasable release cannot be deployed" });
+    return;
+  }
+  if (environment.kind === "production" && (release.releaseType === "security" || release.releaseType === "platform") && !release.mandatory) {
+    res.status(409).json({ error: "Only mandatory security and platform releases may deploy directly to production" });
+    return;
+  }
+  const result = await db.transaction(async (tx) => {
+    const [assignment] = await tx.select().from(environmentReleaseAssignmentsTable).where(and(
+      eq(environmentReleaseAssignmentsTable.releaseId, releaseId),
+      eq(environmentReleaseAssignmentsTable.environmentId, environment.id),
+    )).limit(1);
+    if (!assignment) return { assignment: null, alreadyDeployed: false, error: "missing" as const };
+    if (release.status !== "released" || !validReleasePayloads(release)) {
+      return { assignment, alreadyDeployed: false, error: "legacy" as const };
+    }
+    if (assignment.deploymentStatus === "deployed") return { assignment, alreadyDeployed: true, error: null };
+    if (assignment.approvalStatus === "rejected") return { assignment, alreadyDeployed: false, error: "rejected" as const };
+    let sourceDtdAssignmentId = assignment.sourceDtdAssignmentId;
+    if (release.releaseType === "feature" && environment.kind === "production") {
+      // Lock and re-check the source in the same transaction as the production
+      // state change so a concurrent rejection/redeployment cannot bypass DTD.
+      const [source] = await tx.select({ assignment: environmentReleaseAssignmentsTable })
+        .from(environmentReleaseAssignmentsTable)
+        .innerJoin(environmentsTable, eq(environmentReleaseAssignmentsTable.environmentId, environmentsTable.id))
+        .where(and(
+          eq(environmentReleaseAssignmentsTable.releaseId, releaseId),
+          eq(environmentsTable.tenantId, environment.tenantId),
+          eq(environmentsTable.kind, "dtd"),
+          eq(environmentReleaseAssignmentsTable.deploymentStatus, "deployed"),
+          eq(environmentReleaseAssignmentsTable.validationStatus, "validated"),
+          eq(environmentReleaseAssignmentsTable.approvalStatus, "approved"),
+        )).for("update").limit(1);
+      if (!source) return { assignment, alreadyDeployed: false, error: "source" as const };
+      sourceDtdAssignmentId = source.assignment.id;
+    }
+    const [updated] = await tx.update(environmentReleaseAssignmentsTable).set({
+      status: "deployed",
+      deploymentStatus: "deployed",
+      sourceDtdAssignmentId,
+      deployedByUserId: req.localUserId!,
+      deployedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(and(
+      eq(environmentReleaseAssignmentsTable.id, assignment.id),
+      eq(environmentReleaseAssignmentsTable.deploymentStatus, "pending"),
+    )).returning();
+    if (!updated) return { assignment, alreadyDeployed: true, error: null };
+    await writeAuditIn(tx, req, "platform_release_deployed", environment.tenantId, {
+      releaseId, assignmentId: assignment.id, environmentId: environment.id, sourceDtdAssignmentId,
+    });
+    await writeReleaseEventIn(tx, req.localUserId!, releaseId, assignment.id, "deployed", assignment.status, updated.status, {
+      environmentId: environment.id, sourceDtdAssignmentId,
+    });
+    return { assignment: updated, alreadyDeployed: false, error: null };
+  });
+  if (result.error === "missing") {
+    res.status(409).json({ error: "Release must be assigned before deployment" });
+    return;
+  }
+  if (result.error === "rejected") {
+    res.status(409).json({ error: "Rejected releases cannot be deployed" });
+    return;
+  }
+  if (result.error === "legacy") {
+    res.status(409).json({ error: "This legacy or unreleasable release cannot be deployed" });
+    return;
+  }
+  if (result.error === "source") {
+    res.status(409).json({ error: "Feature production deployment requires a deployed, validated, approved Customer DTD assignment" });
+    return;
+  }
+  const events = await db.select().from(releaseAssignmentEventsTable).where(eq(releaseAssignmentEventsTable.assignmentId, result.assignment!.id));
+  res.json({ ...result.assignment, events: events.map(serializeEvent) });
+});
 
 router.get("/platform/customers", async (_req: TenantRequest, res) => {
   const tenants = await db.select().from(tenantsTable).orderBy(tenantsTable.name);
