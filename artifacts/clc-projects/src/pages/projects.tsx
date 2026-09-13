@@ -71,11 +71,11 @@ function ProjectTable({
             </div>
             <p className="mono text-sm font-medium">{currency.format(project.contractValue)}</p>
             <p className="hidden text-xs text-muted-foreground md:block">{shortDate(project.updatedAt)}</p>
-            <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100">
+            <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
               <button
                 data-testid={`button-edit-project-${project.id}`}
                 aria-label={`Edit ${project.projectName}`}
-                className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => onEdit(project)}
               >
                 <Pencil size={15} />
@@ -83,7 +83,7 @@ function ProjectTable({
               <button
                 data-testid={`button-delete-project-${project.id}`}
                 aria-label={`Delete ${project.projectName}`}
-                className="rounded-md p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                className="rounded-md p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => onDelete(project)}
               >
                 <Trash2 size={15} />
@@ -190,6 +190,7 @@ export function Projects() {
           <Search size={16} className="absolute left-3 top-3 text-muted-foreground" />
           <Input
             data-testid="input-search-projects"
+            aria-label="Search projects"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search customer, project, or address"
@@ -219,6 +220,8 @@ export function Projects() {
         <LoadingPanel lines={7} />
       ) : query.isError ? (
         <ErrorPanel onRetry={() => query.refetch()} />
+      ) : deleteProject.isError ? (
+        <ErrorPanel title="Project could not be deleted" text="The project may have changed or you may not have permission to delete it." onRetry={() => deleteProject.reset()} />
       ) : projects.length === 0 ? (
         <EmptyState
           icon={BriefcaseBusiness}

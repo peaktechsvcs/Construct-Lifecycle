@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
+import { ClerkProvider, SignIn, SignUp, Show, useAuth, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
@@ -7,8 +7,10 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@workspace/construct-lifecycle-design-system/components/ui/toaster';
 import { TooltipProvider } from '@workspace/construct-lifecycle-design-system/components/ui/tooltip';
+import { LoadingPanel } from '@/components/app-ui';
 
 import { TenantProvider } from '@/providers/tenant-provider';
+import { useTenant } from '@/providers/tenant-provider';
 import { Shell } from '@/components/shell';
 import NotFound from '@/pages/not-found';
 import { LandingPage } from '@/pages/landing';
@@ -136,6 +138,8 @@ function SignUpPage() {
 }
 
 function HomeRedirect() {
+  const { isLoaded } = useAuth();
+  if (!isLoaded) return <RouteLoading />;
   return (
     <>
       <Show when="signed-in">
@@ -148,16 +152,38 @@ function HomeRedirect() {
   );
 }
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function RouteLoading() {
   return (
-    <>
-      <Show when="signed-in">
-        <Component />
-      </Show>
-      <Show when="signed-out">
-        <Redirect to="/" />
-      </Show>
-    </>
+    <div className="grid min-h-[100dvh] place-items-center bg-background px-4">
+      <div className="w-full max-w-md">
+        <LoadingPanel lines={4} />
+      </div>
+    </div>
+  );
+}
+
+function UnauthorizedRoute() {
+  return (
+    <div className="grid min-h-[100dvh] place-items-center bg-background px-4">
+      <section className="w-full max-w-lg rounded-2xl border border-border bg-card p-7 text-center shadow-sm">
+        <p className="mono text-[10px] font-bold uppercase tracking-[.16em] text-status-warning">Workspace access</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight">You do not have access to a workspace</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          Your account is signed in, but it is not assigned to a Construct Lifecycle workspace. Ask a workspace administrator to invite you.
+        </p>
+      </section>
+    </div>
+  );
+}
+
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  const { isLoaded, isSignedIn } = useAuth();
+  const { activeTenant, isPlatformAdmin, isLoading, isError } = useTenant();
+  if (!isLoaded || isLoading) return <RouteLoading />;
+  if (!isSignedIn) return <Redirect to="/" />;
+  if (isError || (!activeTenant && !isPlatformAdmin)) return <UnauthorizedRoute />;
+  return (
+    <Component />
   );
 }
 

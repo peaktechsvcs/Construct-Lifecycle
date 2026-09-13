@@ -24,6 +24,7 @@ import { Input } from '@workspace/construct-lifecycle-design-system/components/u
 import { Textarea } from '@workspace/construct-lifecycle-design-system/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/construct-lifecycle-design-system/components/ui/select';
 import { useTenant } from '@/providers/tenant-provider';
+import NotFound from '@/pages/not-found';
 
 const stages: { value: OpportunityStage; label: string }[] = [
   { value: 'new', label: 'New' },
@@ -318,6 +319,7 @@ function OpportunityDetail({ id }: { id: number }) {
 export function Opportunities() {
   const params = useParams<{ id?: string }>();
   const opportunityId = params.id ? Number(params.id) : null;
+  if (params.id && (!Number.isInteger(opportunityId) || (opportunityId ?? 0) < 1)) return <NotFound />;
   if (opportunityId && Number.isFinite(opportunityId)) return <OpportunityDetail id={opportunityId} />;
   return <OpportunityList />;
 }

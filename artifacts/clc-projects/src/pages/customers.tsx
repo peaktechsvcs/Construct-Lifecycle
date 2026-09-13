@@ -53,7 +53,7 @@ export function Customers() {
       <div className="mb-5 flex flex-col gap-3 rounded-xl border border-border bg-card p-3 md:flex-row md:items-center">
         <label className="relative flex-1">
           <Search size={16} className="absolute left-3 top-3 text-muted-foreground" />
-          <Input data-testid="input-search-customers" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search company, contact, or email" className={`h-10 ${inputClass} pl-9`} />
+           <Input data-testid="input-search-customers" aria-label="Search customers" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search company, contact, or email" className={`h-10 ${inputClass} pl-9`} />
         </label>
         <label className="flex items-center gap-2 px-2 text-xs font-semibold text-muted-foreground">
           <Checkbox checked={includeArchived} onCheckedChange={(checked) => setIncludeArchived(checked === true)} />

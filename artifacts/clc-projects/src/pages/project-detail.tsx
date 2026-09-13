@@ -352,7 +352,13 @@ export function ProjectDetail() {
           </DetailCard>
 
           <DetailCard icon={ActivityIcon} title="Project activity">
-            <ActivityList items={activityQuery.data ?? []} />
+            {activityQuery.isLoading ? (
+              <LoadingPanel lines={3} />
+            ) : activityQuery.isError ? (
+              <ErrorPanel title="Project activity is unavailable" text="The project loaded, but its activity could not be retrieved." onRetry={() => activityQuery.refetch()} />
+            ) : (
+              <ActivityList items={activityQuery.data ?? []} />
+            )}
           </DetailCard>
         </div>
       </div>

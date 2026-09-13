@@ -8,6 +8,14 @@ export interface PageTitleProps {
 }
 
 export function PageTitle({ eyebrow, title, description, action }: PageTitleProps) {
+  React.useEffect(() => {
+    const previousTitle = document.title
+    document.title = `${title} · Construct Lifecycle`
+    return () => {
+      document.title = previousTitle
+    }
+  }, [title])
+
   return (
     <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>

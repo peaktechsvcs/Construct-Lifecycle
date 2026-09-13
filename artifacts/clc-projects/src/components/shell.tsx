@@ -5,7 +5,7 @@ import {
   Bell, Menu, Sparkles, LogOut, ChevronDown, Check, Settings,
   FlaskConical, Globe, PanelLeftClose, PanelLeftOpen, X,
   Lightbulb, Gavel, Calculator, FileText, FolderKanban, FileCheck2, Milestone,
-  Package, ListChecks, ShoppingCart, ClipboardList, Truck, PackageCheck,
+  Package, ListChecks, ShoppingCart, ClipboardList,
   TrendingUp, HandCoins, Receipt, BadgeDollarSign, FilePenLine, Percent,
   ShieldCheck,
   Files, ReceiptText, Archive, BarChart3, LineChart, MessageSquareText, ClipboardCheck, Mail, type LucideIcon,
@@ -154,19 +154,6 @@ function HeaderEnvironmentPill() {
   );
 }
 
-const PAGE_LABELS: Record<string, string> = {
-  '/overview': 'Dashboard',
-  '/projects': 'Projects',
-  '/opportunities': 'Opportunities',
-  '/itb-intakes': 'ITB intakes',
-  '/bids': 'Bids',
-  '/estimates': 'Estimates',
-  '/proposals': 'Proposals',
-  '/customers': 'Customers',
-  '/follow-ups': 'Follow-ups',
-  '/feedback': 'Feature Feedback',
-};
-
 type NavigationItem = { href: string; label: string; icon: LucideIcon; badge?: boolean };
 type NavigationGroup = { label: string; items: NavigationItem[] };
 
@@ -204,14 +191,12 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
   {
     label: 'Operations',
     items: [
-      { href: '/procurement', label: 'Vendors', icon: Building2 },
+      { href: '/procurement', label: 'Supplier operations', icon: Building2 },
       { href: '/compliance', label: 'Trade Partner Compliance', icon: ShieldCheck },
-      { href: '/procurement', label: 'Products', icon: Package },
+      { href: '/procurement?tab=catalog', label: 'Products', icon: Package },
       { href: '/coming-soon/selections', label: 'Selections', icon: ListChecks },
-      { href: '/procurement', label: 'Procurement', icon: ShoppingCart },
-      { href: '/purchase-orders', label: 'Purchase Orders', icon: ClipboardList },
-      { href: '/deliveries', label: 'Deliveries', icon: Truck },
-      { href: '/receiving', label: 'Receiving', icon: PackageCheck },
+      { href: '/procurement?tab=quotes', label: 'Supplier quotes', icon: ShoppingCart },
+      { href: '/procurement?tab=orders', label: 'Purchase orders', icon: ClipboardList },
     ],
   },
   {
@@ -245,28 +230,73 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
   },
 ];
 
+const ROUTE_LABELS: Record<string, string> = {
+  '/overview': 'Dashboard',
+  '/follow-ups': 'My Work',
+  '/notifications': 'Notifications',
+  '/feedback': 'Feature Feedback',
+  '/projects': 'All Projects',
+  '/opportunities': 'Opportunities',
+  '/itb-intakes': 'ITB intakes',
+  '/bids': 'Bids',
+  '/estimates': 'Estimates',
+  '/proposals': 'Proposals',
+  '/submittals': 'Submittals',
+  '/customers': 'Customers',
+  '/compliance': 'Trade Partner Compliance',
+  '/procurement': 'Supplier operations',
+  '/purchase-orders': 'Purchase orders',
+  '/deliveries': 'Deliveries',
+  '/receiving': 'Receiving',
+  '/settings': 'Settings',
+  '/settings/profile': 'Organization Profile',
+  '/settings/branding': 'Branding',
+  '/settings/integrations': 'Integrations',
+  '/settings/billing': 'Subscription & Billing',
+  '/settings/administration': 'Administration',
+  '/settings/administration/users': 'Administration · Users',
+  '/settings/administration/roles': 'Administration · Roles',
+  '/settings/administration/access': 'Administration · Access & Memberships',
+  '/settings/administration/workflows': 'Administration · Lifecycle & Workflows',
+  '/administration/platform/customers': 'Platform Customers',
+  '/administration/platform/features': 'Feature Visibility',
+};
+
+const DASHBOARD_DRILLDOWN_LABELS: Record<string, string> = {
+  'active-projects': 'Active Projects',
+  'pipeline-value': 'Pipeline Value',
+  'received-to-date': 'Received to Date',
+  'open-follow-ups': 'Open Follow-ups',
+  'stage': 'Projects by Stage',
+  'needs-attention': 'Needs Attention',
+};
+
 function getBreadcrumbLabel(location: string): string {
-  if (location === '/overview') return 'Dashboard';
-  if (location.startsWith('/follow-ups')) return 'My Work';
-  if (location.startsWith('/notifications')) return 'Notifications';
-  if (location.startsWith('/settings/administration')) return 'Administration';
-  if (location === '/settings' || location.startsWith('/settings/')) return 'Settings';
-  if (location.includes('/administration/platform/customers')) return 'Platform Customers';
-  if (location.includes('/administration/platform/features')) return 'Feature Visibility';
-  if (location.startsWith('/projects')) return 'All Projects';
-  if (location.startsWith('/opportunities')) return 'Opportunities';
-  if (location.startsWith('/itb-intakes')) return 'ITB intakes';
-  if (location.startsWith('/bids')) return 'Bids';
-  if (location.startsWith('/customers')) return 'Customers';
-  if (location.startsWith('/compliance')) return 'Trade Partner Compliance';
-  if (location.startsWith('/coming-soon/')) {
-    return location.slice('/coming-soon/'.length).replace(/-/g, ' ');
+  const pathname = location.split('?')[0];
+  if (pathname.startsWith('/dashboard/drilldown/')) {
+    const type = pathname.slice('/dashboard/drilldown/'.length);
+    return `Dashboard · ${DASHBOARD_DRILLDOWN_LABELS[type] ?? 'Drilldown'}`;
   }
-  return '';
+  if (pathname.startsWith('/coming-soon/')) {
+    return pathname.slice('/coming-soon/'.length).replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+  if (pathname.startsWith('/projects/')) return 'Project details';
+  if (pathname.startsWith('/opportunities/')) return 'Opportunity details';
+  if (pathname.startsWith('/bids/')) return 'Bid details';
+  if (pathname.startsWith('/estimates/')) return 'Estimate details';
+  if (pathname.startsWith('/proposals/')) return 'Proposal details';
+  if (pathname.startsWith('/submittals/')) return 'Submittal details';
+  if (pathname.startsWith('/customers/')) return 'Customer details';
+  if (pathname === '/procurement') {
+    const tab = new URLSearchParams(location.split('?')[1] ?? '').get('tab');
+    return tab === 'catalog' ? 'Products' : tab === 'quotes' ? 'Supplier quotes' : tab === 'orders' ? 'Purchase orders' : 'Supplier operations';
+  }
+  return ROUTE_LABELS[pathname] ?? 'Workspace';
 }
 
 export function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
+  const pathname = location.split('?')[0];
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { activeTenant, memberships, branding, activeEnvironment, activeRole, isPlatformAdmin } = useTenant();
@@ -393,9 +423,11 @@ export function Shell({ children }: { children: ReactNode }) {
                   )}
                   <div className="space-y-0.5">
                     {group.items.map(({ href, label, icon: Icon, badge }) => {
-                      const isActive = href === '/overview'
-                        ? location === '/overview' || location.startsWith('/dashboard')
-                        : location === href || location.startsWith(`${href}/`);
+                      const isActive = href.includes('?')
+                        ? location === href
+                        : href === '/overview'
+                          ? pathname === '/overview' || pathname.startsWith('/dashboard')
+                          : pathname === href || pathname.startsWith(`${href}/`);
                       const link = (
                         <Link
                           key={href}

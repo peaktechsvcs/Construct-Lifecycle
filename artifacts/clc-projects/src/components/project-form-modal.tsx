@@ -136,10 +136,12 @@ function CustomerSelector({
         )}
       </div>
       {open && (
-        <div className="absolute z-30 mt-1 w-full rounded-lg border border-border bg-card p-1 shadow-xl">
+        <div role="listbox" aria-label="Business customer results" className="absolute z-30 mt-1 w-full rounded-lg border border-border bg-card p-1 shadow-xl">
           {customers.data?.map((customer) => (
             <button
               type="button"
+              role="option"
+              aria-selected={customer.id === selectedId}
               key={customer.id}
               className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-secondary"
               onClick={() => { onSelect(customer); onDraftChange(undefined); setSearch(customer.companyName); setOpen(false); }}
@@ -170,9 +172,9 @@ function CustomerSelector({
             <button type="button" aria-label="Remove new customer draft" onClick={() => onDraftChange(undefined)}><X size={14} /></button>
           </div>
           <div className="grid gap-2 md:grid-cols-3">
-            <input value={draft.primaryContact ?? ''} onChange={(e) => onDraftChange({ ...draft, primaryContact: e.target.value })} placeholder="Primary contact" className="rounded-md border border-input bg-background px-2.5 py-2 text-xs" />
-            <input type="email" value={draft.email ?? ''} onChange={(e) => onDraftChange({ ...draft, email: e.target.value })} placeholder="Email" className="rounded-md border border-input bg-background px-2.5 py-2 text-xs" />
-            <input value={draft.phone ?? ''} onChange={(e) => onDraftChange({ ...draft, phone: e.target.value })} placeholder="Phone" className="rounded-md border border-input bg-background px-2.5 py-2 text-xs" />
+            <label className="grid gap-1 text-[11px] font-semibold text-muted-foreground">Primary contact<input aria-label="Primary contact" value={draft.primaryContact ?? ''} onChange={(e) => onDraftChange({ ...draft, primaryContact: e.target.value })} placeholder="Primary contact" className="rounded-md border border-input bg-background px-2.5 py-2 text-xs" /></label>
+            <label className="grid gap-1 text-[11px] font-semibold text-muted-foreground">Email<input aria-label="Customer email" type="email" value={draft.email ?? ''} onChange={(e) => onDraftChange({ ...draft, email: e.target.value })} placeholder="Email" className="rounded-md border border-input bg-background px-2.5 py-2 text-xs" /></label>
+            <label className="grid gap-1 text-[11px] font-semibold text-muted-foreground">Phone<input aria-label="Customer phone" value={draft.phone ?? ''} onChange={(e) => onDraftChange({ ...draft, phone: e.target.value })} placeholder="Phone" className="rounded-md border border-input bg-background px-2.5 py-2 text-xs" /></label>
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">This customer is created with the project so the form stays safe to cancel.</p>
         </div>
@@ -238,6 +240,7 @@ export function ProjectFormModal({ project, initialCustomer, onClose }: { projec
   };
 
   const pending = create.isPending || update.isPending;
+  const mutationError = create.error || update.error;
 
   const input = (key: keyof ProjectForm, label: string, type = 'text', placeholder = '') => (
     <label className="block">
@@ -289,6 +292,7 @@ export function ProjectFormModal({ project, initialCustomer, onClose }: { projec
           {input('address', 'Jobsite address', 'text', 'Street, city, state')}
           {input('owner', 'Project owner', 'text', 'Assign a teammate')}
         </div>
+        {mutationError && <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-xs text-destructive">This project could not be saved. Check the required fields and try again.</p>}
         <div className="grid gap-4 md:grid-cols-2">
           {input('category', 'Category', 'text', 'Residential or commercial')}
           {input('productCategories', 'Product categories', 'text', 'Materials, finishes, equipment')}

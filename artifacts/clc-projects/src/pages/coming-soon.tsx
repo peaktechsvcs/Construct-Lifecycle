@@ -1,6 +1,6 @@
 import { ArrowLeft, Clock3, Construction } from 'lucide-react';
 import { Link, Redirect, useParams } from 'wouter';
-import { Button } from '@/components/app-ui';
+import { Button, LoadingPanel } from '@/components/app-ui';
 import { useTenant } from '@/providers/tenant-provider';
 import { getListFeatureFlagsQueryKey, useListFeatureFlags } from '@workspace/api-client-react';
 
@@ -51,10 +51,11 @@ export function ComingSoonPage() {
   });
   const isVisible = isPlatformAdmin || featureFlagsQuery.data?.some((feature) => feature.key === item);
 
-  if (featureFlagsQuery.isLoading) return null;
+  if (featureFlagsQuery.isLoading) return <LoadingPanel lines={5} />;
   if (!isVisible) return <Redirect to="/overview" />;
 
-  const destination = destinations[item] ?? { section: 'Workspace', description: 'This workspace capability is being prepared for the next release.' };
+  const destination = destinations[item];
+  if (!destination) return <Redirect to="/overview" />;
   const title = item
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))

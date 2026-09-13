@@ -50,6 +50,9 @@ function AdministrationSettings() {
   const visibleSections = isPlatformAdmin
     ? administrationSections.filter((item) => item.key === 'workflows')
     : administrationSections.filter((item) => item.key !== 'roles' || rolesEnabled);
+  if (requested && !visibleSections.some((item) => item.key === requested)) {
+    return <Redirect to={isPlatformAdmin ? '/settings/administration/workflows' : '/settings/administration/users'} />;
+  }
   const section: AdministrationSection = visibleSections.some((item) => item.key === requested)
     ? requested!
     : isPlatformAdmin ? 'workflows' : 'users';
@@ -284,6 +287,9 @@ export function SettingsPage() {
   const requested = location.split('/')[2] as SettingsSection | undefined;
   const brandingEnabled = activeTenant?.customerBrandingEnabled !== false;
   const visibleSettingsSections = settingsSections.filter((item) => item.key !== 'branding' || brandingEnabled);
+  if (requested && !visibleSettingsSections.some((item) => item.key === requested)) {
+    return <Redirect to="/settings" />;
+  }
   const section: SettingsSection = visibleSettingsSections.some((item) => item.key === requested) ? requested! : 'profile';
   const canManageSettings = activeRole === 'owner' || activeRole === 'admin' || isPlatformAdmin;
 

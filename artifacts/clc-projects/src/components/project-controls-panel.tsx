@@ -23,7 +23,7 @@ import {
   useUpdateProjectFinancials,
   useUpsertProjectContract,
 } from '@workspace/api-client-react';
-import { Badge, Button, currency, LoadingPanel, shortDate } from '@/components/app-ui';
+import { Badge, Button, currency, ErrorPanel, LoadingPanel, shortDate } from '@/components/app-ui';
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
 import { Textarea } from '@workspace/construct-lifecycle-design-system/components/ui/textarea';
 
@@ -89,6 +89,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
   const issueMutation = useCreateProjectIssue();
   const changeMutation = useCreateProjectChangeOrder();
   const [formKind, setFormKind] = useState<FormKind>();
+  const [feedback, setFeedback] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [contractForm, setContractForm] = useState({
     contractNumber: '',
@@ -112,7 +113,10 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
 
   const submitForm = (event: React.FormEvent) => {
     event.preventDefault();
-    const done = { onSuccess: () => { refresh(); closeForm(); } };
+    const done = {
+      onSuccess: () => { refresh(); setFeedback('Control saved.'); closeForm(); },
+      onError: () => setFeedback('The control could not be saved. Check the fields and try again.'),
+    };
     if (formKind === 'milestone') {
       scheduleMutation.mutate({ projectId, data: { itemNumber: form.number, name: form.name, plannedEnd: form.plannedEnd || undefined, ownerName: form.responsibleParty || undefined } }, done);
     } else if (formKind === 'sov') {
@@ -132,7 +136,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
   const upcomingMilestones = useMemo(() => (data?.scheduleItems ?? []).filter((item) => item.status !== 'complete').slice(0, 4), [data?.scheduleItems]);
 
   if (query.isLoading) return <LoadingPanel lines={5} />;
-  if (query.isError || !data) return <div className="rounded-xl border border-status-warning/30 bg-status-warning/8 p-5 text-sm">Project controls are unavailable. Retry this page to reconnect.</div>;
+  if (query.isError || !data) return <ErrorPanel title="Project controls are unavailable" text="The project loaded, but its controls could not be retrieved." onRetry={() => query.refetch()} />;
 
   return (
     <section className="mt-5 rounded-xl border border-border bg-card p-5 md:p-6">
@@ -141,6 +145,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
           <p className="mono text-[10px] uppercase tracking-[.14em] text-accent">General contractor controls</p>
           <h2 className="mt-1 text-xl font-bold tracking-tight">Control center</h2>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Track the contract, commitments, decisions, changes, billing position, and closeout readiness without leaving this project.</p>
+          {feedback && <p role={feedback.startsWith('The') ? 'alert' : 'status'} aria-live="polite" className={`mt-2 text-xs ${feedback.startsWith('The') ? 'text-destructive' : 'text-status-success'}`}>{feedback}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           {([
@@ -185,14 +190,14 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
             <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><Landmark size={15} className="text-primary" /><h3 className="text-sm font-bold">Contract & participants</h3></div>{data.contract && <Badge tone={toneForStatus(data.contract.approvalStatus)}>{data.contract.approvalStatus}</Badge>}</div>
             {data.contract ? <><Row label="Contract" value={`${data.contract.contractNumber} · ${data.contract.deliveryMethod.replace(/_/g, ' ')}`} /><Row label="Current value" value={currency.format(data.contract.currentValue)} /><Row label="Payment terms" value={data.contract.paymentTerms} /><Row label="Retainage" value={`${data.contract.retainagePercent}%`} /><div className="mt-3 flex flex-wrap gap-2">{data.contract.participants.map((participant) => <span key={participant.id} className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold"><Users size={11} />{participant.organizationName} · {participant.participantType}</span>)}</div></> : <p className="text-xs text-muted-foreground">No control contract has been entered yet. The legacy project contract fields remain visible below.</p>}
             <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-3"><Field label="Contract #" value={contractForm.contractNumber} onChange={(v) => setContract('contractNumber', v)} placeholder="Owner contract number" /><Field label="Current value" type="number" value={contractForm.currentValue} onChange={(v) => setContract('currentValue', v)} /><Field label="Retainage %" type="number" value={contractForm.retainagePercent} onChange={(v) => setContract('retainagePercent', v)} /></div>
-            <Button className="mt-3 px-3 py-2 text-xs" disabled={contractMutation.isPending || !contractForm.contractNumber} onClick={() => contractMutation.mutate({ projectId, data: { contractNumber: contractForm.contractNumber, deliveryMethod: contractForm.deliveryMethod, originalValue: Number(contractForm.originalValue) || 0, currentValue: Number(contractForm.currentValue) || 0, retainagePercent: Number(contractForm.retainagePercent) || 0, paymentTerms: contractForm.paymentTerms } }, { onSuccess: refresh })}>{contractMutation.isPending ? 'Saving…' : data.contract ? 'Update contract' : 'Save contract'}</Button>
+             <Button className="mt-3 px-3 py-2 text-xs" disabled={contractMutation.isPending || !contractForm.contractNumber} onClick={() => contractMutation.mutate({ projectId, data: { contractNumber: contractForm.contractNumber, deliveryMethod: contractForm.deliveryMethod, originalValue: Number(contractForm.originalValue) || 0, currentValue: Number(contractForm.currentValue) || 0, retainagePercent: Number(contractForm.retainagePercent) || 0, paymentTerms: contractForm.paymentTerms } }, { onSuccess: () => { refresh(); setFeedback('Contract saved.'); }, onError: () => setFeedback('The contract could not be saved.') })}>{contractMutation.isPending ? 'Saving…' : data.contract ? 'Update contract' : 'Save contract'}</Button>
           </div>
 
           <div className="rounded-lg border border-border p-4">
             <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><Receipt size={15} className="text-primary" /><h3 className="text-sm font-bold">Budget & forecast</h3></div><Badge tone={forecastMargin >= 0 ? 'green' : 'red'}>{forecastMargin >= 0 ? 'On plan' : 'At risk'}</Badge></div>
             <div className="grid gap-3 sm:grid-cols-3"><Metric label="Budget" value={currency.format(data.financials?.budgetCost ?? 0)} detail="Approved cost plan" /><Metric label="Actual" value={currency.format(data.financials?.actualCost ?? 0)} detail="Recorded to date" /><Metric label="Billed" value={currency.format(data.metrics.billedToDate)} detail={`${currency.format(data.metrics.retainageHeld)} held`} /></div>
             <div className="mt-4 grid gap-3 sm:grid-cols-3"><Field label="Budget cost" type="number" value={financialForm.budgetCost} onChange={(v) => setFinancial('budgetCost', v)} /><Field label="Forecast cost" type="number" value={financialForm.forecastCost} onChange={(v) => setFinancial('forecastCost', v)} /><Field label="Actual cost" type="number" value={financialForm.actualCost} onChange={(v) => setFinancial('actualCost', v)} /></div>
-            <Button className="mt-3 px-3 py-2 text-xs" disabled={financialMutation.isPending || !financialForm.budgetCost || !financialForm.forecastCost} onClick={() => financialMutation.mutate({ projectId, data: { budgetCost: Number(financialForm.budgetCost), forecastCost: Number(financialForm.forecastCost), actualCost: Number(financialForm.actualCost) || 0, forecastRevenue: Number(financialForm.forecastRevenue) || contractValue, asOfDate: new Date().toISOString().slice(0, 10) } }, { onSuccess: refresh })}>{financialMutation.isPending ? 'Saving…' : 'Update forecast'}</Button>
+             <Button className="mt-3 px-3 py-2 text-xs" disabled={financialMutation.isPending || !financialForm.budgetCost || !financialForm.forecastCost} onClick={() => financialMutation.mutate({ projectId, data: { budgetCost: Number(financialForm.budgetCost), forecastCost: Number(financialForm.forecastCost), actualCost: Number(financialForm.actualCost) || 0, forecastRevenue: Number(financialForm.forecastRevenue) || contractValue, asOfDate: new Date().toISOString().slice(0, 10) } }, { onSuccess: () => { refresh(); setFeedback('Forecast saved.'); }, onError: () => setFeedback('The forecast could not be saved.') })}>{financialMutation.isPending ? 'Saving…' : 'Update forecast'}</Button>
           </div>
         </div>
 

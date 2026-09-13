@@ -25,6 +25,7 @@ interface TenantContextType {
   isPlatformAdmin: boolean;
   activeRole?: string;
   isLoading: boolean;
+  isError: boolean;
   switchEnvironment: (environmentId: number) => void;
   isSwitchingEnvironment: boolean;
 }
@@ -36,6 +37,7 @@ const TenantContext = createContext<TenantContextType>({
   switchEnvironment: () => {},
   isSwitchingEnvironment: false,
   isPlatformAdmin: false,
+  isError: false,
 });
 
 export function useTenant() {
@@ -136,6 +138,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         isPlatformAdmin,
         activeRole,
         isLoading: !isLoaded || tenantQuery.isLoading,
+        isError: tenantQuery.isError,
         switchEnvironment: handleSwitchEnvironment,
         isSwitchingEnvironment: switchEnvMutation.isPending,
       }}

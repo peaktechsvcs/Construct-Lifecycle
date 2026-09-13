@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowRight,
@@ -91,7 +92,15 @@ function money(value: number) {
 
 export function SupplierOrders() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState<Tab>('overview');
+  const [location] = useLocation();
+  const routeTab = useMemo<Tab>(() => {
+    const pathname = location.split('?')[0];
+    if (pathname === '/purchase-orders' || pathname === '/deliveries' || pathname === '/receiving') return 'orders';
+    const requested = new URLSearchParams(location.split('?')[1] ?? '').get('tab');
+    return tabs.some((item) => item.value === requested) ? requested as Tab : 'overview';
+  }, [location]);
+  const [tab, setTab] = useState<Tab>(routeTab);
+  useEffect(() => setTab(routeTab), [routeTab]);
   const [search, setSearch] = useState('');
   const [selectedQuoteId, setSelectedQuoteId] = useState<number>();
   const [selectedOrderId, setSelectedOrderId] = useState<number>();
@@ -240,7 +249,7 @@ export function SupplierOrders() {
 
       <nav className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 sm:grid-cols-4" aria-label="Supplier operations sections">
         {tabs.map(({ value, label, icon: Icon }) => (
-          <button key={value} type="button" onClick={() => setTab(value)} className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold transition-colors ${tab === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
+          <button key={value} type="button" aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)} className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
             <Icon size={15} /> {label}
           </button>
         ))}

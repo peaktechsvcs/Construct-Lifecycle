@@ -28,6 +28,7 @@ import { Input } from '@workspace/construct-lifecycle-design-system/components/u
 import { Textarea } from '@workspace/construct-lifecycle-design-system/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/construct-lifecycle-design-system/components/ui/select';
 import { useTenant } from '@/providers/tenant-provider';
+import NotFound from '@/pages/not-found';
 
 const stages: { value: EstimateStage; label: string }[] = [
   { value: 'draft', label: 'Draft' },
@@ -244,6 +245,7 @@ function EstimateList() {
 export function Estimates() {
   const params = useParams<{ id?: string }>();
   const id = params.id ? Number(params.id) : null;
+  if (params.id && (!Number.isInteger(id) || (id ?? 0) < 1)) return <NotFound />;
   return id && Number.isFinite(id) ? <EstimateDetail id={id} /> : <EstimateList />;
 }
 
