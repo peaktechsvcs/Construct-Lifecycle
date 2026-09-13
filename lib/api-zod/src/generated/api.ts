@@ -8786,7 +8786,8 @@ export const GetTenantContextResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
-  "role": zod.enum(['owner', 'admin', 'member', 'viewer']),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer', 'platform_admin']),
+  "customerBrandingEnabled": zod.boolean(),
   "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1)
 }),
   "memberships": zod.array(zod.object({
@@ -8794,7 +8795,8 @@ export const GetTenantContextResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
-  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer', 'platform_admin']),
+  "customerBrandingEnabled": zod.boolean()
 })),
   "activeEnvironment": zod.object({
   "id": zod.number().int(),
@@ -8840,7 +8842,8 @@ export const SwitchTenantResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
-  "role": zod.enum(['owner', 'admin', 'member', 'viewer']),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer', 'platform_admin']),
+  "customerBrandingEnabled": zod.boolean(),
   "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1)
 }),
   "memberships": zod.array(zod.object({
@@ -8848,7 +8851,8 @@ export const SwitchTenantResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
-  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer', 'platform_admin']),
+  "customerBrandingEnabled": zod.boolean()
 })),
   "activeEnvironment": zod.object({
   "id": zod.number().int(),
@@ -8992,7 +8996,8 @@ export const SwitchEnvironmentResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
-  "role": zod.enum(['owner', 'admin', 'member', 'viewer']),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer', 'platform_admin']),
+  "customerBrandingEnabled": zod.boolean(),
   "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1)
 }),
   "memberships": zod.array(zod.object({
@@ -9000,7 +9005,8 @@ export const SwitchEnvironmentResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
-  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer', 'platform_admin']),
+  "customerBrandingEnabled": zod.boolean()
 })),
   "activeEnvironment": zod.object({
   "id": zod.number().int(),
@@ -9265,12 +9271,14 @@ export const ListPlatformCustomersResponseItem = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
+  "customerBrandingEnabled": zod.boolean(),
   "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1),
   "memberCount": zod.number().int(),
   "pendingInvitationCount": zod.number().int(),
   "environments": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
+  "slug": zod.string(),
   "kind": zod.enum(['production', 'dtd']),
   "status": zod.enum(['active', 'suspended', 'provisioning', 'archived'])
 })),
@@ -9306,12 +9314,14 @@ export const CreatePlatformCustomerResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
+  "customerBrandingEnabled": zod.boolean(),
   "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1),
   "memberCount": zod.number().int(),
   "pendingInvitationCount": zod.number().int(),
   "environments": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
+  "slug": zod.string(),
   "kind": zod.enum(['production', 'dtd']),
   "status": zod.enum(['active', 'suspended', 'provisioning', 'archived'])
 })),
@@ -9332,7 +9342,80 @@ export const CreatePlatformCustomerResponse = zod.object({
 
 
 /**
- * @summary Suspend or reactivate a customer workspace
+ * @summary Bootstrap the first production platform administrator
+ */
+export const bootstrapPlatformAdminHeaderXPlatformBootstrapTokenMin = 16;
+
+
+
+export const BootstrapPlatformAdminHeader = zod.object({
+  "x-platform-bootstrap-token": zod.string().min(bootstrapPlatformAdminHeaderXPlatformBootstrapTokenMin)
+})
+
+export const BootstrapPlatformAdminResponse = zod.object({
+  "bootstrapped": zod.boolean()
+})
+
+
+/**
+ * @summary Inspect a customer workspace, its users, invitations, and environment access
+ */
+
+
+
+export const GetPlatformCustomerParams = zod.object({
+  "tenantId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const GetPlatformCustomerResponse = zod.object({
+  "customer": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "status": zod.enum(['active', 'suspended']),
+  "customerBrandingEnabled": zod.boolean(),
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1),
+  "memberCount": zod.number().int(),
+  "pendingInvitationCount": zod.number().int(),
+  "environments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "kind": zod.enum(['production', 'dtd']),
+  "status": zod.enum(['active', 'suspended', 'provisioning', 'archived'])
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "members": zod.array(zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable(),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer']),
+  "environmentIds": zod.array(zod.number().int()),
+  "environments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+})),
+  "joinedAt": zod.coerce.date()
+})),
+  "invitations": zod.array(zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "email": zod.string().email(),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer']),
+  "status": zod.enum(['pending', 'accepted', 'revoked', 'expired']),
+  "expiresAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Suspend or reactivate a customer workspace and control customer branding
  */
 
 
@@ -9342,7 +9425,8 @@ export const UpdatePlatformCustomerParams = zod.object({
 })
 
 export const UpdatePlatformCustomerBody = zod.object({
-  "status": zod.enum(['active', 'suspended'])
+  "status": zod.enum(['active', 'suspended']),
+  "customerBrandingEnabled": zod.boolean().optional()
 })
 
 
@@ -9353,18 +9437,98 @@ export const UpdatePlatformCustomerResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "status": zod.enum(['active', 'suspended']),
+  "customerBrandingEnabled": zod.boolean(),
   "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1),
   "memberCount": zod.number().int(),
   "pendingInvitationCount": zod.number().int(),
   "environments": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
+  "slug": zod.string(),
   "kind": zod.enum(['production', 'dtd']),
   "status": zod.enum(['active', 'suspended', 'provisioning', 'archived'])
 })),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary Invite a customer user from the platform administration surface
+ */
+
+
+
+export const CreatePlatformCustomerInvitationParams = zod.object({
+  "tenantId": zod.coerce.number().int().min(1)
+})
+
+export const CreatePlatformCustomerInvitationBody = zod.object({
+  "email": zod.string().email(),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
+})
+
+export const CreatePlatformCustomerInvitationResponse = zod.object({
+  "invitation": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "email": zod.string().email(),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer']),
+  "status": zod.enum(['pending', 'accepted', 'revoked', 'expired']),
+  "expiresAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+}),
+  "token": zod.string()
+})
+
+
+/**
+ * @summary Update a customer user's role and environment access
+ */
+
+
+
+
+export const UpdatePlatformCustomerMemberParams = zod.object({
+  "tenantId": zod.coerce.number().int().min(1),
+  "userId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const UpdatePlatformCustomerMemberBody = zod.object({
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer']),
+  "environmentIds": zod.array(zod.number().int().min(1)).optional()
+})
+
+export const UpdatePlatformCustomerMemberResponse = zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable(),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer']),
+  "environmentIds": zod.array(zod.number().int()),
+  "environments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+})),
+  "joinedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a customer user's membership and environment access
+ */
+
+
+
+
+export const RemovePlatformCustomerMemberParams = zod.object({
+  "tenantId": zod.coerce.number().int().min(1),
+  "userId": zod.coerce.number().int().min(1)
+})
+
+export const RemovePlatformCustomerMemberResponse = zod.void()
 
 
 /**

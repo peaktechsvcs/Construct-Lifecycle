@@ -111,13 +111,16 @@ function OrganizationProfile() {
 
 export function SettingsPage() {
   const [location] = useLocation();
-  const { activeRole, isLoading } = useTenant();
+  const { activeRole, activeTenant, isLoading } = useTenant();
   const requested = location.split('/')[2] as SettingsSection | undefined;
-  const section: SettingsSection = settingsSections.some((item) => item.key === requested) ? requested! : 'profile';
+  const brandingEnabled = activeTenant?.customerBrandingEnabled !== false;
+  const visibleSettingsSections = settingsSections.filter((item) => item.key !== 'branding' || brandingEnabled);
+  const section: SettingsSection = visibleSettingsSections.some((item) => item.key === requested) ? requested! : 'profile';
   const canManageSettings = activeRole === 'owner' || activeRole === 'admin';
 
   if (isLoading) return <LoadingPanel lines={6} />;
   if (!canManageSettings) return <Redirect to="/overview" />;
+  if (section === 'branding' && !brandingEnabled) return <Redirect to="/settings" />;
 
   const content = section === 'profile'
     ? <OrganizationProfile />
@@ -132,7 +135,7 @@ export function SettingsPage() {
       <div className="grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
         <aside className="h-fit rounded-xl border border-border bg-card p-2" aria-label="Settings navigation">
           <nav className="space-y-1">
-            {settingsSections.map(({ key, label, description, icon: Icon }) => {
+            {visibleSettingsSections.map(({ key, label, description, icon: Icon }) => {
               const href = key === 'profile' ? '/settings' : `/settings/${key}`;
               const isActive = section === key;
               return (

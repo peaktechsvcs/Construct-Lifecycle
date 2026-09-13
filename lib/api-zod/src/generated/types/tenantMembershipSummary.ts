@@ -14,4 +14,5 @@ export interface TenantMembershipSummary {
   slug: string;
   status: TenantMembershipSummaryStatus;
   role: TenantMembershipSummaryRole;
+  customerBrandingEnabled: boolean;
 }

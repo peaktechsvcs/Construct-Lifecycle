@@ -19,3 +19,4 @@
 - [ITB intake boundaries](itb-intake-boundaries.md) — managed mailbox connectors, bounded sync, protected evidence, and human approval separate intake from pipeline mutation.
 - [Document parsing review gate](document-parsing-review-gate.md) — bounded document evidence requires explicit human acceptance before intake or pipeline data changes.
 - [API integration test loading](api-integration-test-loading.md) — bundle DB-backed API tests before Node runs them because native stripping cannot resolve workspace TS imports.
+- [Environment access revocation](environment-access-revocation.md) — track explicit access configuration separately so empty grants are not restored by legacy backfill.

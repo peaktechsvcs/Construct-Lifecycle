@@ -5,6 +5,7 @@ import {
   db,
   environmentsTable,
   membershipsTable,
+  tenantEnvironmentAccessTable,
   tenantsTable,
   userTenantContextTable,
   usersTable,
@@ -245,17 +246,59 @@ export async function requireTenantContext(
       return;
     }
 
+    if (!user.isPlatformAdmin) {
+      const [membership] = await db
+        .select({ environmentAccessConfigured: membershipsTable.environmentAccessConfigured })
+        .from(membershipsTable)
+        .where(and(eq(membershipsTable.tenantId, tenant.id), eq(membershipsTable.userId, user.id)))
+        .limit(1);
+      // Backfill memberships created before per-environment access existed.
+      // Once rows exist, an empty set is meaningful and denies environment access.
+      if (membership?.environmentAccessConfigured !== true) {
+        const legacyEnvironments = await db
+          .select({ id: environmentsTable.id })
+          .from(environmentsTable)
+          .where(eq(environmentsTable.tenantId, tenant.id));
+        if (legacyEnvironments.length > 0) {
+          await db.insert(tenantEnvironmentAccessTable).values(
+            legacyEnvironments.map((environment) => ({
+              tenantId: tenant.id,
+              environmentId: environment.id,
+              userId: user.id,
+              grantedByUserId: user.id,
+            })),
+          ).onConflictDoNothing();
+        }
+        await db
+          .update(membershipsTable)
+          .set({ environmentAccessConfigured: true })
+          .where(and(eq(membershipsTable.tenantId, tenant.id), eq(membershipsTable.userId, user.id)));
+      }
+    }
+
     let [environment] = await db
       .select()
       .from(environmentsTable)
-      .where(eq(environmentsTable.tenantId, tenant.id))
+      .where(
+        user.isPlatformAdmin
+          ? eq(environmentsTable.tenantId, tenant.id)
+          : and(
+              eq(environmentsTable.tenantId, tenant.id),
+              sql`exists (
+                select 1 from tenant_environment_access access
+                where access.tenant_id = ${tenant.id}
+                  and access.environment_id = ${environmentsTable.id}
+                  and access.user_id = ${user.id}
+              )`,
+            ),
+      )
       .orderBy(
         sql`case when ${environmentsTable.kind} = 'dtd' then 0 else 1 end`,
         environmentsTable.id,
       )
       .limit(1);
 
-    if (!environment && APP_ENV !== "production") {
+    if (!environment && APP_ENV !== "production" && !user.isPlatformAdmin) {
       [environment] = await db
         .insert(environmentsTable)
         .values({
@@ -282,6 +325,14 @@ export async function requireTenantContext(
               eq(environmentsTable.id, savedContext.activeEnvironmentId),
               eq(environmentsTable.tenantId, tenant.id),
               eq(environmentsTable.status, "active"),
+              user.isPlatformAdmin
+                ? sql`true`
+                : sql`exists (
+                    select 1 from tenant_environment_access access
+                    where access.tenant_id = ${tenant.id}
+                      and access.environment_id = ${environmentsTable.id}
+                      and access.user_id = ${user.id}
+                  )`,
             ),
           )
           .limit(1)

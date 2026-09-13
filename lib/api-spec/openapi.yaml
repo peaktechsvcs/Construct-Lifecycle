@@ -2693,11 +2693,51 @@ paths:
               schema: { $ref: "#/components/schemas/CreatedPlatformCustomer" }
         "403": { description: Platform administrator permission required }
         "409": { description: Customer slug already exists }
+  /platform/bootstrap:
+    post:
+      operationId: bootstrapPlatformAdmin
+      tags: [platform]
+      summary: Bootstrap the first production platform administrator
+      parameters:
+        - in: header
+          name: x-platform-bootstrap-token
+          required: true
+          schema: { type: string, minLength: 16 }
+      responses:
+        "201":
+          description: Platform administrator bootstrapped
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [bootstrapped]
+                properties:
+                  bootstrapped: { type: boolean }
+        "403": { description: Invalid token or non-production environment }
+        "409": { description: A platform administrator already exists }
+        "503": { description: Platform bootstrap is not configured }
   /platform/customers/{tenantId}:
+    get:
+      operationId: getPlatformCustomer
+      tags: [platform]
+      summary: Inspect a customer workspace, its users, invitations, and environment access
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Customer workspace details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformCustomerDetails" }
+        "403": { description: Platform administrator permission required }
+        "404": { description: Customer not found }
     patch:
       operationId: updatePlatformCustomer
       tags: [platform]
-      summary: Suspend or reactivate a customer workspace
+      summary: Suspend or reactivate a customer workspace and control customer branding
       parameters:
         - in: path
           name: tenantId
@@ -2716,6 +2756,75 @@ paths:
               schema: { $ref: "#/components/schemas/PlatformCustomer" }
         "403": { description: Platform administrator permission required }
         "404": { description: Customer not found }
+  /platform/customers/{tenantId}/invitations:
+    post:
+      operationId: createPlatformCustomerInvitation
+      tags: [platform]
+      summary: Invite a customer user from the platform administration surface
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePlatformCustomerInvitationInput" }
+      responses:
+        "201":
+          description: Customer invitation created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatedPlatformCustomerInvitation" }
+        "403": { description: Platform administrator permission required }
+        "409": { description: Customer is suspended or an active invitation already exists }
+  /platform/customers/{tenantId}/members/{userId}:
+    patch:
+      operationId: updatePlatformCustomerMember
+      tags: [platform]
+      summary: Update a customer user's role and environment access
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdatePlatformCustomerMemberInput" }
+      responses:
+        "200":
+          description: Updated customer member
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformCustomerMember" }
+        "403": { description: Platform administrator permission required }
+        "404": { description: Customer member not found }
+        "409": { description: Customer must retain one owner }
+    delete:
+      operationId: removePlatformCustomerMember
+      tags: [platform]
+      summary: Remove a customer user's membership and environment access
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "204": { description: Customer member removed }
+        "403": { description: Platform administrator permission required }
+        "404": { description: Customer member not found }
+        "409": { description: Customer must retain one owner }
   /platform/releases:
     get:
       operationId: listPlatformReleases
@@ -4914,26 +5023,28 @@ components:
           items: { $ref: "#/components/schemas/DashboardDrilldownAttention" }
     Tenant:
       type: object
-      required: [id, name, slug, status, role, businessTypes]
+      required: [id, name, slug, status, role, businessTypes, customerBrandingEnabled]
       properties:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
         status: { type: string, enum: [active, suspended] }
-        role: { type: string, enum: [owner, admin, member, viewer] }
+        role: { type: string, enum: [owner, admin, member, viewer, platform_admin] }
+        customerBrandingEnabled: { type: boolean }
         businessTypes:
           type: array
           minItems: 1
           items: { $ref: "#/components/schemas/BusinessType" }
     TenantMembershipSummary:
       type: object
-      required: [id, name, slug, status, role]
+      required: [id, name, slug, status, role, customerBrandingEnabled]
       properties:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
         status: { type: string, enum: [active, suspended] }
-        role: { type: string, enum: [owner, admin, member, viewer] }
+        role: { type: string, enum: [owner, admin, member, viewer, platform_admin] }
+        customerBrandingEnabled: { type: boolean }
     Environment:
       type: object
       required: [id, tenantId, name, slug, kind, status]
@@ -5087,20 +5198,22 @@ components:
         environmentId: { type: integer }
     PlatformCustomerEnvironment:
       type: object
-      required: [id, name, kind, status]
+      required: [id, name, slug, kind, status]
       properties:
         id: { type: integer }
         name: { type: string }
+        slug: { type: string }
         kind: { type: string, enum: [production, dtd] }
         status: { type: string, enum: [active, suspended, provisioning, archived] }
     PlatformCustomer:
       type: object
-      required: [id, name, slug, status, businessTypes, memberCount, pendingInvitationCount, environments, createdAt, updatedAt]
+      required: [id, name, slug, status, customerBrandingEnabled, businessTypes, memberCount, pendingInvitationCount, environments, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
         status: { type: string, enum: [active, suspended] }
+        customerBrandingEnabled: { type: boolean }
         businessTypes:
           type: array
           minItems: 1
@@ -5149,6 +5262,60 @@ components:
       required: [status]
       properties:
         status: { type: string, enum: [active, suspended] }
+        customerBrandingEnabled: { type: boolean }
+    PlatformCustomerMemberEnvironment:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    PlatformCustomerMember:
+      type: object
+      required: [userId, email, displayName, role, environmentIds, environments, joinedAt]
+      properties:
+        userId: { type: integer }
+        email: { type: ["string", "null"], format: email }
+        displayName: { type: ["string", "null"] }
+        role: { type: string, enum: [owner, admin, member, viewer] }
+        environmentIds:
+          type: array
+          items: { type: integer }
+        environments:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformCustomerMemberEnvironment" }
+        joinedAt: { type: string, format: date-time }
+    PlatformCustomerDetails:
+      type: object
+      required: [customer, members, invitations]
+      properties:
+        customer: { $ref: "#/components/schemas/PlatformCustomer" }
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformCustomerMember" }
+        invitations:
+          type: array
+          items: { $ref: "#/components/schemas/TenantInvitation" }
+    CreatePlatformCustomerInvitationInput:
+      type: object
+      required: [email, role]
+      properties:
+        email: { type: string, format: email }
+        role: { type: string, enum: [owner, admin, member, viewer] }
+    CreatedPlatformCustomerInvitation:
+      type: object
+      required: [invitation, token]
+      properties:
+        invitation: { $ref: "#/components/schemas/TenantInvitation" }
+        token: { type: string }
+    UpdatePlatformCustomerMemberInput:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [owner, admin, member, viewer] }
+        environmentIds:
+          type: array
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
     BillingPrice:
       type: object
       required: [id, active, currency, unitAmount, type]

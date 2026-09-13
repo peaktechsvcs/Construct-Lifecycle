@@ -11,6 +11,7 @@ import type { PlatformCustomerEnvironmentStatus } from './platformCustomerEnviro
 export interface PlatformCustomerEnvironment {
   id: number;
   name: string;
+  slug: string;
   kind: PlatformCustomerEnvironmentKind;
   status: PlatformCustomerEnvironmentStatus;
 }

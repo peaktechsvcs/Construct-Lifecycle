@@ -1,9 +1,10 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type NextFunction, type Response } from "express";
 import { and, desc, eq, sql } from "drizzle-orm";
 import {
   db,
   environmentsTable,
   membershipsTable,
+  tenantEnvironmentAccessTable,
   platformAuditEventsTable,
   tenantBrandingDraftsTable,
   tenantBrandingVersionsTable,
@@ -78,6 +79,7 @@ const context = async (req: TenantRequest) => {
         name: tenantsTable.name,
         slug: tenantsTable.slug,
         status: tenantsTable.status,
+        customerBrandingEnabled: tenantsTable.customerBrandingEnabled,
         role: sql<string>`'platform_admin'`,
       })
         .from(tenantsTable)
@@ -88,13 +90,27 @@ const context = async (req: TenantRequest) => {
         name: tenantsTable.name,
         slug: tenantsTable.slug,
         status: tenantsTable.status,
+        customerBrandingEnabled: tenantsTable.customerBrandingEnabled,
         role: membershipsTable.role,
       })
         .from(membershipsTable)
         .innerJoin(tenantsTable, eq(membershipsTable.tenantId, tenantsTable.id))
         .where(eq(membershipsTable.userId, req.localUserId!));
   const environments = await db.select().from(environmentsTable)
-    .where(eq(environmentsTable.tenantId, req.tenantId!)).orderBy(environmentsTable.name);
+    .where(
+      req.isPlatformAdmin
+        ? eq(environmentsTable.tenantId, req.tenantId!)
+        : and(
+            eq(environmentsTable.tenantId, req.tenantId!),
+            sql`exists (
+              select 1 from tenant_environment_access access
+              where access.tenant_id = ${req.tenantId!}
+                and access.environment_id = ${environmentsTable.id}
+                and access.user_id = ${req.localUserId!}
+            )`,
+          ),
+    )
+    .orderBy(environmentsTable.name);
   const activeEnvironment = environments.find(x => x.id === req.environmentId) ?? environments[0];
   const activeTenant = memberships.find(x => x.id === req.tenantId);
   const businessTypes = await getTenantBusinessTypes(req.tenantId!);
@@ -113,8 +129,29 @@ router.post("/tenant/context", async (req: TenantRequest, res) => {
   const parsed = SwitchTenantBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid tenant" }); return; }
   if (!req.isPlatformAdmin) {
-    const [membership] = await db.select().from(membershipsTable).where(and(eq(membershipsTable.userId, req.localUserId!), eq(membershipsTable.tenantId, parsed.data.tenantId)));
+    const [membership] = await db
+      .select()
+      .from(membershipsTable)
+      .where(and(eq(membershipsTable.userId, req.localUserId!), eq(membershipsTable.tenantId, parsed.data.tenantId)));
     if (!membership) { res.status(403).json({ error: "Tenant membership required" }); return; }
+    if (!membership.environmentAccessConfigured) {
+      const legacyEnvironments = await db
+        .select({ id: environmentsTable.id })
+        .from(environmentsTable)
+        .where(and(eq(environmentsTable.tenantId, parsed.data.tenantId), eq(environmentsTable.status, "active")));
+      await db.insert(tenantEnvironmentAccessTable).values(
+        legacyEnvironments.map((environment) => ({
+          tenantId: parsed.data.tenantId,
+          environmentId: environment.id,
+          userId: req.localUserId!,
+          grantedByUserId: req.localUserId!,
+        })),
+      ).onConflictDoNothing();
+      await db
+        .update(membershipsTable)
+        .set({ environmentAccessConfigured: true })
+        .where(and(eq(membershipsTable.tenantId, parsed.data.tenantId), eq(membershipsTable.userId, req.localUserId!)));
+    }
   }
   const [tenant] = await db.select({ id: tenantsTable.id, status: tenantsTable.status })
     .from(tenantsTable)
@@ -122,7 +159,19 @@ router.post("/tenant/context", async (req: TenantRequest, res) => {
     .limit(1);
   if (!tenant) { res.status(404).json({ error: "Customer workspace not found" }); return; }
   const [environment] = await db.select().from(environmentsTable)
-    .where(eq(environmentsTable.tenantId, parsed.data.tenantId))
+    .where(
+      req.isPlatformAdmin
+        ? eq(environmentsTable.tenantId, parsed.data.tenantId)
+        : and(
+            eq(environmentsTable.tenantId, parsed.data.tenantId),
+            sql`exists (
+              select 1 from tenant_environment_access access
+              where access.tenant_id = ${parsed.data.tenantId}
+                and access.environment_id = ${environmentsTable.id}
+                and access.user_id = ${req.localUserId!}
+            )`,
+          ),
+    )
     .orderBy(sql`case when ${environmentsTable.kind} = 'dtd' then 0 else 1 end`, environmentsTable.id)
     .limit(1);
   if (!environment) { res.status(409).json({ error: "Customer has no environment" }); return; }
@@ -207,14 +256,36 @@ router.put(
 
 router.get("/tenant/environments", async (req: TenantRequest, res) => {
   const environments = await db.select().from(environmentsTable)
-    .where(eq(environmentsTable.tenantId, req.tenantId!)).orderBy(environmentsTable.name);
+    .where(
+      req.isPlatformAdmin
+        ? eq(environmentsTable.tenantId, req.tenantId!)
+        : and(
+            eq(environmentsTable.tenantId, req.tenantId!),
+            sql`exists (
+              select 1 from tenant_environment_access access
+              where access.tenant_id = ${req.tenantId!}
+                and access.environment_id = ${environmentsTable.id}
+                and access.user_id = ${req.localUserId!}
+            )`,
+          ),
+    )
+    .orderBy(environmentsTable.name);
   res.json(environments);
 });
 router.post("/tenant/environments", async (req: TenantRequest, res) => {
   const parsed = SwitchEnvironmentBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid environment" }); return; }
   const [environment] = await db.select().from(environmentsTable).where(and(
-    eq(environmentsTable.id, parsed.data.environmentId), eq(environmentsTable.tenantId, req.tenantId!),
+    eq(environmentsTable.id, parsed.data.environmentId),
+    eq(environmentsTable.tenantId, req.tenantId!),
+    req.isPlatformAdmin
+      ? sql`true`
+      : sql`exists (
+          select 1 from tenant_environment_access access
+          where access.tenant_id = ${req.tenantId!}
+            and access.environment_id = ${environmentsTable.id}
+            and access.user_id = ${req.localUserId!}
+        )`,
   ));
   if (!environment) { res.status(403).json({ error: "Environment access required" }); return; }
   await db.update(userTenantContextTable).set({ activeEnvironmentId: environment.id, updatedAt: new Date() })
@@ -222,16 +293,33 @@ router.post("/tenant/environments", async (req: TenantRequest, res) => {
   req.environmentId = environment.id;
   res.json(await context(req));
 });
-router.get("/tenant/branding/published", async (req: TenantRequest, res) => {
+async function requireCustomerBranding(
+  req: TenantRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  const [tenant] = await db
+    .select({ enabled: tenantsTable.customerBrandingEnabled })
+    .from(tenantsTable)
+    .where(eq(tenantsTable.id, req.tenantId!))
+    .limit(1);
+  if (!tenant?.enabled) {
+    res.status(403).json({ error: "Customer Branding is not enabled for this workspace" });
+    return;
+  }
+  next();
+}
+
+router.get("/tenant/branding/published", requireCustomerBranding, async (req: TenantRequest, res) => {
   const published = await db.select().from(tenantBrandingVersionsTable).where(and(eq(tenantBrandingVersionsTable.tenantId, req.tenantId!), eq(tenantBrandingVersionsTable.environmentId, req.environmentId!))).orderBy(desc(tenantBrandingVersionsTable.version));
   res.json({ published: published.map(v => ({ ...v, data: parse(v.data) })) });
 });
-router.get("/tenant/branding", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+router.get("/tenant/branding", requireCustomerBranding, requireRole("owner", "admin"), async (req: TenantRequest, res) => {
   const [draft] = await db.select().from(tenantBrandingDraftsTable).where(and(eq(tenantBrandingDraftsTable.tenantId, req.tenantId!), eq(tenantBrandingDraftsTable.environmentId, req.environmentId!)));
   const published = await db.select().from(tenantBrandingVersionsTable).where(and(eq(tenantBrandingVersionsTable.tenantId, req.tenantId!), eq(tenantBrandingVersionsTable.environmentId, req.environmentId!))).orderBy(desc(tenantBrandingVersionsTable.version));
   res.json({ draft: draft ? parse(draft.data) : defaults, published: published.map(v => ({ ...v, data: parse(v.data) })) });
 });
-router.put("/tenant/branding", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+router.put("/tenant/branding", requireCustomerBranding, requireRole("owner", "admin"), async (req: TenantRequest, res) => {
   const parsed = SaveBrandingDraftBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid branding", details: parsed.error.issues }); return; }
   await db.insert(tenantBrandingDraftsTable).values({ tenantId: req.tenantId!, environmentId: req.environmentId!, data: JSON.stringify(parsed.data), updatedByUserId: req.localUserId! })
@@ -239,7 +327,7 @@ router.put("/tenant/branding", requireRole("owner", "admin"), async (req: Tenant
   const published = await db.select().from(tenantBrandingVersionsTable).where(and(eq(tenantBrandingVersionsTable.tenantId, req.tenantId!), eq(tenantBrandingVersionsTable.environmentId, req.environmentId!))).orderBy(desc(tenantBrandingVersionsTable.version));
   res.json({ draft: parsed.data, published: published.map(v => ({ ...v, data: parse(v.data) })) });
 });
-router.post("/tenant/branding/publish", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+router.post("/tenant/branding/publish", requireCustomerBranding, requireRole("owner", "admin"), async (req: TenantRequest, res) => {
   const [draft] = await db.select().from(tenantBrandingDraftsTable).where(and(eq(tenantBrandingDraftsTable.tenantId, req.tenantId!), eq(tenantBrandingDraftsTable.environmentId, req.environmentId!)));
   const data = draft ? parse(draft.data) : defaults;
   const failures = validateContrast(data);
@@ -251,7 +339,7 @@ router.post("/tenant/branding/publish", requireRole("owner", "admin"), async (re
   });
   res.json({ ...version, data });
 });
-router.post("/tenant/branding/rollback/:version", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+router.post("/tenant/branding/rollback/:version", requireCustomerBranding, requireRole("owner", "admin"), async (req: TenantRequest, res) => {
   const parsed = RollbackBrandingParams.safeParse(req.params); if (!parsed.success) { res.status(400).json({ error: "Invalid version" }); return; }
   const [version] = await db.select().from(tenantBrandingVersionsTable).where(and(
     eq(tenantBrandingVersionsTable.tenantId, req.tenantId!),
@@ -268,7 +356,7 @@ router.post("/tenant/branding/rollback/:version", requireRole("owner", "admin"),
   const history = await db.select().from(tenantBrandingVersionsTable).where(and(eq(tenantBrandingVersionsTable.tenantId, req.tenantId!), eq(tenantBrandingVersionsTable.environmentId, req.environmentId!))).orderBy(desc(tenantBrandingVersionsTable.version));
   res.json({ draft: parse(version.data), published: history.map(v => ({ ...v, data: parse(v.data) })) });
 });
-router.post("/tenant/branding/reset", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+router.post("/tenant/branding/reset", requireCustomerBranding, requireRole("owner", "admin"), async (req: TenantRequest, res) => {
   await db.insert(tenantBrandingDraftsTable).values({ tenantId: req.tenantId!, environmentId: req.environmentId!, data: JSON.stringify(defaults), updatedByUserId: req.localUserId! }).onConflictDoUpdate({ target: [tenantBrandingDraftsTable.tenantId, tenantBrandingDraftsTable.environmentId], set: { data: JSON.stringify(defaults), updatedByUserId: req.localUserId!, updatedAt: new Date() } });
   const published = await db.select().from(tenantBrandingVersionsTable).where(and(eq(tenantBrandingVersionsTable.tenantId, req.tenantId!), eq(tenantBrandingVersionsTable.environmentId, req.environmentId!))).orderBy(desc(tenantBrandingVersionsTable.version));
   res.json({ draft: defaults, published: published.map(v => ({ ...v, data: parse(v.data) })) });

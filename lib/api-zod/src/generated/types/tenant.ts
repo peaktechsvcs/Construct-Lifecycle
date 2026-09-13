@@ -15,6 +15,7 @@ export interface Tenant {
   slug: string;
   status: TenantStatus;
   role: TenantRole;
+  customerBrandingEnabled: boolean;
   /** @minItems 1 */
   businessTypes: BusinessType[];
 }

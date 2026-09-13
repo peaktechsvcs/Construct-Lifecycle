@@ -4,6 +4,7 @@ import {
   db,
   environmentsTable,
   membershipsTable,
+  tenantEnvironmentAccessTable,
   tenantInvitationsTable,
   tenantsTable,
   userTenantContextTable,
@@ -119,8 +120,25 @@ router.post("/:token/accept", async (req: TenantRequest, res) => {
     })
     .onConflictDoUpdate({
       target: [membershipsTable.tenantId, membershipsTable.userId],
-      set: { role: effectiveRole },
+      set: { role: effectiveRole, environmentAccessConfigured: true },
     });
+  await db.insert(tenantEnvironmentAccessTable).values(
+    (await db
+      .select({ id: environmentsTable.id })
+      .from(environmentsTable)
+      .where(
+        and(
+          eq(environmentsTable.tenantId, invitation.tenantId),
+          eq(environmentsTable.status, "active"),
+        ),
+      ))
+      .map((environment) => ({
+        tenantId: invitation.tenantId,
+        environmentId: environment.id,
+        userId: req.localUserId!,
+        grantedByUserId: req.localUserId!,
+      })),
+  ).onConflictDoNothing();
   await db
     .update(tenantInvitationsTable)
     .set({ acceptedAt: new Date() })

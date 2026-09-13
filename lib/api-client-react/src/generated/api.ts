@@ -33,6 +33,7 @@ import type {
   BillingPlan,
   BillingPortalInput,
   BillingResponse,
+  BootstrapPlatformAdmin201,
   BrandingContext,
   BrandingInput,
   BrandingVersion,
@@ -46,8 +47,10 @@ import type {
   CreateBillingPlanInput,
   CreateBillingPlanResponse,
   CreatePlatformCustomerInput,
+  CreatePlatformCustomerInvitationInput,
   CreateTenantInvitationInput,
   CreatedPlatformCustomer,
+  CreatedPlatformCustomerInvitation,
   CreatedTenantInvitation,
   DashboardDrilldownResponse,
   DashboardSummary,
@@ -102,6 +105,8 @@ import type {
   OpportunityInput,
   OpportunityUpdate,
   PlatformCustomer,
+  PlatformCustomerDetails,
+  PlatformCustomerMember,
   PlatformRelease,
   PreviewItbMailboxParams,
   Project,
@@ -212,6 +217,7 @@ import type {
   TradePartnerInput,
   TradePartnerUpdate,
   UpdatePlatformCustomerInput,
+  UpdatePlatformCustomerMemberInput,
   UpdateTenantBusinessProfileInput,
   UpdateTenantMemberInput,
   WorkflowConfigInput,
@@ -12206,6 +12212,154 @@ export const useCreatePlatformCustomer = <TError = ErrorType<void>,
       return useMutation(getCreatePlatformCustomerMutationOptions(options));
     }
 
+export const getBootstrapPlatformAdminUrl = () => {
+
+
+
+
+  return `/api/platform/bootstrap`
+}
+
+/**
+ * @summary Bootstrap the first production platform administrator
+ */
+export const bootstrapPlatformAdmin = async ( options?: Parameters<typeof customFetch>[1]): Promise<BootstrapPlatformAdmin201> => {
+
+  return customFetch<BootstrapPlatformAdmin201>(getBootstrapPlatformAdminUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getBootstrapPlatformAdminMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bootstrapPlatformAdmin>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bootstrapPlatformAdmin>>, TError,void, TContext> => {
+
+const mutationKey = ['bootstrapPlatformAdmin'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bootstrapPlatformAdmin>>, void> = () => {
+
+
+          return  bootstrapPlatformAdmin(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BootstrapPlatformAdminMutationResult = NonNullable<Awaited<ReturnType<typeof bootstrapPlatformAdmin>>>
+
+    export type BootstrapPlatformAdminMutationError = ErrorType<void>
+
+    /**
+ * @summary Bootstrap the first production platform administrator
+ */
+export const useBootstrapPlatformAdmin = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bootstrapPlatformAdmin>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bootstrapPlatformAdmin>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getBootstrapPlatformAdminMutationOptions(options));
+    }
+
+export const getGetPlatformCustomerUrl = (tenantId: number,) => {
+
+
+
+
+  return `/api/platform/customers/${tenantId}`
+}
+
+/**
+ * @summary Inspect a customer workspace, its users, invitations, and environment access
+ */
+export const getPlatformCustomer = async (tenantId: number, options?: Parameters<typeof customFetch>[1]): Promise<PlatformCustomerDetails> => {
+
+  return customFetch<PlatformCustomerDetails>(getGetPlatformCustomerUrl(tenantId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformCustomerQueryKey = (tenantId: number,) => {
+    return [
+    `/api/platform/customers/${tenantId}`
+    ] as const;
+    }
+
+
+export const getGetPlatformCustomerQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformCustomer>>, TError = ErrorType<void>>(tenantId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformCustomer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformCustomerQueryKey(tenantId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformCustomer>>> = ({ signal }) => getPlatformCustomer(tenantId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: tenantId !== null && tenantId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformCustomer>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformCustomerQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformCustomer>>>
+export type GetPlatformCustomerQueryError = ErrorType<void>
+
+
+/**
+ * @summary Inspect a customer workspace, its users, invitations, and environment access
+ */
+
+export function useGetPlatformCustomer<TData = Awaited<ReturnType<typeof getPlatformCustomer>>, TError = ErrorType<void>>(
+ tenantId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformCustomer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformCustomerQueryOptions(tenantId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getUpdatePlatformCustomerUrl = (tenantId: number,) => {
 
 
@@ -12215,7 +12369,7 @@ export const getUpdatePlatformCustomerUrl = (tenantId: number,) => {
 }
 
 /**
- * @summary Suspend or reactivate a customer workspace
+ * @summary Suspend or reactivate a customer workspace and control customer branding
  */
 export const updatePlatformCustomer = async (tenantId: number,
     updatePlatformCustomerInput: UpdatePlatformCustomerInput, options?: Parameters<typeof customFetch>[1]): Promise<PlatformCustomer> => {
@@ -12265,7 +12419,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdatePlatformCustomerMutationError = ErrorType<void>
 
     /**
- * @summary Suspend or reactivate a customer workspace
+ * @summary Suspend or reactivate a customer workspace and control customer branding
  */
 export const useUpdatePlatformCustomer = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformCustomer>>, TError,{tenantId: number;data: BodyType<UpdatePlatformCustomerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -12276,6 +12430,225 @@ export const useUpdatePlatformCustomer = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdatePlatformCustomerMutationOptions(options));
+    }
+
+export const getCreatePlatformCustomerInvitationUrl = (tenantId: number,) => {
+
+
+
+
+  return `/api/platform/customers/${tenantId}/invitations`
+}
+
+/**
+ * @summary Invite a customer user from the platform administration surface
+ */
+export const createPlatformCustomerInvitation = async (tenantId: number,
+    createPlatformCustomerInvitationInput: CreatePlatformCustomerInvitationInput, options?: Parameters<typeof customFetch>[1]): Promise<CreatedPlatformCustomerInvitation> => {
+
+  return customFetch<CreatedPlatformCustomerInvitation>(getCreatePlatformCustomerInvitationUrl(tenantId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createPlatformCustomerInvitationInput)
+  }
+);}
+
+
+
+
+
+export const getCreatePlatformCustomerInvitationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformCustomerInvitation>>, TError,{tenantId: number;data: BodyType<CreatePlatformCustomerInvitationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPlatformCustomerInvitation>>, TError,{tenantId: number;data: BodyType<CreatePlatformCustomerInvitationInput>}, TContext> => {
+
+const mutationKey = ['createPlatformCustomerInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPlatformCustomerInvitation>>, {tenantId: number;data: BodyType<CreatePlatformCustomerInvitationInput>}> = (props) => {
+          const {tenantId,data} = props ?? {};
+
+          return  createPlatformCustomerInvitation(tenantId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePlatformCustomerInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof createPlatformCustomerInvitation>>>
+    export type CreatePlatformCustomerInvitationMutationBody = BodyType<CreatePlatformCustomerInvitationInput>
+    export type CreatePlatformCustomerInvitationMutationError = ErrorType<void>
+
+    /**
+ * @summary Invite a customer user from the platform administration surface
+ */
+export const useCreatePlatformCustomerInvitation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformCustomerInvitation>>, TError,{tenantId: number;data: BodyType<CreatePlatformCustomerInvitationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPlatformCustomerInvitation>>,
+        TError,
+        {tenantId: number;data: BodyType<CreatePlatformCustomerInvitationInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePlatformCustomerInvitationMutationOptions(options));
+    }
+
+export const getUpdatePlatformCustomerMemberUrl = (tenantId: number,
+    userId: number,) => {
+
+
+
+
+  return `/api/platform/customers/${tenantId}/members/${userId}`
+}
+
+/**
+ * @summary Update a customer user's role and environment access
+ */
+export const updatePlatformCustomerMember = async (tenantId: number,
+    userId: number,
+    updatePlatformCustomerMemberInput: UpdatePlatformCustomerMemberInput, options?: Parameters<typeof customFetch>[1]): Promise<PlatformCustomerMember> => {
+
+  return customFetch<PlatformCustomerMember>(getUpdatePlatformCustomerMemberUrl(tenantId,userId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updatePlatformCustomerMemberInput)
+  }
+);}
+
+
+
+
+
+export const getUpdatePlatformCustomerMemberMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformCustomerMember>>, TError,{tenantId: number;userId: number;data: BodyType<UpdatePlatformCustomerMemberInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlatformCustomerMember>>, TError,{tenantId: number;userId: number;data: BodyType<UpdatePlatformCustomerMemberInput>}, TContext> => {
+
+const mutationKey = ['updatePlatformCustomerMember'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlatformCustomerMember>>, {tenantId: number;userId: number;data: BodyType<UpdatePlatformCustomerMemberInput>}> = (props) => {
+          const {tenantId,userId,data} = props ?? {};
+
+          return  updatePlatformCustomerMember(tenantId,userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlatformCustomerMemberMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlatformCustomerMember>>>
+    export type UpdatePlatformCustomerMemberMutationBody = BodyType<UpdatePlatformCustomerMemberInput>
+    export type UpdatePlatformCustomerMemberMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a customer user's role and environment access
+ */
+export const useUpdatePlatformCustomerMember = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformCustomerMember>>, TError,{tenantId: number;userId: number;data: BodyType<UpdatePlatformCustomerMemberInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlatformCustomerMember>>,
+        TError,
+        {tenantId: number;userId: number;data: BodyType<UpdatePlatformCustomerMemberInput>},
+        TContext
+      > => {
+      return useMutation(getUpdatePlatformCustomerMemberMutationOptions(options));
+    }
+
+export const getRemovePlatformCustomerMemberUrl = (tenantId: number,
+    userId: number,) => {
+
+
+
+
+  return `/api/platform/customers/${tenantId}/members/${userId}`
+}
+
+/**
+ * @summary Remove a customer user's membership and environment access
+ */
+export const removePlatformCustomerMember = async (tenantId: number,
+    userId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRemovePlatformCustomerMemberUrl(tenantId,userId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemovePlatformCustomerMemberMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removePlatformCustomerMember>>, TError,{tenantId: number;userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removePlatformCustomerMember>>, TError,{tenantId: number;userId: number}, TContext> => {
+
+const mutationKey = ['removePlatformCustomerMember'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removePlatformCustomerMember>>, {tenantId: number;userId: number}> = (props) => {
+          const {tenantId,userId} = props ?? {};
+
+          return  removePlatformCustomerMember(tenantId,userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemovePlatformCustomerMemberMutationResult = NonNullable<Awaited<ReturnType<typeof removePlatformCustomerMember>>>
+
+    export type RemovePlatformCustomerMemberMutationError = ErrorType<void>
+
+    /**
+ * @summary Remove a customer user's membership and environment access
+ */
+export const useRemovePlatformCustomerMember = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removePlatformCustomerMember>>, TError,{tenantId: number;userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removePlatformCustomerMember>>,
+        TError,
+        {tenantId: number;userId: number},
+        TContext
+      > => {
+      return useMutation(getRemovePlatformCustomerMemberMutationOptions(options));
     }
 
 export const getListPlatformReleasesUrl = () => {

@@ -9,4 +9,5 @@ import type { UpdatePlatformCustomerInputStatus } from './updatePlatformCustomer
 
 export interface UpdatePlatformCustomerInput {
   status: UpdatePlatformCustomerInputStatus;
+  customerBrandingEnabled?: boolean;
 }

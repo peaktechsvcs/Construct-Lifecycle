@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Building2, CheckCircle2, Copy, CreditCard, Megaphone, Pause, Play, Plus, Rocket, ShieldAlert, Workflow } from 'lucide-react';
+import { ArrowRight, Building2, CheckCircle2, Copy, CreditCard, Eye, Mail, Megaphone, Pause, Play, Plus, Rocket, ShieldAlert, Trash2, Workflow } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import {
   BusinessType,
@@ -8,16 +8,19 @@ import {
   UpdatePlatformCustomerInputStatus,
   getListPlatformBillingPlansQueryKey,
   getListPlatformCustomersQueryKey,
+  getGetPlatformCustomerQueryKey,
   getGetTenantContextQueryKey,
   useCreatePlatformBillingPlan,
   useCreatePlatformCustomer,
   useListPlatformBillingPlans,
   useListPlatformCustomers,
   useUpdatePlatformCustomer,
+  useGetPlatformCustomer,
   useSwitchTenant,
 } from '@workspace/api-client-react';
 import { Badge, Button, EmptyState, ErrorPanel, LoadingPanel, PageTitle } from '@/components/app-ui';
 import { BUSINESS_TYPE_OPTIONS, businessTypeLabel } from '@/lib/business-profile';
+import { PlatformCustomerAccess } from '@/pages/platform-customer-access';
 
 const inputClass = 'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-primary/20';
 
@@ -37,6 +40,13 @@ export function PlatformCustomers() {
   const plans = useListPlatformBillingPlans({ query: { queryKey: getListPlatformBillingPlansQueryKey(), retry: false } });
   const create = useCreatePlatformCustomer();
   const update = useUpdatePlatformCustomer();
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const selectedCustomer = useGetPlatformCustomer(selectedCustomerId ?? 0, {
+    query: {
+      enabled: selectedCustomerId !== null,
+      queryKey: getGetPlatformCustomerQueryKey(selectedCustomerId ?? 0),
+    },
+  });
   const createPlan = useCreatePlatformBillingPlan();
   const switchTenant = useSwitchTenant();
   const [, setLocation] = useLocation();
@@ -98,7 +108,7 @@ export function PlatformCustomers() {
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <section className="rounded-xl border border-border bg-card p-5">
           <h2 className="mb-4 text-base font-bold">Customer workspaces</h2>
-          {(customers.data ?? []).length === 0 ? <EmptyState icon={Building2} title="No customers yet" text="Create a customer workspace to get started." /> : <div className="space-y-3">{(customers.data ?? []).map((customer) => <div key={customer.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-4"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{customer.name}</p><p className="mono truncate text-[10px] text-muted-foreground">{customer.slug} · {customer.memberCount} members · {customer.pendingInvitationCount} pending · {customer.environments.length} environments</p><div className="mt-2 flex flex-wrap gap-1.5">{customer.businessTypes.map((businessType) => <Badge key={businessType} tone="teal">{businessTypeLabel(businessType)}</Badge>)}</div></div><Badge tone={customer.status === PlatformCustomerStatus.active ? 'green' : 'red'}>{customer.status}</Badge><Button variant="outline" disabled={customer.status !== 'active' || switchTenant.isPending} onClick={() => openWorkflowManager(customer.id)}><Workflow size={14} /> Manage workflow</Button><Button variant="outline" disabled={update.isPending} onClick={() => update.mutate({ tenantId: customer.id, data: { status: customer.status === 'active' ? UpdatePlatformCustomerInputStatus.suspended : UpdatePlatformCustomerInputStatus.active } }, { onSuccess: refresh })}>{customer.status === 'active' ? <><Pause size={14} /> Suspend</> : <><Play size={14} /> Reactivate</>}</Button></div>)}</div>}
+          {(customers.data ?? []).length === 0 ? <EmptyState icon={Building2} title="No customers yet" text="Create a customer workspace to get started." /> : <div className="space-y-3">{(customers.data ?? []).map((customer) => <div key={customer.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-4"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{customer.name}</p><p className="mono truncate text-[10px] text-muted-foreground">{customer.slug} · {customer.memberCount} members · {customer.pendingInvitationCount} pending · {customer.environments.length} environments</p><div className="mt-2 flex flex-wrap gap-1.5">{customer.businessTypes.map((businessType) => <Badge key={businessType} tone="teal">{businessTypeLabel(businessType)}</Badge>)}</div></div><Badge tone={customer.status === PlatformCustomerStatus.active ? 'green' : 'red'}>{customer.status}</Badge><Button variant="outline" onClick={() => setSelectedCustomerId(customer.id)}><Eye size={14} /> Inspect</Button><Button variant="outline" disabled={customer.status !== 'active' || switchTenant.isPending} onClick={() => openWorkflowManager(customer.id)}><Workflow size={14} /> Manage workflow</Button><Button variant="outline" disabled={update.isPending} onClick={() => update.mutate({ tenantId: customer.id, data: { status: customer.status === 'active' ? UpdatePlatformCustomerInputStatus.suspended : UpdatePlatformCustomerInputStatus.active } }, { onSuccess: refresh })}>{customer.status === 'active' ? <><Pause size={14} /> Suspend</> : <><Play size={14} /> Reactivate</>}</Button></div>)}</div>}
         </section>
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="mb-5 flex items-center gap-3 border-b border-border pb-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary"><Plus size={16} /></span><h2 className="text-base font-bold">Create customer</h2></div>
@@ -130,6 +140,11 @@ export function PlatformCustomers() {
           {link && <div className="mt-5 rounded-lg border border-primary/20 bg-primary/5 p-4"><p className="text-xs font-semibold">One-time owner invitation link</p><div className="mt-2 flex gap-2"><input readOnly value={link} aria-label="Owner invitation link" className={`${inputClass} text-xs`} /><Button variant="outline" onClick={() => { navigator.clipboard.writeText(link); setCopied(true); }}><Copy size={14} /> {copied ? 'Copied' : 'Copy'}</Button></div></div>}
         </section>
       </div>
+      {selectedCustomerId !== null && selectedCustomer.isLoading && <section className="mt-6 rounded-xl border border-border bg-card p-5"><LoadingPanel lines={5} /></section>}
+      {selectedCustomerId !== null && selectedCustomer.isError && <section className="mt-6 rounded-xl border border-border bg-card p-5"><ErrorPanel onRetry={() => selectedCustomer.refetch()} /></section>}
+      {selectedCustomerId !== null && selectedCustomer.data && (
+        <PlatformCustomerAccess tenantId={selectedCustomerId} details={selectedCustomer.data} />
+      )}
       {onboardedCustomer && (
         <section className="mt-6 rounded-xl border border-primary/25 bg-primary/5 p-5">
           <div className="flex flex-wrap items-start gap-4">

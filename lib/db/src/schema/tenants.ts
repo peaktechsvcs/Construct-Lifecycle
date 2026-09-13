@@ -13,6 +13,7 @@ export const tenantsTable = pgTable("tenants", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   status: text("status").notNull().default("active"),
+  customerBrandingEnabled: boolean("customer_branding_enabled").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -57,10 +58,23 @@ export const membershipsTable = pgTable("tenant_memberships", {
   tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id, { onDelete: "cascade" }),
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   role: text("role").notNull().default("member"),
+  environmentAccessConfigured: boolean("environment_access_configured").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   uniqueIndex("tenant_memberships_tenant_user_idx").on(table.tenantId, table.userId),
   index("tenant_memberships_user_idx").on(table.userId),
+]);
+
+export const tenantEnvironmentAccessTable = pgTable("tenant_environment_access", {
+  tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id, { onDelete: "cascade" }),
+  environmentId: integer("environment_id").notNull().references(() => environmentsTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  grantedByUserId: integer("granted_by_user_id").notNull().references(() => usersTable.id, { onDelete: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("tenant_environment_access_tenant_environment_user_idx").on(table.tenantId, table.environmentId, table.userId),
+  index("tenant_environment_access_tenant_user_idx").on(table.tenantId, table.userId),
+  index("tenant_environment_access_environment_idx").on(table.environmentId),
 ]);
 
 export const tenantInvitationsTable = pgTable("tenant_invitations", {

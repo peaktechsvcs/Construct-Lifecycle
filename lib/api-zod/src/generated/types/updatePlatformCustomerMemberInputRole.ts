@@ -6,13 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type TenantRole = typeof TenantRole[keyof typeof TenantRole];
+export type UpdatePlatformCustomerMemberInputRole = typeof UpdatePlatformCustomerMemberInputRole[keyof typeof UpdatePlatformCustomerMemberInputRole];
 
 
-export const TenantRole = {
+export const UpdatePlatformCustomerMemberInputRole = {
   owner: 'owner',
   admin: 'admin',
   member: 'member',
   viewer: 'viewer',
-  platform_admin: 'platform_admin',
 } as const;

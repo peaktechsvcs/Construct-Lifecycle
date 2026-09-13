@@ -57,7 +57,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const brandingQuery = useGetPublishedBranding({
     query: {
       queryKey: getGetPublishedBrandingQueryKey(),
-      enabled: !!tenantQuery.data?.activeTenant,
+      enabled: tenantQuery.data?.activeTenant?.customerBrandingEnabled === true,
     },
   });
 

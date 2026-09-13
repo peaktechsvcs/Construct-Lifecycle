@@ -14,6 +14,7 @@ export interface PlatformCustomer {
   name: string;
   slug: string;
   status: PlatformCustomerStatus;
+  customerBrandingEnabled: boolean;
   /** @minItems 1 */
   businessTypes: BusinessType[];
   memberCount: number;

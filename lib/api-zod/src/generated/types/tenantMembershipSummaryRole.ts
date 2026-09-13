@@ -14,4 +14,5 @@ export const TenantMembershipSummaryRole = {
   admin: 'admin',
   member: 'member',
   viewer: 'viewer',
+  platform_admin: 'platform_admin',
 } as const;

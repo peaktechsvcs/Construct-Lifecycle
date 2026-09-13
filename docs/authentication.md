@@ -43,8 +43,12 @@ Clerk establishes identity. PostgreSQL establishes authorization:
 ## Platform administration
 
 The first authenticated development user is bootstrapped as a platform admin
-to preserve the populated demo workspace. Production platform admins must be
-provisioned through the platform's controlled database/admin process. Platform
-admins can create customer workspaces with the combined Development / Test /
-Demo environment plus Production, optionally issue the initial owner
-invitation, and suspend or reactivate a customer.
+to preserve the populated demo workspace. Production never creates the demo
+customer automatically. Instead, the first production administrator uses the
+authenticated `POST /api/platform/bootstrap` path with the
+`PLATFORM_BOOTSTRAP_TOKEN` supplied through workspace secrets; the token is
+single-use because the endpoint closes once a platform administrator exists.
+Platform admins can create customer workspaces with the combined Development /
+Test / Demo environment plus Production, issue owner and user invitations,
+suspend or reactivate a customer, control each user's environment access, and
+enable or disable the platform-owned Customer Branding permission.

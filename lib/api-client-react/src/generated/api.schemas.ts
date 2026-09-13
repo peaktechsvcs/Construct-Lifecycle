@@ -3196,6 +3196,7 @@ export const TenantRole = {
   admin: 'admin',
   member: 'member',
   viewer: 'viewer',
+  platform_admin: 'platform_admin',
 } as const;
 
 export type BusinessType = typeof BusinessType[keyof typeof BusinessType];
@@ -3213,6 +3214,7 @@ export interface Tenant {
   slug: string;
   status: TenantStatus;
   role: TenantRole;
+  customerBrandingEnabled: boolean;
   /** @minItems 1 */
   businessTypes: BusinessType[];
 }
@@ -3233,6 +3235,7 @@ export const TenantMembershipSummaryRole = {
   admin: 'admin',
   member: 'member',
   viewer: 'viewer',
+  platform_admin: 'platform_admin',
 } as const;
 
 export interface TenantMembershipSummary {
@@ -3241,6 +3244,7 @@ export interface TenantMembershipSummary {
   slug: string;
   status: TenantMembershipSummaryStatus;
   role: TenantMembershipSummaryRole;
+  customerBrandingEnabled: boolean;
 }
 
 export type EnvironmentKind = typeof EnvironmentKind[keyof typeof EnvironmentKind];
@@ -3484,6 +3488,7 @@ export const PlatformCustomerEnvironmentStatus = {
 export interface PlatformCustomerEnvironment {
   id: number;
   name: string;
+  slug: string;
   kind: PlatformCustomerEnvironmentKind;
   status: PlatformCustomerEnvironmentStatus;
 }
@@ -3501,6 +3506,7 @@ export interface PlatformCustomer {
   name: string;
   slug: string;
   status: PlatformCustomerStatus;
+  customerBrandingEnabled: boolean;
   /** @minItems 1 */
   businessTypes: BusinessType[];
   memberCount: number;
@@ -3549,6 +3555,76 @@ export const UpdatePlatformCustomerInputStatus = {
 
 export interface UpdatePlatformCustomerInput {
   status: UpdatePlatformCustomerInputStatus;
+  customerBrandingEnabled?: boolean;
+}
+
+export interface PlatformCustomerMemberEnvironment {
+  id: number;
+  name: string;
+}
+
+export type PlatformCustomerMemberRole = typeof PlatformCustomerMemberRole[keyof typeof PlatformCustomerMemberRole];
+
+
+export const PlatformCustomerMemberRole = {
+  owner: 'owner',
+  admin: 'admin',
+  member: 'member',
+  viewer: 'viewer',
+} as const;
+
+export interface PlatformCustomerMember {
+  userId: number;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  displayName: string | null;
+  role: PlatformCustomerMemberRole;
+  environmentIds: number[];
+  environments: PlatformCustomerMemberEnvironment[];
+  joinedAt: string;
+}
+
+export interface PlatformCustomerDetails {
+  customer: PlatformCustomer;
+  members: PlatformCustomerMember[];
+  invitations: TenantInvitation[];
+}
+
+export type CreatePlatformCustomerInvitationInputRole = typeof CreatePlatformCustomerInvitationInputRole[keyof typeof CreatePlatformCustomerInvitationInputRole];
+
+
+export const CreatePlatformCustomerInvitationInputRole = {
+  owner: 'owner',
+  admin: 'admin',
+  member: 'member',
+  viewer: 'viewer',
+} as const;
+
+export interface CreatePlatformCustomerInvitationInput {
+  email: string;
+  role: CreatePlatformCustomerInvitationInputRole;
+}
+
+export interface CreatedPlatformCustomerInvitation {
+  invitation: TenantInvitation;
+  token: string;
+}
+
+export type UpdatePlatformCustomerMemberInputRole = typeof UpdatePlatformCustomerMemberInputRole[keyof typeof UpdatePlatformCustomerMemberInputRole];
+
+
+export const UpdatePlatformCustomerMemberInputRole = {
+  owner: 'owner',
+  admin: 'admin',
+  member: 'member',
+  viewer: 'viewer',
+} as const;
+
+export interface UpdatePlatformCustomerMemberInput {
+  role: UpdatePlatformCustomerMemberInputRole;
+  /** @items.minimum 1 */
+  environmentIds?: number[];
 }
 
 /**
@@ -5698,6 +5774,10 @@ type: DashboardDrilldownType;
 stage?: ProjectStage;
 search?: string;
 sort?: DashboardDrilldownSort;
+};
+
+export type BootstrapPlatformAdmin201 = {
+  bootstrapped: boolean;
 };
 
 export type ListIntegrationActivityParams = {
