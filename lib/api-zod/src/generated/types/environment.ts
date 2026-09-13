@@ -19,4 +19,6 @@ export interface Environment {
   provisioningStatus?: string | null;
   /** @nullable */
   provisionedAt?: Date | null;
+  isolationEnforced?: boolean;
+  executionContextReady?: boolean;
 }

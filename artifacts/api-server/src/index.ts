@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { runMigrations } from "stripe-replit-sync";
-import { getStripeSync } from "./stripeClient";
+import { configureProvisioningProvider, createProvisioningProviderFromEnv } from "./lib/provisioning";
+import { assertRuntimeProcessConfiguration, configureRuntimeReplayGuard } from "./middlewares/runtimeContext";
 
 const rawPort = process.env["PORT"];
 
@@ -17,7 +17,15 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+configureProvisioningProvider(createProvisioningProviderFromEnv());
+assertRuntimeProcessConfiguration();
+if (process.env.RUNTIME_ENVIRONMENT_ID) {
+  configureRuntimeReplayGuard();
+}
+
 async function initializeStripe() {
+  const { runMigrations } = await import("stripe-replit-sync");
+  const { getStripeSync } = await import("./stripeClient");
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL is required for Stripe integration");
 
@@ -38,7 +46,9 @@ async function initializeStripe() {
   }
 }
 
-await initializeStripe();
+if (!process.env.RUNTIME_ENVIRONMENT_ID) {
+  await initializeStripe();
+}
 
 app.listen(port, (err) => {
   if (err) {

@@ -13,6 +13,8 @@ import {
   tenantBrandingVersionsTable,
   tenantsTable,
   userTenantContextTable,
+  environmentResourcesTable,
+  environmentHealthChecksTable,
 } from "@workspace/db";
 import {
   SaveBrandingDraftBody,
@@ -31,6 +33,7 @@ import {
   normalizeBusinessTypes,
   replaceTenantBusinessTypes,
 } from "../lib/tenant-business-profile";
+import { isIsolatedEnvironmentReady, isRecentHealthyCheck, isRuntimeSigningBoundaryReady } from "../lib/provisioning";
 
 const router: IRouter = Router();
 const releaseAssignment = async (assignmentId: number, tenantId: number, userId: number, isPlatformAdmin = false) => {
@@ -180,14 +183,32 @@ const context = async (req: TenantRequest) => {
           ),
     )
     .orderBy(environmentsTable.name);
-  const activeEnvironment = environments.find(x => x.id === req.environmentId) ?? environments[0];
+  const environmentResources = environments.length
+    ? await db.select().from(environmentResourcesTable)
+      .where(inArray(environmentResourcesTable.environmentId, environments.map((environment) => environment.id)))
+    : [];
+  const environmentHealthChecks = environments.length
+    ? await db.select().from(environmentHealthChecksTable)
+      .where(inArray(environmentHealthChecksTable.environmentId, environments.map((environment) => environment.id)))
+    : [];
+  const environmentsWithReadiness = environments.map((environment) => ({
+    ...environment,
+    executionContextReady: !environment.isolationEnforced || (
+      isIsolatedEnvironmentReady(environmentResources.filter((resource) => resource.environmentId === environment.id)) &&
+      isRuntimeSigningBoundaryReady(environmentResources.filter((resource) => resource.environmentId === environment.id)) &&
+      isRecentHealthyCheck(environmentHealthChecks
+        .filter((health) => health.environmentId === environment.id)
+        .sort((a, b) => b.checkedAt.getTime() - a.checkedAt.getTime())[0])
+    ),
+  }));
+  const activeEnvironment = environmentsWithReadiness.find(x => x.id === req.environmentId) ?? environmentsWithReadiness[0];
   const activeTenant = memberships.find(x => x.id === req.tenantId);
   const businessTypes = await getTenantBusinessTypes(req.tenantId!);
   return {
     activeTenant: activeTenant ? { ...activeTenant, businessTypes } : undefined,
     memberships,
     activeEnvironment,
-    environments,
+    environments: environmentsWithReadiness,
     environmentLabel: req.environmentLabel ?? process.env.APP_ENV ?? "development",
     isPlatformAdmin: Boolean(req.isPlatformAdmin),
   };
@@ -244,6 +265,21 @@ router.post("/tenant/context", async (req: TenantRequest, res) => {
     .orderBy(sql`case when ${environmentsTable.kind} = 'dtd' then 0 else 1 end`, environmentsTable.id)
     .limit(1);
   if (!environment) { res.status(409).json({ error: "Customer has no environment" }); return; }
+  const tenantSwitchResources = await db.select().from(environmentResourcesTable)
+    .where(eq(environmentResourcesTable.environmentId, environment.id));
+  const [tenantSwitchHealth] = await db.select({
+    status: environmentHealthChecksTable.status,
+    checkedAt: environmentHealthChecksTable.checkedAt,
+  }).from(environmentHealthChecksTable)
+    .where(eq(environmentHealthChecksTable.environmentId, environment.id))
+    .orderBy(desc(environmentHealthChecksTable.checkedAt)).limit(1);
+  if (
+    environment.isolationEnforced &&
+    (!isIsolatedEnvironmentReady(tenantSwitchResources) || !isRuntimeSigningBoundaryReady(tenantSwitchResources) || !isRecentHealthyCheck(tenantSwitchHealth))
+  ) {
+    res.status(409).json({ error: "Customer environment is not ready" });
+    return;
+  }
   await db.update(userTenantContextTable).set({ activeTenantId: parsed.data.tenantId, activeEnvironmentId: environment.id, updatedAt: new Date() }).where(eq(userTenantContextTable.userId, req.localUserId!));
   req.tenantId = parsed.data.tenantId;
   req.environmentId = environment.id;
@@ -339,7 +375,24 @@ router.get("/tenant/environments", async (req: TenantRequest, res) => {
           ),
     )
     .orderBy(environmentsTable.name);
-  res.json(environments);
+  const resourceRows = environments.length
+    ? await db.select().from(environmentResourcesTable)
+      .where(inArray(environmentResourcesTable.environmentId, environments.map((environment) => environment.id)))
+    : [];
+  const healthRows = environments.length
+    ? await db.select().from(environmentHealthChecksTable)
+      .where(inArray(environmentHealthChecksTable.environmentId, environments.map((environment) => environment.id)))
+    : [];
+  res.json(environments.map((environment) => ({
+    ...environment,
+    executionContextReady: !environment.isolationEnforced || (
+      isIsolatedEnvironmentReady(resourceRows.filter((resource) => resource.environmentId === environment.id)) &&
+      isRuntimeSigningBoundaryReady(resourceRows.filter((resource) => resource.environmentId === environment.id)) &&
+      isRecentHealthyCheck(healthRows
+        .filter((health) => health.environmentId === environment.id)
+        .sort((a, b) => b.checkedAt.getTime() - a.checkedAt.getTime())[0])
+    ),
+  })));
 });
 router.post("/tenant/environments", async (req: TenantRequest, res) => {
   const parsed = SwitchEnvironmentBody.safeParse(req.body);
@@ -357,6 +410,26 @@ router.post("/tenant/environments", async (req: TenantRequest, res) => {
         )`,
   ));
   if (!environment) { res.status(403).json({ error: "Environment access required" }); return; }
+  const resources = await db.select().from(environmentResourcesTable)
+    .where(eq(environmentResourcesTable.environmentId, environment.id));
+  const [healthCheck] = await db.select({
+    status: environmentHealthChecksTable.status,
+    checkedAt: environmentHealthChecksTable.checkedAt,
+  }).from(environmentHealthChecksTable)
+    .where(eq(environmentHealthChecksTable.environmentId, environment.id))
+    .orderBy(desc(environmentHealthChecksTable.checkedAt))
+    .limit(1);
+  if (
+    environment.isolationEnforced &&
+    (!isIsolatedEnvironmentReady(resources) || !isRuntimeSigningBoundaryReady(resources) || !isRecentHealthyCheck(healthCheck))
+  ) {
+    res.status(409).json({
+      error: "Environment is not ready",
+      details: "Switching environments requires all isolated runtime resources to be ready",
+      environmentId: environment.id,
+    });
+    return;
+  }
   await db.update(userTenantContextTable).set({ activeEnvironmentId: environment.id, updatedAt: new Date() })
     .where(eq(userTenantContextTable.userId, req.localUserId!));
   req.environmentId = environment.id;

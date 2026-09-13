@@ -11,6 +11,7 @@ const {
   bidsTable,
   businessCustomersTable,
   db,
+  environmentResourcesTable,
   environmentsTable,
   followUpsTable,
   membershipsTable,
@@ -83,6 +84,28 @@ before(async () => {
   ]).returning();
   environmentAId = environmentA.id;
   environmentBId = environmentB.id;
+
+  const resourceTypes = [
+    "runtime",
+    "database",
+    "storage",
+    "queue",
+    "secrets",
+    "jobs",
+    "logs",
+  ];
+  await db.insert(environmentResourcesTable).values(
+    [environmentA, environmentB].flatMap((environment) =>
+      resourceTypes.map((resourceType) => ({
+        tenantId: environment.tenantId,
+        environmentId: environment.id,
+        resourceType,
+        status: "ready",
+        providerKey: "integration-test",
+        externalId: `${environment.id}-${resourceType}`,
+      })),
+    ),
+  );
 
   const users = await db.insert(usersTable).values(
     Object.entries(clerkIds).map(([name, clerkUserId]) => ({

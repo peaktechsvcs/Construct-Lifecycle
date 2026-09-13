@@ -28,6 +28,8 @@ tags:
     description: Tenant context and membership operations
   - name: environments
     description: Customer environment context and switching
+  - name: provisioning
+    description: Isolated environment provisioning, recovery, and promotion controls
   - name: branding
     description: Tenant branding drafts and published versions
   - name: integrations
@@ -3376,6 +3378,202 @@ paths:
                 items: { $ref: "#/components/schemas/IntegrationJob" }
         "403": { description: Customer administrator permission required }
         "404": { description: Integration provider not available }
+  /platform/environments/{environmentId}/resources:
+    get:
+      operationId: getEnvironmentResources
+      tags: [provisioning]
+      summary: Inspect isolated environment resources
+      parameters:
+        - in: path
+          name: environmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Resource inventory
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvironmentResourceInventory" }
+  /platform/environments/{environmentId}/provisioning-events:
+    get:
+      operationId: listProvisioningEvents
+      tags: [provisioning]
+      summary: List auditable provisioning transitions
+      parameters:
+        - in: path
+          name: environmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Provisioning event history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object }
+  /platform/environments/{environmentId}/provision:
+    post:
+      operationId: provisionEnvironment
+      tags: [provisioning]
+      summary: Provision all isolated environment resources
+      parameters:
+        - in: path
+          name: environmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProvisionEnvironmentInput" }
+      responses:
+        "201": { description: Isolated context provisioned }
+        "503": { description: Provider unavailable or provisioning failed }
+  /platform/environments/{environmentId}/verify:
+    post:
+      operationId: verifyEnvironment
+      tags: [provisioning]
+      summary: Verify isolated environment health
+      parameters:
+        - in: path
+          name: environmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IdempotencyInput" }
+      responses:
+        "200": { description: Environment is healthy }
+        "503": { description: Environment is not ready }
+  /platform/environments/{environmentId}/enforce-isolation:
+    post:
+      operationId: enforceEnvironmentIsolation
+      tags: [provisioning]
+      summary: Enforce isolated execution after rollout verification
+      parameters:
+        - in: path
+          name: environmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200": { description: Isolation enforcement enabled }
+        "409": { description: Resources or health check are not ready }
+  /platform/environments/{environmentId}/refresh:
+    post:
+      operationId: refreshDtdEnvironment
+      tags: [provisioning]
+      summary: Refresh D/T/D from same-customer Production with sanitization
+      parameters:
+        - in: path
+          name: environmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshEnvironmentInput" }
+      responses:
+        "201": { description: Refresh accepted and audited }
+        "409": { description: Invalid refresh request }
+        "503": { description: Provider unavailable or refresh failed }
+  /platform/environments/{environmentId}/snapshots:
+    post:
+      operationId: createEnvironmentBackup
+      tags: [provisioning]
+      summary: Create and verify a provider backup snapshot
+      parameters:
+        - in: path
+          name: environmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IdempotencyInput" }
+      responses:
+        "201": { description: Backup snapshot verified }
+        "503": { description: Provider unavailable or backup failed }
+  /platform/snapshots/{snapshotId}/verify:
+    post:
+      operationId: verifyEnvironmentSnapshot
+      tags: [provisioning]
+      summary: Verify a provider backup snapshot
+      parameters:
+        - in: path
+          name: snapshotId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IdempotencyInput" }
+      responses:
+        "200": { description: Snapshot verified }
+        "503": { description: Provider unavailable }
+  /platform/snapshots/{snapshotId}/restore:
+    post:
+      operationId: restoreEnvironmentSnapshot
+      tags: [provisioning]
+      summary: Restore or roll back to a verified snapshot
+      parameters:
+        - in: path
+          name: snapshotId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RestoreSnapshotInput" }
+      responses:
+        "200": { description: Restore completed and target verified immediately }
+        "202": { description: Restore accepted and pending provider verification }
+        "409": { description: Snapshot is not verified }
+        "502": { description: Provider restore or target verification failed }
+        "503": { description: Provider unavailable or restore failed to start }
+  /platform/provisioning-operations/{operationId}:
+    get:
+      operationId: getProvisioningOperation
+      tags: [provisioning]
+      summary: Poll an asynchronous restore, refresh, or rollback operation
+      parameters:
+        - in: path
+          name: operationId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200": { description: Recovery operation completed successfully }
+        "202": { description: Recovery operation is still pending provider verification }
+        "400": { description: Operation is not a recovery operation }
+        "404": { description: Operation not found }
+        "502": { description: Recovery operation failed }
+  /platform/release-assignments/{assignmentId}/rollback:
+    post:
+      operationId: rollbackEnvironmentRelease
+      tags: [provisioning]
+      summary: Roll back a promoted release to its verified snapshot
+      parameters:
+        - in: path
+          name: assignmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RestoreSnapshotInput" }
+      responses:
+        "200": { description: Rollback completed and target verified immediately }
+        "202": { description: Rollback accepted and pending provider verification }
+        "409": { description: Release has no verified rollback snapshot }
+        "502": { description: Provider rollback or target verification failed }
+        "503": { description: Provider unavailable or rollback failed to start }
 components:
   parameters:
     IntegrationProviderKey:
@@ -5384,6 +5582,8 @@ components:
         status: { type: string, enum: [active, suspended, provisioning, archived] }
         provisioningStatus: { type: ["string", "null"] }
         provisionedAt: { type: ["string", "null"], format: date-time }
+        isolationEnforced: { type: boolean }
+        executionContextReady: { type: boolean }
     TenantContext:
       type: object
       required: [activeTenant, memberships, activeEnvironment, environments, environmentLabel, isPlatformAdmin]
@@ -5950,7 +6150,7 @@ components:
           items: { $ref: "#/components/schemas/BrandingVersion" }
     IntegrationCatalogItem:
       type: object
-      required: [providerKey, name, category, categoryLabel, description, capabilities, connectorStatus, entitlement, supportsConnection, state, connection, activity]
+      required: [providerKey, name, category, categoryLabel, description, capabilities, connectorStatus, entitlement, supportsConnection, connection, activity]
       properties:
         providerKey: { type: string }
         name: { type: string }
@@ -5963,7 +6163,6 @@ components:
         connectorStatus: { type: string, enum: [cataloged] }
         entitlement: { type: string, enum: [enabled] }
         supportsConnection: { type: boolean }
-        state: { type: string, enum: [cataloged, connected, degraded] }
         connection:
           oneOf:
             - $ref: "#/components/schemas/IntegrationConnection"
@@ -5971,20 +6170,14 @@ components:
         activity: { $ref: "#/components/schemas/IntegrationActivitySummary" }
     IntegrationConnection:
       type: object
-      required: [id, status, connectionType, healthStatus, lastSyncAt, lastSuccessfulSyncAt, lastSyncStatus, lastFailureAt, lastError, retryCount, deadLetterCount, nextRetryAt]
+      required: [id, status, connectionType, lastSyncAt, lastSyncStatus, lastError]
       properties:
         id: { type: integer }
         status: { type: string, enum: [not_connected, connected, warning, failed, disabled] }
         connectionType: { type: string }
-        healthStatus: { type: string, enum: [unknown, healthy, degraded, failed, disabled] }
         lastSyncAt: { type: ["string", "null"], format: date-time }
-        lastSuccessfulSyncAt: { type: ["string", "null"], format: date-time }
         lastSyncStatus: { type: ["string", "null"] }
-        lastFailureAt: { type: ["string", "null"], format: date-time }
         lastError: { type: ["string", "null"] }
-        retryCount: { type: integer, minimum: 0 }
-        deadLetterCount: { type: integer, minimum: 0 }
-        nextRetryAt: { type: ["string", "null"], format: date-time }
     IntegrationActivitySummary:
       type: object
       required: [lastActivityAt, activityCount]
@@ -6000,22 +6193,6 @@ components:
         action: { type: string }
         details: { type: object, additionalProperties: true }
         createdAt: { type: string, format: date-time }
-    IntegrationJob:
-      type: object
-      required: [id, providerKey, jobType, status, attempts, maxAttempts, nextRetryAt, lastError, deadLetteredAt, completedAt, createdAt, updatedAt]
-      properties:
-        id: { type: integer }
-        providerKey: { type: string }
-        jobType: { type: string }
-        status: { type: string, enum: [queued, processing, succeeded, retry, dead_letter, failed] }
-        attempts: { type: integer, minimum: 0 }
-        maxAttempts: { type: integer, minimum: 1 }
-        nextRetryAt: { type: ["string", "null"], format: date-time }
-        lastError: { type: ["string", "null"] }
-        deadLetteredAt: { type: ["string", "null"], format: date-time }
-        completedAt: { type: ["string", "null"], format: date-time }
-        createdAt: { type: string, format: date-time }
-        updatedAt: { type: string, format: date-time }
     WorkflowTemplate:
       type: object
       required: [id, tenantId, environmentId, name, activeProjectStatusKeys, status, isDefault, version, createdAt, updatedAt]
@@ -6974,4 +7151,56 @@ components:
         paymentStatus: { type: string, enum: [unbilled, invoiced, partially_paid, paid, past_due] }
         promisedDate: { type: ["string", "null"], format: date }
         jobsiteInstructions: { type: ["string", "null"], maxLength: 5000 }
-
+    ProvisionEnvironmentInput:
+      type: object
+      required: [idempotencyKey]
+      properties:
+        idempotencyKey: { type: string, minLength: 8, maxLength: 200 }
+        providerKey: { type: string, minLength: 1, maxLength: 100 }
+    IdempotencyInput:
+      type: object
+      required: [idempotencyKey]
+      properties:
+        idempotencyKey: { type: string, minLength: 8, maxLength: 200 }
+    RefreshEnvironmentInput:
+      type: object
+      required: [sourceEnvironmentId, sanitizationPolicy, idempotencyKey]
+      properties:
+        sourceEnvironmentId: { type: integer, minimum: 1 }
+        sanitizationPolicy:
+          type: string
+          enum: [redact-secrets, replace-identifiers, full]
+        idempotencyKey: { type: string, minLength: 8, maxLength: 200 }
+    RestoreSnapshotInput:
+      type: object
+      required: [idempotencyKey]
+      properties:
+        idempotencyKey: { type: string, minLength: 8, maxLength: 200 }
+        rollback: { type: boolean, default: false }
+    EnvironmentResourceInventory:
+      type: object
+      required: [environment, executionContextReady, resources]
+      properties:
+        environment: { $ref: "#/components/schemas/Environment" }
+        executionContextReady: { type: boolean }
+        resources:
+          type: array
+          items:
+            type: object
+            required: [id, tenantId, environmentId, resourceType, status, providerKey]
+            properties:
+              id: { type: integer }
+              tenantId: { type: integer }
+              environmentId: { type: integer }
+              resourceType:
+                type: string
+                enum: [runtime, database, storage, queue, secrets, jobs, logs]
+              status:
+                type: string
+                enum: [requested, provisioning, ready, degraded, failed, deprovisioning, deprovisioned]
+              providerKey: { type: string }
+              secretReference:
+                type: ["string", "null"]
+                description: Opaque provider key identifier; never key material.
+              externalId: { type: ["string", "null"] }
+              endpoint: { type: ["string", "null"] }

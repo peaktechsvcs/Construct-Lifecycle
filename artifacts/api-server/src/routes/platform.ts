@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter } from "express";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
   environmentsTable,
@@ -15,6 +15,10 @@ import {
   tenantInvitationsTable,
   usersTable,
   type TenantBusinessType,
+  environmentResourcesTable,
+  environmentSnapshotsTable,
+  environmentHealthChecksTable,
+  environmentReleaseControlsTable,
 } from "@workspace/db";
 import {
   CreatePlatformCustomerInvitationBody,
@@ -30,6 +34,7 @@ import { requirePlatformAdmin } from "../middlewares/platformAdmin";
 import { createTenantInvitation, serializeInvitation } from "./tenant-admin";
 import { ensurePublishedWorkflow } from "../lib/workflow";
 import { DEFAULT_TENANT_BUSINESS_TYPES, getTenantBusinessTypes } from "../lib/tenant-business-profile";
+import { isIsolatedEnvironmentReady, isRecentHealthyCheck } from "../lib/provisioning";
 
 const router: IRouter = Router();
 const APP_ENV = process.env.APP_ENV ?? "development";
@@ -442,6 +447,37 @@ router.post("/platform/releases/:releaseId/deploy", async (req: TenantRequest, r
     res.status(409).json({ error: "Only mandatory security and platform releases may deploy directly to production" });
     return;
   }
+  let productionSnapshot: { id: number } | undefined;
+  let productionHealth: { id: number; status: string; checkedAt: Date } | undefined;
+  if (environment.kind === "production") {
+    const resources = await db.select({
+      resourceType: environmentResourcesTable.resourceType,
+      status: environmentResourcesTable.status,
+    }).from(environmentResourcesTable).where(eq(environmentResourcesTable.environmentId, environment.id));
+    if (!resources.length || !isIsolatedEnvironmentReady(resources)) {
+      res.status(409).json({ error: "Production environment must have every isolated resource ready before release promotion" });
+      return;
+    }
+    [productionHealth] = await db.select({
+      id: environmentHealthChecksTable.id,
+      status: environmentHealthChecksTable.status,
+      checkedAt: environmentHealthChecksTable.checkedAt,
+    })
+      .from(environmentHealthChecksTable)
+      .where(eq(environmentHealthChecksTable.environmentId, environment.id))
+      .orderBy(desc(environmentHealthChecksTable.checkedAt)).limit(1);
+    [productionSnapshot] = await db.select({ id: environmentSnapshotsTable.id })
+      .from(environmentSnapshotsTable)
+      .where(and(
+        eq(environmentSnapshotsTable.environmentId, environment.id),
+        eq(environmentSnapshotsTable.kind, "backup"),
+        eq(environmentSnapshotsTable.status, "verified"),
+      )).orderBy(desc(environmentSnapshotsTable.createdAt)).limit(1);
+    if (!productionHealth || !isRecentHealthyCheck(productionHealth) || !productionSnapshot) {
+      res.status(409).json({ error: "Production promotion requires a healthy environment check and a verified rollback snapshot" });
+      return;
+    }
+  }
   const result = await db.transaction(async (tx) => {
     const [assignment] = await tx.select().from(environmentReleaseAssignmentsTable).where(and(
       eq(environmentReleaseAssignmentsTable.releaseId, releaseId),
@@ -486,6 +522,25 @@ router.post("/platform/releases/:releaseId/deploy", async (req: TenantRequest, r
     await writeAuditIn(tx, req, "platform_release_deployed", environment.tenantId, {
       releaseId, assignmentId: assignment.id, environmentId: environment.id, sourceDtdAssignmentId,
     });
+    if (environment.kind === "production" && productionSnapshot && productionHealth) {
+      await tx.insert(environmentReleaseControlsTable).values({
+        assignmentId: assignment.id,
+        snapshotId: productionSnapshot.id,
+        healthCheckId: productionHealth.id,
+        rollbackSnapshotId: productionSnapshot.id,
+        promotedAt: new Date(),
+        rollbackStatus: "available",
+      }).onConflictDoUpdate({
+        target: environmentReleaseControlsTable.assignmentId,
+        set: {
+          snapshotId: productionSnapshot.id,
+          healthCheckId: productionHealth.id,
+          rollbackSnapshotId: productionSnapshot.id,
+          promotedAt: new Date(),
+          rollbackStatus: "available",
+        },
+      });
+    }
     await writeReleaseEventIn(tx, req.localUserId!, releaseId, assignment.id, "deployed", assignment.status, updated.status, {
       environmentId: environment.id, sourceDtdAssignmentId,
     });

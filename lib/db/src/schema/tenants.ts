@@ -8,6 +8,9 @@ export const TENANT_BUSINESS_TYPES = [
 
 export type TenantBusinessType = (typeof TENANT_BUSINESS_TYPES)[number];
 
+export const ENVIRONMENT_KINDS = ["production", "dtd"] as const;
+export type EnvironmentKind = (typeof ENVIRONMENT_KINDS)[number];
+
 export const tenantsTable = pgTable("tenants", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -34,7 +37,8 @@ export const environmentsTable = pgTable("customer_environments", {
   slug: text("slug").notNull(),
   kind: text("kind").notNull().default("dtd"),
   status: text("status").notNull().default("active"),
-  provisioningStatus: text("provisioning_status"),
+  provisioningStatus: text("provisioning_status").notNull().default("requested"),
+  isolationEnforced: boolean("isolation_enforced").notNull().default(false),
   provisionedAt: timestamp("provisioned_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

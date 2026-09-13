@@ -9,7 +9,10 @@ import {
   tenantsTable,
   userTenantContextTable,
   usersTable,
+  environmentResourcesTable,
+  environmentHealthChecksTable,
 } from "@workspace/db";
+import { isIsolatedEnvironmentReady, isRecentHealthyCheck, isRuntimeSigningBoundaryReady } from "../lib/provisioning";
 
 const DEFAULT_TENANT = { name: "Construct Lifecycle Demo", slug: "construct-lc-demo" };
 const APP_ENV = process.env.APP_ENV ?? "development";
@@ -37,6 +40,11 @@ export type TenantRequest = Request & {
   tenantId?: number;
   environmentId?: number;
   localUserId?: number;
+  runtimeTenantId?: number;
+  runtimeEnvironmentId?: number;
+  runtimeUserId?: number;
+  runtimeRole?: string;
+  runtimePermissions?: string[];
   environmentLabel?: string;
   isPlatformAdmin?: boolean;
 };
@@ -338,12 +346,39 @@ export async function requireTenantContext(
           .limit(1)
       : [];
 
+    const selectedEnvironment = savedEnvironment?.id ? savedEnvironment : environment;
+    const selectedResources = await db
+      .select({
+        resourceType: environmentResourcesTable.resourceType,
+        status: environmentResourcesTable.status,
+        secretReference: environmentResourcesTable.secretReference,
+      })
+      .from(environmentResourcesTable)
+      .where(eq(environmentResourcesTable.environmentId, selectedEnvironment.id));
+    const [latestHealthCheck] = await db
+      .select({ status: environmentHealthChecksTable.status, checkedAt: environmentHealthChecksTable.checkedAt })
+      .from(environmentHealthChecksTable)
+      .where(eq(environmentHealthChecksTable.environmentId, selectedEnvironment.id))
+      .orderBy(sql`${environmentHealthChecksTable.checkedAt} desc`)
+      .limit(1);
+    if (
+      selectedEnvironment.isolationEnforced &&
+      (!isIsolatedEnvironmentReady(selectedResources) || !isRuntimeSigningBoundaryReady(selectedResources) || !isRecentHealthyCheck(latestHealthCheck))
+    ) {
+      res.status(409).json({
+        error: "Customer environment is not ready",
+        details: "An isolated runtime, database, storage, queue, secrets, jobs, and logs resource plus a recent successful health check are required.",
+        environmentId: selectedEnvironment.id,
+      });
+      return;
+    }
+
     await db
       .insert(userTenantContextTable)
       .values({
         userId: user.id,
         activeTenantId: tenant.id,
-        activeEnvironmentId: savedEnvironment?.id ?? environment.id,
+         activeEnvironmentId: selectedEnvironment.id,
       })
       .onConflictDoUpdate({
         target: userTenantContextTable.userId,
@@ -355,7 +390,7 @@ export async function requireTenantContext(
       });
 
     req.tenantId = tenant.id;
-    req.environmentId = savedEnvironment?.id ?? environment.id;
+    req.environmentId = selectedEnvironment.id;
     req.environmentLabel = APP_ENV;
     next();
   } catch (error) {

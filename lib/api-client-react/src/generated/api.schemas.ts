@@ -3377,6 +3377,8 @@ export interface Environment {
   provisioningStatus?: string | null;
   /** @nullable */
   provisionedAt?: string | null;
+  isolationEnforced?: boolean;
+  executionContextReady?: boolean;
 }
 
 export type TenantContextEnvironmentLabel = typeof TenantContextEnvironmentLabel[keyof typeof TenantContextEnvironmentLabel];
@@ -5980,6 +5982,18 @@ export interface SupplierOrderUpdate {
   jobsiteInstructions?: string | null;
 }
 
+export interface ProvisionEnvironmentInput {
+  /**
+     * @minLength 8
+     * @maxLength 200
+     */
+  idempotencyKey: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  providerKey?: string;
+}
 export type ListProjectsParams = {
 search?: string;
 stage?: ProjectStage;
@@ -6167,6 +6181,8 @@ providerKey: string;
 limit?: number;
 };
 
+export type ListProvisioningEvents200Item = { [key: string]: unknown };
+
 export type ListIntegrationJobsParams = {
 /**
  * @pattern ^[a-z][a-z0-9_]{1,63}$
@@ -6179,3 +6195,86 @@ providerKey: string;
 limit?: number;
 };
 
+export type EnvironmentResourceInventoryResourcesItemStatus = typeof EnvironmentResourceInventoryResourcesItemStatus[keyof typeof EnvironmentResourceInventoryResourcesItemStatus];
+
+export interface RestoreSnapshotInput {
+  /**
+     * @minLength 8
+     * @maxLength 200
+     */
+  idempotencyKey: string;
+  rollback?: boolean;
+}
+
+export type RefreshEnvironmentInputSanitizationPolicy = typeof RefreshEnvironmentInputSanitizationPolicy[keyof typeof RefreshEnvironmentInputSanitizationPolicy];
+
+export type EnvironmentResourceInventoryResourcesItem = {
+  id: number;
+  tenantId: number;
+  environmentId: number;
+  resourceType: EnvironmentResourceInventoryResourcesItemResourceType;
+  status: EnvironmentResourceInventoryResourcesItemStatus;
+  providerKey: string;
+  /**
+     * Opaque provider key identifier; never key material.
+     * @nullable
+     */
+  secretReference?: string | null;
+  /** @nullable */
+  externalId?: string | null;
+  /** @nullable */
+  endpoint?: string | null;
+};
+
+export interface IdempotencyInput {
+  /**
+     * @minLength 8
+     * @maxLength 200
+     */
+  idempotencyKey: string;
+}
+
+export const EnvironmentResourceInventoryResourcesItemResourceType = {
+  runtime: 'runtime',
+  database: 'database',
+  storage: 'storage',
+  queue: 'queue',
+  secrets: 'secrets',
+  jobs: 'jobs',
+  logs: 'logs',
+} as const;
+
+export const EnvironmentResourceInventoryResourcesItemStatus = {
+  requested: 'requested',
+  provisioning: 'provisioning',
+  ready: 'ready',
+  degraded: 'degraded',
+  failed: 'failed',
+  deprovisioning: 'deprovisioning',
+  deprovisioned: 'deprovisioned',
+} as const;
+
+export type EnvironmentResourceInventoryResourcesItemResourceType = typeof EnvironmentResourceInventoryResourcesItemResourceType[keyof typeof EnvironmentResourceInventoryResourcesItemResourceType];
+
+export const RefreshEnvironmentInputSanitizationPolicy = {
+  'redact-secrets': 'redact-secrets',
+  'replace-identifiers': 'replace-identifiers',
+  full: 'full',
+} as const;
+
+export interface EnvironmentResourceInventory {
+  environment: Environment;
+  executionContextReady: boolean;
+  resources: EnvironmentResourceInventoryResourcesItem[];
+}
+
+export interface RefreshEnvironmentInput {
+  /** @minimum 1 */
+  sourceEnvironmentId: number;
+  sanitizationPolicy: RefreshEnvironmentInputSanitizationPolicy;
+  /**
+     * @minLength 8
+     * @maxLength 200
+     */
+  idempotencyKey: string;
+}
