@@ -13,7 +13,10 @@ const outdir = path.join(testDir, `.integration-dist-${process.pid}`);
 
 try {
   await build({
-    entryPoints: [path.join(testDir, "tenant-isolation.integration.test.ts")],
+    entryPoints: [
+      path.join(testDir, "tenant-isolation.integration.test.ts"),
+      path.join(testDir, "billing.integration.test.ts"),
+    ],
     platform: "node",
     bundle: true,
     format: "esm",
@@ -36,9 +39,12 @@ globalThis.__dirname = __path.dirname(globalThis.__filename);`,
     },
   });
 
-  const testFile = path.join(outdir, "tenant-isolation.integration.test.mjs");
+  const testFiles = [
+    path.join(outdir, "tenant-isolation.integration.test.mjs"),
+    path.join(outdir, "billing.integration.test.mjs"),
+  ];
   const exitCode = await new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["--test", testFile], {
+    const child = spawn(process.execPath, ["--test", ...testFiles], {
       env: { ...process.env, APP_ENV: "test" },
       stdio: "inherit",
     });

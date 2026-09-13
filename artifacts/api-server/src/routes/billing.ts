@@ -7,7 +7,7 @@ import {
   tenantBillingAccountsTable,
   tenantEntitlementOverridesTable,
 } from "@workspace/db";
-import type { TenantRequest } from "../middlewares/tenantContext";
+import { requireTenantContext, type TenantRequest } from "../middlewares/tenantContext";
 import { requirePlatformAdmin } from "../middlewares/platformAdmin";
 import { requireRole } from "../middlewares/rbac";
 import { getUncachableStripeClient } from "../stripeClient";
@@ -15,6 +15,8 @@ import { getUncachableStripeClient } from "../stripeClient";
 const router: IRouter = Router();
 const stripePriceId = z.string().min(5).max(100);
 const capabilityKey = z.string().regex(/^[a-z][a-z0-9_.-]{1,80}$/);
+
+router.use("/billing", requireTenantContext);
 
 type Row = Record<string, unknown>;
 const jsonObject = (value: unknown): Record<string, unknown> =>
@@ -310,17 +312,21 @@ router.get("/billing/invoices", async (req: TenantRequest, res) => {
     res.json([]);
     return;
   }
-  const result = await db.execute(sql`
-    select id, number, status, currency, amount_due as "amountDue", amount_paid as "amountPaid",
-      hosted_invoice_url as "hostedInvoiceUrl", invoice_pdf as "invoicePdf", created
-    from stripe.invoices
-    where customer = ${account[0].customerId}
-    order by created desc
-    limit 50
-  `);
-  if (result.rows.length > 0) {
-    res.json(result.rows);
-    return;
+  try {
+    const result = await db.execute(sql`
+      select id, number, status, currency, amount_due as "amountDue", amount_paid as "amountPaid",
+        hosted_invoice_url as "hostedInvoiceUrl", invoice_pdf as "invoicePdf", created
+      from stripe.invoices
+      where customer = ${account[0].customerId}
+      order by created desc
+      limit 50
+    `);
+    if (result.rows.length > 0) {
+      res.json(result.rows);
+      return;
+    }
+  } catch {
+    console.warn("[stripe] synced invoices unavailable; using connector proxy", { operation: "readInvoices" });
   }
   const stripe = getUncachableStripeClient();
   const invoices = await stripe.invoices.list({ customer: account[0].customerId, limit: "50" });
