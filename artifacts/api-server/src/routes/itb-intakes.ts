@@ -7,6 +7,7 @@ import {
   businessCustomersTable,
   db,
   itbIntakeAttachmentsTable,
+  itbDocumentsTable,
   itbIntakesTable,
   itbMailboxCursorsTable,
   membershipsTable,
@@ -23,11 +24,24 @@ import {
   MergeItbIntakeBody,
   RequestItbAttachmentUploadBody,
   UpdateItbIntakeBody,
+  ProcessItbDocumentBody,
+  RetryItbDocumentParams,
+  ReviewItbDocumentFindingsBody,
+  ReviewItbDocumentFindingsParams,
+  ApplyItbDocumentFindingsParams,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
 import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 import { extractItb as extractItbFromSource } from "../lib/itb-extraction";
+import {
+  DOCUMENT_MAX_BYTES,
+  DOCUMENT_PARSER_VERSION,
+  documentSha256,
+  inferDocumentRole,
+  parseConstructionDocument,
+  type DocumentFinding,
+} from "../lib/itb-document-parsing";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
@@ -742,6 +756,304 @@ router.post("/itb-intakes/:intakeId/merge", requireRole("owner", "admin", "membe
     req.log.error({ err: error, sourceIntakeId: source.id, targetIntakeId: target.id }, "ITB merge failed");
     res.status(409).json({ error: "The duplicate intakes could not be merged" });
   }
+});
+
+const documentJson = <T>(value: string | null | undefined, fallback: T): T => {
+  try {
+    return value ? JSON.parse(value) as T : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const documentResponse = (document: typeof itbDocumentsTable.$inferSelect, attachment: typeof itbIntakeAttachmentsTable.$inferSelect) => ({
+  id: document.id,
+  tenantId: document.tenantId,
+  environmentId: document.environmentId,
+  intakeId: document.intakeId,
+  attachmentId: document.attachmentId,
+  originalName: attachment.originalName,
+  contentType: attachment.contentType,
+  downloadUrl: `/api/itb-intakes/${document.intakeId}/attachments/${attachment.id}`,
+  role: document.role,
+  status: document.status,
+  parser: document.parser,
+  parserVersion: document.parserVersion,
+  sha256: document.sha256,
+  byteSize: document.byteSize,
+  pageCount: document.pageCount,
+  findings: documentJson<DocumentFinding[]>(document.findingsJson, []),
+  errorMessage: document.errorMessage,
+  attemptCount: document.attemptCount,
+  processedAt: document.processedAt,
+  createdAt: document.createdAt,
+  updatedAt: document.updatedAt,
+});
+
+const getDocument = async (req: TenantRequest, intakeId: number, documentId: number) => {
+  const [row] = await db.select({ document: itbDocumentsTable, attachment: itbIntakeAttachmentsTable })
+    .from(itbDocumentsTable)
+    .innerJoin(itbIntakeAttachmentsTable, eq(itbIntakeAttachmentsTable.id, itbDocumentsTable.attachmentId))
+    .where(and(
+      eq(itbDocumentsTable.id, documentId),
+      eq(itbDocumentsTable.intakeId, intakeId),
+      eq(itbDocumentsTable.tenantId, req.tenantId!),
+      eq(itbDocumentsTable.environmentId, req.environmentId!),
+    )).limit(1);
+  return row;
+};
+
+const parseWithTimeout = async (name: string, contentType: string, bytes: Buffer) => {
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Document parsing timed out")), 30_000));
+  return Promise.race([parseConstructionDocument(name, contentType, bytes), timeout]);
+};
+
+const processDocument = async (req: TenantRequest, intakeId: number, attachmentId: number, role?: string, existingId?: number) => {
+  const [attachmentRow] = await db.select({ attachment: itbIntakeAttachmentsTable, intake: itbIntakesTable })
+    .from(itbIntakeAttachmentsTable)
+    .innerJoin(itbIntakesTable, eq(itbIntakesTable.id, itbIntakeAttachmentsTable.intakeId))
+    .where(and(
+      eq(itbIntakeAttachmentsTable.id, attachmentId),
+      eq(itbIntakeAttachmentsTable.intakeId, intakeId),
+      eq(itbIntakesTable.tenantId, req.tenantId!),
+      eq(itbIntakesTable.environmentId, req.environmentId!),
+    )).limit(1);
+  if (!attachmentRow) return null;
+  const existing = existingId
+    ? await getDocument(req, intakeId, existingId)
+    : (await db.select({ document: itbDocumentsTable, attachment: itbIntakeAttachmentsTable })
+      .from(itbDocumentsTable)
+      .innerJoin(itbIntakeAttachmentsTable, eq(itbIntakeAttachmentsTable.id, itbDocumentsTable.attachmentId))
+      .where(and(
+        eq(itbDocumentsTable.attachmentId, attachmentId),
+        eq(itbDocumentsTable.tenantId, req.tenantId!),
+        eq(itbDocumentsTable.environmentId, req.environmentId!),
+      )).limit(1))[0];
+  if (existing && !["failed", "needs_review"].includes(existing.document.status)) {
+    throw new Error("This attachment has already been processed");
+  }
+  const file = await objectStorage.getObjectFile(attachmentRow.attachment.objectPath);
+  const [bytes] = await file.download();
+  if (bytes.length > DOCUMENT_MAX_BYTES) {
+    throw new Error("Document exceeds the protected parsing limit");
+  }
+  const hash = documentSha256(bytes);
+  const roleValue = role ?? existing?.document.role ?? inferDocumentRole(attachmentRow.attachment.originalName);
+  const now = new Date();
+  let document: typeof itbDocumentsTable.$inferSelect;
+  if (existing) {
+    [document] = await db.update(itbDocumentsTable).set({
+      role: roleValue,
+      status: "processing",
+      parser: null,
+      parserVersion: DOCUMENT_PARSER_VERSION,
+      sha256: hash,
+      byteSize: bytes.length,
+      errorMessage: null,
+      attemptCount: existing.document.attemptCount + 1,
+      updatedAt: now,
+    }).where(eq(itbDocumentsTable.id, existing.document.id)).returning();
+  } else {
+    [document] = await db.insert(itbDocumentsTable).values({
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+      intakeId,
+      attachmentId,
+      role: roleValue,
+      status: "processing",
+      sha256: hash,
+      byteSize: bytes.length,
+      parserVersion: DOCUMENT_PARSER_VERSION,
+      attemptCount: 1,
+      createdByUserId: req.localUserId!,
+    }).returning();
+  }
+  try {
+    const parsed = await parseWithTimeout(attachmentRow.attachment.originalName, attachmentRow.attachment.contentType, bytes);
+    [document] = await db.update(itbDocumentsTable).set({
+      parser: parsed.parser,
+      status: parsed.needsReview ? "needs_review" : "completed",
+      extractedText: parsed.text,
+      findingsJson: JSON.stringify(parsed.findings),
+      pageCount: parsed.pageCount,
+      errorMessage: parsed.warning ?? null,
+      processedAt: now,
+      updatedAt: new Date(),
+    }).where(eq(itbDocumentsTable.id, document.id)).returning();
+  } catch (error) {
+    req.log.warn({ err: error, intakeId, attachmentId, documentId: document.id }, "ITB document parsing failed");
+    [document] = await db.update(itbDocumentsTable).set({
+      status: "failed",
+      errorMessage: error instanceof Error ? error.message.slice(0, 500) : "Document parsing failed",
+      processedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(itbDocumentsTable.id, document.id)).returning();
+  }
+  return documentResponse(document, attachmentRow.attachment);
+};
+
+router.get("/itb-intakes/:intakeId/documents", async (req: TenantRequest, res) => {
+  const params = GetItbIntakeParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid intake id" });
+    return;
+  }
+  const rows = await db.select({ document: itbDocumentsTable, attachment: itbIntakeAttachmentsTable })
+    .from(itbDocumentsTable)
+    .innerJoin(itbIntakeAttachmentsTable, eq(itbIntakeAttachmentsTable.id, itbDocumentsTable.attachmentId))
+    .where(and(
+      eq(itbDocumentsTable.intakeId, params.data.intakeId),
+      eq(itbDocumentsTable.tenantId, req.tenantId!),
+      eq(itbDocumentsTable.environmentId, req.environmentId!),
+    ))
+    .orderBy(desc(itbDocumentsTable.createdAt));
+  res.json(rows.map((row) => documentResponse(row.document, row.attachment)));
+});
+
+router.post("/itb-intakes/:intakeId/documents", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const params = GetItbIntakeParams.safeParse(req.params);
+  const parsed = ProcessItbDocumentBody.safeParse(req.body);
+  if (!params.success || !parsed.success) {
+    res.status(400).json({ error: "Invalid document processing request" });
+    return;
+  }
+  try {
+    const result = await processDocument(req, params.data.intakeId, parsed.data.attachmentId, parsed.data.role);
+    if (!result) {
+      res.status(404).json({ error: "Intake or attachment not found" });
+      return;
+    }
+    res.status(201).json(result);
+  } catch (error) {
+    req.log.warn({ err: error, intakeId: params.data.intakeId, attachmentId: parsed.data.attachmentId }, "ITB document processing request rejected");
+    res.status(409).json({ error: error instanceof Error ? error.message : "Document could not be processed" });
+  }
+});
+
+router.post("/itb-intakes/:intakeId/documents/:documentId/retry", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const params = RetryItbDocumentParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid document id" });
+    return;
+  }
+  const current = await getDocument(req, params.data.intakeId, params.data.documentId);
+  if (!current) {
+    res.status(404).json({ error: "Document not found" });
+    return;
+  }
+  if (!["failed", "needs_review"].includes(current.document.status) || current.document.attemptCount >= 3) {
+    res.status(409).json({ error: "This document cannot be retried" });
+    return;
+  }
+  try {
+    const result = await processDocument(req, params.data.intakeId, current.document.attachmentId, current.document.role, current.document.id);
+    res.json(result);
+  } catch (error) {
+    req.log.warn({ err: error, intakeId: params.data.intakeId, documentId: params.data.documentId }, "ITB document retry failed");
+    res.status(409).json({ error: "Document retry failed" });
+  }
+});
+
+router.patch("/itb-intakes/:intakeId/documents/:documentId/findings", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const params = ReviewItbDocumentFindingsParams.safeParse(req.params);
+  const parsed = ReviewItbDocumentFindingsBody.safeParse(req.body);
+  if (!params.success || !parsed.success) {
+    res.status(400).json({ error: "Invalid document finding review" });
+    return;
+  }
+  const current = await getDocument(req, params.data.intakeId, params.data.documentId);
+  if (!current) {
+    res.status(404).json({ error: "Document not found" });
+    return;
+  }
+  const findings = documentJson<DocumentFinding[]>(current.document.findingsJson, []);
+  const index = findings.findIndex((finding) => finding.key === parsed.data.key);
+  if (index < 0) {
+    res.status(404).json({ error: "Finding not found" });
+    return;
+  }
+  findings[index] = {
+    ...findings[index],
+    status: parsed.data.status,
+    correctedValue: parsed.data.correctedValue ?? findings[index].correctedValue ?? null,
+  };
+  const [updated] = await db.update(itbDocumentsTable).set({
+    findingsJson: JSON.stringify(findings),
+    updatedAt: new Date(),
+  }).where(eq(itbDocumentsTable.id, current.document.id)).returning();
+  await db.insert(platformAuditEventsTable).values({
+    actorUserId: req.localUserId!,
+    tenantId: req.tenantId!,
+    action: "itb_document_finding_reviewed",
+    details: JSON.stringify({ documentId: updated.id, intakeId: updated.intakeId, key: parsed.data.key, status: parsed.data.status, environmentId: req.environmentId }),
+  });
+  res.json(documentResponse(updated, current.attachment));
+});
+
+router.post("/itb-intakes/:intakeId/documents/:documentId/apply", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const params = ApplyItbDocumentFindingsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid document id" });
+    return;
+  }
+  const current = await getDocument(req, params.data.intakeId, params.data.documentId);
+  if (!current) {
+    res.status(404).json({ error: "Document not found" });
+    return;
+  }
+  const intake = await getIntake(req, params.data.intakeId);
+  if (!intake) {
+    res.status(404).json({ error: "Intake not found" });
+    return;
+  }
+  if (intake.status === "approved") {
+    res.status(409).json({ error: "Approved intakes cannot be changed" });
+    return;
+  }
+  const findings = documentJson<DocumentFinding[]>(current.document.findingsJson, []);
+  const accepted = findings.filter((finding) => ["accepted", "corrected"].includes(finding.status));
+  if (accepted.length === 0) {
+    res.status(409).json({ error: "Accept or correct at least one finding before applying it" });
+    return;
+  }
+  const extraction = publicExtraction(intake);
+  const mapping: Record<string, keyof Extraction> = {
+    project_name: "projectName",
+    issuer: "issuer",
+    contact_name: "contactName",
+    contact_email: "contactEmail",
+    contact_phone: "contactPhone",
+    location: "location",
+    bid_due_date: "dueDate",
+    estimated_value: "estimatedValue",
+  };
+  for (const finding of accepted) {
+    const key = mapping[finding.key];
+    if (!key) continue;
+    const value = finding.status === "corrected" ? finding.correctedValue : finding.value;
+    if (!value) continue;
+    extraction[key] = {
+      value,
+      confidence: finding.confidence,
+      evidence: `Document ${current.attachment.originalName}: ${finding.evidence}`.slice(0, 700),
+    } as never;
+  }
+  const [updated] = await db.update(itbIntakesTable).set({
+    extractionJson: JSON.stringify(extraction),
+    extractionWarningsJson: JSON.stringify(extractionKeys.filter((key) => Array.isArray(extraction[key]) ? extraction[key].length === 0 : !extraction[key].value).map((key) => `No ${key} was supplied.`)),
+    updatedAt: new Date(),
+  }).where(and(
+    eq(itbIntakesTable.id, intake.id),
+    eq(itbIntakesTable.tenantId, req.tenantId!),
+    eq(itbIntakesTable.environmentId, req.environmentId!),
+  )).returning();
+  await db.insert(platformAuditEventsTable).values({
+    actorUserId: req.localUserId!,
+    tenantId: req.tenantId!,
+    action: "itb_document_findings_applied",
+    details: JSON.stringify({ documentId: current.document.id, intakeId: intake.id, findingCount: accepted.length, environmentId: req.environmentId }),
+  });
+  res.json(serialize(updated, await getAttachments(updated.id)));
 });
 
 router.get("/itb-intakes/:intakeId/attachments/:attachmentId", async (req: TenantRequest, res) => {

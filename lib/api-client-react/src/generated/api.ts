@@ -71,6 +71,9 @@ import type {
   InvitationDetails,
   ItbAttachmentUpload,
   ItbAttachmentUploadInput,
+  ItbDocument,
+  ItbDocumentFindingUpdate,
+  ItbDocumentProcessInput,
   ItbIntake,
   ItbIntakeApprovalInput,
   ItbIntakeInput,
@@ -5672,6 +5675,375 @@ export const useMergeItbIntake = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getMergeItbIntakeMutationOptions(options));
+    }
+
+export const getListItbDocumentsUrl = (intakeId: number,) => {
+
+
+
+
+  return `/api/itb-intakes/${intakeId}/documents`
+}
+
+/**
+ * @summary List parsed documents attached to an ITB intake
+ */
+export const listItbDocuments = async (intakeId: number, options?: Parameters<typeof customFetch>[1]): Promise<ItbDocument[]> => {
+
+  return customFetch<ItbDocument[]>(getListItbDocumentsUrl(intakeId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListItbDocumentsQueryKey = (intakeId: number,) => {
+    return [
+    `/api/itb-intakes/${intakeId}/documents`
+    ] as const;
+    }
+
+
+export const getListItbDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listItbDocuments>>, TError = ErrorType<unknown>>(intakeId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listItbDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListItbDocumentsQueryKey(intakeId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listItbDocuments>>> = ({ signal }) => listItbDocuments(intakeId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: intakeId !== null && intakeId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listItbDocuments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListItbDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listItbDocuments>>>
+export type ListItbDocumentsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List parsed documents attached to an ITB intake
+ */
+
+export function useListItbDocuments<TData = Awaited<ReturnType<typeof listItbDocuments>>, TError = ErrorType<unknown>>(
+ intakeId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listItbDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListItbDocumentsQueryOptions(intakeId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getProcessItbDocumentUrl = (intakeId: number,) => {
+
+
+
+
+  return `/api/itb-intakes/${intakeId}/documents`
+}
+
+/**
+ * @summary Parse one protected intake attachment for human review
+ */
+export const processItbDocument = async (intakeId: number,
+    itbDocumentProcessInput: ItbDocumentProcessInput, options?: Parameters<typeof customFetch>[1]): Promise<ItbDocument> => {
+
+  return customFetch<ItbDocument>(getProcessItbDocumentUrl(intakeId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(itbDocumentProcessInput)
+  }
+);}
+
+
+
+
+
+export const getProcessItbDocumentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof processItbDocument>>, TError,{intakeId: number;data: BodyType<ItbDocumentProcessInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof processItbDocument>>, TError,{intakeId: number;data: BodyType<ItbDocumentProcessInput>}, TContext> => {
+
+const mutationKey = ['processItbDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof processItbDocument>>, {intakeId: number;data: BodyType<ItbDocumentProcessInput>}> = (props) => {
+          const {intakeId,data} = props ?? {};
+
+          return  processItbDocument(intakeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ProcessItbDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof processItbDocument>>>
+    export type ProcessItbDocumentMutationBody = BodyType<ItbDocumentProcessInput>
+    export type ProcessItbDocumentMutationError = ErrorType<void>
+
+    /**
+ * @summary Parse one protected intake attachment for human review
+ */
+export const useProcessItbDocument = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof processItbDocument>>, TError,{intakeId: number;data: BodyType<ItbDocumentProcessInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof processItbDocument>>,
+        TError,
+        {intakeId: number;data: BodyType<ItbDocumentProcessInput>},
+        TContext
+      > => {
+      return useMutation(getProcessItbDocumentMutationOptions(options));
+    }
+
+export const getRetryItbDocumentUrl = (intakeId: number,
+    documentId: number,) => {
+
+
+
+
+  return `/api/itb-intakes/${intakeId}/documents/${documentId}/retry`
+}
+
+/**
+ * @summary Retry a failed or review-needed document parse
+ */
+export const retryItbDocument = async (intakeId: number,
+    documentId: number, options?: Parameters<typeof customFetch>[1]): Promise<ItbDocument> => {
+
+  return customFetch<ItbDocument>(getRetryItbDocumentUrl(intakeId,documentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryItbDocumentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryItbDocument>>, TError,{intakeId: number;documentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryItbDocument>>, TError,{intakeId: number;documentId: number}, TContext> => {
+
+const mutationKey = ['retryItbDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryItbDocument>>, {intakeId: number;documentId: number}> = (props) => {
+          const {intakeId,documentId} = props ?? {};
+
+          return  retryItbDocument(intakeId,documentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryItbDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof retryItbDocument>>>
+
+    export type RetryItbDocumentMutationError = ErrorType<void>
+
+    /**
+ * @summary Retry a failed or review-needed document parse
+ */
+export const useRetryItbDocument = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryItbDocument>>, TError,{intakeId: number;documentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryItbDocument>>,
+        TError,
+        {intakeId: number;documentId: number},
+        TContext
+      > => {
+      return useMutation(getRetryItbDocumentMutationOptions(options));
+    }
+
+export const getReviewItbDocumentFindingsUrl = (intakeId: number,
+    documentId: number,) => {
+
+
+
+
+  return `/api/itb-intakes/${intakeId}/documents/${documentId}/findings`
+}
+
+/**
+ * @summary Accept, reject, or correct extracted document findings
+ */
+export const reviewItbDocumentFindings = async (intakeId: number,
+    documentId: number,
+    itbDocumentFindingUpdate: ItbDocumentFindingUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ItbDocument> => {
+
+  return customFetch<ItbDocument>(getReviewItbDocumentFindingsUrl(intakeId,documentId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(itbDocumentFindingUpdate)
+  }
+);}
+
+
+
+
+
+export const getReviewItbDocumentFindingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewItbDocumentFindings>>, TError,{intakeId: number;documentId: number;data: BodyType<ItbDocumentFindingUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewItbDocumentFindings>>, TError,{intakeId: number;documentId: number;data: BodyType<ItbDocumentFindingUpdate>}, TContext> => {
+
+const mutationKey = ['reviewItbDocumentFindings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewItbDocumentFindings>>, {intakeId: number;documentId: number;data: BodyType<ItbDocumentFindingUpdate>}> = (props) => {
+          const {intakeId,documentId,data} = props ?? {};
+
+          return  reviewItbDocumentFindings(intakeId,documentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewItbDocumentFindingsMutationResult = NonNullable<Awaited<ReturnType<typeof reviewItbDocumentFindings>>>
+    export type ReviewItbDocumentFindingsMutationBody = BodyType<ItbDocumentFindingUpdate>
+    export type ReviewItbDocumentFindingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Accept, reject, or correct extracted document findings
+ */
+export const useReviewItbDocumentFindings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewItbDocumentFindings>>, TError,{intakeId: number;documentId: number;data: BodyType<ItbDocumentFindingUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewItbDocumentFindings>>,
+        TError,
+        {intakeId: number;documentId: number;data: BodyType<ItbDocumentFindingUpdate>},
+        TContext
+      > => {
+      return useMutation(getReviewItbDocumentFindingsMutationOptions(options));
+    }
+
+export const getApplyItbDocumentFindingsUrl = (intakeId: number,
+    documentId: number,) => {
+
+
+
+
+  return `/api/itb-intakes/${intakeId}/documents/${documentId}/apply`
+}
+
+/**
+ * @summary Apply accepted document findings to the intake for final human approval
+ */
+export const applyItbDocumentFindings = async (intakeId: number,
+    documentId: number, options?: Parameters<typeof customFetch>[1]): Promise<ItbIntake> => {
+
+  return customFetch<ItbIntake>(getApplyItbDocumentFindingsUrl(intakeId,documentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApplyItbDocumentFindingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyItbDocumentFindings>>, TError,{intakeId: number;documentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyItbDocumentFindings>>, TError,{intakeId: number;documentId: number}, TContext> => {
+
+const mutationKey = ['applyItbDocumentFindings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyItbDocumentFindings>>, {intakeId: number;documentId: number}> = (props) => {
+          const {intakeId,documentId} = props ?? {};
+
+          return  applyItbDocumentFindings(intakeId,documentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyItbDocumentFindingsMutationResult = NonNullable<Awaited<ReturnType<typeof applyItbDocumentFindings>>>
+
+    export type ApplyItbDocumentFindingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Apply accepted document findings to the intake for final human approval
+ */
+export const useApplyItbDocumentFindings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyItbDocumentFindings>>, TError,{intakeId: number;documentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof applyItbDocumentFindings>>,
+        TError,
+        {intakeId: number;documentId: number},
+        TContext
+      > => {
+      return useMutation(getApplyItbDocumentFindingsMutationOptions(options));
     }
 
 export const getListOpportunitiesUrl = (params?: ListOpportunitiesParams,) => {

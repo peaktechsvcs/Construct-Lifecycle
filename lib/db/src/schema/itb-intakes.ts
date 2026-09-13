@@ -53,6 +53,35 @@ export const itbIntakeAttachmentsTable = pgTable("itb_intake_attachments", {
   uniqueIndex("itb_intake_attachments_source_idx").on(table.intakeId, table.sourceAttachmentId),
 ]);
 
+export const itbDocumentsTable = pgTable("itb_documents", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id, { onDelete: "cascade" }),
+  environmentId: integer("environment_id").notNull().references(() => environmentsTable.id, { onDelete: "cascade" }),
+  intakeId: integer("intake_id").notNull().references(() => itbIntakesTable.id, { onDelete: "cascade" }),
+  attachmentId: integer("attachment_id").notNull().references(() => itbIntakeAttachmentsTable.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("other"),
+  status: text("status").notNull().default("queued"),
+  parser: text("parser"),
+  parserVersion: text("parser_version"),
+  sha256: text("sha256").notNull(),
+  byteSize: integer("byte_size").notNull(),
+  pageCount: integer("page_count"),
+  extractedText: text("extracted_text"),
+  findingsJson: text("findings_json").notNull().default("[]"),
+  errorMessage: text("error_message"),
+  attemptCount: integer("attempt_count").notNull().default(0),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  createdByUserId: integer("created_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+  index("itb_documents_scope_intake_idx").on(table.tenantId, table.environmentId, table.intakeId),
+  uniqueIndex("itb_documents_attachment_idx").on(table.attachmentId),
+  uniqueIndex("itb_documents_scope_hash_idx").on(table.tenantId, table.environmentId, table.sha256),
+]);
+
+export type ItbDocument = typeof itbDocumentsTable.$inferSelect;
+
 export const itbMailboxCursorsTable = pgTable("itb_mailbox_cursors", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id").notNull().references(() => tenantsTable.id, { onDelete: "cascade" }),

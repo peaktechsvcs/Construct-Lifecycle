@@ -147,6 +147,120 @@ export interface ItbIntakeAttachment {
   createdAt: string;
 }
 
+export type ItbDocumentRole = typeof ItbDocumentRole[keyof typeof ItbDocumentRole];
+
+
+export const ItbDocumentRole = {
+  itb_invitation: 'itb_invitation',
+  scope: 'scope',
+  plans: 'plans',
+  specifications: 'specifications',
+  addendum: 'addendum',
+  other: 'other',
+} as const;
+
+export type ItbDocumentStatus = typeof ItbDocumentStatus[keyof typeof ItbDocumentStatus];
+
+
+export const ItbDocumentStatus = {
+  queued: 'queued',
+  processing: 'processing',
+  completed: 'completed',
+  needs_review: 'needs_review',
+  failed: 'failed',
+} as const;
+
+export type ItbDocumentFindingStatus = typeof ItbDocumentFindingStatus[keyof typeof ItbDocumentFindingStatus];
+
+
+export const ItbDocumentFindingStatus = {
+  proposed: 'proposed',
+  accepted: 'accepted',
+  rejected: 'rejected',
+  corrected: 'corrected',
+} as const;
+
+export interface ItbDocumentFinding {
+  /** @maxLength 120 */
+  key: string;
+  /** @maxLength 180 */
+  label: string;
+  /** @maxLength 500 */
+  value: string;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  confidence: number;
+  /** @maxLength 700 */
+  evidence: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  page?: number | null;
+  status: ItbDocumentFindingStatus;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  correctedValue?: string | null;
+}
+
+export interface ItbDocument {
+  id: number;
+  tenantId: number;
+  environmentId: number;
+  intakeId: number;
+  attachmentId: number;
+  originalName: string;
+  contentType: string;
+  downloadUrl?: string;
+  role: ItbDocumentRole;
+  status: ItbDocumentStatus;
+  /** @nullable */
+  parser: string | null;
+  /** @nullable */
+  parserVersion?: string | null;
+  sha256?: string;
+  /** @minimum 0 */
+  byteSize: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  pageCount?: number | null;
+  findings: ItbDocumentFinding[];
+  /** @nullable */
+  errorMessage?: string | null;
+  /** @minimum 0 */
+  attemptCount: number;
+  /** @nullable */
+  processedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ItbDocumentProcessInput {
+  /** @minimum 1 */
+  attachmentId: number;
+  role?: ItbDocumentRole;
+}
+
+export interface ItbDocumentFindingUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  key: string;
+  status: ItbDocumentFindingStatus;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  correctedValue?: string | null;
+}
+
 export interface ItbIntake {
   id: number;
   tenantId: number;

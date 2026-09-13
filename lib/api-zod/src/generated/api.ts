@@ -4920,6 +4920,458 @@ export const MergeItbIntakeResponse = zod.object({
 
 
 /**
+ * @summary List parsed documents attached to an ITB intake
+ */
+
+
+
+export const ListItbDocumentsParams = zod.object({
+  "intakeId": zod.coerce.number().int().min(1)
+})
+
+export const listItbDocumentsResponseByteSizeMin = 0;
+
+
+export const listItbDocumentsResponseFindingsItemKeyMax = 120;
+
+export const listItbDocumentsResponseFindingsItemLabelMax = 180;
+
+export const listItbDocumentsResponseFindingsItemValueMax = 500;
+
+export const listItbDocumentsResponseFindingsItemConfidenceMin = 0;
+export const listItbDocumentsResponseFindingsItemConfidenceMax = 1;
+
+export const listItbDocumentsResponseFindingsItemEvidenceMax = 700;
+
+
+export const listItbDocumentsResponseFindingsItemCorrectedValueMax = 500;
+
+export const listItbDocumentsResponseAttemptCountMin = 0;
+
+
+
+export const ListItbDocumentsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "intakeId": zod.number().int(),
+  "attachmentId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "downloadUrl": zod.string().optional(),
+  "role": zod.enum(['itb_invitation', 'scope', 'plans', 'specifications', 'addendum', 'other']),
+  "status": zod.enum(['queued', 'processing', 'completed', 'needs_review', 'failed']),
+  "parser": zod.string().nullable(),
+  "parserVersion": zod.string().nullish(),
+  "sha256": zod.string().optional(),
+  "byteSize": zod.number().int().min(listItbDocumentsResponseByteSizeMin),
+  "pageCount": zod.number().int().min(1).nullish(),
+  "findings": zod.array(zod.object({
+  "key": zod.string().max(listItbDocumentsResponseFindingsItemKeyMax),
+  "label": zod.string().max(listItbDocumentsResponseFindingsItemLabelMax),
+  "value": zod.string().max(listItbDocumentsResponseFindingsItemValueMax),
+  "confidence": zod.number().min(listItbDocumentsResponseFindingsItemConfidenceMin).max(listItbDocumentsResponseFindingsItemConfidenceMax),
+  "evidence": zod.string().max(listItbDocumentsResponseFindingsItemEvidenceMax),
+  "page": zod.number().int().min(1).nullish(),
+  "status": zod.enum(['proposed', 'accepted', 'rejected', 'corrected']),
+  "correctedValue": zod.string().max(listItbDocumentsResponseFindingsItemCorrectedValueMax).nullish()
+})),
+  "errorMessage": zod.string().nullish(),
+  "attemptCount": zod.number().int().min(listItbDocumentsResponseAttemptCountMin),
+  "processedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListItbDocumentsResponse = zod.array(ListItbDocumentsResponseItem)
+
+
+/**
+ * @summary Parse one protected intake attachment for human review
+ */
+
+
+
+export const ProcessItbDocumentParams = zod.object({
+  "intakeId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const ProcessItbDocumentBody = zod.object({
+  "attachmentId": zod.number().int().min(1),
+  "role": zod.enum(['itb_invitation', 'scope', 'plans', 'specifications', 'addendum', 'other']).optional()
+})
+
+export const processItbDocumentResponseByteSizeMin = 0;
+
+
+export const processItbDocumentResponseFindingsItemKeyMax = 120;
+
+export const processItbDocumentResponseFindingsItemLabelMax = 180;
+
+export const processItbDocumentResponseFindingsItemValueMax = 500;
+
+export const processItbDocumentResponseFindingsItemConfidenceMin = 0;
+export const processItbDocumentResponseFindingsItemConfidenceMax = 1;
+
+export const processItbDocumentResponseFindingsItemEvidenceMax = 700;
+
+
+export const processItbDocumentResponseFindingsItemCorrectedValueMax = 500;
+
+export const processItbDocumentResponseAttemptCountMin = 0;
+
+
+
+export const ProcessItbDocumentResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "intakeId": zod.number().int(),
+  "attachmentId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "downloadUrl": zod.string().optional(),
+  "role": zod.enum(['itb_invitation', 'scope', 'plans', 'specifications', 'addendum', 'other']),
+  "status": zod.enum(['queued', 'processing', 'completed', 'needs_review', 'failed']),
+  "parser": zod.string().nullable(),
+  "parserVersion": zod.string().nullish(),
+  "sha256": zod.string().optional(),
+  "byteSize": zod.number().int().min(processItbDocumentResponseByteSizeMin),
+  "pageCount": zod.number().int().min(1).nullish(),
+  "findings": zod.array(zod.object({
+  "key": zod.string().max(processItbDocumentResponseFindingsItemKeyMax),
+  "label": zod.string().max(processItbDocumentResponseFindingsItemLabelMax),
+  "value": zod.string().max(processItbDocumentResponseFindingsItemValueMax),
+  "confidence": zod.number().min(processItbDocumentResponseFindingsItemConfidenceMin).max(processItbDocumentResponseFindingsItemConfidenceMax),
+  "evidence": zod.string().max(processItbDocumentResponseFindingsItemEvidenceMax),
+  "page": zod.number().int().min(1).nullish(),
+  "status": zod.enum(['proposed', 'accepted', 'rejected', 'corrected']),
+  "correctedValue": zod.string().max(processItbDocumentResponseFindingsItemCorrectedValueMax).nullish()
+})),
+  "errorMessage": zod.string().nullish(),
+  "attemptCount": zod.number().int().min(processItbDocumentResponseAttemptCountMin),
+  "processedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Retry a failed or review-needed document parse
+ */
+
+
+
+
+export const RetryItbDocumentParams = zod.object({
+  "intakeId": zod.coerce.number().int().min(1),
+  "documentId": zod.coerce.number().int().min(1)
+})
+
+export const retryItbDocumentResponseByteSizeMin = 0;
+
+
+export const retryItbDocumentResponseFindingsItemKeyMax = 120;
+
+export const retryItbDocumentResponseFindingsItemLabelMax = 180;
+
+export const retryItbDocumentResponseFindingsItemValueMax = 500;
+
+export const retryItbDocumentResponseFindingsItemConfidenceMin = 0;
+export const retryItbDocumentResponseFindingsItemConfidenceMax = 1;
+
+export const retryItbDocumentResponseFindingsItemEvidenceMax = 700;
+
+
+export const retryItbDocumentResponseFindingsItemCorrectedValueMax = 500;
+
+export const retryItbDocumentResponseAttemptCountMin = 0;
+
+
+
+export const RetryItbDocumentResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "intakeId": zod.number().int(),
+  "attachmentId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "downloadUrl": zod.string().optional(),
+  "role": zod.enum(['itb_invitation', 'scope', 'plans', 'specifications', 'addendum', 'other']),
+  "status": zod.enum(['queued', 'processing', 'completed', 'needs_review', 'failed']),
+  "parser": zod.string().nullable(),
+  "parserVersion": zod.string().nullish(),
+  "sha256": zod.string().optional(),
+  "byteSize": zod.number().int().min(retryItbDocumentResponseByteSizeMin),
+  "pageCount": zod.number().int().min(1).nullish(),
+  "findings": zod.array(zod.object({
+  "key": zod.string().max(retryItbDocumentResponseFindingsItemKeyMax),
+  "label": zod.string().max(retryItbDocumentResponseFindingsItemLabelMax),
+  "value": zod.string().max(retryItbDocumentResponseFindingsItemValueMax),
+  "confidence": zod.number().min(retryItbDocumentResponseFindingsItemConfidenceMin).max(retryItbDocumentResponseFindingsItemConfidenceMax),
+  "evidence": zod.string().max(retryItbDocumentResponseFindingsItemEvidenceMax),
+  "page": zod.number().int().min(1).nullish(),
+  "status": zod.enum(['proposed', 'accepted', 'rejected', 'corrected']),
+  "correctedValue": zod.string().max(retryItbDocumentResponseFindingsItemCorrectedValueMax).nullish()
+})),
+  "errorMessage": zod.string().nullish(),
+  "attemptCount": zod.number().int().min(retryItbDocumentResponseAttemptCountMin),
+  "processedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Accept, reject, or correct extracted document findings
+ */
+
+
+
+
+export const ReviewItbDocumentFindingsParams = zod.object({
+  "intakeId": zod.coerce.number().int().min(1),
+  "documentId": zod.coerce.number().int().min(1)
+})
+
+export const reviewItbDocumentFindingsBodyKeyMax = 120;
+
+export const reviewItbDocumentFindingsBodyCorrectedValueMax = 500;
+
+
+
+export const ReviewItbDocumentFindingsBody = zod.object({
+  "key": zod.string().min(1).max(reviewItbDocumentFindingsBodyKeyMax),
+  "status": zod.enum(['proposed', 'accepted', 'rejected', 'corrected']),
+  "correctedValue": zod.string().max(reviewItbDocumentFindingsBodyCorrectedValueMax).nullish()
+})
+
+export const reviewItbDocumentFindingsResponseByteSizeMin = 0;
+
+
+export const reviewItbDocumentFindingsResponseFindingsItemKeyMax = 120;
+
+export const reviewItbDocumentFindingsResponseFindingsItemLabelMax = 180;
+
+export const reviewItbDocumentFindingsResponseFindingsItemValueMax = 500;
+
+export const reviewItbDocumentFindingsResponseFindingsItemConfidenceMin = 0;
+export const reviewItbDocumentFindingsResponseFindingsItemConfidenceMax = 1;
+
+export const reviewItbDocumentFindingsResponseFindingsItemEvidenceMax = 700;
+
+
+export const reviewItbDocumentFindingsResponseFindingsItemCorrectedValueMax = 500;
+
+export const reviewItbDocumentFindingsResponseAttemptCountMin = 0;
+
+
+
+export const ReviewItbDocumentFindingsResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "intakeId": zod.number().int(),
+  "attachmentId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "downloadUrl": zod.string().optional(),
+  "role": zod.enum(['itb_invitation', 'scope', 'plans', 'specifications', 'addendum', 'other']),
+  "status": zod.enum(['queued', 'processing', 'completed', 'needs_review', 'failed']),
+  "parser": zod.string().nullable(),
+  "parserVersion": zod.string().nullish(),
+  "sha256": zod.string().optional(),
+  "byteSize": zod.number().int().min(reviewItbDocumentFindingsResponseByteSizeMin),
+  "pageCount": zod.number().int().min(1).nullish(),
+  "findings": zod.array(zod.object({
+  "key": zod.string().max(reviewItbDocumentFindingsResponseFindingsItemKeyMax),
+  "label": zod.string().max(reviewItbDocumentFindingsResponseFindingsItemLabelMax),
+  "value": zod.string().max(reviewItbDocumentFindingsResponseFindingsItemValueMax),
+  "confidence": zod.number().min(reviewItbDocumentFindingsResponseFindingsItemConfidenceMin).max(reviewItbDocumentFindingsResponseFindingsItemConfidenceMax),
+  "evidence": zod.string().max(reviewItbDocumentFindingsResponseFindingsItemEvidenceMax),
+  "page": zod.number().int().min(1).nullish(),
+  "status": zod.enum(['proposed', 'accepted', 'rejected', 'corrected']),
+  "correctedValue": zod.string().max(reviewItbDocumentFindingsResponseFindingsItemCorrectedValueMax).nullish()
+})),
+  "errorMessage": zod.string().nullish(),
+  "attemptCount": zod.number().int().min(reviewItbDocumentFindingsResponseAttemptCountMin),
+  "processedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Apply accepted document findings to the intake for final human approval
+ */
+
+
+
+
+export const ApplyItbDocumentFindingsParams = zod.object({
+  "intakeId": zod.coerce.number().int().min(1),
+  "documentId": zod.coerce.number().int().min(1)
+})
+
+export const applyItbDocumentFindingsResponseSourceBodyMax = 200000;
+
+export const applyItbDocumentFindingsResponseExtractionIssuerConfidenceMin = 0;
+export const applyItbDocumentFindingsResponseExtractionIssuerConfidenceMax = 1;
+
+export const applyItbDocumentFindingsResponseExtractionIssuerEvidenceMax = 1000;
+
+export const applyItbDocumentFindingsResponseExtractionContactNameConfidenceMin = 0;
+export const applyItbDocumentFindingsResponseExtractionContactNameConfidenceMax = 1;
+
+export const applyItbDocumentFindingsResponseExtractionContactNameEvidenceMax = 1000;
+
+export const applyItbDocumentFindingsResponseExtractionContactEmailConfidenceMin = 0;
+export const applyItbDocumentFindingsResponseExtractionContactEmailConfidenceMax = 1;
+
+export const applyItbDocumentFindingsResponseExtractionContactEmailEvidenceMax = 1000;
+
+export const applyItbDocumentFindingsResponseExtractionContactPhoneConfidenceMin = 0;
+export const applyItbDocumentFindingsResponseExtractionContactPhoneConfidenceMax = 1;
+
+export const applyItbDocumentFindingsResponseExtractionContactPhoneEvidenceMax = 1000;
+
+export const applyItbDocumentFindingsResponseExtractionProjectNameConfidenceMin = 0;
+export const applyItbDocumentFindingsResponseExtractionProjectNameConfidenceMax = 1;
+
+export const applyItbDocumentFindingsResponseExtractionProjectNameEvidenceMax = 1000;
+
+export const applyItbDocumentFindingsResponseExtractionLocationConfidenceMin = 0;
+export const applyItbDocumentFindingsResponseExtractionLocationConfidenceMax = 1;
+
+export const applyItbDocumentFindingsResponseExtractionLocationEvidenceMax = 1000;
+
+export const applyItbDocumentFindingsResponseExtractionDueDateConfidenceMin = 0;
+export const applyItbDocumentFindingsResponseExtractionDueDateConfidenceMax = 1;
+
+export const applyItbDocumentFindingsResponseExtractionDueDateEvidenceMax = 1000;
+
+export const applyItbDocumentFindingsResponseExtractionScopeItemConfidenceMin = 0;
+export const applyItbDocumentFindingsResponseExtractionScopeItemConfidenceMax = 1;
+
+export const applyItbDocumentFindingsResponseExtractionScopeItemEvidenceMax = 1000;
+
+export const applyItbDocumentFindingsResponseExtractionRequirementsItemConfidenceMin = 0;
+export const applyItbDocumentFindingsResponseExtractionRequirementsItemConfidenceMax = 1;
+
+export const applyItbDocumentFindingsResponseExtractionRequirementsItemEvidenceMax = 1000;
+
+export const applyItbDocumentFindingsResponseExtractionAlternatesItemConfidenceMin = 0;
+export const applyItbDocumentFindingsResponseExtractionAlternatesItemConfidenceMax = 1;
+
+export const applyItbDocumentFindingsResponseExtractionAlternatesItemEvidenceMax = 1000;
+
+export const applyItbDocumentFindingsResponseExtractionEstimatedValueConfidenceMin = 0;
+export const applyItbDocumentFindingsResponseExtractionEstimatedValueConfidenceMax = 1;
+
+export const applyItbDocumentFindingsResponseExtractionEstimatedValueEvidenceMax = 1000;
+
+export const applyItbDocumentFindingsResponseAttachmentsItemSizeMin = 0;
+
+
+
+export const ApplyItbDocumentFindingsResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceProvider": zod.string().nullish(),
+  "sourceMessageId": zod.string().nullish(),
+  "sourceThreadId": zod.string().nullish(),
+  "sourceMailbox": zod.string().nullish(),
+  "sourceSender": zod.string().nullish(),
+  "sourceSenderEmail": zod.string().email().nullish(),
+  "sourceSubject": zod.string().nullish(),
+  "sourceReceivedAt": zod.coerce.date().nullish(),
+  "sourceBody": zod.string().max(applyItbDocumentFindingsResponseSourceBodyMax).optional(),
+  "status": zod.enum(['review', 'approved', 'rejected', 'archived', 'failed']),
+  "extractionStatus": zod.enum(['completed', 'partial', 'failed']),
+  "extraction": zod.object({
+  "issuer": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(applyItbDocumentFindingsResponseExtractionIssuerConfidenceMin).max(applyItbDocumentFindingsResponseExtractionIssuerConfidenceMax),
+  "evidence": zod.string().max(applyItbDocumentFindingsResponseExtractionIssuerEvidenceMax)
+}),
+  "contactName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(applyItbDocumentFindingsResponseExtractionContactNameConfidenceMin).max(applyItbDocumentFindingsResponseExtractionContactNameConfidenceMax),
+  "evidence": zod.string().max(applyItbDocumentFindingsResponseExtractionContactNameEvidenceMax)
+}),
+  "contactEmail": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(applyItbDocumentFindingsResponseExtractionContactEmailConfidenceMin).max(applyItbDocumentFindingsResponseExtractionContactEmailConfidenceMax),
+  "evidence": zod.string().max(applyItbDocumentFindingsResponseExtractionContactEmailEvidenceMax)
+}),
+  "contactPhone": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(applyItbDocumentFindingsResponseExtractionContactPhoneConfidenceMin).max(applyItbDocumentFindingsResponseExtractionContactPhoneConfidenceMax),
+  "evidence": zod.string().max(applyItbDocumentFindingsResponseExtractionContactPhoneEvidenceMax)
+}),
+  "projectName": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(applyItbDocumentFindingsResponseExtractionProjectNameConfidenceMin).max(applyItbDocumentFindingsResponseExtractionProjectNameConfidenceMax),
+  "evidence": zod.string().max(applyItbDocumentFindingsResponseExtractionProjectNameEvidenceMax)
+}),
+  "location": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(applyItbDocumentFindingsResponseExtractionLocationConfidenceMin).max(applyItbDocumentFindingsResponseExtractionLocationConfidenceMax),
+  "evidence": zod.string().max(applyItbDocumentFindingsResponseExtractionLocationEvidenceMax)
+}),
+  "dueDate": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(applyItbDocumentFindingsResponseExtractionDueDateConfidenceMin).max(applyItbDocumentFindingsResponseExtractionDueDateConfidenceMax),
+  "evidence": zod.string().max(applyItbDocumentFindingsResponseExtractionDueDateEvidenceMax)
+}),
+  "scope": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(applyItbDocumentFindingsResponseExtractionScopeItemConfidenceMin).max(applyItbDocumentFindingsResponseExtractionScopeItemConfidenceMax),
+  "evidence": zod.string().max(applyItbDocumentFindingsResponseExtractionScopeItemEvidenceMax)
+})),
+  "requirements": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(applyItbDocumentFindingsResponseExtractionRequirementsItemConfidenceMin).max(applyItbDocumentFindingsResponseExtractionRequirementsItemConfidenceMax),
+  "evidence": zod.string().max(applyItbDocumentFindingsResponseExtractionRequirementsItemEvidenceMax)
+})),
+  "alternates": zod.array(zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(applyItbDocumentFindingsResponseExtractionAlternatesItemConfidenceMin).max(applyItbDocumentFindingsResponseExtractionAlternatesItemConfidenceMax),
+  "evidence": zod.string().max(applyItbDocumentFindingsResponseExtractionAlternatesItemEvidenceMax)
+})),
+  "estimatedValue": zod.object({
+  "value": zod.string().nullable(),
+  "confidence": zod.number().min(applyItbDocumentFindingsResponseExtractionEstimatedValueConfidenceMin).max(applyItbDocumentFindingsResponseExtractionEstimatedValueConfidenceMax),
+  "evidence": zod.string().max(applyItbDocumentFindingsResponseExtractionEstimatedValueEvidenceMax)
+})
+}),
+  "warnings": zod.array(zod.string()),
+  "errorMessage": zod.string().nullish(),
+  "businessCustomerId": zod.number().int().nullish(),
+  "opportunityId": zod.number().int().nullish(),
+  "bidId": zod.number().int().nullish(),
+  "mergedIntoId": zod.number().int().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int().min(applyItbDocumentFindingsResponseAttachmentsItemSizeMin),
+  "downloadUrl": zod.string(),
+  "sourceAttachmentId": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary List opportunities for the active customer environment
  */
 export const listOpportunitiesQuerySearchMax = 120;

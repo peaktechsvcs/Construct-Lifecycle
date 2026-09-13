@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Archive, CheckCircle2, ChevronRight, ExternalLink, FileText, Inbox,
+  Archive, Check, CheckCircle2, ChevronRight, ExternalLink, FileText, Inbox,
   Mail, Paperclip, Plus, RefreshCw, Search, ShieldCheck, Upload, XCircle,
+  RotateCcw,
 } from 'lucide-react';
 import {
   ItbIntake, ItbIntakeApprovalInput, ItbIntakeInput, ItbIntakeStatus,
   useApproveItbIntake, useCreateItbIntake, useGetItbIntake, useImportItbMailboxMessage, useMergeItbIntake,
-  useListBusinessCustomers, useListItbIntakes, usePreviewItbMailbox,
+  useListBusinessCustomers, useListItbDocuments, useListItbIntakes, usePreviewItbMailbox,
+  useApplyItbDocumentFindings, useProcessItbDocument, useRetryItbDocument, useReviewItbDocumentFindings,
   useRequestItbAttachmentUpload, useUpdateItbIntake,
-  getGetItbIntakeQueryKey, getListBusinessCustomersQueryKey, getListItbIntakesQueryKey,
+  getGetItbIntakeQueryKey, getListBusinessCustomersQueryKey, getListItbDocumentsQueryKey, getListItbIntakesQueryKey,
   getPreviewItbMailboxQueryKey,
 } from '@workspace/api-client-react';
 import { Button, Badge, EmptyState, ErrorPanel, LoadingPanel, Modal, PageTitle } from '@/components/app-ui';
@@ -68,6 +70,40 @@ function Mailbox({ onImported }: { onImported: (id: number) => void }) {
   </div></Modal>;
 }
 
+function DocumentReview({ intakeId, attachments }: { intakeId: number; attachments: ItbIntake['attachments'] }) {
+  const qc = useQueryClient();
+  const documents = useListItbDocuments(intakeId, { query: { queryKey: getListItbDocumentsQueryKey(intakeId) } });
+  const process = useProcessItbDocument();
+  const retry = useRetryItbDocument();
+  const review = useReviewItbDocumentFindings();
+  const apply = useApplyItbDocumentFindings();
+  const refresh = () => qc.invalidateQueries({ queryKey: getListItbDocumentsQueryKey(intakeId) });
+  return <section className="rounded-xl border border-border bg-card p-4">
+    <div className="mb-4 flex items-start justify-between gap-3"><div><p className="mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Document parsing</p><p className="mt-1 text-xs text-muted-foreground">Protected files are parsed into evidence for review. Nothing is routed automatically.</p></div><Badge tone="neutral">Human review</Badge></div>
+    {documents.isLoading ? <LoadingPanel lines={4} /> : documents.isError ? <ErrorPanel onRetry={() => documents.refetch()} /> : attachments.length === 0 ? <p className="text-xs text-muted-foreground">No protected documents are attached to this intake.</p> : <div className="space-y-3">{attachments.map((attachment) => {
+      const document = documents.data?.find((item) => item.attachmentId === attachment.id);
+      return <div key={attachment.id} className="rounded-lg border border-border bg-background p-3">
+        <div className="flex flex-wrap items-center gap-2"><Paperclip size={14} className="text-accent" /><span className="min-w-0 flex-1 truncate text-xs font-semibold">{attachment.originalName}</span>{document && <Badge tone={document.status === 'completed' ? 'green' : document.status === 'failed' ? 'red' : 'orange'}>{document.status.replace('_', ' ')}</Badge>}{!document && <Button variant="outline" className="h-8" onClick={() => process.mutate({ intakeId, data: { attachmentId: attachment.id } }, { onSuccess: refresh })} disabled={process.isPending}><FileText size={13} /> {process.isPending ? 'Parsing…' : 'Parse document'}</Button>}{document && ['failed', 'needs_review'].includes(document.status) && document.attemptCount < 3 && <Button variant="ghost" className="h-8" onClick={() => retry.mutate({ intakeId, documentId: document.id }, { onSuccess: refresh })} disabled={retry.isPending}><RotateCcw size={13} /> Retry</Button>}</div>
+        {document?.errorMessage && <p className="mt-2 text-xs text-status-warning">{document.errorMessage}</p>}
+        {document?.findings && document.findings.length > 0 && <div className="mt-3 space-y-2">{document.findings.map((finding) => <DocumentFinding key={finding.key} intakeId={intakeId} documentId={document.id} finding={finding} onSaved={refresh} />)}{document.findings.some((finding) => finding.status === 'accepted' || finding.status === 'corrected') && <Button variant="outline" className="mt-2 h-8 w-full" onClick={() => apply.mutate({ intakeId, documentId: document.id })} disabled={apply.isPending}><CheckCircle2 size={13} /> {apply.isPending ? 'Applying to intake…' : 'Apply accepted findings to intake'}</Button>}</div>}
+        {document?.status === 'completed' && document.findings.length === 0 && <p className="mt-3 text-xs text-muted-foreground">Text was extracted, but no structured findings were detected.</p>}
+      </div>;
+    })}</div>}
+  </section>;
+}
+
+function DocumentFinding({ intakeId, documentId, finding, onSaved }: { intakeId: number; documentId: number; finding: { key: string; label: string; value: string; confidence: number; evidence: string; page?: number | null; status: string; correctedValue?: string | null }; onSaved: () => void }) {
+  const review = useReviewItbDocumentFindings();
+  const [value, setValue] = useState(finding.correctedValue ?? finding.value);
+  const save = (status: 'accepted' | 'rejected' | 'corrected') => review.mutate({ intakeId, documentId, data: { key: finding.key, status, correctedValue: status === 'corrected' ? value : undefined } }, { onSuccess: onSaved });
+  return <div className="rounded-md border border-border bg-card p-3">
+    <div className="flex items-start justify-between gap-2"><div><p className="text-xs font-semibold">{finding.label}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{Math.round(finding.confidence * 100)}% confidence{finding.page ? ` · page ${finding.page}` : ''}</p></div><Badge tone={finding.status === 'accepted' || finding.status === 'corrected' ? 'green' : finding.status === 'rejected' ? 'red' : 'orange'}>{finding.status}</Badge></div>
+    <Input className="mt-2 h-8 text-xs" value={value} onChange={(event) => setValue(event.target.value)} aria-label={`Correct ${finding.label}`} />
+    <p className="mt-2 border-l-2 border-accent/40 pl-2 text-[11px] leading-4 text-muted-foreground">Evidence: {finding.evidence}</p>
+    <div className="mt-2 flex flex-wrap justify-end gap-2"><Button variant="ghost" className="h-7 text-[11px]" onClick={() => save('rejected')} disabled={review.isPending}>Reject</Button><Button variant="ghost" className="h-7 text-[11px]" onClick={() => save('accepted')} disabled={review.isPending}><Check size={12} /> Accept</Button><Button variant="outline" className="h-7 text-[11px]" onClick={() => save('corrected')} disabled={review.isPending}>Save correction</Button></div>
+  </div>;
+}
+
 function IntakeDetail({ id, onChanged, candidates }: { id: number; onChanged: () => void; candidates: ItbIntake[] }) {
   const qc = useQueryClient(); const query = useGetItbIntake(id, { query: { queryKey: getGetItbIntakeQueryKey(id) } });
   const update = useUpdateItbIntake(); const approve = useApproveItbIntake(); const merge = useMergeItbIntake();
@@ -85,6 +121,7 @@ function IntakeDetail({ id, onChanged, candidates }: { id: number; onChanged: ()
     {intake.warnings.length > 0 && <div className="rounded-lg border border-status-warning/30 bg-status-warning/10 p-3 text-xs text-status-warning">{intake.warnings.join(' ')}</div>}
     <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]"><section className="rounded-xl border border-border bg-card p-4"><div className="mb-4 flex items-center justify-between"><p className="mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Extracted fields</p><span className="text-xs text-muted-foreground">Review before approval</span></div><div className="grid gap-3 sm:grid-cols-2">{(['projectName', 'issuer', 'contactName', 'contactEmail', 'contactPhone', 'location', 'dueDate', 'estimatedValue'] as const).map((key) => <Field key={key} name={key} value={extraction[key].value || ''} confidence={extraction[key].confidence} evidence={extraction[key].evidence} onChange={(value) => patchField(key, value)} />)}</div></section>
       <aside className="space-y-4"><section className="rounded-xl border border-border bg-card p-4"><p className="mono mb-3 text-[10px] uppercase tracking-[.14em] text-muted-foreground">Source evidence</p><div className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-secondary/45 p-3 text-xs leading-5">{sourceBody || 'Source body is available to the extraction service but was not returned by this API response.'}</div></section><section className="rounded-xl border border-border bg-card p-4"><p className="mono mb-3 text-[10px] uppercase tracking-[.14em] text-muted-foreground">Protected attachments</p>{intake.attachments.length === 0 ? <p className="text-xs text-muted-foreground">No attachments on this intake.</p> : intake.attachments.map((attachment) => <a key={attachment.id} href={attachment.downloadUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-md px-2 py-2 text-xs font-semibold hover:bg-secondary"><Paperclip size={14} className="text-accent" /> <span className="min-w-0 flex-1 truncate">{attachment.originalName}</span><ExternalLink size={13} /></a>)}</section></aside></div>
+    <DocumentReview intakeId={id} attachments={intake.attachments} />
     {intake.status === 'review' && <section className="rounded-xl border border-accent/25 bg-accent/5 p-4"><p className="mono mb-3 text-[10px] uppercase tracking-[.14em] text-accent">Human approval gate</p><div className="grid gap-3 md:grid-cols-2"><label><span className="mb-1.5 block text-xs font-semibold">Business customer</span><Select value={customer} onValueChange={setCustomer}><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger><SelectContent className="bg-popover">{(customers.data ?? []).map((item) => <SelectItem key={item.id} value={String(item.id)}>{item.companyName}</SelectItem>)}</SelectContent></Select></label><label className="flex items-center gap-2 self-end pb-2 text-xs"><input type="checkbox" checked={createOpportunity} onChange={(e) => setCreateOpportunity(e.target.checked)} /> Create opportunity</label><label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={createBid} onChange={(e) => setCreateBid(e.target.checked)} /> Create bid</label>{createBid && <label><span className="mb-1.5 block text-xs font-semibold">Optional bid name</span><Input value={bidName} onChange={(e) => setBidName(e.target.value)} placeholder={extraction.projectName.value || 'Bid name'} /></label>}</div><div className="mt-4 flex flex-wrap items-end justify-end gap-2 border-t border-accent/15 pt-4"><label className="mr-auto min-w-[210px]"><span className="mb-1.5 block text-xs font-semibold">Merge duplicate into</span><Select value={mergeTarget || 'none'} onValueChange={(value) => setMergeTarget(value === 'none' ? '' : value)}><SelectTrigger><SelectValue placeholder="Choose surviving intake" /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="none">No merge</SelectItem>{candidates.filter((candidate) => candidate.id !== id && ['review', 'failed'].includes(candidate.status)).map((candidate) => <SelectItem key={candidate.id} value={String(candidate.id)}>{candidate.sourceSubject || `Intake #${candidate.id}`}</SelectItem>)}</SelectContent></Select></label>{mergeTarget && <Button variant="outline" onClick={mergeIntake} disabled={merge.isPending}><Archive size={15} /> {merge.isPending ? 'Merging…' : 'Merge duplicate'}</Button>}<Button variant="danger" onClick={() => decision('rejected')} disabled={update.isPending}><XCircle size={15} /> Reject</Button><Button variant="outline" onClick={() => decision('archived')} disabled={update.isPending}><Archive size={15} /> Archive</Button><Button onClick={approveIntake} disabled={!customer || approve.isPending}><CheckCircle2 size={15} /> {approve.isPending ? 'Approving…' : 'Approve intake'}</Button></div></section>}
   </div>;
 }

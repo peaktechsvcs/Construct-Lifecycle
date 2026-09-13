@@ -1297,6 +1297,92 @@ paths:
               schema: { $ref: "#/components/schemas/ItbIntake" }
         "404": { description: Target intake not found }
         "409": { description: Intake cannot be merged }
+  /itb-intakes/{intakeId}/documents:
+    get:
+      operationId: listItbDocuments
+      tags: [itb-intakes]
+      summary: List parsed documents attached to an ITB intake
+      parameters:
+        - $ref: "#/components/parameters/ItbIntakeId"
+      responses:
+        "200":
+          description: Protected intake documents and reviewable findings
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ItbDocument" }
+    post:
+      operationId: processItbDocument
+      tags: [itb-intakes]
+      summary: Parse one protected intake attachment for human review
+      parameters:
+        - $ref: "#/components/parameters/ItbIntakeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItbDocumentProcessInput" }
+      responses:
+        "201":
+          description: Parsed document or document needing review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItbDocument" }
+        "404": { description: Intake or attachment not found }
+        "409": { description: Attachment was already processed or cannot be processed }
+  /itb-intakes/{intakeId}/documents/{documentId}/retry:
+    post:
+      operationId: retryItbDocument
+      tags: [itb-intakes]
+      summary: Retry a failed or review-needed document parse
+      parameters:
+        - $ref: "#/components/parameters/ItbIntakeId"
+        - $ref: "#/components/parameters/ItbDocumentId"
+      responses:
+        "200":
+          description: Reprocessed document
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItbDocument" }
+        "404": { description: Document not found }
+        "409": { description: Document retry limit reached }
+  /itb-intakes/{intakeId}/documents/{documentId}/findings:
+    patch:
+      operationId: reviewItbDocumentFindings
+      tags: [itb-intakes]
+      summary: Accept, reject, or correct extracted document findings
+      parameters:
+        - $ref: "#/components/parameters/ItbIntakeId"
+        - $ref: "#/components/parameters/ItbDocumentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItbDocumentFindingUpdate" }
+      responses:
+        "200":
+          description: Document with updated findings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItbDocument" }
+        "404": { description: Document not found }
+  /itb-intakes/{intakeId}/documents/{documentId}/apply:
+    post:
+      operationId: applyItbDocumentFindings
+      tags: [itb-intakes]
+      summary: Apply accepted document findings to the intake for final human approval
+      parameters:
+        - $ref: "#/components/parameters/ItbIntakeId"
+        - $ref: "#/components/parameters/ItbDocumentId"
+      responses:
+        "200":
+          description: Intake updated with accepted document evidence
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItbIntake" }
+        "404": { description: Document not found }
+        "409": { description: Intake is already approved or no findings are accepted }
   /opportunities:
     get:
       operationId: listOpportunities
@@ -2924,6 +3010,11 @@ components:
       name: intakeId
       required: true
       schema: { type: integer, minimum: 1 }
+    ItbDocumentId:
+      in: path
+      name: documentId
+      required: true
+      schema: { type: integer, minimum: 1 }
     ProjectId:
       in: path
       name: projectId
@@ -3196,6 +3287,67 @@ components:
         downloadUrl: { type: string }
         sourceAttachmentId: { type: ["string", "null"] }
         createdAt: { type: string, format: date-time }
+    ItbDocumentRole:
+      type: string
+      enum: [itb_invitation, scope, plans, specifications, addendum, other]
+    ItbDocumentStatus:
+      type: string
+      enum: [queued, processing, completed, needs_review, failed]
+    ItbDocumentFindingStatus:
+      type: string
+      enum: [proposed, accepted, rejected, corrected]
+    ItbDocumentFinding:
+      type: object
+      required: [key, label, value, confidence, evidence, status]
+      properties:
+        key: { type: string, maxLength: 120 }
+        label: { type: string, maxLength: 180 }
+        value: { type: string, maxLength: 500 }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        evidence: { type: string, maxLength: 700 }
+        page: { type: ["integer", "null"], minimum: 1 }
+        status: { $ref: "#/components/schemas/ItbDocumentFindingStatus" }
+        correctedValue: { type: ["string", "null"], maxLength: 500 }
+    ItbDocument:
+      type: object
+      required: [id, tenantId, environmentId, intakeId, attachmentId, originalName, contentType, role, status, parser, byteSize, findings, attemptCount, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        environmentId: { type: integer }
+        intakeId: { type: integer }
+        attachmentId: { type: integer }
+        originalName: { type: string }
+        contentType: { type: string }
+        downloadUrl: { type: string }
+        role: { $ref: "#/components/schemas/ItbDocumentRole" }
+        status: { $ref: "#/components/schemas/ItbDocumentStatus" }
+        parser: { type: ["string", "null"] }
+        parserVersion: { type: ["string", "null"] }
+        sha256: { type: string }
+        byteSize: { type: integer, minimum: 0 }
+        pageCount: { type: ["integer", "null"], minimum: 1 }
+        findings:
+          type: array
+          items: { $ref: "#/components/schemas/ItbDocumentFinding" }
+        errorMessage: { type: ["string", "null"] }
+        attemptCount: { type: integer, minimum: 0 }
+        processedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ItbDocumentProcessInput:
+      type: object
+      required: [attachmentId]
+      properties:
+        attachmentId: { type: integer, minimum: 1 }
+        role: { $ref: "#/components/schemas/ItbDocumentRole" }
+    ItbDocumentFindingUpdate:
+      type: object
+      required: [key, status]
+      properties:
+        key: { type: string, minLength: 1, maxLength: 120 }
+        status: { $ref: "#/components/schemas/ItbDocumentFindingStatus" }
+        correctedValue: { type: ["string", "null"], maxLength: 500 }
     ItbIntake:
       type: object
       required: [id, tenantId, environmentId, sourceType, sourceFingerprint, status, extractionStatus, extraction, warnings, attachments, createdAt, updatedAt]
