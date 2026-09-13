@@ -4074,6 +4074,7 @@ export type IntegrationCatalogItemCategory = typeof IntegrationCatalogItemCatego
 
 
 export const IntegrationCatalogItemCategory = {
+  productivity_collaboration: 'productivity_collaboration',
   erp_financial: 'erp_financial',
   accounting: 'accounting',
   takeoff_estimating: 'takeoff_estimating',
@@ -4133,6 +4134,7 @@ export interface IntegrationCatalogItem {
   capabilities: string[];
   connectorStatus: IntegrationCatalogItemConnectorStatus;
   entitlement: IntegrationCatalogItemEntitlement;
+  supportsConnection: boolean;
   connection: IntegrationConnection | null;
   activity: IntegrationActivitySummary;
 }

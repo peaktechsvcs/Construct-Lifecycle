@@ -72,6 +72,7 @@ import type {
   HealthStatus,
   IntegrationActivity,
   IntegrationCatalogItem,
+  IntegrationConnection,
   InvitationDetails,
   ItbAttachmentUpload,
   ItbAttachmentUploadInput,
@@ -14566,6 +14567,148 @@ export function useListIntegrations<TData = Awaited<ReturnType<typeof listIntegr
 
 
 
+
+export const getConnectIntegrationUrl = (providerKey: string,) => {
+
+
+
+
+  return `/api/integrations/${providerKey}/connect`
+}
+
+/**
+ * @summary Attach an authorized managed connector to the active customer environment
+ */
+export const connectIntegration = async (providerKey: string, options?: Parameters<typeof customFetch>[1]): Promise<IntegrationConnection> => {
+
+  return customFetch<IntegrationConnection>(getConnectIntegrationUrl(providerKey),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getConnectIntegrationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof connectIntegration>>, TError,{providerKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof connectIntegration>>, TError,{providerKey: string}, TContext> => {
+
+const mutationKey = ['connectIntegration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof connectIntegration>>, {providerKey: string}> = (props) => {
+          const {providerKey} = props ?? {};
+
+          return  connectIntegration(providerKey,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConnectIntegrationMutationResult = NonNullable<Awaited<ReturnType<typeof connectIntegration>>>
+
+    export type ConnectIntegrationMutationError = ErrorType<void>
+
+    /**
+ * @summary Attach an authorized managed connector to the active customer environment
+ */
+export const useConnectIntegration = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof connectIntegration>>, TError,{providerKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof connectIntegration>>,
+        TError,
+        {providerKey: string},
+        TContext
+      > => {
+      return useMutation(getConnectIntegrationMutationOptions(options));
+    }
+
+export const getRevokeIntegrationUrl = (providerKey: string,) => {
+
+
+
+
+  return `/api/integrations/${providerKey}/revoke`
+}
+
+/**
+ * @summary Revoke this customer environment's access to a managed connector
+ */
+export const revokeIntegration = async (providerKey: string, options?: Parameters<typeof customFetch>[1]): Promise<IntegrationConnection> => {
+
+  return customFetch<IntegrationConnection>(getRevokeIntegrationUrl(providerKey),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeIntegrationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeIntegration>>, TError,{providerKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeIntegration>>, TError,{providerKey: string}, TContext> => {
+
+const mutationKey = ['revokeIntegration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeIntegration>>, {providerKey: string}> = (props) => {
+          const {providerKey} = props ?? {};
+
+          return  revokeIntegration(providerKey,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeIntegrationMutationResult = NonNullable<Awaited<ReturnType<typeof revokeIntegration>>>
+
+    export type RevokeIntegrationMutationError = ErrorType<void>
+
+    /**
+ * @summary Revoke this customer environment's access to a managed connector
+ */
+export const useRevokeIntegration = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeIntegration>>, TError,{providerKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeIntegration>>,
+        TError,
+        {providerKey: string},
+        TContext
+      > => {
+      return useMutation(getRevokeIntegrationMutationOptions(options));
+    }
 
 export const getListIntegrationActivityUrl = (params: ListIntegrationActivityParams,) => {
   const normalizedParams = new URLSearchParams();

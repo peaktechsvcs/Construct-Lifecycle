@@ -17,6 +17,7 @@ export type ConnectorDefinition = {
   capabilities: string[];
   entitlementKey: string;
   connectorStatus: "cataloged";
+  managedConnectorName?: string;
 };
 
 export const connectorCatalog: ConnectorDefinition[] = [
@@ -29,6 +30,7 @@ export const connectorCatalog: ConnectorDefinition[] = [
     capabilities: ["Gmail Mailbox", "Calendar", "Contacts", "Drive References"],
     entitlementKey: "google_workspace",
     connectorStatus: "cataloged",
+    managedConnectorName: "google-mail",
   },
   {
     providerKey: "microsoft_365",

@@ -20,6 +20,7 @@ export interface IntegrationCatalogItem {
   capabilities: string[];
   connectorStatus: IntegrationCatalogItemConnectorStatus;
   entitlement: IntegrationCatalogItemEntitlement;
+  supportsConnection: boolean;
   connection: IntegrationConnection | null;
   activity: IntegrationActivitySummary;
 }

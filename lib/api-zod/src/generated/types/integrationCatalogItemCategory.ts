@@ -10,6 +10,7 @@ export type IntegrationCatalogItemCategory = typeof IntegrationCatalogItemCatego
 
 
 export const IntegrationCatalogItemCategory = {
+  productivity_collaboration: 'productivity_collaboration',
   erp_financial: 'erp_financial',
   accounting: 'accounting',
   takeoff_estimating: 'takeoff_estimating',

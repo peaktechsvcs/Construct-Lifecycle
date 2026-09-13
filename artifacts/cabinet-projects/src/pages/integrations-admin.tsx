@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Activity, Cable, CheckCircle2, CircleAlert, Clock3, Database, LockKeyhole, X } from 'lucide-react';
 import {
   getListIntegrationActivityQueryKey,
   getListIntegrationsQueryKey,
+  useConnectIntegration,
   useListIntegrationActivity,
   useListIntegrations,
+  useRevokeIntegration,
 } from '@workspace/api-client-react';
 import { useTenant } from '@/providers/tenant-provider';
 import { Badge, EmptyState, ErrorPanel, LoadingPanel, PageTitle, Button, shortDate, fullDate } from '@/components/app-ui';
@@ -28,11 +31,15 @@ function formatDetail(value: Record<string, unknown>) {
 }
 
 export function IntegrationsAdmin() {
+  const qc = useQueryClient();
   const { activeTenant, activeEnvironment } = useTenant();
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const integrationsQuery = useListIntegrations({
     query: { queryKey: getListIntegrationsQueryKey(), staleTime: 30000 },
   });
+  const connectIntegration = useConnectIntegration();
+  const revokeIntegration = useRevokeIntegration();
   const activityParams = useMemo(
     () => ({ providerKey: selectedProvider || 'unselected', limit: 20 }),
     [selectedProvider],
@@ -49,6 +56,32 @@ export function IntegrationsAdmin() {
   const selected = catalog.find((item) => item.providerKey === selectedProvider) ?? null;
   const connectedCount = catalog.filter((item) => item.connection?.status === 'connected').length;
   const activityCount = catalog.reduce((total, item) => total + item.activity.activityCount, 0);
+  const selectedIsConnected = selected?.connection?.status === 'connected';
+
+  const refreshIntegration = () => {
+    qc.invalidateQueries({ queryKey: getListIntegrationsQueryKey() });
+    if (selectedProvider) {
+      qc.invalidateQueries({ queryKey: getListIntegrationActivityQueryKey({ providerKey: selectedProvider, limit: 20 }) });
+    }
+  };
+
+  const handleConnect = () => {
+    if (!selectedProvider) return;
+    setActionError(null);
+    connectIntegration.mutate({ providerKey: selectedProvider }, {
+      onSuccess: refreshIntegration,
+      onError: (error) => setActionError(error instanceof Error ? error.message : 'The integration could not be connected.'),
+    });
+  };
+
+  const handleRevoke = () => {
+    if (!selectedProvider || !window.confirm('Disconnect this integration from the active customer environment?')) return;
+    setActionError(null);
+    revokeIntegration.mutate({ providerKey: selectedProvider }, {
+      onSuccess: refreshIntegration,
+      onError: (error) => setActionError(error instanceof Error ? error.message : 'The integration could not be disconnected.'),
+    });
+  };
 
   if (integrationsQuery.isLoading) {
     return (
@@ -86,7 +119,7 @@ export function IntegrationsAdmin() {
           <div className="min-w-0">
             <p className="mono text-[10px] font-medium uppercase tracking-[.16em] text-muted-foreground">Active customer environment</p>
             <p className="mt-1 truncate text-base font-bold">{activeTenant?.name || 'Current customer'}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{activeEnvironment?.name || 'Loading environment'} · Read-only administration view</p>
+            <p className="mt-1 text-xs text-muted-foreground">{activeEnvironment?.name || 'Loading environment'} · Owner and admin connection controls</p>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-5 border-t border-border pt-4 md:border-l md:border-t-0 md:pl-6 md:pt-0">
@@ -155,6 +188,26 @@ export function IntegrationsAdmin() {
                     <div className="rounded-lg bg-secondary/60 p-3"><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Connection</p><div className="mt-2 flex items-center gap-2">{selected.connection?.status === 'connected' ? <CheckCircle2 size={15} className="text-status-success" /> : <CircleAlert size={15} className="text-status-warning" />}<span className="text-sm font-semibold">{connectionLabel(selected.connection?.status)}</span></div>{selected.connection?.connectionType && <p className="mt-1 text-xs text-muted-foreground">{selected.connection.connectionType}</p>}</div>
                     <div className="rounded-lg bg-secondary/60 p-3"><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Last sync</p><p className="mt-2 text-sm font-semibold">{selected.connection?.lastSyncAt ? fullDate(selected.connection.lastSyncAt) : 'No sync recorded'}</p><p className="mt-1 text-xs text-muted-foreground">{selected.connection?.lastSyncStatus || 'No status available'}</p></div>
                   </div>
+                   {selected.supportsConnection && (
+                     <div className="rounded-lg border border-border bg-background p-4">
+                       <p className="text-xs font-bold">Environment access</p>
+                       <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                         Replit manages provider authorization. This action attaches or removes that authorization for the active environment only; no provider credentials are stored here.
+                       </p>
+                       {actionError && <p className="mt-3 rounded-md bg-status-danger/10 px-3 py-2 text-xs text-status-danger">{actionError}</p>}
+                       <div className="mt-4 flex flex-wrap gap-2">
+                         {selectedIsConnected ? (
+                           <Button variant="ghost" onClick={handleRevoke} disabled={revokeIntegration.isPending}>
+                             {revokeIntegration.isPending ? 'Disconnecting…' : 'Disconnect environment'}
+                           </Button>
+                         ) : (
+                           <Button onClick={handleConnect} disabled={connectIntegration.isPending}>
+                             {connectIntegration.isPending ? 'Connecting…' : 'Connect provider'}
+                           </Button>
+                         )}
+                       </div>
+                     </div>
+                   )}
                   <div><div className="mb-3 flex items-center gap-2"><Activity size={15} className="text-primary" /><h3 className="text-xs font-bold">Recent activity</h3></div>{activityQuery.isLoading ? <LoadingPanel lines={3} /> : activityQuery.isError ? <ErrorPanel onRetry={() => activityQuery.refetch()} /> : activityQuery.data?.length ? <div className="space-y-3">{activityQuery.data.map((entry) => <div key={entry.id} className="border-l-2 border-primary/25 pl-3"><p className="text-xs font-semibold">{entry.action}</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{formatDetail(entry.details)}</p><p className="mono mt-1 flex items-center gap-1 text-[9px] uppercase tracking-wider text-muted-foreground"><Clock3 size={10} />{shortDate(entry.createdAt)}</p></div>)}</div> : <p className="text-xs text-muted-foreground">No activity has been recorded for this integration.</p>}</div>
                 </div>
               </>

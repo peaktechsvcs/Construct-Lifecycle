@@ -3227,6 +3227,40 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/IntegrationCatalogItem" }
         "403": { description: Customer administrator permission required }
+  /integrations/{providerKey}/connect:
+    post:
+      operationId: connectIntegration
+      tags: [integrations]
+      summary: Attach an authorized managed connector to the active customer environment
+      parameters:
+        - $ref: "#/components/parameters/IntegrationProviderKey"
+      responses:
+        "200":
+          description: Connected integration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationConnection"
+        "403": { description: Customer administrator permission required }
+        "404": { description: Integration provider not entitled }
+        "409": { description: Connector authorization is ambiguous or attached to another environment }
+        "424": { description: Managed connector authorization is required or unavailable }
+  /integrations/{providerKey}/revoke:
+    post:
+      operationId: revokeIntegration
+      tags: [integrations]
+      summary: Revoke this customer environment's access to a managed connector
+      parameters:
+        - $ref: "#/components/parameters/IntegrationProviderKey"
+      responses:
+        "200":
+          description: Revoked integration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationConnection"
+        "403": { description: Customer administrator permission required }
+        "404": { description: Connected integration not found }
   /integrations/activity:
     get:
       operationId: listIntegrationActivity
@@ -3253,6 +3287,13 @@ paths:
         "404": { description: Integration provider not available }
 components:
   parameters:
+    IntegrationProviderKey:
+      in: path
+      name: providerKey
+      required: true
+      schema:
+        type: string
+        pattern: "^[a-z][a-z0-9_]{1,63}$"
     ItbIntakeId:
       in: path
       name: intakeId
@@ -5759,11 +5800,11 @@ components:
           items: { $ref: "#/components/schemas/BrandingVersion" }
     IntegrationCatalogItem:
       type: object
-      required: [providerKey, name, category, categoryLabel, description, capabilities, connectorStatus, entitlement, connection, activity]
+      required: [providerKey, name, category, categoryLabel, description, capabilities, connectorStatus, entitlement, supportsConnection, connection, activity]
       properties:
         providerKey: { type: string }
         name: { type: string }
-        category: { type: string, enum: [erp_financial, accounting, takeoff_estimating, ecommerce, product_information] }
+        category: { type: string, enum: [productivity_collaboration, erp_financial, accounting, takeoff_estimating, ecommerce, product_information] }
         categoryLabel: { type: string }
         description: { type: string }
         capabilities:
@@ -5771,6 +5812,7 @@ components:
           items: { type: string }
         connectorStatus: { type: string, enum: [cataloged] }
         entitlement: { type: string, enum: [enabled] }
+        supportsConnection: { type: boolean }
         connection:
           oneOf:
             - $ref: "#/components/schemas/IntegrationConnection"

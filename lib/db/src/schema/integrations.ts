@@ -32,6 +32,7 @@ export const integrationsTable = pgTable("integrations", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
   uniqueIndex("integrations_tenant_environment_provider_idx").on(table.tenantId, table.environmentId, table.providerKey),
+  uniqueIndex("integrations_credentials_reference_idx").on(table.credentialsReference),
   index("integrations_tenant_environment_idx").on(table.tenantId, table.environmentId),
   index("integrations_provider_idx").on(table.providerKey),
 ]);

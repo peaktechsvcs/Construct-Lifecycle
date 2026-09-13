@@ -10491,12 +10491,13 @@ export const ResetBrandingResponse = zod.object({
 export const ListIntegrationsResponseItem = zod.object({
   "providerKey": zod.string(),
   "name": zod.string(),
-  "category": zod.enum(['erp_financial', 'accounting', 'takeoff_estimating', 'ecommerce', 'product_information']),
+  "category": zod.enum(['productivity_collaboration', 'erp_financial', 'accounting', 'takeoff_estimating', 'ecommerce', 'product_information']),
   "categoryLabel": zod.string(),
   "description": zod.string(),
   "capabilities": zod.array(zod.string()),
   "connectorStatus": zod.enum(['cataloged']),
   "entitlement": zod.enum(['enabled']),
+  "supportsConnection": zod.boolean(),
   "connection": zod.union([zod.object({
   "id": zod.number().int(),
   "status": zod.enum(['not_connected', 'connected', 'warning', 'failed', 'disabled']),
@@ -10511,6 +10512,46 @@ export const ListIntegrationsResponseItem = zod.object({
 })
 })
 export const ListIntegrationsResponse = zod.array(ListIntegrationsResponseItem)
+
+
+/**
+ * @summary Attach an authorized managed connector to the active customer environment
+ */
+export const connectIntegrationPathProviderKeyRegExp = new RegExp('^[a-z][a-z0-9_]{1,63}$');
+
+
+export const ConnectIntegrationParams = zod.object({
+  "providerKey": zod.coerce.string().regex(connectIntegrationPathProviderKeyRegExp)
+})
+
+export const ConnectIntegrationResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['not_connected', 'connected', 'warning', 'failed', 'disabled']),
+  "connectionType": zod.string(),
+  "lastSyncAt": zod.coerce.date().nullable(),
+  "lastSyncStatus": zod.string().nullable(),
+  "lastError": zod.string().nullable()
+})
+
+
+/**
+ * @summary Revoke this customer environment's access to a managed connector
+ */
+export const revokeIntegrationPathProviderKeyRegExp = new RegExp('^[a-z][a-z0-9_]{1,63}$');
+
+
+export const RevokeIntegrationParams = zod.object({
+  "providerKey": zod.coerce.string().regex(revokeIntegrationPathProviderKeyRegExp)
+})
+
+export const RevokeIntegrationResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['not_connected', 'connected', 'warning', 'failed', 'disabled']),
+  "connectionType": zod.string(),
+  "lastSyncAt": zod.coerce.date().nullable(),
+  "lastSyncStatus": zod.string().nullable(),
+  "lastError": zod.string().nullable()
+})
 
 
 /**
