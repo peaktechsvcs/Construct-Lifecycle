@@ -72,7 +72,7 @@ async function serializeCustomer(tenant: typeof tenantsTable.$inferSelect) {
   };
 }
 
-router.use(requirePlatformAdmin);
+router.use("/platform", requirePlatformAdmin);
 
 router.get("/platform/customers", async (_req: TenantRequest, res) => {
   const tenants = await db.select().from(tenantsTable).orderBy(tenantsTable.name);

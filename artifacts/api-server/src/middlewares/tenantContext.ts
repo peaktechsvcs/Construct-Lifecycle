@@ -12,9 +12,25 @@ import {
 
 const DEFAULT_TENANT = { name: "Construct Lifecycle Demo", slug: "construct-lc-demo" };
 const APP_ENV = process.env.APP_ENV ?? "development";
-if (!["development", "demo", "production"].includes(APP_ENV)) {
-  throw new Error("APP_ENV must be one of development, demo, or production");
+if (!["development", "demo", "test", "production"].includes(APP_ENV)) {
+  throw new Error("APP_ENV must be one of development, demo, test, or production");
 }
+
+const authenticatedUser = (req: TenantRequest) => {
+  if (APP_ENV === "test") {
+    const testUserId = req.header("x-test-clerk-user-id");
+    if (testUserId) {
+      return {
+        userId: testUserId,
+        sessionClaims: {
+          email: `${testUserId}@integration.test`,
+          name: testUserId,
+        },
+      };
+    }
+  }
+  return getAuth(req);
+};
 
 export type TenantRequest = Request & {
   tenantId?: number;
@@ -25,7 +41,7 @@ export type TenantRequest = Request & {
 };
 
 async function upsertAuthenticatedUser(req: TenantRequest) {
-  const auth = getAuth(req);
+  const auth = authenticatedUser(req);
   const clerkUserId = auth?.userId;
   if (!clerkUserId) return null;
   const claims = auth.sessionClaims as Record<string, unknown> | undefined;
@@ -120,7 +136,7 @@ export async function requireAuthenticatedUser(
   res: Response,
   next: NextFunction,
 ) {
-  if (!getAuth(req)?.userId) {
+  if (!authenticatedUser(req)?.userId) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -139,7 +155,7 @@ export async function requireTenantContext(
   res: Response,
   next: NextFunction,
 ) {
-  if (!getAuth(req)?.userId) {
+  if (!authenticatedUser(req)?.userId) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
