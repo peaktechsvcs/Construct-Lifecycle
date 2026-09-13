@@ -10488,6 +10488,12 @@ export const ResetBrandingResponse = zod.object({
 /**
  * @summary List entitled integrations for the active customer environment
  */
+export const listIntegrationsResponseConnectionOneRetryCountMin = 0;
+
+export const listIntegrationsResponseConnectionOneDeadLetterCountMin = 0;
+
+
+
 export const ListIntegrationsResponseItem = zod.object({
   "providerKey": zod.string(),
   "name": zod.string(),
@@ -10498,13 +10504,20 @@ export const ListIntegrationsResponseItem = zod.object({
   "connectorStatus": zod.enum(['cataloged']),
   "entitlement": zod.enum(['enabled']),
   "supportsConnection": zod.boolean(),
+  "state": zod.enum(['cataloged', 'connected', 'degraded']),
   "connection": zod.union([zod.object({
   "id": zod.number().int(),
   "status": zod.enum(['not_connected', 'connected', 'warning', 'failed', 'disabled']),
   "connectionType": zod.string(),
+  "healthStatus": zod.enum(['unknown', 'healthy', 'degraded', 'failed', 'disabled']),
   "lastSyncAt": zod.coerce.date().nullable(),
+  "lastSuccessfulSyncAt": zod.coerce.date().nullable(),
   "lastSyncStatus": zod.string().nullable(),
-  "lastError": zod.string().nullable()
+  "lastFailureAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "retryCount": zod.number().int().min(listIntegrationsResponseConnectionOneRetryCountMin),
+  "deadLetterCount": zod.number().int().min(listIntegrationsResponseConnectionOneDeadLetterCountMin),
+  "nextRetryAt": zod.coerce.date().nullable()
 }),zod.null()]),
   "activity": zod.object({
   "lastActivityAt": zod.coerce.date().nullable(),
@@ -10524,13 +10537,25 @@ export const ConnectIntegrationParams = zod.object({
   "providerKey": zod.coerce.string().regex(connectIntegrationPathProviderKeyRegExp)
 })
 
+export const connectIntegrationResponseRetryCountMin = 0;
+
+export const connectIntegrationResponseDeadLetterCountMin = 0;
+
+
+
 export const ConnectIntegrationResponse = zod.object({
   "id": zod.number().int(),
   "status": zod.enum(['not_connected', 'connected', 'warning', 'failed', 'disabled']),
   "connectionType": zod.string(),
+  "healthStatus": zod.enum(['unknown', 'healthy', 'degraded', 'failed', 'disabled']),
   "lastSyncAt": zod.coerce.date().nullable(),
+  "lastSuccessfulSyncAt": zod.coerce.date().nullable(),
   "lastSyncStatus": zod.string().nullable(),
-  "lastError": zod.string().nullable()
+  "lastFailureAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "retryCount": zod.number().int().min(connectIntegrationResponseRetryCountMin),
+  "deadLetterCount": zod.number().int().min(connectIntegrationResponseDeadLetterCountMin),
+  "nextRetryAt": zod.coerce.date().nullable()
 })
 
 
@@ -10544,13 +10569,25 @@ export const RevokeIntegrationParams = zod.object({
   "providerKey": zod.coerce.string().regex(revokeIntegrationPathProviderKeyRegExp)
 })
 
+export const revokeIntegrationResponseRetryCountMin = 0;
+
+export const revokeIntegrationResponseDeadLetterCountMin = 0;
+
+
+
 export const RevokeIntegrationResponse = zod.object({
   "id": zod.number().int(),
   "status": zod.enum(['not_connected', 'connected', 'warning', 'failed', 'disabled']),
   "connectionType": zod.string(),
+  "healthStatus": zod.enum(['unknown', 'healthy', 'degraded', 'failed', 'disabled']),
   "lastSyncAt": zod.coerce.date().nullable(),
+  "lastSuccessfulSyncAt": zod.coerce.date().nullable(),
   "lastSyncStatus": zod.string().nullable(),
-  "lastError": zod.string().nullable()
+  "lastFailureAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "retryCount": zod.number().int().min(revokeIntegrationResponseRetryCountMin),
+  "deadLetterCount": zod.number().int().min(revokeIntegrationResponseDeadLetterCountMin),
+  "nextRetryAt": zod.coerce.date().nullable()
 })
 
 
@@ -10576,5 +10613,41 @@ export const ListIntegrationActivityResponseItem = zod.object({
   "createdAt": zod.coerce.date()
 })
 export const ListIntegrationActivityResponse = zod.array(ListIntegrationActivityResponseItem)
+
+
+/**
+ * @summary List connector job history for the active customer environment
+ */
+export const listIntegrationJobsQueryProviderKeyRegExp = new RegExp('^[a-z][a-z0-9_]{1,63}$');
+export const listIntegrationJobsQueryLimitDefault = 50;
+export const listIntegrationJobsQueryLimitMax = 100;
+
+
+
+export const ListIntegrationJobsQueryParams = zod.object({
+  "providerKey": zod.coerce.string().regex(listIntegrationJobsQueryProviderKeyRegExp),
+  "limit": zod.coerce.number().int().min(1).max(listIntegrationJobsQueryLimitMax).default(listIntegrationJobsQueryLimitDefault)
+})
+
+export const listIntegrationJobsResponseAttemptsMin = 0;
+
+
+
+
+export const ListIntegrationJobsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "providerKey": zod.string(),
+  "jobType": zod.string(),
+  "status": zod.enum(['queued', 'processing', 'succeeded', 'retry', 'dead_letter', 'failed']),
+  "attempts": zod.number().int().min(listIntegrationJobsResponseAttemptsMin),
+  "maxAttempts": zod.number().int().min(1),
+  "nextRetryAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "deadLetteredAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListIntegrationJobsResponse = zod.array(ListIntegrationJobsResponseItem)
 
 

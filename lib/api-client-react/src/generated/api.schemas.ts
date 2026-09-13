@@ -4096,6 +4096,15 @@ export const IntegrationCatalogItemEntitlement = {
   enabled: 'enabled',
 } as const;
 
+export type IntegrationCatalogItemState = typeof IntegrationCatalogItemState[keyof typeof IntegrationCatalogItemState];
+
+
+export const IntegrationCatalogItemState = {
+  cataloged: 'cataloged',
+  connected: 'connected',
+  degraded: 'degraded',
+} as const;
+
 export type IntegrationConnectionStatus = typeof IntegrationConnectionStatus[keyof typeof IntegrationConnectionStatus];
 
 
@@ -4107,16 +4116,38 @@ export const IntegrationConnectionStatus = {
   disabled: 'disabled',
 } as const;
 
+export type IntegrationConnectionHealthStatus = typeof IntegrationConnectionHealthStatus[keyof typeof IntegrationConnectionHealthStatus];
+
+
+export const IntegrationConnectionHealthStatus = {
+  unknown: 'unknown',
+  healthy: 'healthy',
+  degraded: 'degraded',
+  failed: 'failed',
+  disabled: 'disabled',
+} as const;
+
 export interface IntegrationConnection {
   id: number;
   status: IntegrationConnectionStatus;
   connectionType: string;
+  healthStatus: IntegrationConnectionHealthStatus;
   /** @nullable */
   lastSyncAt: string | null;
   /** @nullable */
+  lastSuccessfulSyncAt: string | null;
+  /** @nullable */
   lastSyncStatus: string | null;
   /** @nullable */
+  lastFailureAt: string | null;
+  /** @nullable */
   lastError: string | null;
+  /** @minimum 0 */
+  retryCount: number;
+  /** @minimum 0 */
+  deadLetterCount: number;
+  /** @nullable */
+  nextRetryAt: string | null;
 }
 
 export interface IntegrationActivitySummary {
@@ -4135,6 +4166,7 @@ export interface IntegrationCatalogItem {
   connectorStatus: IntegrationCatalogItemConnectorStatus;
   entitlement: IntegrationCatalogItemEntitlement;
   supportsConnection: boolean;
+  state: IntegrationCatalogItemState;
   connection: IntegrationConnection | null;
   activity: IntegrationActivitySummary;
 }
@@ -4147,6 +4179,39 @@ export interface IntegrationActivity {
   action: string;
   details: IntegrationActivityDetails;
   createdAt: string;
+}
+
+export type IntegrationJobStatus = typeof IntegrationJobStatus[keyof typeof IntegrationJobStatus];
+
+
+export const IntegrationJobStatus = {
+  queued: 'queued',
+  processing: 'processing',
+  succeeded: 'succeeded',
+  retry: 'retry',
+  dead_letter: 'dead_letter',
+  failed: 'failed',
+} as const;
+
+export interface IntegrationJob {
+  id: number;
+  providerKey: string;
+  jobType: string;
+  status: IntegrationJobStatus;
+  /** @minimum 0 */
+  attempts: number;
+  /** @minimum 1 */
+  maxAttempts: number;
+  /** @nullable */
+  nextRetryAt: string | null;
+  /** @nullable */
+  lastError: string | null;
+  /** @nullable */
+  deadLetteredAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type WorkflowTemplateStatus = typeof WorkflowTemplateStatus[keyof typeof WorkflowTemplateStatus];
@@ -5990,6 +6055,18 @@ export type BootstrapPlatformAdmin201 = {
 };
 
 export type ListIntegrationActivityParams = {
+/**
+ * @pattern ^[a-z][a-z0-9_]{1,63}$
+ */
+providerKey: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+};
+
+export type ListIntegrationJobsParams = {
 /**
  * @pattern ^[a-z][a-z0-9_]{1,63}$
  */

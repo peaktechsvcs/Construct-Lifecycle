@@ -9,6 +9,7 @@ import type { IntegrationActivitySummary } from './integrationActivitySummary';
 import type { IntegrationCatalogItemCategory } from './integrationCatalogItemCategory';
 import type { IntegrationCatalogItemConnectorStatus } from './integrationCatalogItemConnectorStatus';
 import type { IntegrationCatalogItemEntitlement } from './integrationCatalogItemEntitlement';
+import type { IntegrationCatalogItemState } from './integrationCatalogItemState';
 import type { IntegrationConnection } from './integrationConnection';
 
 export interface IntegrationCatalogItem {
@@ -21,6 +22,7 @@ export interface IntegrationCatalogItem {
   connectorStatus: IntegrationCatalogItemConnectorStatus;
   entitlement: IntegrationCatalogItemEntitlement;
   supportsConnection: boolean;
+  state: IntegrationCatalogItemState;
   connection: IntegrationConnection | null;
   activity: IntegrationActivitySummary;
 }

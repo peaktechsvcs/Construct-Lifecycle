@@ -3285,6 +3285,31 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/IntegrationActivity" }
         "404": { description: Integration provider not available }
+  /integrations/jobs:
+    get:
+      operationId: listIntegrationJobs
+      tags: [integrations]
+      summary: List connector job history for the active customer environment
+      parameters:
+        - in: query
+          name: providerKey
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-z][a-z0-9_]{1,63}$"
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Integration job history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/IntegrationJob" }
+        "403": { description: Customer administrator permission required }
+        "404": { description: Integration provider not available }
 components:
   parameters:
     IntegrationProviderKey:
@@ -5800,7 +5825,7 @@ components:
           items: { $ref: "#/components/schemas/BrandingVersion" }
     IntegrationCatalogItem:
       type: object
-      required: [providerKey, name, category, categoryLabel, description, capabilities, connectorStatus, entitlement, supportsConnection, connection, activity]
+      required: [providerKey, name, category, categoryLabel, description, capabilities, connectorStatus, entitlement, supportsConnection, state, connection, activity]
       properties:
         providerKey: { type: string }
         name: { type: string }
@@ -5813,6 +5838,7 @@ components:
         connectorStatus: { type: string, enum: [cataloged] }
         entitlement: { type: string, enum: [enabled] }
         supportsConnection: { type: boolean }
+        state: { type: string, enum: [cataloged, connected, degraded] }
         connection:
           oneOf:
             - $ref: "#/components/schemas/IntegrationConnection"
@@ -5820,14 +5846,20 @@ components:
         activity: { $ref: "#/components/schemas/IntegrationActivitySummary" }
     IntegrationConnection:
       type: object
-      required: [id, status, connectionType, lastSyncAt, lastSyncStatus, lastError]
+      required: [id, status, connectionType, healthStatus, lastSyncAt, lastSuccessfulSyncAt, lastSyncStatus, lastFailureAt, lastError, retryCount, deadLetterCount, nextRetryAt]
       properties:
         id: { type: integer }
         status: { type: string, enum: [not_connected, connected, warning, failed, disabled] }
         connectionType: { type: string }
+        healthStatus: { type: string, enum: [unknown, healthy, degraded, failed, disabled] }
         lastSyncAt: { type: ["string", "null"], format: date-time }
+        lastSuccessfulSyncAt: { type: ["string", "null"], format: date-time }
         lastSyncStatus: { type: ["string", "null"] }
+        lastFailureAt: { type: ["string", "null"], format: date-time }
         lastError: { type: ["string", "null"] }
+        retryCount: { type: integer, minimum: 0 }
+        deadLetterCount: { type: integer, minimum: 0 }
+        nextRetryAt: { type: ["string", "null"], format: date-time }
     IntegrationActivitySummary:
       type: object
       required: [lastActivityAt, activityCount]
@@ -5843,6 +5875,22 @@ components:
         action: { type: string }
         details: { type: object, additionalProperties: true }
         createdAt: { type: string, format: date-time }
+    IntegrationJob:
+      type: object
+      required: [id, providerKey, jobType, status, attempts, maxAttempts, nextRetryAt, lastError, deadLetteredAt, completedAt, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        providerKey: { type: string }
+        jobType: { type: string }
+        status: { type: string, enum: [queued, processing, succeeded, retry, dead_letter, failed] }
+        attempts: { type: integer, minimum: 0 }
+        maxAttempts: { type: integer, minimum: 1 }
+        nextRetryAt: { type: ["string", "null"], format: date-time }
+        lastError: { type: ["string", "null"] }
+        deadLetteredAt: { type: ["string", "null"], format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     WorkflowTemplate:
       type: object
       required: [id, tenantId, environmentId, name, activeProjectStatusKeys, status, isDefault, version, createdAt, updatedAt]

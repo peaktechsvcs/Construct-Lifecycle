@@ -5,6 +5,7 @@ import {
   db,
   integrationAuditEventsTable,
   integrationEntitlementsTable,
+  integrationJobsTable,
   integrationsTable,
 } from "@workspace/db";
 import {
@@ -15,23 +16,41 @@ import {
   ConnectIntegrationResponse,
   RevokeIntegrationParams,
   RevokeIntegrationResponse,
+  ListIntegrationJobsQueryParams,
+  ListIntegrationJobsResponse,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
 import { connectorCatalog, getConnectorDefinition } from "../lib/integrations/catalog";
-import { managedCredentialsReference, selectManagedConnection } from "../lib/integrations/managed-connection";
+import {
+  managedCredentialsReference,
+  selectManagedConnection,
+  summarizeIntegrationHealth,
+} from "../lib/integrations/managed-connection";
 
 const router: IRouter = Router();
 const connectors = new ReplitConnectors();
 
-const serializeConnection = (connection: typeof integrationsTable.$inferSelect) => ({
+const serializeConnection = (
+  connection: typeof integrationsTable.$inferSelect,
+  jobs: Array<typeof integrationJobsTable.$inferSelect> = [],
+) => {
+  const health = summarizeIntegrationHealth(connection, jobs);
+  return {
   id: connection.id,
   status: connection.status,
   connectionType: connection.connectionType,
+  healthStatus: health.healthStatus,
   lastSyncAt: connection.lastSyncAt,
+  lastSuccessfulSyncAt: connection.lastSuccessfulSyncAt,
   lastSyncStatus: connection.lastSyncStatus,
-  lastError: connection.lastError,
-});
+  lastFailureAt: health.lastFailureAt,
+  lastError: health.lastError,
+  retryCount: health.retryCount,
+  deadLetterCount: health.deadLetterCount,
+  nextRetryAt: health.nextRetryAt,
+  };
+};
 
 const entitledConnector = async (tenantId: number, providerKey: string) => {
   const definition = getConnectorDefinition(providerKey);
@@ -74,7 +93,7 @@ const parseJson = (value: string | null | undefined): Record<string, unknown> =>
 };
 
 router.get("/integrations", requireRole("owner", "admin"), async (req: TenantRequest, res): Promise<void> => {
-  const [entitlements, connections, latestActivity] = await Promise.all([
+  const [entitlements, connections, latestActivity, jobs] = await Promise.all([
     db.select().from(integrationEntitlementsTable)
       .where(and(eq(integrationEntitlementsTable.tenantId, req.tenantId!), eq(integrationEntitlementsTable.enabled, true))),
     db.select().from(integrationsTable)
@@ -86,17 +105,30 @@ router.get("/integrations", requireRole("owner", "admin"), async (req: TenantReq
     }).from(integrationAuditEventsTable)
       .where(and(eq(integrationAuditEventsTable.tenantId, req.tenantId!), eq(integrationAuditEventsTable.environmentId, req.environmentId!)))
       .groupBy(integrationAuditEventsTable.providerKey),
+    db.select().from(integrationJobsTable)
+      .where(and(
+        eq(integrationJobsTable.tenantId, req.tenantId!),
+        eq(integrationJobsTable.environmentId, req.environmentId!),
+      )),
   ]);
 
   const entitlementKeys = new Set(entitlements.map((entitlement) => entitlement.capabilityKey));
   const connectionByProvider = new Map(connections.map((connection) => [connection.providerKey, connection]));
   const activityByProvider = new Map(latestActivity.map((activity) => [activity.providerKey, activity]));
+  const jobsByProvider = new Map<string, Array<typeof integrationJobsTable.$inferSelect>>();
+  for (const job of jobs) {
+    const providerJobs = jobsByProvider.get(job.providerKey) ?? [];
+    providerJobs.push(job);
+    jobsByProvider.set(job.providerKey, providerJobs);
+  }
 
   const response = connectorCatalog
     .filter((connector) => entitlementKeys.has(connector.entitlementKey))
     .map((connector) => {
       const connection = connectionByProvider.get(connector.providerKey);
       const activity = activityByProvider.get(connector.providerKey);
+      const providerJobs = jobsByProvider.get(connector.providerKey) ?? [];
+      const health = connection ? summarizeIntegrationHealth(connection, providerJobs) : null;
       return {
         providerKey: connector.providerKey,
         name: connector.name,
@@ -107,14 +139,12 @@ router.get("/integrations", requireRole("owner", "admin"), async (req: TenantReq
         connectorStatus: connector.connectorStatus,
         entitlement: "enabled" as const,
         supportsConnection: Boolean(connector.managedConnectorName),
-        connection: connection ? {
-          id: connection.id,
-          status: connection.status,
-          connectionType: connection.connectionType,
-          lastSyncAt: connection.lastSyncAt,
-          lastSyncStatus: connection.lastSyncStatus,
-          lastError: connection.lastError,
-        } : null,
+        state: !connection
+          ? "cataloged" as const
+          : health?.healthStatus === "degraded" || health?.healthStatus === "failed" || health?.healthStatus === "disabled"
+            ? "degraded" as const
+            : "connected" as const,
+        connection: connection ? serializeConnection(connection, providerJobs) : null,
         activity: activity ? {
           lastActivityAt: activity.lastActivityAt,
           activityCount: activity.activityCount,
@@ -337,6 +367,49 @@ router.get("/integrations/activity", requireRole("owner", "admin"), async (req: 
     action: event.action,
     details: parseJson(event.details),
     createdAt: event.createdAt,
+  }))));
+});
+
+router.get("/integrations/jobs", requireRole("owner", "admin"), async (req: TenantRequest, res): Promise<void> => {
+  const query = ListIntegrationJobsQueryParams.safeParse(req.query);
+  const definition = query.success ? getConnectorDefinition(query.data.providerKey) : undefined;
+  if (!query.success || !definition) {
+    res.status(404).json({ error: "Integration provider not found" });
+    return;
+  }
+
+  const [entitlement] = await db.select().from(integrationEntitlementsTable).where(and(
+    eq(integrationEntitlementsTable.tenantId, req.tenantId!),
+    eq(integrationEntitlementsTable.capabilityKey, definition.entitlementKey),
+    eq(integrationEntitlementsTable.enabled, true),
+  ));
+  if (!entitlement) {
+    res.status(404).json({ error: "Integration provider not available" });
+    return;
+  }
+
+  const jobs = await db.select().from(integrationJobsTable)
+    .where(and(
+      eq(integrationJobsTable.tenantId, req.tenantId!),
+      eq(integrationJobsTable.environmentId, req.environmentId!),
+      eq(integrationJobsTable.providerKey, query.data.providerKey),
+    ))
+    .orderBy(desc(integrationJobsTable.updatedAt))
+    .limit(query.data.limit);
+
+  res.json(ListIntegrationJobsResponse.parse(jobs.map((job) => ({
+    id: job.id,
+    providerKey: job.providerKey,
+    jobType: job.jobType,
+    status: job.status,
+    attempts: job.attempts,
+    maxAttempts: job.maxAttempts,
+    nextRetryAt: job.nextRetryAt,
+    lastError: job.lastError,
+    deadLetteredAt: job.deadLetteredAt,
+    completedAt: job.completedAt,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
   }))));
 });
 

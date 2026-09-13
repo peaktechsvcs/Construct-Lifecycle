@@ -5,16 +5,28 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { IntegrationConnectionHealthStatus } from './integrationConnectionHealthStatus';
 import type { IntegrationConnectionStatus } from './integrationConnectionStatus';
 
 export interface IntegrationConnection {
   id: number;
   status: IntegrationConnectionStatus;
   connectionType: string;
+  healthStatus: IntegrationConnectionHealthStatus;
   /** @nullable */
   lastSyncAt: Date | null;
   /** @nullable */
+  lastSuccessfulSyncAt: Date | null;
+  /** @nullable */
   lastSyncStatus: string | null;
   /** @nullable */
+  lastFailureAt: Date | null;
+  /** @nullable */
   lastError: string | null;
+  /** @minimum 0 */
+  retryCount: number;
+  /** @minimum 0 */
+  deadLetterCount: number;
+  /** @nullable */
+  nextRetryAt: Date | null;
 }

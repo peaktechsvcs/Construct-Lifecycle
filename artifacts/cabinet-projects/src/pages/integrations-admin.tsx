@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Activity, Cable, CheckCircle2, CircleAlert, Clock3, Database, LockKeyhole, X } from 'lucide-react';
+import { Activity, Cable, CheckCircle2, CircleAlert, Clock3, Database, History, LockKeyhole, X } from 'lucide-react';
 import {
   getListIntegrationActivityQueryKey,
+  getListIntegrationJobsQueryKey,
   getListIntegrationsQueryKey,
   useConnectIntegration,
   useListIntegrationActivity,
+  useListIntegrationJobs,
   useListIntegrations,
   useRevokeIntegration,
 } from '@workspace/api-client-react';
@@ -22,6 +24,28 @@ function connectionTone(status?: string | null): 'neutral' | 'teal' | 'orange' |
 
 function connectionLabel(status?: string | null) {
   return status ? status.replaceAll('_', ' ') : 'Not connected';
+}
+
+function healthTone(status?: string | null): 'neutral' | 'teal' | 'orange' | 'green' | 'red' {
+  if (status === 'healthy') return 'green';
+  if (status === 'degraded') return 'orange';
+  if (status === 'failed') return 'red';
+  return 'neutral';
+}
+
+function healthLabel(status?: string | null) {
+  if (status === 'unknown') return 'Awaiting sync';
+  return status ? status.replaceAll('_', ' ') : 'No health data';
+}
+
+function stateTone(state: string): 'neutral' | 'teal' | 'orange' {
+  if (state === 'connected') return 'teal';
+  if (state === 'degraded') return 'orange';
+  return 'neutral';
+}
+
+function stateLabel(state: string) {
+  return state === 'cataloged' ? 'Cataloged' : state === 'degraded' ? 'Degraded' : 'Connected';
 }
 
 function formatDetail(value: Record<string, unknown>) {
@@ -51,10 +75,18 @@ export function IntegrationsAdmin() {
       staleTime: 30000,
     },
   });
+  const jobsQuery = useListIntegrationJobs(activityParams, {
+    query: {
+      queryKey: getListIntegrationJobsQueryKey(activityParams),
+      enabled: Boolean(selectedProvider),
+      staleTime: 30000,
+    },
+  });
 
   const catalog = integrationsQuery.data ?? [];
   const selected = catalog.find((item) => item.providerKey === selectedProvider) ?? null;
   const connectedCount = catalog.filter((item) => item.connection?.status === 'connected').length;
+  const degradedCount = catalog.filter((item) => item.state === 'degraded').length;
   const activityCount = catalog.reduce((total, item) => total + item.activity.activityCount, 0);
   const selectedIsConnected = selected?.connection?.status === 'connected';
 
@@ -62,6 +94,7 @@ export function IntegrationsAdmin() {
     qc.invalidateQueries({ queryKey: getListIntegrationsQueryKey() });
     if (selectedProvider) {
       qc.invalidateQueries({ queryKey: getListIntegrationActivityQueryKey({ providerKey: selectedProvider, limit: 20 }) });
+      qc.invalidateQueries({ queryKey: getListIntegrationJobsQueryKey({ providerKey: selectedProvider, limit: 20 }) });
     }
   };
 
@@ -122,9 +155,10 @@ export function IntegrationsAdmin() {
             <p className="mt-1 text-xs text-muted-foreground">{activeEnvironment?.name || 'Loading environment'} · Owner and admin connection controls</p>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-5 border-t border-border pt-4 md:border-l md:border-t-0 md:pl-6 md:pt-0">
+        <div className="grid grid-cols-2 gap-5 border-t border-border pt-4 sm:grid-cols-4 md:border-l md:border-t-0 md:pl-6 md:pt-0 md:pt-0">
           <div><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Entitled</p><p className="mt-1 text-xl font-bold">{catalog.length}</p></div>
           <div><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Connected</p><p className="mt-1 text-xl font-bold">{connectedCount}</p></div>
+          <div><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Degraded</p><p className={`mt-1 text-xl font-bold ${degradedCount ? 'text-status-warning' : ''}`}>{degradedCount}</p></div>
           <div><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Activity</p><p className="mt-1 text-xl font-bold">{activityCount}</p></div>
         </div>
       </section>
@@ -154,7 +188,8 @@ export function IntegrationsAdmin() {
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-sm font-bold">{item.name}</h3>
                           <Badge tone="violet">Entitled</Badge>
-                          <Badge tone={connectionTone(item.connection?.status)}>{connectionLabel(item.connection?.status)}</Badge>
+                          <Badge tone={stateTone(item.state)}>{stateLabel(item.state)}</Badge>
+                          {item.connection && <Badge tone={healthTone(item.connection.healthStatus)}>{healthLabel(item.connection.healthStatus)}</Badge>}
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">{item.categoryLabel} · {item.description}</p>
                         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -185,9 +220,16 @@ export function IntegrationsAdmin() {
                 </div>
                 <div className="space-y-5 p-5">
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                    <div className="rounded-lg bg-secondary/60 p-3"><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Connection</p><div className="mt-2 flex items-center gap-2">{selected.connection?.status === 'connected' ? <CheckCircle2 size={15} className="text-status-success" /> : <CircleAlert size={15} className="text-status-warning" />}<span className="text-sm font-semibold">{connectionLabel(selected.connection?.status)}</span></div>{selected.connection?.connectionType && <p className="mt-1 text-xs text-muted-foreground">{selected.connection.connectionType}</p>}</div>
-                    <div className="rounded-lg bg-secondary/60 p-3"><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Last sync</p><p className="mt-2 text-sm font-semibold">{selected.connection?.lastSyncAt ? fullDate(selected.connection.lastSyncAt) : 'No sync recorded'}</p><p className="mt-1 text-xs text-muted-foreground">{selected.connection?.lastSyncStatus || 'No status available'}</p></div>
+                     <div className="rounded-lg bg-secondary/60 p-3"><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Connection</p><div className="mt-2 flex items-center gap-2">{selected.connection?.status === 'connected' ? <CheckCircle2 size={15} className="text-status-success" /> : <CircleAlert size={15} className="text-status-warning" />}<span className="text-sm font-semibold">{connectionLabel(selected.connection?.status)}</span></div>{selected.connection?.connectionType && <p className="mt-1 text-xs text-muted-foreground">{selected.connection.connectionType}</p>}</div>
+                     <div className="rounded-lg bg-secondary/60 p-3"><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Current health</p><div className="mt-2 flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${selected.connection?.healthStatus === 'healthy' ? 'bg-status-success' : selected.connection?.healthStatus === 'failed' ? 'bg-status-danger' : selected.connection?.healthStatus === 'degraded' ? 'bg-status-warning' : 'bg-muted-foreground'}`} /><span className="text-sm font-semibold">{healthLabel(selected.connection?.healthStatus)}</span></div><p className="mt-1 text-xs text-muted-foreground">{selected.connection?.lastSuccessfulSyncAt ? `Last successful sync ${fullDate(selected.connection.lastSuccessfulSyncAt)}` : 'No successful sync recorded'}</p></div>
                   </div>
+                   {selected.connection && (
+                     <div className="grid gap-3 sm:grid-cols-3">
+                       <div className="rounded-lg border border-border bg-background p-3"><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Retries</p><p className="mt-2 text-lg font-bold">{selected.connection.retryCount}</p><p className="mt-1 text-[10px] text-muted-foreground">{selected.connection.nextRetryAt ? `Next ${fullDate(selected.connection.nextRetryAt)}` : 'No retry queued'}</p></div>
+                       <div className="rounded-lg border border-border bg-background p-3"><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Dead letters</p><p className={`mt-2 text-lg font-bold ${selected.connection.deadLetterCount ? 'text-status-danger' : ''}`}>{selected.connection.deadLetterCount}</p><p className="mt-1 text-[10px] text-muted-foreground">Requires operator review</p></div>
+                       <div className="rounded-lg border border-border bg-background p-3"><p className="mono text-[9px] uppercase tracking-wider text-muted-foreground">Latest error</p><p className="mt-2 text-xs font-semibold leading-4">{selected.connection.lastError || 'No actionable error'}</p><p className="mt-1 text-[10px] text-muted-foreground">{selected.connection.lastFailureAt ? fullDate(selected.connection.lastFailureAt) : 'No failure recorded'}</p></div>
+                     </div>
+                   )}
                    {selected.supportsConnection && (
                      <div className="rounded-lg border border-border bg-background p-4">
                        <p className="text-xs font-bold">Environment access</p>
@@ -209,6 +251,7 @@ export function IntegrationsAdmin() {
                      </div>
                    )}
                   <div><div className="mb-3 flex items-center gap-2"><Activity size={15} className="text-primary" /><h3 className="text-xs font-bold">Recent activity</h3></div>{activityQuery.isLoading ? <LoadingPanel lines={3} /> : activityQuery.isError ? <ErrorPanel onRetry={() => activityQuery.refetch()} /> : activityQuery.data?.length ? <div className="space-y-3">{activityQuery.data.map((entry) => <div key={entry.id} className="border-l-2 border-primary/25 pl-3"><p className="text-xs font-semibold">{entry.action}</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{formatDetail(entry.details)}</p><p className="mono mt-1 flex items-center gap-1 text-[9px] uppercase tracking-wider text-muted-foreground"><Clock3 size={10} />{shortDate(entry.createdAt)}</p></div>)}</div> : <p className="text-xs text-muted-foreground">No activity has been recorded for this integration.</p>}</div>
+                   <div><div className="mb-3 flex items-center gap-2"><History size={15} className="text-primary" /><h3 className="text-xs font-bold">Job history</h3></div>{jobsQuery.isLoading ? <LoadingPanel lines={3} /> : jobsQuery.isError ? <ErrorPanel onRetry={() => jobsQuery.refetch()} /> : jobsQuery.data?.length ? <div className="space-y-3">{jobsQuery.data.map((job) => <div key={job.id} className="rounded-md border border-border bg-background p-3"><div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold">{job.jobType}</p><Badge tone={job.status === 'dead_letter' || job.status === 'failed' ? 'red' : job.status === 'retry' ? 'orange' : job.status === 'succeeded' ? 'green' : 'neutral'}>{job.status.replaceAll('_', ' ')}</Badge></div><p className="mt-1 text-[10px] text-muted-foreground">Attempt {job.attempts} of {job.maxAttempts} · Updated {shortDate(job.updatedAt)}</p>{job.lastError && <p className="mt-2 text-[10px] leading-4 text-status-danger">{job.lastError}</p>}</div>)}</div> : <p className="text-xs text-muted-foreground">No connector jobs have been recorded for this provider.</p>}</div>
                 </div>
               </>
             )}
