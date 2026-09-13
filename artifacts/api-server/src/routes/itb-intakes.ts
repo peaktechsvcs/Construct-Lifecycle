@@ -237,15 +237,76 @@ const collectMessageParts = (payload: any, result: { body: string; attachments: 
   for (const part of payload.parts ?? []) collectMessageParts(part, result);
 };
 
-const gmailRequest = async (path: string) => {
-  const response = await connectors.proxy("google-mail", path, { method: "GET" });
+type MailboxProvider = "google-mail" | "outlook";
+
+const mailboxRequest = async (
+  provider: MailboxProvider,
+  path: string,
+  options: { method?: string; headers?: Record<string, string> } = { method: "GET" },
+) => {
+  const response = await connectors.proxy(provider, path, options);
   if (!response.ok) {
-    const error = new Error(`Mailbox connector returned ${response.status}`);
+    const error = new Error(`${provider} mailbox connector returned ${response.status}`);
     (error as Error & { status?: number }).status = response.status;
     throw error;
   }
   return response.json() as Promise<any>;
 };
+
+const parseMailboxProvider = (value: unknown): MailboxProvider | null => {
+  if (value === "google-mail" || value === "outlook") return value;
+  return null;
+};
+
+const providerSourceType = (provider: MailboxProvider) => provider === "outlook" ? "outlook" as const : "gmail" as const;
+
+const outlookSearchTerms = (query: string) => {
+  const terms = query
+    .replace(/\b(?:in|newer_than|older_than):[^\s)]+/gi, " ")
+    .match(/[a-z0-9][a-z0-9@._-]{1,63}/gi) ?? [];
+  return [...new Set(terms.map((term) => term.toLowerCase()))].slice(0, 8);
+};
+
+const outlookSearchQuery = (query: string) => {
+  const terms = outlookSearchTerms(query);
+  return terms.length ? `"${terms.join('" OR "')}"` : "\"bid\" OR \"tender\" OR \"invitation\"";
+};
+
+const outlookDateFilter = (query: string) => {
+  const match = query.match(/\bnewer_than:(\d+)([dwmy])\b/i);
+  if (!match) return "";
+  const amount = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  const multiplier = unit === "w" ? 7 : unit === "m" ? 30 : unit === "y" ? 365 : 1;
+  const since = new Date(Date.now() - amount * multiplier * 24 * 60 * 60 * 1000);
+  return `receivedDateTime ge ${since.toISOString()}`;
+};
+
+const connectorPath = (value: string) => {
+  try {
+    const url = new URL(value);
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return value.startsWith("/") ? value : "";
+  }
+};
+
+const outlookSender = (value: any) => {
+  const address = value?.emailAddress?.address;
+  const name = value?.emailAddress?.name;
+  return clean(name || address, 180) ?? "(unknown sender)";
+};
+
+const stripHtml = (value: string) => value
+  .replace(/<style[\s\S]*?<\/style>/gi, " ")
+  .replace(/<script[\s\S]*?<\/script>/gi, " ")
+  .replace(/<[^>]+>/g, " ")
+  .replace(/&nbsp;/gi, " ")
+  .replace(/&amp;/gi, "&")
+  .replace(/&lt;/gi, "<")
+  .replace(/&gt;/gi, ">")
+  .replace(/\s+/g, " ")
+  .trim();
 
 router.get("/itb-intakes", async (req: TenantRequest, res) => {
   const parsed = ListItbIntakesQueryParams.safeParse(req.query);
@@ -368,23 +429,37 @@ router.get("/itb-intakes/mailbox/preview", requireRole("owner", "admin"), async 
   const rawQuery = typeof req.query.q === "string" ? req.query.q : "in:anywhere newer_than:30d";
   const q = rawQuery.replace(/[\r\n]/g, " ").trim().slice(0, 180) || "in:anywhere newer_than:30d";
   const pageSize = Math.min(20, Math.max(1, Number(req.query.pageSize ?? 10) || 10));
+  const provider = req.query.provider === undefined ? "google-mail" : parseMailboxProvider(req.query.provider);
+  if (!provider) {
+    res.status(400).json({ error: "Unsupported mailbox provider" });
+    return;
+  }
   try {
     const [cursor] = await db.select().from(itbMailboxCursorsTable).where(and(
       eq(itbMailboxCursorsTable.tenantId, req.tenantId!),
       eq(itbMailboxCursorsTable.environmentId, req.environmentId!),
-      eq(itbMailboxCursorsTable.provider, "google-mail"),
+      eq(itbMailboxCursorsTable.provider, provider),
       eq(itbMailboxCursorsTable.mailbox, "me"),
       eq(itbMailboxCursorsTable.query, q),
     )).limit(1);
-    const pageToken = cursor?.nextPageToken ? `&pageToken=${encodeURIComponent(cursor.nextPageToken)}` : "";
-    const result = await gmailRequest(`/gmail/v1/users/me/threads:search?q=${encodeURIComponent(q)}&pageSize=${pageSize}&view=THREAD_VIEW_MINIMAL${pageToken}`);
+    let result: any;
+    if (provider === "google-mail") {
+      const pageToken = cursor?.nextPageToken ? `&pageToken=${encodeURIComponent(cursor.nextPageToken)}` : "";
+      result = await mailboxRequest(provider, `/gmail/v1/users/me/threads:search?q=${encodeURIComponent(q)}&pageSize=${pageSize}&view=THREAD_VIEW_MINIMAL${pageToken}`);
+    } else {
+      const nextPath = cursor?.nextPageToken ? connectorPath(cursor.nextPageToken) : "";
+      const dateFilter = outlookDateFilter(q);
+      const filterParam = dateFilter ? `&$filter=${encodeURIComponent(dateFilter)}` : "";
+      const path = nextPath || `/v1.0/me/messages?$select=id,conversationId,subject,from,receivedDateTime,bodyPreview&$top=${pageSize}&$search=${encodeURIComponent(outlookSearchQuery(q))}${filterParam}`;
+      result = await mailboxRequest(provider, path, { method: "GET", headers: { ConsistencyLevel: "eventual" } });
+    }
     await db.insert(itbMailboxCursorsTable).values({
       tenantId: req.tenantId!,
       environmentId: req.environmentId!,
-      provider: "google-mail",
+      provider,
       mailbox: "me",
       query: q,
-      nextPageToken: result.nextPageToken ?? null,
+      nextPageToken: provider === "google-mail" ? (result.nextPageToken ?? null) : (result["@odata.nextLink"] ?? null),
       lastSyncedAt: new Date(),
     }).onConflictDoUpdate({
       target: [
@@ -394,22 +469,39 @@ router.get("/itb-intakes/mailbox/preview", requireRole("owner", "admin"), async 
         itbMailboxCursorsTable.mailbox,
         itbMailboxCursorsTable.query,
       ],
-      set: { nextPageToken: result.nextPageToken ?? null, lastSyncedAt: new Date(), updatedAt: new Date() },
+      set: {
+        nextPageToken: provider === "google-mail" ? (result.nextPageToken ?? null) : (result["@odata.nextLink"] ?? null),
+        lastSyncedAt: new Date(),
+        updatedAt: new Date(),
+      },
     });
-    const previews = (result.threads ?? []).flatMap((thread: any) => (thread.messages ?? []).slice(-1).map((message: any) => ({
-      threadId: String(thread.id),
-      messageId: String(message.id),
-      subject: clean(message.subject, 300) ?? "(no subject)",
-      sender: clean(message.sender, 180) ?? "(unknown sender)",
-      receivedAt: message.date ?? new Date().toISOString(),
-      snippet: clean(message.snippet, 500) ?? "",
-      imported: false,
-    })));
+    const previews = provider === "google-mail"
+      ? (result.threads ?? []).flatMap((thread: any) => (thread.messages ?? []).slice(-1).map((message: any) => ({
+        provider,
+        threadId: String(thread.id),
+        messageId: String(message.id),
+        subject: clean(message.subject, 300) ?? "(no subject)",
+        sender: clean(message.sender, 180) ?? "(unknown sender)",
+        receivedAt: message.date ?? new Date().toISOString(),
+        snippet: clean(message.snippet, 500) ?? "",
+        imported: false,
+      })))
+      : (result.value ?? []).map((message: any) => ({
+        provider,
+        threadId: String(message.conversationId ?? message.id),
+        messageId: String(message.id),
+        subject: clean(message.subject, 300) ?? "(no subject)",
+        sender: outlookSender(message.from),
+        receivedAt: message.receivedDateTime ?? new Date().toISOString(),
+        snippet: clean(message.bodyPreview, 500) ?? "",
+        imported: false,
+      }));
     const sourceIds: string[] = previews.map((preview: { messageId: string }) => preview.messageId);
     if (sourceIds.length) {
       const imported = await db.select({ sourceMessageId: itbIntakesTable.sourceMessageId }).from(itbIntakesTable).where(and(
         eq(itbIntakesTable.tenantId, req.tenantId!),
         eq(itbIntakesTable.environmentId, req.environmentId!),
+        eq(itbIntakesTable.sourceProvider, provider),
         sql`${itbIntakesTable.sourceMessageId} in (${sql.join(sourceIds.map((id) => sql`${id}`), sql`, `)})`,
       ));
       const importedIds = new Set(imported.map((row) => row.sourceMessageId));
@@ -419,7 +511,7 @@ router.get("/itb-intakes/mailbox/preview", requireRole("owner", "admin"), async 
   } catch (error) {
     const status = (error as { status?: number }).status;
     req.log.warn({ err: error, connectorStatus: status }, "ITB mailbox preview unavailable");
-    res.status(424).json({ error: "The Gmail mailbox is not connected or could not be read" });
+    res.status(424).json({ error: `${provider === "outlook" ? "Microsoft 365" : "Google Workspace"} mailbox is not connected or could not be read` });
   }
 });
 
@@ -429,8 +521,87 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
     res.status(400).json({ error: "Invalid mailbox message" });
     return;
   }
+  const provider = parsed.data.provider ?? "google-mail";
   try {
-    const thread = await gmailRequest(`/gmail/v1/users/me/threads/${encodeURIComponent(parsed.data.threadId)}?format=full`);
+    if (provider === "outlook") {
+      const message = await mailboxRequest("outlook", `/v1.0/me/messages/${encodeURIComponent(parsed.data.messageId ?? parsed.data.threadId)}?$select=id,conversationId,subject,from,receivedDateTime,body,bodyPreview,hasAttachments`);
+      if (!message?.id) {
+        res.status(404).json({ error: "Mailbox message not found" });
+        return;
+      }
+      const sourceMessageId = String(message.id);
+      const sourceThreadId = String(message.conversationId ?? parsed.data.threadId);
+      const subject = clean(message.subject, 300) ?? "";
+      const sourceBody = stripHtml(String(message.body?.content ?? message.bodyPreview ?? "")).slice(0, MAX_SOURCE_CHARS);
+      const sourceSender = outlookSender(message.from);
+      const sourceSenderEmail = clean(message.from?.emailAddress?.address, 320);
+      const receivedAt = message.receivedDateTime ?? new Date().toISOString();
+      const attachments: Array<{ originalName: string; contentType: string; size: number; objectPath: string; sourceAttachmentId: string }> = [];
+      if (message.hasAttachments) {
+        const attachmentList = await mailboxRequest("outlook", `/v1.0/me/messages/${encodeURIComponent(sourceMessageId)}/attachments?$top=20`);
+        for (const attachment of (attachmentList.value ?? []).slice(0, 20)) {
+          const name = clean(attachment.name, 255) ?? "attachment";
+          const contentType = clean(attachment.contentType, 120) ?? "application/octet-stream";
+          let contentBytes = attachment.contentBytes;
+          if (!contentBytes && attachment.id) {
+            const fullAttachment = await mailboxRequest("outlook", `/v1.0/me/messages/${encodeURIComponent(sourceMessageId)}/attachments/${encodeURIComponent(attachment.id)}`);
+            contentBytes = fullAttachment.contentBytes;
+          }
+          if (!contentBytes || attachment.isInline) continue;
+          const bytes = Buffer.from(contentBytes, "base64");
+          if (!bytes.length || bytes.length > MAX_ATTACHMENT_BYTES) continue;
+          const stored = await objectStorage.storeBytes("itb-intakes", bytes, contentType);
+          attachments.push({
+            originalName: name,
+            contentType,
+            size: bytes.length,
+            objectPath: stored.objectPath,
+            sourceAttachmentId: String(attachment.id),
+          });
+        }
+      }
+      const existing = await db.select().from(itbIntakesTable).where(and(
+        eq(itbIntakesTable.tenantId, req.tenantId!),
+        eq(itbIntakesTable.environmentId, req.environmentId!),
+        eq(itbIntakesTable.sourceProvider, provider),
+        eq(itbIntakesTable.sourceMessageId, sourceMessageId),
+      )).limit(1);
+      if (existing.length) {
+        res.status(409).json({ error: "This mailbox message was already imported", intakeId: existing[0].id });
+        return;
+      }
+      const { extraction, warnings } = extractItbFromSource(subject, sourceBody);
+      const [created] = await db.insert(itbIntakesTable).values({
+        tenantId: req.tenantId!,
+        environmentId: req.environmentId!,
+        sourceType: providerSourceType(provider),
+        sourceProvider: provider,
+        sourceMessageId,
+        sourceThreadId,
+        sourceFingerprint: fingerprint([provider, sourceMessageId]),
+        sourceSender,
+        sourceSenderEmail,
+        sourceSubject: subject,
+        sourceReceivedAt: new Date(receivedAt),
+        sourceBody,
+        extractionJson: JSON.stringify(extraction),
+        extractionWarningsJson: JSON.stringify(warnings),
+        createdByUserId: req.localUserId!,
+      }).returning();
+      if (attachments.length) {
+        await db.insert(itbIntakeAttachmentsTable).values(attachments.map((attachment) => ({ ...attachment, intakeId: created.id })));
+      }
+      await db.insert(platformAuditEventsTable).values({
+        actorUserId: req.localUserId!,
+        tenantId: req.tenantId!,
+        action: "itb_mailbox_message_imported",
+        details: JSON.stringify({ intakeId: created.id, messageId: sourceMessageId, provider, environmentId: req.environmentId }),
+      });
+      res.status(201).json(serialize(created, await getAttachments(created.id)));
+      return;
+    }
+
+    const thread = await mailboxRequest("google-mail", `/gmail/v1/users/me/threads/${encodeURIComponent(parsed.data.threadId)}?format=full`);
     const messages = Array.isArray(thread.messages) ? thread.messages : [];
     const message = parsed.data.messageId ? messages.find((candidate: any) => candidate.id === parsed.data.messageId) : messages[messages.length - 1];
     if (!message) {
@@ -459,9 +630,7 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
     for (const attachment of bodyResult.attachments.slice(0, 20)) {
       if (attachment.size > MAX_ATTACHMENT_BYTES) continue;
       try {
-        const attachmentResponse = await connectors.proxy("google-mail", `/gmail/v1/users/me/messages/${encodeURIComponent(message.id)}/attachments/${encodeURIComponent(attachment.id)}`, { method: "GET" });
-        if (!attachmentResponse.ok) continue;
-        const attachmentBody = await attachmentResponse.json() as { data?: string; size?: number };
+        const attachmentBody = await mailboxRequest("google-mail", `/gmail/v1/users/me/messages/${encodeURIComponent(message.id)}/attachments/${encodeURIComponent(attachment.id)}`) as { data?: string; size?: number };
         if (!attachmentBody.data) continue;
         const bytes = decodeBase64Url(attachmentBody.data);
         if (bytes.length > MAX_ATTACHMENT_BYTES) continue;
@@ -474,6 +643,7 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
     const existing = await db.select().from(itbIntakesTable).where(and(
       eq(itbIntakesTable.tenantId, req.tenantId!),
       eq(itbIntakesTable.environmentId, req.environmentId!),
+      eq(itbIntakesTable.sourceProvider, intakeBody.sourceProvider),
       eq(itbIntakesTable.sourceMessageId, intakeBody.sourceMessageId),
     )).limit(1);
     if (existing.length) {
@@ -488,7 +658,7 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
       sourceProvider: intakeBody.sourceProvider,
       sourceMessageId: intakeBody.sourceMessageId,
       sourceThreadId: intakeBody.sourceThreadId,
-      sourceFingerprint: fingerprint(["google-mail", intakeBody.sourceMessageId]),
+      sourceFingerprint: fingerprint([provider, intakeBody.sourceMessageId]),
       sourceSender: intakeBody.sourceSender ?? null,
       sourceSenderEmail: intakeBody.sourceSenderEmail ?? null,
       sourceSubject: intakeBody.sourceSubject ?? null,
@@ -511,7 +681,7 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
   } catch (error) {
     const status = (error as { status?: number }).status;
     req.log.warn({ err: error, connectorStatus: status }, "ITB mailbox import unavailable");
-    res.status(status === 404 ? 404 : 424).json({ error: "The Gmail message could not be imported" });
+    res.status(status === 404 ? 404 : 424).json({ error: `${provider === "outlook" ? "Microsoft 365" : "Google Workspace"} message could not be imported` });
   }
 });
 

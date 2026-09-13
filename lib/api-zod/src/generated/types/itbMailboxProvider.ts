@@ -6,11 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ItbSourceType = typeof ItbSourceType[keyof typeof ItbSourceType];
+export type ItbMailboxProvider = typeof ItbMailboxProvider[keyof typeof ItbMailboxProvider];
 
 
-export const ItbSourceType = {
-  manual: 'manual',
-  gmail: 'gmail',
+export const ItbMailboxProvider = {
+  'google-mail': 'google-mail',
   outlook: 'outlook',
 } as const;

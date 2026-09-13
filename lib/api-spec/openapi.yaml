@@ -1200,6 +1200,9 @@ paths:
         - in: query
           name: pageSize
           schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+        - in: query
+          name: provider
+          schema: { $ref: "#/components/schemas/ItbMailboxProvider" }
       responses:
         "200":
           description: Mailbox message previews
@@ -3244,7 +3247,10 @@ components:
       enum: [review, approved, rejected, archived, failed]
     ItbSourceType:
       type: string
-      enum: [manual, gmail]
+      enum: [manual, gmail, outlook]
+    ItbMailboxProvider:
+      type: string
+      enum: [google-mail, outlook]
     ItbExtractionStatus:
       type: string
       enum: [completed, partial, failed]
@@ -3445,8 +3451,9 @@ components:
         objectPath: { type: string, pattern: "^/objects/.+" }
     ItbMailboxMessage:
       type: object
-      required: [threadId, messageId, subject, sender, receivedAt, snippet, imported]
+      required: [provider, threadId, messageId, subject, sender, receivedAt, snippet, imported]
       properties:
+        provider: { $ref: "#/components/schemas/ItbMailboxProvider" }
         threadId: { type: string }
         messageId: { type: string }
         subject: { type: string }
@@ -3458,6 +3465,7 @@ components:
       type: object
       required: [threadId]
       properties:
+        provider: { $ref: "#/components/schemas/ItbMailboxProvider" }
         threadId: { type: string, minLength: 1, maxLength: 240 }
         messageId: { type: string, maxLength: 240 }
     Opportunity:

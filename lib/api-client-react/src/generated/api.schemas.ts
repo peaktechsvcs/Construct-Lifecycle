@@ -98,6 +98,15 @@ export type ItbSourceType = typeof ItbSourceType[keyof typeof ItbSourceType];
 export const ItbSourceType = {
   manual: 'manual',
   gmail: 'gmail',
+  outlook: 'outlook',
+} as const;
+
+export type ItbMailboxProvider = typeof ItbMailboxProvider[keyof typeof ItbMailboxProvider];
+
+
+export const ItbMailboxProvider = {
+  'google-mail': 'google-mail',
+  outlook: 'outlook',
 } as const;
 
 export type ItbExtractionStatus = typeof ItbExtractionStatus[keyof typeof ItbExtractionStatus];
@@ -405,6 +414,7 @@ export interface ItbAttachmentUpload {
 }
 
 export interface ItbMailboxMessage {
+  provider: ItbMailboxProvider;
   threadId: string;
   messageId: string;
   subject: string;
@@ -415,6 +425,7 @@ export interface ItbMailboxMessage {
 }
 
 export interface ItbMailboxImportInput {
+  provider?: ItbMailboxProvider;
   /**
      * @minLength 1
      * @maxLength 240
@@ -5590,6 +5601,7 @@ q?: string;
  * @maximum 20
  */
 pageSize?: number;
+provider?: ItbMailboxProvider;
 };
 
 export type ListOpportunitiesParams = {

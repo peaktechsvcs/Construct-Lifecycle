@@ -5,8 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ItbMailboxProvider } from './itbMailboxProvider';
 
 export interface ItbMailboxImportInput {
+  provider?: ItbMailboxProvider;
   /**
      * @minLength 1
      * @maxLength 240

@@ -1,4 +1,5 @@
 export type IntegrationCategory =
+  | "productivity_collaboration"
   | "erp_financial"
   | "accounting"
   | "takeoff_estimating"
@@ -19,6 +20,26 @@ export type ConnectorDefinition = {
 };
 
 export const connectorCatalog: ConnectorDefinition[] = [
+  {
+    providerKey: "google_workspace",
+    name: "Google Workspace",
+    category: "productivity_collaboration",
+    categoryLabel: "Productivity & Collaboration",
+    description: "Connect Google Workspace mail and collaboration signals to bounded, reviewable workflows across the platform.",
+    capabilities: ["Gmail Mailbox", "Calendar", "Contacts", "Drive References"],
+    entitlementKey: "google_workspace",
+    connectorStatus: "cataloged",
+  },
+  {
+    providerKey: "microsoft_365",
+    name: "Microsoft 365",
+    category: "productivity_collaboration",
+    categoryLabel: "Productivity & Collaboration",
+    description: "Connect Microsoft 365 mail and collaboration signals through Microsoft Graph to bounded, reviewable workflows.",
+    capabilities: ["Outlook Mailbox", "Calendar", "Contacts", "OneDrive References"],
+    entitlementKey: "microsoft_365",
+    connectorStatus: "cataloged",
+  },
   {
     providerKey: "business_central",
     name: "Microsoft Dynamics 365 Business Central",

@@ -132,6 +132,7 @@ export * from './itbIntakeStatus';
 export * from './itbIntakeUpdate';
 export * from './itbMailboxImportInput';
 export * from './itbMailboxMessage';
+export * from './itbMailboxProvider';
 export * from './itbSourceType';
 export * from './listBidsParams';
 export * from './listBusinessCustomersParams';

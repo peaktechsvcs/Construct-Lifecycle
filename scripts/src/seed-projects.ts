@@ -56,6 +56,8 @@ const seed = async () => {
     }
   }
   await db.insert(integrationEntitlementsTable).values([
+    "google_workspace",
+    "microsoft_365",
     "business_central",
     "quickbooks",
     "measuresquare",

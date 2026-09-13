@@ -3523,7 +3523,7 @@ export const listItbIntakesQuerySearchMax = 120;
 
 export const ListItbIntakesQueryParams = zod.object({
   "status": zod.enum(['review', 'approved', 'rejected', 'archived', 'failed']).optional(),
-  "sourceType": zod.enum(['manual', 'gmail']).optional(),
+  "sourceType": zod.enum(['manual', 'gmail', 'outlook']).optional(),
   "search": zod.coerce.string().max(listItbIntakesQuerySearchMax).optional()
 })
 
@@ -3592,7 +3592,7 @@ export const ListItbIntakesResponseItem = zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
   "environmentId": zod.number().int(),
-  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceType": zod.enum(['manual', 'gmail', 'outlook']),
   "sourceProvider": zod.string().nullish(),
   "sourceMessageId": zod.string().nullish(),
   "sourceThreadId": zod.string().nullish(),
@@ -3716,7 +3716,7 @@ export const createItbIntakeBodyAttachmentsMax = 20;
 
 
 export const CreateItbIntakeBody = zod.object({
-  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceType": zod.enum(['manual', 'gmail', 'outlook']),
   "sourceProvider": zod.string().max(createItbIntakeBodySourceProviderMax).optional(),
   "sourceMessageId": zod.string().max(createItbIntakeBodySourceMessageIdMax).optional(),
   "sourceThreadId": zod.string().max(createItbIntakeBodySourceThreadIdMax).optional(),
@@ -3800,7 +3800,7 @@ export const CreateItbIntakeResponse = zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
   "environmentId": zod.number().int(),
-  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceType": zod.enum(['manual', 'gmail', 'outlook']),
   "sourceProvider": zod.string().nullish(),
   "sourceMessageId": zod.string().nullish(),
   "sourceThreadId": zod.string().nullish(),
@@ -3929,10 +3929,12 @@ export const previewItbMailboxQueryPageSizeMax = 20;
 
 export const PreviewItbMailboxQueryParams = zod.object({
   "q": zod.coerce.string().max(previewItbMailboxQueryQMax).default(previewItbMailboxQueryQDefault),
-  "pageSize": zod.coerce.number().int().min(1).max(previewItbMailboxQueryPageSizeMax).default(previewItbMailboxQueryPageSizeDefault)
+  "pageSize": zod.coerce.number().int().min(1).max(previewItbMailboxQueryPageSizeMax).default(previewItbMailboxQueryPageSizeDefault),
+  "provider": zod.enum(['google-mail', 'outlook']).optional()
 })
 
 export const PreviewItbMailboxResponseItem = zod.object({
+  "provider": zod.enum(['google-mail', 'outlook']),
   "threadId": zod.string(),
   "messageId": zod.string(),
   "subject": zod.string(),
@@ -3954,6 +3956,7 @@ export const importItbMailboxMessageBodyMessageIdMax = 240;
 
 
 export const ImportItbMailboxMessageBody = zod.object({
+  "provider": zod.enum(['google-mail', 'outlook']).optional(),
   "threadId": zod.string().min(1).max(importItbMailboxMessageBodyThreadIdMax),
   "messageId": zod.string().max(importItbMailboxMessageBodyMessageIdMax).optional()
 })
@@ -4023,7 +4026,7 @@ export const ImportItbMailboxMessageResponse = zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
   "environmentId": zod.number().int(),
-  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceType": zod.enum(['manual', 'gmail', 'outlook']),
   "sourceProvider": zod.string().nullish(),
   "sourceMessageId": zod.string().nullish(),
   "sourceThreadId": zod.string().nullish(),
@@ -4188,7 +4191,7 @@ export const GetItbIntakeResponse = zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
   "environmentId": zod.number().int(),
-  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceType": zod.enum(['manual', 'gmail', 'outlook']),
   "sourceProvider": zod.string().nullish(),
   "sourceMessageId": zod.string().nullish(),
   "sourceThreadId": zod.string().nullish(),
@@ -4476,7 +4479,7 @@ export const UpdateItbIntakeResponse = zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
   "environmentId": zod.number().int(),
-  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceType": zod.enum(['manual', 'gmail', 'outlook']),
   "sourceProvider": zod.string().nullish(),
   "sourceMessageId": zod.string().nullish(),
   "sourceThreadId": zod.string().nullish(),
@@ -4657,7 +4660,7 @@ export const ApproveItbIntakeResponse = zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
   "environmentId": zod.number().int(),
-  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceType": zod.enum(['manual', 'gmail', 'outlook']),
   "sourceProvider": zod.string().nullish(),
   "sourceMessageId": zod.string().nullish(),
   "sourceThreadId": zod.string().nullish(),
@@ -4829,7 +4832,7 @@ export const MergeItbIntakeResponse = zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
   "environmentId": zod.number().int(),
-  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceType": zod.enum(['manual', 'gmail', 'outlook']),
   "sourceProvider": zod.string().nullish(),
   "sourceMessageId": zod.string().nullish(),
   "sourceThreadId": zod.string().nullish(),
@@ -5281,7 +5284,7 @@ export const ApplyItbDocumentFindingsResponse = zod.object({
   "id": zod.number().int(),
   "tenantId": zod.number().int(),
   "environmentId": zod.number().int(),
-  "sourceType": zod.enum(['manual', 'gmail']),
+  "sourceType": zod.enum(['manual', 'gmail', 'outlook']),
   "sourceProvider": zod.string().nullish(),
   "sourceMessageId": zod.string().nullish(),
   "sourceThreadId": zod.string().nullish(),

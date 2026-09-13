@@ -5,8 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ItbMailboxProvider } from './itbMailboxProvider';
 
 export interface ItbMailboxMessage {
+  provider: ItbMailboxProvider;
   threadId: string;
   messageId: string;
   subject: string;

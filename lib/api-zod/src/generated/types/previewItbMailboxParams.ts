@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ItbMailboxProvider } from './itbMailboxProvider';
 
 export type PreviewItbMailboxParams = {
 /**
@@ -16,4 +17,5 @@ q?: string;
  * @maximum 20
  */
 pageSize?: number;
+provider?: ItbMailboxProvider;
 };
