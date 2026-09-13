@@ -655,6 +655,39 @@ export interface BidOwner {
   displayName: string | null;
 }
 
+export type BidScopeStatus = typeof BidScopeStatus[keyof typeof BidScopeStatus];
+
+
+export const BidScopeStatus = {
+  draft: 'draft',
+  active: 'active',
+  submitted: 'submitted',
+  awarded: 'awarded',
+  lost: 'lost',
+} as const;
+
+export interface BidScope {
+  id: number;
+  bidId: number;
+  name: string;
+  /** @nullable */
+  description: string | null;
+  /** @minimum 0 */
+  amount: number;
+  /** @nullable */
+  ownerUserId: number | null;
+  owner: BidOwner | null;
+  status: BidScopeStatus;
+  /** @nullable */
+  takeoffProvider: string | null;
+  takeoffCoverage: BidIntegrationCoverage;
+  /** @nullable */
+  estimatingProvider: string | null;
+  estimatingCoverage: BidIntegrationCoverage;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Bid {
   id: number;
   environmentId: number;
@@ -685,6 +718,14 @@ export interface Bid {
   /** @nullable */
   estimatingProvider: string | null;
   estimatingCoverage: BidIntegrationCoverage;
+  scopes: BidScope[];
+  /** @minimum 0 */
+  scopeCount: number;
+  /** @minimum 0 */
+  scopeTotal: number;
+  /** @minimum 0 */
+  coverageGapCount: number;
+  hasCoverageGap: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -760,6 +801,66 @@ export interface BidUpdate {
      * @nullable
      */
   ownerUserId?: number | null;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  takeoffProvider?: string | null;
+  takeoffCoverage?: BidIntegrationCoverage;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  estimatingProvider?: string | null;
+  estimatingCoverage?: BidIntegrationCoverage;
+}
+
+export interface BidScopeInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  /** @maxLength 5000 */
+  description?: string;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  amount?: number;
+  /** @minimum 1 */
+  ownerUserId?: number;
+  status?: BidScopeStatus;
+  /** @maxLength 160 */
+  takeoffProvider?: string;
+  takeoffCoverage?: BidIntegrationCoverage;
+  /** @maxLength 160 */
+  estimatingProvider?: string;
+  estimatingCoverage?: BidIntegrationCoverage;
+}
+
+export interface BidScopeUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name?: string;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 999999999999
+     */
+  amount?: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  ownerUserId?: number | null;
+  status?: BidScopeStatus;
   /**
      * @maxLength 160
      * @nullable

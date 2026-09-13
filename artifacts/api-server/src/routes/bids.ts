@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import {
+  bidScopesTable,
   bidsTable,
   businessCustomersTable,
   db,
@@ -11,9 +12,15 @@ import {
 } from "@workspace/db";
 import {
   CreateBidBody,
+  CreateBidScopeBody,
+  CreateBidScopeParams,
+  DeleteBidScopeParams,
   DeleteBidParams,
   GetBidParams,
+  ListBidScopesParams,
   ListBidsQueryParams,
+  UpdateBidScopeBody,
+  UpdateBidScopeParams,
   UpdateBidBody,
   UpdateBidParams,
 } from "@workspace/api-zod";
@@ -23,6 +30,7 @@ import { requireRole } from "../middlewares/rbac";
 const router: IRouter = Router();
 const stages = ["invited", "qualifying", "takeoff", "estimating", "review", "submitted", "awarded", "lost"] as const;
 const coverageModes = ["none", "full", "partial"] as const;
+const scopeStatuses = ["draft", "active", "submitted", "awarded", "lost"] as const;
 
 type BidRow = {
   bid: typeof bidsTable.$inferSelect;
@@ -33,7 +41,46 @@ type BidRow = {
   ownerDisplayName: string | null;
 };
 
-const serializeBid = ({ bid, customerName, opportunityName, ownerUserId, ownerEmail, ownerDisplayName }: BidRow) => ({
+type BidScopeRow = {
+  scope: typeof bidScopesTable.$inferSelect;
+  ownerUserId: number | null;
+  ownerEmail: string | null;
+  ownerDisplayName: string | null;
+};
+
+const serializeScope = ({ scope, ownerUserId, ownerEmail, ownerDisplayName }: BidScopeRow) => ({
+  id: scope.id,
+  bidId: scope.bidId,
+  name: scope.name,
+  description: scope.description,
+  amount: Number(scope.amount),
+  ownerUserId,
+  owner: ownerUserId === null ? null : {
+    userId: ownerUserId,
+    email: ownerEmail,
+    displayName: ownerDisplayName,
+  },
+  status: scope.status,
+  takeoffProvider: scope.takeoffProvider,
+  takeoffCoverage: scope.takeoffCoverage,
+  estimatingProvider: scope.estimatingProvider,
+  estimatingCoverage: scope.estimatingCoverage,
+  createdAt: scope.createdAt,
+  updatedAt: scope.updatedAt,
+});
+
+const serializeBid = (
+  { bid, customerName, opportunityName, ownerUserId, ownerEmail, ownerDisplayName }: BidRow,
+  scopeRows: BidScopeRow[] = [],
+) => {
+  const scopes = scopeRows.map(serializeScope);
+  const scopeTotal = scopes.reduce((sum, scope) => sum + scope.amount, 0);
+  const scopeCoverageGapCount = scopes.filter((scope) =>
+    scope.takeoffCoverage !== "full" || scope.estimatingCoverage !== "full"
+  ).length;
+  const hasScopes = scopes.length > 0;
+  const legacyCoverageGap = bid.takeoffCoverage !== "full" || bid.estimatingCoverage !== "full";
+  return {
   id: bid.id,
   environmentId: bid.environmentId,
   bidNumber: bid.bidNumber,
@@ -47,7 +94,7 @@ const serializeBid = ({ bid, customerName, opportunityName, ownerUserId, ownerEm
   bidType: bid.bidType,
   scopeMode: bid.scopeMode,
   specialty: bid.specialty,
-  estimatedValue: Number(bid.estimatedValue),
+  estimatedValue: hasScopes ? scopeTotal : Number(bid.estimatedValue),
   dueDate: bid.dueDate,
   ownerUserId,
   owner: ownerUserId === null ? null : {
@@ -59,9 +106,15 @@ const serializeBid = ({ bid, customerName, opportunityName, ownerUserId, ownerEm
   takeoffCoverage: bid.takeoffCoverage,
   estimatingProvider: bid.estimatingProvider,
   estimatingCoverage: bid.estimatingCoverage,
+  scopes,
+  scopeCount: scopes.length,
+  scopeTotal,
+  coverageGapCount: hasScopes ? scopeCoverageGapCount : (legacyCoverageGap ? 1 : 0),
+  hasCoverageGap: hasScopes ? scopeCoverageGapCount > 0 : legacyCoverageGap,
   createdAt: bid.createdAt,
   updatedAt: bid.updatedAt,
-});
+  };
+};
 
 const getBidInContext = async (req: TenantRequest, bidId: number) => {
   const [row] = await db
@@ -88,6 +141,47 @@ const getBidInContext = async (req: TenantRequest, bidId: number) => {
     ))
     .limit(1);
   return row;
+};
+
+const getScopesInContext = async (req: TenantRequest, bidId: number): Promise<BidScopeRow[]> =>
+  db.select({
+    scope: bidScopesTable,
+    ownerUserId: usersTable.id,
+    ownerEmail: usersTable.email,
+    ownerDisplayName: usersTable.displayName,
+  })
+    .from(bidScopesTable)
+    .leftJoin(usersTable, eq(bidScopesTable.ownerUserId, usersTable.id))
+    .where(and(
+      eq(bidScopesTable.bidId, bidId),
+      eq(bidScopesTable.tenantId, req.tenantId!),
+      eq(bidScopesTable.environmentId, req.environmentId!),
+    ))
+    .orderBy(desc(bidScopesTable.updatedAt));
+
+const getScopesForBids = async (req: TenantRequest, bidIds: number[]) => {
+  if (bidIds.length === 0) return new Map<number, BidScopeRow[]>();
+  const rows = await db.select({
+    scope: bidScopesTable,
+    ownerUserId: usersTable.id,
+    ownerEmail: usersTable.email,
+    ownerDisplayName: usersTable.displayName,
+  })
+    .from(bidScopesTable)
+    .leftJoin(usersTable, eq(bidScopesTable.ownerUserId, usersTable.id))
+    .where(and(
+      inArray(bidScopesTable.bidId, bidIds),
+      eq(bidScopesTable.tenantId, req.tenantId!),
+      eq(bidScopesTable.environmentId, req.environmentId!),
+    ))
+    .orderBy(desc(bidScopesTable.updatedAt));
+  const byBid = new Map<number, BidScopeRow[]>();
+  for (const row of rows) {
+    const scopes = byBid.get(row.scope.bidId) ?? [];
+    scopes.push(row);
+    byBid.set(row.scope.bidId, scopes);
+  }
+  return byBid;
 };
 
 const validateOwner = async (req: TenantRequest, ownerUserId: number | null | undefined) => {
@@ -164,6 +258,31 @@ const validateBidConfiguration = (input: {
   return null;
 };
 
+const validateScopeConfiguration = (input: {
+  name?: string;
+  status?: string;
+  takeoffProvider?: string | null;
+  takeoffCoverage?: string;
+  estimatingProvider?: string | null;
+  estimatingCoverage?: string;
+}) => {
+  if (input.name !== undefined && !input.name.trim()) return "Scope name is required";
+  if (input.status && !scopeStatuses.includes(input.status as typeof scopeStatuses[number])) return "Invalid scope status";
+  if (input.takeoffCoverage && !coverageModes.includes(input.takeoffCoverage as typeof coverageModes[number])) {
+    return "Invalid takeoff coverage";
+  }
+  if (input.estimatingCoverage && !coverageModes.includes(input.estimatingCoverage as typeof coverageModes[number])) {
+    return "Invalid estimating coverage";
+  }
+  if (input.takeoffCoverage && input.takeoffCoverage !== "none" && !input.takeoffProvider?.trim()) {
+    return "Takeoff provider is required when takeoff coverage is enabled";
+  }
+  if (input.estimatingCoverage && input.estimatingCoverage !== "none" && !input.estimatingProvider?.trim()) {
+    return "Estimating provider is required when estimating coverage is enabled";
+  }
+  return null;
+};
+
 const dateString = (value: Date | null | undefined) => value ? value.toISOString().slice(0, 10) : null;
 
 router.get("/bids", async (req: TenantRequest, res) => {
@@ -219,7 +338,8 @@ router.get("/bids", async (req: TenantRequest, res) => {
     .orderBy(desc(bidsTable.updatedAt))
     .limit(200);
 
-  res.json(rows.map(serializeBid));
+  const scopesByBid = await getScopesForBids(req, rows.map((row) => row.bid.id));
+  res.json(rows.map((row) => serializeBid(row, scopesByBid.get(row.bid.id) ?? [])));
 });
 
 router.post("/bids", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
@@ -274,7 +394,7 @@ router.post("/bids", requireRole("owner", "admin", "member"), async (req: Tenant
     details: JSON.stringify({ bidId: created.id, environmentId: req.environmentId }),
   });
   const row = await getBidInContext(req, created.id);
-  res.status(201).json(serializeBid(row!));
+  res.status(201).json(serializeBid(row!, []));
 });
 
 router.get("/bids/:bidId", async (req: TenantRequest, res) => {
@@ -288,7 +408,7 @@ router.get("/bids/:bidId", async (req: TenantRequest, res) => {
     res.status(404).json({ error: "Bid not found" });
     return;
   }
-  res.json(serializeBid(row));
+  res.json(serializeBid(row, await getScopesInContext(req, row.bid.id)));
 });
 
 router.patch("/bids/:bidId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
@@ -351,7 +471,7 @@ router.patch("/bids/:bidId", requireRole("owner", "admin", "member"), async (req
     eq(bidsTable.environmentId, req.environmentId!),
   ));
   const row = await getBidInContext(req, params.data.bidId);
-  res.json(serializeBid(row!));
+  res.json(serializeBid(row!, await getScopesInContext(req, params.data.bidId)));
 });
 
 router.delete("/bids/:bidId", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
@@ -369,6 +489,174 @@ router.delete("/bids/:bidId", requireRole("owner", "admin"), async (req: TenantR
     res.status(404).json({ error: "Bid not found" });
     return;
   }
+  res.status(204).send();
+});
+
+router.get("/bids/:bidId/scopes", async (req: TenantRequest, res) => {
+  const params = ListBidScopesParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid bid id" });
+    return;
+  }
+  const bid = await getBidInContext(req, params.data.bidId);
+  if (!bid) {
+    res.status(404).json({ error: "Bid not found" });
+    return;
+  }
+  res.json((await getScopesInContext(req, params.data.bidId)).map(serializeScope));
+});
+
+router.post("/bids/:bidId/scopes", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const params = CreateBidScopeParams.safeParse(req.params);
+  const parsed = CreateBidScopeBody.safeParse(req.body);
+  if (!params.success || !parsed.success) {
+    res.status(400).json({ error: "Invalid bid scope details" });
+    return;
+  }
+  const bid = await getBidInContext(req, params.data.bidId);
+  if (!bid) {
+    res.status(404).json({ error: "Bid not found" });
+    return;
+  }
+  if (bid.bid.bidType !== "specialty") {
+    res.status(400).json({ error: "Only specialty bids can contain specialty scopes" });
+    return;
+  }
+  if (!(await validateOwner(req, parsed.data.ownerUserId))) {
+    res.status(400).json({ error: "Scope owner must be a member of this workspace" });
+    return;
+  }
+  const configurationError = validateScopeConfiguration(parsed.data);
+  if (configurationError) {
+    res.status(400).json({ error: configurationError });
+    return;
+  }
+  const [created] = await db.insert(bidScopesTable).values({
+    bidId: params.data.bidId,
+    name: parsed.data.name.trim(),
+    description: parsed.data.description?.trim() || null,
+    amount: String(parsed.data.amount ?? 0),
+    ownerUserId: parsed.data.ownerUserId ?? null,
+    status: parsed.data.status ?? "draft",
+    takeoffProvider: parsed.data.takeoffProvider?.trim() || null,
+    takeoffCoverage: parsed.data.takeoffCoverage ?? "none",
+    estimatingProvider: parsed.data.estimatingProvider?.trim() || null,
+    estimatingCoverage: parsed.data.estimatingCoverage ?? "none",
+    tenantId: req.tenantId!,
+    environmentId: req.environmentId!,
+  }).returning();
+  await db.insert(platformAuditEventsTable).values({
+    actorUserId: req.localUserId!,
+    tenantId: req.tenantId!,
+    action: "bid_scope_created",
+    details: JSON.stringify({ bidId: params.data.bidId, scopeId: created.id, environmentId: req.environmentId }),
+  });
+  const [scope] = await db.select({
+    scope: bidScopesTable,
+    ownerUserId: usersTable.id,
+    ownerEmail: usersTable.email,
+    ownerDisplayName: usersTable.displayName,
+  }).from(bidScopesTable).leftJoin(usersTable, eq(bidScopesTable.ownerUserId, usersTable.id)).where(eq(bidScopesTable.id, created.id));
+  res.status(201).json(serializeScope(scope!));
+});
+
+router.patch("/bids/:bidId/scopes/:scopeId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const params = UpdateBidScopeParams.safeParse(req.params);
+  const parsed = UpdateBidScopeBody.safeParse(req.body);
+  if (!params.success || !parsed.success) {
+    res.status(400).json({ error: "Invalid bid scope update" });
+    return;
+  }
+  const bid = await getBidInContext(req, params.data.bidId);
+  if (!bid) {
+    res.status(404).json({ error: "Bid not found" });
+    return;
+  }
+  const [existing] = await db.select().from(bidScopesTable).where(and(
+    eq(bidScopesTable.id, params.data.scopeId),
+    eq(bidScopesTable.bidId, params.data.bidId),
+    eq(bidScopesTable.tenantId, req.tenantId!),
+    eq(bidScopesTable.environmentId, req.environmentId!),
+  ));
+  if (!existing) {
+    res.status(404).json({ error: "Bid scope not found" });
+    return;
+  }
+  if (!(await validateOwner(req, parsed.data.ownerUserId))) {
+    res.status(400).json({ error: "Scope owner must be a member of this workspace" });
+    return;
+  }
+  const configurationError = validateScopeConfiguration({
+    name: parsed.data.name,
+    status: parsed.data.status,
+    takeoffProvider: parsed.data.takeoffProvider === undefined ? existing.takeoffProvider : parsed.data.takeoffProvider,
+    takeoffCoverage: parsed.data.takeoffCoverage ?? existing.takeoffCoverage,
+    estimatingProvider: parsed.data.estimatingProvider === undefined ? existing.estimatingProvider : parsed.data.estimatingProvider,
+    estimatingCoverage: parsed.data.estimatingCoverage ?? existing.estimatingCoverage,
+  });
+  if (configurationError) {
+    res.status(400).json({ error: configurationError });
+    return;
+  }
+  await db.update(bidScopesTable).set({
+    ...(parsed.data.name !== undefined ? { name: parsed.data.name.trim() } : {}),
+    ...(parsed.data.description !== undefined ? { description: parsed.data.description?.trim() || null } : {}),
+    ...(parsed.data.amount !== undefined ? { amount: String(parsed.data.amount) } : {}),
+    ...(parsed.data.ownerUserId !== undefined ? { ownerUserId: parsed.data.ownerUserId } : {}),
+    ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
+    ...(parsed.data.takeoffProvider !== undefined ? { takeoffProvider: parsed.data.takeoffProvider?.trim() || null } : {}),
+    ...(parsed.data.takeoffCoverage !== undefined ? { takeoffCoverage: parsed.data.takeoffCoverage } : {}),
+    ...(parsed.data.estimatingProvider !== undefined ? { estimatingProvider: parsed.data.estimatingProvider?.trim() || null } : {}),
+    ...(parsed.data.estimatingCoverage !== undefined ? { estimatingCoverage: parsed.data.estimatingCoverage } : {}),
+    updatedAt: new Date(),
+  }).where(and(
+    eq(bidScopesTable.id, params.data.scopeId),
+    eq(bidScopesTable.bidId, params.data.bidId),
+    eq(bidScopesTable.tenantId, req.tenantId!),
+    eq(bidScopesTable.environmentId, req.environmentId!),
+  ));
+  await db.insert(platformAuditEventsTable).values({
+    actorUserId: req.localUserId!,
+    tenantId: req.tenantId!,
+    action: "bid_scope_updated",
+    details: JSON.stringify({ bidId: params.data.bidId, scopeId: params.data.scopeId, environmentId: req.environmentId }),
+  });
+  const [scope] = await db.select({
+    scope: bidScopesTable,
+    ownerUserId: usersTable.id,
+    ownerEmail: usersTable.email,
+    ownerDisplayName: usersTable.displayName,
+  }).from(bidScopesTable).leftJoin(usersTable, eq(bidScopesTable.ownerUserId, usersTable.id)).where(and(
+    eq(bidScopesTable.id, params.data.scopeId),
+    eq(bidScopesTable.bidId, params.data.bidId),
+    eq(bidScopesTable.tenantId, req.tenantId!),
+    eq(bidScopesTable.environmentId, req.environmentId!),
+  ));
+  res.json(serializeScope(scope!));
+});
+
+router.delete("/bids/:bidId/scopes/:scopeId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const params = DeleteBidScopeParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid bid scope id" });
+    return;
+  }
+  const deleted = await db.delete(bidScopesTable).where(and(
+    eq(bidScopesTable.id, params.data.scopeId),
+    eq(bidScopesTable.bidId, params.data.bidId),
+    eq(bidScopesTable.tenantId, req.tenantId!),
+    eq(bidScopesTable.environmentId, req.environmentId!),
+  )).returning({ id: bidScopesTable.id });
+  if (!deleted.length) {
+    res.status(404).json({ error: "Bid scope not found" });
+    return;
+  }
+  await db.insert(platformAuditEventsTable).values({
+    actorUserId: req.localUserId!,
+    tenantId: req.tenantId!,
+    action: "bid_scope_deleted",
+    details: JSON.stringify({ bidId: params.data.bidId, scopeId: params.data.scopeId, environmentId: req.environmentId }),
+  });
   res.status(204).send();
 });
 

@@ -7,6 +7,9 @@ process.env.APP_ENV = "test";
 
 const {
   activityTable,
+  bidScopesTable,
+  bidsTable,
+  businessCustomersTable,
   db,
   environmentsTable,
   followUpsTable,
@@ -41,6 +44,8 @@ let environmentBId: number;
 let projectAId: number;
 let projectBId: number;
 let followUpBId: number;
+let bidAId: number;
+let bidBId: number;
 
 async function request(
   clerkUserId: string,
@@ -124,6 +129,44 @@ before(async () => {
   ]).returning();
   projectAId = projectA.id;
   projectBId = projectB.id;
+
+  const [customerA, customerB] = await db.insert(businessCustomersTable).values([
+    {
+      tenantId: tenantAId, environmentId: environmentAId,
+      companyName: `Bid Customer A ${runId}`, normalizedName: `bid-customer-a-${runId}`,
+    },
+    {
+      tenantId: tenantBId, environmentId: environmentBId,
+      companyName: `Bid Customer B ${runId}`, normalizedName: `bid-customer-b-${runId}`,
+    },
+  ]).returning();
+  const [bidA, bidB] = await db.insert(bidsTable).values([
+    {
+      tenantId: tenantAId, environmentId: environmentAId, businessCustomerId: customerA.id,
+      bidNumber: `BID-A-${runId}`, name: `Scoped Bid A ${runId}`, bidType: "specialty",
+      specialty: "Electrical", estimatedValue: "100.00",
+    },
+    {
+      tenantId: tenantBId, environmentId: environmentBId, businessCustomerId: customerB.id,
+      bidNumber: `BID-B-${runId}`, name: `Secret Bid B ${runId}`, bidType: "specialty",
+      specialty: "HVAC", estimatedValue: "900.00",
+    },
+  ]).returning();
+  bidAId = bidA.id;
+  bidBId = bidB.id;
+  await db.insert(bidScopesTable).values([
+    {
+      tenantId: tenantAId, environmentId: environmentAId, bidId: bidAId,
+      name: "Electrical package", amount: "125.00", ownerUserId: userId[clerkIds.ownerA],
+      status: "active", takeoffCoverage: "full", estimatingCoverage: "partial",
+      estimatingProvider: "Estimator A",
+    },
+    {
+      tenantId: tenantBId, environmentId: environmentBId, bidId: bidBId,
+      name: "Secret HVAC package", amount: "999.00", ownerUserId: userId[clerkIds.ownerB],
+      status: "draft",
+    },
+  ]);
 
   await db.insert(activityTable).values([
     { tenantId: tenantAId, environmentId: environmentAId, projectId: projectAId, action: "A action", description: `Visible activity A ${runId}` },
@@ -255,5 +298,44 @@ describe("tenant isolation integration", () => {
     const nowB = await request(clerkIds.switcher, "/projects");
     assert.match(serialized(nowB.body), new RegExp(`Secret B ${runId}`));
     assert.doesNotMatch(serialized(nowB.body), new RegExp(`Visible A ${runId}`));
+  });
+
+  test("specialty scopes roll up and cannot cross tenant boundaries", async () => {
+    const listA = await request(clerkIds.ownerA, "/bids");
+    assert.equal(listA.status, 200);
+    assert.match(serialized(listA.body), new RegExp(`Scoped Bid A ${runId}`));
+    assert.doesNotMatch(serialized(listA.body), new RegExp(`Secret Bid B ${runId}|Secret HVAC`));
+    const scopedBid = (listA.body as Array<Record<string, unknown>>).find((bid) => bid.id === bidAId);
+    assert.equal(scopedBid?.scopeCount, 1);
+    assert.equal(scopedBid?.scopeTotal, 125);
+    assert.equal(scopedBid?.coverageGapCount, 1);
+    assert.equal(scopedBid?.hasCoverageGap, true);
+
+    const scopesA = await request(clerkIds.ownerA, `/bids/${bidAId}/scopes`);
+    assert.equal(scopesA.status, 200);
+    assert.equal((scopesA.body as Array<unknown>).length, 1);
+    const foreignBid = await request(clerkIds.ownerA, `/bids/${bidBId}`);
+    assert.equal(foreignBid.status, 404);
+    const foreignScopes = await request(clerkIds.ownerA, `/bids/${bidBId}/scopes`);
+    assert.equal(foreignScopes.status, 404);
+    const deniedCreate = await request(clerkIds.ownerA, `/bids/${bidBId}/scopes`, {
+      method: "POST",
+      body: JSON.stringify({ name: "Should not cross", amount: 10 }),
+    });
+    assert.equal(deniedCreate.status, 404);
+
+    const created = await request(clerkIds.ownerA, `/bids/${bidAId}/scopes`, {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Controls package", amount: 75, status: "active",
+        takeoffProvider: "Takeoff A", takeoffCoverage: "full",
+        estimatingProvider: "Estimator A", estimatingCoverage: "full",
+      }),
+    });
+    assert.equal(created.status, 201);
+    const updated = await request(clerkIds.ownerA, `/bids/${bidAId}`);
+    assert.equal(updated.status, 200);
+    assert.equal((updated.body as Record<string, unknown>).scopeCount, 2);
+    assert.equal((updated.body as Record<string, unknown>).scopeTotal, 200);
   });
 });

@@ -24,6 +24,9 @@ import type {
   Activity,
   Bid,
   BidInput,
+  BidScope,
+  BidScopeInput,
+  BidScopeUpdate,
   BidUpdate,
   BillingActionResponse,
   BillingAuditEvent,
@@ -6809,6 +6812,302 @@ export const useDeleteBid = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteBidMutationOptions(options));
+    }
+
+export const getListBidScopesUrl = (bidId: number,) => {
+
+
+
+
+  return `/api/bids/${bidId}/scopes`
+}
+
+/**
+ * @summary List specialty scopes for a bid
+ */
+export const listBidScopes = async (bidId: number, options?: Parameters<typeof customFetch>[1]): Promise<BidScope[]> => {
+
+  return customFetch<BidScope[]>(getListBidScopesUrl(bidId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBidScopesQueryKey = (bidId: number,) => {
+    return [
+    `/api/bids/${bidId}/scopes`
+    ] as const;
+    }
+
+
+export const getListBidScopesQueryOptions = <TData = Awaited<ReturnType<typeof listBidScopes>>, TError = ErrorType<void>>(bidId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBidScopes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBidScopesQueryKey(bidId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBidScopes>>> = ({ signal }) => listBidScopes(bidId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bidId !== null && bidId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBidScopes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBidScopesQueryResult = NonNullable<Awaited<ReturnType<typeof listBidScopes>>>
+export type ListBidScopesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List specialty scopes for a bid
+ */
+
+export function useListBidScopes<TData = Awaited<ReturnType<typeof listBidScopes>>, TError = ErrorType<void>>(
+ bidId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBidScopes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBidScopesQueryOptions(bidId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateBidScopeUrl = (bidId: number,) => {
+
+
+
+
+  return `/api/bids/${bidId}/scopes`
+}
+
+/**
+ * @summary Add a specialty scope to a bid
+ */
+export const createBidScope = async (bidId: number,
+    bidScopeInput: BidScopeInput, options?: Parameters<typeof customFetch>[1]): Promise<BidScope> => {
+
+  return customFetch<BidScope>(getCreateBidScopeUrl(bidId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bidScopeInput)
+  }
+);}
+
+
+
+
+
+export const getCreateBidScopeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBidScope>>, TError,{bidId: number;data: BodyType<BidScopeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBidScope>>, TError,{bidId: number;data: BodyType<BidScopeInput>}, TContext> => {
+
+const mutationKey = ['createBidScope'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBidScope>>, {bidId: number;data: BodyType<BidScopeInput>}> = (props) => {
+          const {bidId,data} = props ?? {};
+
+          return  createBidScope(bidId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBidScopeMutationResult = NonNullable<Awaited<ReturnType<typeof createBidScope>>>
+    export type CreateBidScopeMutationBody = BodyType<BidScopeInput>
+    export type CreateBidScopeMutationError = ErrorType<void>
+
+    /**
+ * @summary Add a specialty scope to a bid
+ */
+export const useCreateBidScope = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBidScope>>, TError,{bidId: number;data: BodyType<BidScopeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBidScope>>,
+        TError,
+        {bidId: number;data: BodyType<BidScopeInput>},
+        TContext
+      > => {
+      return useMutation(getCreateBidScopeMutationOptions(options));
+    }
+
+export const getUpdateBidScopeUrl = (bidId: number,
+    scopeId: number,) => {
+
+
+
+
+  return `/api/bids/${bidId}/scopes/${scopeId}`
+}
+
+/**
+ * @summary Update a specialty bid scope
+ */
+export const updateBidScope = async (bidId: number,
+    scopeId: number,
+    bidScopeUpdate: BidScopeUpdate, options?: Parameters<typeof customFetch>[1]): Promise<BidScope> => {
+
+  return customFetch<BidScope>(getUpdateBidScopeUrl(bidId,scopeId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bidScopeUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateBidScopeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBidScope>>, TError,{bidId: number;scopeId: number;data: BodyType<BidScopeUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBidScope>>, TError,{bidId: number;scopeId: number;data: BodyType<BidScopeUpdate>}, TContext> => {
+
+const mutationKey = ['updateBidScope'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBidScope>>, {bidId: number;scopeId: number;data: BodyType<BidScopeUpdate>}> = (props) => {
+          const {bidId,scopeId,data} = props ?? {};
+
+          return  updateBidScope(bidId,scopeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBidScopeMutationResult = NonNullable<Awaited<ReturnType<typeof updateBidScope>>>
+    export type UpdateBidScopeMutationBody = BodyType<BidScopeUpdate>
+    export type UpdateBidScopeMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a specialty bid scope
+ */
+export const useUpdateBidScope = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBidScope>>, TError,{bidId: number;scopeId: number;data: BodyType<BidScopeUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBidScope>>,
+        TError,
+        {bidId: number;scopeId: number;data: BodyType<BidScopeUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateBidScopeMutationOptions(options));
+    }
+
+export const getDeleteBidScopeUrl = (bidId: number,
+    scopeId: number,) => {
+
+
+
+
+  return `/api/bids/${bidId}/scopes/${scopeId}`
+}
+
+/**
+ * @summary Delete a specialty bid scope
+ */
+export const deleteBidScope = async (bidId: number,
+    scopeId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteBidScopeUrl(bidId,scopeId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteBidScopeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBidScope>>, TError,{bidId: number;scopeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteBidScope>>, TError,{bidId: number;scopeId: number}, TContext> => {
+
+const mutationKey = ['deleteBidScope'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBidScope>>, {bidId: number;scopeId: number}> = (props) => {
+          const {bidId,scopeId} = props ?? {};
+
+          return  deleteBidScope(bidId,scopeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteBidScopeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBidScope>>>
+
+    export type DeleteBidScopeMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a specialty bid scope
+ */
+export const useDeleteBidScope = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBidScope>>, TError,{bidId: number;scopeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteBidScope>>,
+        TError,
+        {bidId: number;scopeId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteBidScopeMutationOptions(options));
     }
 
 export const getListEstimatesUrl = (params?: ListEstimatesParams,) => {

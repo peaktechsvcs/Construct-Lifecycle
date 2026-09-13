@@ -7,6 +7,7 @@
  */
 import type { BidIntegrationCoverage } from './bidIntegrationCoverage';
 import type { BidOwner } from './bidOwner';
+import type { BidScope } from './bidScope';
 import type { BidScopeMode } from './bidScopeMode';
 import type { BidStage } from './bidStage';
 import type { BidType } from './bidType';
@@ -41,6 +42,14 @@ export interface Bid {
   /** @nullable */
   estimatingProvider: string | null;
   estimatingCoverage: BidIntegrationCoverage;
+  scopes: BidScope[];
+  /** @minimum 0 */
+  scopeCount: number;
+  /** @minimum 0 */
+  scopeTotal: number;
+  /** @minimum 0 */
+  coverageGapCount: number;
+  hasCoverageGap: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

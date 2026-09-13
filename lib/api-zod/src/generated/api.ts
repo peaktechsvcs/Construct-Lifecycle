@@ -5664,6 +5664,16 @@ export const ListBidsQueryParams = zod.object({
   "scopeMode": zod.enum(['full', 'partial']).optional()
 })
 
+export const listBidsResponseScopesItemAmountMin = 0;
+
+export const listBidsResponseScopeCountMin = 0;
+
+export const listBidsResponseScopeTotalMin = 0;
+
+export const listBidsResponseCoverageGapCountMin = 0;
+
+
+
 export const ListBidsResponseItem = zod.object({
   "id": zod.number().int(),
   "environmentId": zod.number().int(),
@@ -5690,6 +5700,30 @@ export const ListBidsResponseItem = zod.object({
   "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
   "estimatingProvider": zod.string().nullable(),
   "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "scopes": zod.array(zod.object({
+  "id": zod.number().int(),
+  "bidId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "amount": zod.number().min(listBidsResponseScopesItemAmountMin),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "status": zod.enum(['draft', 'active', 'submitted', 'awarded', 'lost']),
+  "takeoffProvider": zod.string().nullable(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
+  "estimatingProvider": zod.string().nullable(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "scopeCount": zod.number().int().min(listBidsResponseScopeCountMin),
+  "scopeTotal": zod.number().min(listBidsResponseScopeTotalMin),
+  "coverageGapCount": zod.number().int().min(listBidsResponseCoverageGapCountMin),
+  "hasCoverageGap": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -5735,6 +5769,16 @@ export const CreateBidBody = zod.object({
   "estimatingCoverage": zod.enum(['none', 'full', 'partial']).optional()
 })
 
+export const createBidResponseScopesItemAmountMin = 0;
+
+export const createBidResponseScopeCountMin = 0;
+
+export const createBidResponseScopeTotalMin = 0;
+
+export const createBidResponseCoverageGapCountMin = 0;
+
+
+
 export const CreateBidResponse = zod.object({
   "id": zod.number().int(),
   "environmentId": zod.number().int(),
@@ -5761,6 +5805,30 @@ export const CreateBidResponse = zod.object({
   "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
   "estimatingProvider": zod.string().nullable(),
   "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "scopes": zod.array(zod.object({
+  "id": zod.number().int(),
+  "bidId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "amount": zod.number().min(createBidResponseScopesItemAmountMin),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "status": zod.enum(['draft', 'active', 'submitted', 'awarded', 'lost']),
+  "takeoffProvider": zod.string().nullable(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
+  "estimatingProvider": zod.string().nullable(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "scopeCount": zod.number().int().min(createBidResponseScopeCountMin),
+  "scopeTotal": zod.number().min(createBidResponseScopeTotalMin),
+  "coverageGapCount": zod.number().int().min(createBidResponseCoverageGapCountMin),
+  "hasCoverageGap": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -5772,6 +5840,16 @@ export const CreateBidResponse = zod.object({
 export const GetBidParams = zod.object({
   "bidId": zod.coerce.number().int()
 })
+
+export const getBidResponseScopesItemAmountMin = 0;
+
+export const getBidResponseScopeCountMin = 0;
+
+export const getBidResponseScopeTotalMin = 0;
+
+export const getBidResponseCoverageGapCountMin = 0;
+
+
 
 export const GetBidResponse = zod.object({
   "id": zod.number().int(),
@@ -5799,6 +5877,30 @@ export const GetBidResponse = zod.object({
   "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
   "estimatingProvider": zod.string().nullable(),
   "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "scopes": zod.array(zod.object({
+  "id": zod.number().int(),
+  "bidId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "amount": zod.number().min(getBidResponseScopesItemAmountMin),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "status": zod.enum(['draft', 'active', 'submitted', 'awarded', 'lost']),
+  "takeoffProvider": zod.string().nullable(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
+  "estimatingProvider": zod.string().nullable(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "scopeCount": zod.number().int().min(getBidResponseScopeCountMin),
+  "scopeTotal": zod.number().min(getBidResponseScopeTotalMin),
+  "coverageGapCount": zod.number().int().min(getBidResponseCoverageGapCountMin),
+  "hasCoverageGap": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -5847,6 +5949,16 @@ export const UpdateBidBody = zod.object({
   "estimatingCoverage": zod.enum(['none', 'full', 'partial']).optional()
 })
 
+export const updateBidResponseScopesItemAmountMin = 0;
+
+export const updateBidResponseScopeCountMin = 0;
+
+export const updateBidResponseScopeTotalMin = 0;
+
+export const updateBidResponseCoverageGapCountMin = 0;
+
+
+
 export const UpdateBidResponse = zod.object({
   "id": zod.number().int(),
   "environmentId": zod.number().int(),
@@ -5873,6 +5985,30 @@ export const UpdateBidResponse = zod.object({
   "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
   "estimatingProvider": zod.string().nullable(),
   "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "scopes": zod.array(zod.object({
+  "id": zod.number().int(),
+  "bidId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "amount": zod.number().min(updateBidResponseScopesItemAmountMin),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "status": zod.enum(['draft', 'active', 'submitted', 'awarded', 'lost']),
+  "takeoffProvider": zod.string().nullable(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
+  "estimatingProvider": zod.string().nullable(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "scopeCount": zod.number().int().min(updateBidResponseScopeCountMin),
+  "scopeTotal": zod.number().min(updateBidResponseScopeTotalMin),
+  "coverageGapCount": zod.number().int().min(updateBidResponseCoverageGapCountMin),
+  "hasCoverageGap": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -5886,6 +6022,170 @@ export const DeleteBidParams = zod.object({
 })
 
 export const DeleteBidResponse = zod.void()
+
+
+/**
+ * @summary List specialty scopes for a bid
+ */
+export const ListBidScopesParams = zod.object({
+  "bidId": zod.coerce.number().int()
+})
+
+export const listBidScopesResponseAmountMin = 0;
+
+
+
+export const ListBidScopesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "bidId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "amount": zod.number().min(listBidScopesResponseAmountMin),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "status": zod.enum(['draft', 'active', 'submitted', 'awarded', 'lost']),
+  "takeoffProvider": zod.string().nullable(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
+  "estimatingProvider": zod.string().nullable(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListBidScopesResponse = zod.array(ListBidScopesResponseItem)
+
+
+/**
+ * @summary Add a specialty scope to a bid
+ */
+export const CreateBidScopeParams = zod.object({
+  "bidId": zod.coerce.number().int()
+})
+
+export const createBidScopeBodyNameMax = 180;
+
+export const createBidScopeBodyDescriptionMax = 5000;
+
+export const createBidScopeBodyAmountMin = 0;
+export const createBidScopeBodyAmountMax = 999999999999;
+
+
+export const createBidScopeBodyTakeoffProviderMax = 160;
+
+export const createBidScopeBodyEstimatingProviderMax = 160;
+
+
+
+export const CreateBidScopeBody = zod.object({
+  "name": zod.string().min(1).max(createBidScopeBodyNameMax),
+  "description": zod.string().max(createBidScopeBodyDescriptionMax).optional(),
+  "amount": zod.number().min(createBidScopeBodyAmountMin).max(createBidScopeBodyAmountMax).optional(),
+  "ownerUserId": zod.number().int().min(1).optional(),
+  "status": zod.enum(['draft', 'active', 'submitted', 'awarded', 'lost']).optional(),
+  "takeoffProvider": zod.string().max(createBidScopeBodyTakeoffProviderMax).optional(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']).optional(),
+  "estimatingProvider": zod.string().max(createBidScopeBodyEstimatingProviderMax).optional(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']).optional()
+})
+
+export const createBidScopeResponseAmountMin = 0;
+
+
+
+export const CreateBidScopeResponse = zod.object({
+  "id": zod.number().int(),
+  "bidId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "amount": zod.number().min(createBidScopeResponseAmountMin),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "status": zod.enum(['draft', 'active', 'submitted', 'awarded', 'lost']),
+  "takeoffProvider": zod.string().nullable(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
+  "estimatingProvider": zod.string().nullable(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a specialty bid scope
+ */
+export const UpdateBidScopeParams = zod.object({
+  "bidId": zod.coerce.number().int(),
+  "scopeId": zod.coerce.number().int()
+})
+
+export const updateBidScopeBodyNameMax = 180;
+
+export const updateBidScopeBodyDescriptionMax = 5000;
+
+export const updateBidScopeBodyAmountMin = 0;
+export const updateBidScopeBodyAmountMax = 999999999999;
+
+
+export const updateBidScopeBodyTakeoffProviderMax = 160;
+
+export const updateBidScopeBodyEstimatingProviderMax = 160;
+
+
+
+export const UpdateBidScopeBody = zod.object({
+  "name": zod.string().min(1).max(updateBidScopeBodyNameMax).optional(),
+  "description": zod.string().max(updateBidScopeBodyDescriptionMax).nullish(),
+  "amount": zod.number().min(updateBidScopeBodyAmountMin).max(updateBidScopeBodyAmountMax).optional(),
+  "ownerUserId": zod.number().int().min(1).nullish(),
+  "status": zod.enum(['draft', 'active', 'submitted', 'awarded', 'lost']).optional(),
+  "takeoffProvider": zod.string().max(updateBidScopeBodyTakeoffProviderMax).nullish(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']).optional(),
+  "estimatingProvider": zod.string().max(updateBidScopeBodyEstimatingProviderMax).nullish(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']).optional()
+})
+
+export const updateBidScopeResponseAmountMin = 0;
+
+
+
+export const UpdateBidScopeResponse = zod.object({
+  "id": zod.number().int(),
+  "bidId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "amount": zod.number().min(updateBidScopeResponseAmountMin),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "status": zod.enum(['draft', 'active', 'submitted', 'awarded', 'lost']),
+  "takeoffProvider": zod.string().nullable(),
+  "takeoffCoverage": zod.enum(['none', 'full', 'partial']),
+  "estimatingProvider": zod.string().nullable(),
+  "estimatingCoverage": zod.enum(['none', 'full', 'partial']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a specialty bid scope
+ */
+export const DeleteBidScopeParams = zod.object({
+  "bidId": zod.coerce.number().int(),
+  "scopeId": zod.coerce.number().int()
+})
+
+export const DeleteBidScopeResponse = zod.void()
 
 
 /**
