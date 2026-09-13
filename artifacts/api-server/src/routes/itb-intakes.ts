@@ -42,10 +42,12 @@ import {
   parseConstructionDocument,
   type DocumentFinding,
 } from "../lib/itb-document-parsing";
+import { createItbMailboxClient, type MailboxProvider } from "../lib/itb-mailbox";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
 const connectors = new ReplitConnectors();
+const mailboxClient = createItbMailboxClient(connectors);
 const MAX_SOURCE_CHARS = 200_000;
 const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
 const extractionKeys = ["issuer", "contactName", "contactEmail", "contactPhone", "projectName", "location", "dueDate", "scope", "requirements", "alternates", "estimatedValue"] as const;
@@ -223,90 +225,10 @@ const validateOwner = async (req: TenantRequest, ownerUserId: number | null | un
   return Boolean(member);
 };
 
-const decodeBase64Url = (value: string) => Buffer.from(value.replace(/-/g, "+").replace(/_/g, "/"), "base64");
-const collectMessageParts = (payload: any, result: { body: string; attachments: Array<{ id: string; name: string; contentType: string; size: number }> }) => {
-  if (!payload) return;
-  const mime = payload.mimeType ?? "";
-  if (payload.filename && payload.body?.attachmentId) {
-    result.attachments.push({ id: payload.body.attachmentId, name: payload.filename, contentType: mime || "application/octet-stream", size: Number(payload.body.size ?? 0) });
-  }
-  if (payload.body?.data && (mime === "text/plain" || mime === "text/html")) {
-    const decoded = decodeBase64Url(payload.body.data).toString("utf8");
-    if (!result.body || mime === "text/plain") result.body = decoded.replace(/<[^>]+>/g, " ");
-  }
-  for (const part of payload.parts ?? []) collectMessageParts(part, result);
-};
-
-type MailboxProvider = "google-mail" | "outlook";
-
-const mailboxRequest = async (
-  provider: MailboxProvider,
-  path: string,
-  options: { method?: string; headers?: Record<string, string> } = { method: "GET" },
-) => {
-  const response = await connectors.proxy(provider, path, options);
-  if (!response.ok) {
-    const error = new Error(`${provider} mailbox connector returned ${response.status}`);
-    (error as Error & { status?: number }).status = response.status;
-    throw error;
-  }
-  return response.json() as Promise<any>;
-};
-
 const parseMailboxProvider = (value: unknown): MailboxProvider | null => {
   if (value === "google-mail" || value === "outlook") return value;
   return null;
 };
-
-const providerSourceType = (provider: MailboxProvider) => provider === "outlook" ? "outlook" as const : "gmail" as const;
-
-const outlookSearchTerms = (query: string) => {
-  const terms = query
-    .replace(/\b(?:in|newer_than|older_than):[^\s)]+/gi, " ")
-    .match(/[a-z0-9][a-z0-9@._-]{1,63}/gi) ?? [];
-  return [...new Set(terms.map((term) => term.toLowerCase()))].slice(0, 8);
-};
-
-const outlookSearchQuery = (query: string) => {
-  const terms = outlookSearchTerms(query);
-  return terms.length ? `"${terms.join('" OR "')}"` : "\"bid\" OR \"tender\" OR \"invitation\"";
-};
-
-const outlookDateFilter = (query: string) => {
-  const match = query.match(/\bnewer_than:(\d+)([dwmy])\b/i);
-  if (!match) return "";
-  const amount = Number(match[1]);
-  const unit = match[2].toLowerCase();
-  const multiplier = unit === "w" ? 7 : unit === "m" ? 30 : unit === "y" ? 365 : 1;
-  const since = new Date(Date.now() - amount * multiplier * 24 * 60 * 60 * 1000);
-  return `receivedDateTime ge ${since.toISOString()}`;
-};
-
-const connectorPath = (value: string) => {
-  try {
-    const url = new URL(value);
-    return `${url.pathname}${url.search}`;
-  } catch {
-    return value.startsWith("/") ? value : "";
-  }
-};
-
-const outlookSender = (value: any) => {
-  const address = value?.emailAddress?.address;
-  const name = value?.emailAddress?.name;
-  return clean(name || address, 180) ?? "(unknown sender)";
-};
-
-const stripHtml = (value: string) => value
-  .replace(/<style[\s\S]*?<\/style>/gi, " ")
-  .replace(/<script[\s\S]*?<\/script>/gi, " ")
-  .replace(/<[^>]+>/g, " ")
-  .replace(/&nbsp;/gi, " ")
-  .replace(/&amp;/gi, "&")
-  .replace(/&lt;/gi, "<")
-  .replace(/&gt;/gi, ">")
-  .replace(/\s+/g, " ")
-  .trim();
 
 router.get("/itb-intakes", async (req: TenantRequest, res) => {
   const parsed = ListItbIntakesQueryParams.safeParse(req.query);
@@ -442,24 +364,14 @@ router.get("/itb-intakes/mailbox/preview", requireRole("owner", "admin"), async 
       eq(itbMailboxCursorsTable.mailbox, "me"),
       eq(itbMailboxCursorsTable.query, q),
     )).limit(1);
-    let result: any;
-    if (provider === "google-mail") {
-      const pageToken = cursor?.nextPageToken ? `&pageToken=${encodeURIComponent(cursor.nextPageToken)}` : "";
-      result = await mailboxRequest(provider, `/gmail/v1/users/me/threads:search?q=${encodeURIComponent(q)}&pageSize=${pageSize}&view=THREAD_VIEW_MINIMAL${pageToken}`);
-    } else {
-      const nextPath = cursor?.nextPageToken ? connectorPath(cursor.nextPageToken) : "";
-      const dateFilter = outlookDateFilter(q);
-      const filterParam = dateFilter ? `&$filter=${encodeURIComponent(dateFilter)}` : "";
-      const path = nextPath || `/v1.0/me/messages?$select=id,conversationId,subject,from,receivedDateTime,bodyPreview&$top=${pageSize}&$search=${encodeURIComponent(outlookSearchQuery(q))}${filterParam}`;
-      result = await mailboxRequest(provider, path, { method: "GET", headers: { ConsistencyLevel: "eventual" } });
-    }
+     const mailboxResult = await mailboxClient.preview(provider, q, pageSize, cursor?.nextPageToken ?? undefined);
     await db.insert(itbMailboxCursorsTable).values({
       tenantId: req.tenantId!,
       environmentId: req.environmentId!,
       provider,
       mailbox: "me",
       query: q,
-      nextPageToken: provider === "google-mail" ? (result.nextPageToken ?? null) : (result["@odata.nextLink"] ?? null),
+       nextPageToken: mailboxResult.nextPageToken,
       lastSyncedAt: new Date(),
     }).onConflictDoUpdate({
       target: [
@@ -470,32 +382,12 @@ router.get("/itb-intakes/mailbox/preview", requireRole("owner", "admin"), async 
         itbMailboxCursorsTable.query,
       ],
       set: {
-        nextPageToken: provider === "google-mail" ? (result.nextPageToken ?? null) : (result["@odata.nextLink"] ?? null),
+         nextPageToken: mailboxResult.nextPageToken,
         lastSyncedAt: new Date(),
         updatedAt: new Date(),
       },
     });
-    const previews = provider === "google-mail"
-      ? (result.threads ?? []).flatMap((thread: any) => (thread.messages ?? []).slice(-1).map((message: any) => ({
-        provider,
-        threadId: String(thread.id),
-        messageId: String(message.id),
-        subject: clean(message.subject, 300) ?? "(no subject)",
-        sender: clean(message.sender, 180) ?? "(unknown sender)",
-        receivedAt: message.date ?? new Date().toISOString(),
-        snippet: clean(message.snippet, 500) ?? "",
-        imported: false,
-      })))
-      : (result.value ?? []).map((message: any) => ({
-        provider,
-        threadId: String(message.conversationId ?? message.id),
-        messageId: String(message.id),
-        subject: clean(message.subject, 300) ?? "(no subject)",
-        sender: outlookSender(message.from),
-        receivedAt: message.receivedDateTime ?? new Date().toISOString(),
-        snippet: clean(message.bodyPreview, 500) ?? "",
-        imported: false,
-      }));
+     const previews = mailboxResult.previews;
     const sourceIds: string[] = previews.map((preview: { messageId: string }) => preview.messageId);
     if (sourceIds.length) {
       const imported = await db.select({ sourceMessageId: itbIntakesTable.sourceMessageId }).from(itbIntakesTable).where(and(
@@ -523,159 +415,58 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
   }
   const provider = parsed.data.provider ?? "google-mail";
   try {
-    if (provider === "outlook") {
-      const message = await mailboxRequest("outlook", `/v1.0/me/messages/${encodeURIComponent(parsed.data.messageId ?? parsed.data.threadId)}?$select=id,conversationId,subject,from,receivedDateTime,body,bodyPreview,hasAttachments`);
-      if (!message?.id) {
-        res.status(404).json({ error: "Mailbox message not found" });
-        return;
-      }
-      const sourceMessageId = String(message.id);
-      const sourceThreadId = String(message.conversationId ?? parsed.data.threadId);
-      const subject = clean(message.subject, 300) ?? "";
-      const sourceBody = stripHtml(String(message.body?.content ?? message.bodyPreview ?? "")).slice(0, MAX_SOURCE_CHARS);
-      const sourceSender = outlookSender(message.from);
-      const sourceSenderEmail = clean(message.from?.emailAddress?.address, 320);
-      const receivedAt = message.receivedDateTime ?? new Date().toISOString();
-      const attachments: Array<{ originalName: string; contentType: string; size: number; objectPath: string; sourceAttachmentId: string }> = [];
-      if (message.hasAttachments) {
-        const attachmentList = await mailboxRequest("outlook", `/v1.0/me/messages/${encodeURIComponent(sourceMessageId)}/attachments?$top=20`);
-        for (const attachment of (attachmentList.value ?? []).slice(0, 20)) {
-          const name = clean(attachment.name, 255) ?? "attachment";
-          const contentType = clean(attachment.contentType, 120) ?? "application/octet-stream";
-          let contentBytes = attachment.contentBytes;
-          if (!contentBytes && attachment.id) {
-            const fullAttachment = await mailboxRequest("outlook", `/v1.0/me/messages/${encodeURIComponent(sourceMessageId)}/attachments/${encodeURIComponent(attachment.id)}`);
-            contentBytes = fullAttachment.contentBytes;
-          }
-          if (!contentBytes || attachment.isInline) continue;
-          const bytes = Buffer.from(contentBytes, "base64");
-          if (!bytes.length || bytes.length > MAX_ATTACHMENT_BYTES) continue;
-          const stored = await objectStorage.storeBytes("itb-intakes", bytes, contentType);
-          attachments.push({
-            originalName: name,
-            contentType,
-            size: bytes.length,
-            objectPath: stored.objectPath,
-            sourceAttachmentId: String(attachment.id),
-          });
-        }
-      }
-      const existing = await db.select().from(itbIntakesTable).where(and(
-        eq(itbIntakesTable.tenantId, req.tenantId!),
-        eq(itbIntakesTable.environmentId, req.environmentId!),
-        eq(itbIntakesTable.sourceProvider, provider),
-        eq(itbIntakesTable.sourceMessageId, sourceMessageId),
-      )).limit(1);
-      if (existing.length) {
-        res.status(409).json({ error: "This mailbox message was already imported", intakeId: existing[0].id });
-        return;
-      }
-      const { extraction, warnings } = extractItbFromSource(subject, sourceBody);
-      const [created] = await db.insert(itbIntakesTable).values({
-        tenantId: req.tenantId!,
-        environmentId: req.environmentId!,
-        sourceType: providerSourceType(provider),
-        sourceProvider: provider,
-        sourceMessageId,
-        sourceThreadId,
-        sourceFingerprint: fingerprint([provider, sourceMessageId]),
-        sourceSender,
-        sourceSenderEmail,
-        sourceSubject: subject,
-        sourceReceivedAt: new Date(receivedAt),
-        sourceBody,
-        extractionJson: JSON.stringify(extraction),
-        extractionWarningsJson: JSON.stringify(warnings),
-        createdByUserId: req.localUserId!,
-      }).returning();
-      if (attachments.length) {
-        await db.insert(itbIntakeAttachmentsTable).values(attachments.map((attachment) => ({ ...attachment, intakeId: created.id })));
-      }
-      await db.insert(platformAuditEventsTable).values({
-        actorUserId: req.localUserId!,
-        tenantId: req.tenantId!,
-        action: "itb_mailbox_message_imported",
-        details: JSON.stringify({ intakeId: created.id, messageId: sourceMessageId, provider, environmentId: req.environmentId }),
-      });
-      res.status(201).json(serialize(created, await getAttachments(created.id)));
-      return;
-    }
-
-    const thread = await mailboxRequest("google-mail", `/gmail/v1/users/me/threads/${encodeURIComponent(parsed.data.threadId)}?format=full`);
-    const messages = Array.isArray(thread.messages) ? thread.messages : [];
-    const message = parsed.data.messageId ? messages.find((candidate: any) => candidate.id === parsed.data.messageId) : messages[messages.length - 1];
-    if (!message) {
-      res.status(404).json({ error: "Mailbox message not found" });
-      return;
-    }
-    const headers = message.payload?.headers as Array<{ name?: string; value?: string }> | undefined;
-    const bodyResult = { body: message.snippet ?? "", attachments: [] as Array<{ id: string; name: string; contentType: string; size: number }> };
-    collectMessageParts(message.payload, bodyResult);
-    const sender = headerValue(headers, "From");
-    const senderEmail = extractEmail(sender);
-    const subject = headerValue(headers, "Subject") || message.subject || "";
-    const receivedAt = message.date ?? (message.internalDate ? new Date(Number(message.internalDate)).toISOString() : new Date().toISOString());
-    const intakeBody = {
-      sourceType: "gmail" as const,
-      sourceProvider: "google-mail",
-      sourceMessageId: String(message.id),
-      sourceThreadId: String(parsed.data.threadId),
-      sourceSender: clean(sender, 180) ?? undefined,
-      sourceSenderEmail: senderEmail ?? undefined,
-      sourceSubject: clean(subject, 300) ?? undefined,
-      sourceReceivedAt: receivedAt,
-      sourceBody: bodyResult.body.slice(0, MAX_SOURCE_CHARS),
-      attachments: [] as Array<{ originalName: string; contentType: string; size: number; objectPath: string; sourceAttachmentId: string }>,
-    };
-    for (const attachment of bodyResult.attachments.slice(0, 20)) {
-      if (attachment.size > MAX_ATTACHMENT_BYTES) continue;
+    const message = await mailboxClient.importMessage(provider, parsed.data.threadId, parsed.data.messageId);
+    const attachments: Array<{ originalName: string; contentType: string; size: number; objectPath: string; sourceAttachmentId: string }> = [];
+    for (const attachment of message.attachments) {
       try {
-        const attachmentBody = await mailboxRequest("google-mail", `/gmail/v1/users/me/messages/${encodeURIComponent(message.id)}/attachments/${encodeURIComponent(attachment.id)}`) as { data?: string; size?: number };
-        if (!attachmentBody.data) continue;
-        const bytes = decodeBase64Url(attachmentBody.data);
-        if (bytes.length > MAX_ATTACHMENT_BYTES) continue;
-        const stored = await objectStorage.storeBytes("itb-intakes", bytes, attachment.contentType);
-        intakeBody.attachments.push({ originalName: attachment.name, contentType: attachment.contentType, size: bytes.length, objectPath: stored.objectPath, sourceAttachmentId: attachment.id });
+        const stored = await objectStorage.storeBytes("itb-intakes", attachment.bytes, attachment.contentType);
+        attachments.push({
+          originalName: attachment.originalName,
+          contentType: attachment.contentType,
+          size: attachment.size,
+          objectPath: stored.objectPath,
+          sourceAttachmentId: attachment.sourceAttachmentId,
+        });
       } catch (error) {
-        req.log.warn({ err: error, attachmentName: attachment.name }, "ITB mailbox attachment could not be stored");
+        req.log.warn({ err: error, attachmentName: attachment.originalName }, "ITB mailbox attachment could not be stored");
       }
     }
     const existing = await db.select().from(itbIntakesTable).where(and(
       eq(itbIntakesTable.tenantId, req.tenantId!),
       eq(itbIntakesTable.environmentId, req.environmentId!),
-      eq(itbIntakesTable.sourceProvider, intakeBody.sourceProvider),
-      eq(itbIntakesTable.sourceMessageId, intakeBody.sourceMessageId),
+      eq(itbIntakesTable.sourceProvider, message.sourceProvider),
+      eq(itbIntakesTable.sourceMessageId, message.sourceMessageId),
     )).limit(1);
     if (existing.length) {
       res.status(409).json({ error: "This mailbox message was already imported", intakeId: existing[0].id });
       return;
     }
-    const { extraction, warnings } = extractItbFromSource(intakeBody.sourceSubject ?? null, intakeBody.sourceBody);
+    const { extraction, warnings } = extractItbFromSource(message.sourceSubject, message.sourceBody);
     const [created] = await db.insert(itbIntakesTable).values({
       tenantId: req.tenantId!,
       environmentId: req.environmentId!,
-      sourceType: intakeBody.sourceType,
-      sourceProvider: intakeBody.sourceProvider,
-      sourceMessageId: intakeBody.sourceMessageId,
-      sourceThreadId: intakeBody.sourceThreadId,
-      sourceFingerprint: fingerprint([provider, intakeBody.sourceMessageId]),
-      sourceSender: intakeBody.sourceSender ?? null,
-      sourceSenderEmail: intakeBody.sourceSenderEmail ?? null,
-      sourceSubject: intakeBody.sourceSubject ?? null,
-      sourceReceivedAt: new Date(intakeBody.sourceReceivedAt),
-      sourceBody: intakeBody.sourceBody,
+      sourceType: message.sourceType,
+      sourceProvider: message.sourceProvider,
+      sourceMessageId: message.sourceMessageId,
+      sourceThreadId: message.sourceThreadId,
+      sourceFingerprint: fingerprint([message.sourceProvider, message.sourceMessageId]),
+      sourceSender: message.sourceSender,
+      sourceSenderEmail: message.sourceSenderEmail,
+      sourceSubject: message.sourceSubject,
+      sourceReceivedAt: new Date(message.sourceReceivedAt),
+      sourceBody: message.sourceBody,
       extractionJson: JSON.stringify(extraction),
       extractionWarningsJson: JSON.stringify(warnings),
       createdByUserId: req.localUserId!,
     }).returning();
-    if (intakeBody.attachments.length) {
-      await db.insert(itbIntakeAttachmentsTable).values(intakeBody.attachments.map((attachment) => ({ ...attachment, intakeId: created.id })));
+    if (attachments.length) {
+      await db.insert(itbIntakeAttachmentsTable).values(attachments.map((attachment) => ({ ...attachment, intakeId: created.id })));
     }
     await db.insert(platformAuditEventsTable).values({
       actorUserId: req.localUserId!,
       tenantId: req.tenantId!,
       action: "itb_mailbox_message_imported",
-      details: JSON.stringify({ intakeId: created.id, messageId: message.id, environmentId: req.environmentId }),
+      details: JSON.stringify({ intakeId: created.id, messageId: message.sourceMessageId, provider: message.sourceProvider, environmentId: req.environmentId }),
     });
     res.status(201).json(serialize(created, await getAttachments(created.id)));
   } catch (error) {

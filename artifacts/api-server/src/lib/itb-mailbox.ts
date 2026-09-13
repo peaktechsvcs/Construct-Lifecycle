@@ -20,7 +20,7 @@ export type MailboxPreview = {
   sender: string;
   receivedAt: string;
   snippet: string;
-  imported: false;
+  imported: boolean;
 };
 
 export type MailboxAttachment = {
@@ -145,7 +145,7 @@ export const createItbMailboxClient = (connector: MailboxConnector) => {
         sender: clean(message.sender, 180) ?? "(unknown sender)",
         receivedAt: message.date ?? new Date().toISOString(),
         snippet: clean(message.snippet, 500) ?? "",
-        imported: false as const,
+        imported: false,
       })));
       return { previews, nextPageToken: result.nextPageToken ?? null };
     }
@@ -166,7 +166,7 @@ export const createItbMailboxClient = (connector: MailboxConnector) => {
       sender: outlookSender(message.from),
       receivedAt: message.receivedDateTime ?? new Date().toISOString(),
       snippet: clean(message.bodyPreview, 500) ?? "",
-      imported: false as const,
+      imported: false,
     }));
     return { previews, nextPageToken: result["@odata.nextLink"] ?? null };
   };
