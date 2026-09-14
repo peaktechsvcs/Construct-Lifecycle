@@ -208,8 +208,12 @@ const getAttachments = async (intakeId: number) => db.select().from(itbIntakeAtt
 
 const fingerprint = (parts: string[]) => createHash("sha256").update(parts.join("\u0000")).digest("hex");
 const privatePrefix = () => {
-  const privateDir = process.env.PRIVATE_OBJECT_DIR?.replace(/^\/+|\/+$/g, "");
-  return privateDir ? `/objects/${privateDir}/itb-intakes/` : "/objects/";
+  const privateDir = process.env.PRIVATE_OBJECT_DIR?.trim();
+  if (!privateDir) return "/objects/";
+  const normalized = privateDir.startsWith("/") ? privateDir : `/${privateDir}`;
+  const [, ...objectParts] = normalized.split("/").slice(1);
+  const objectPrefix = objectParts.filter(Boolean).join("/");
+  return `/objects/${objectPrefix ? `${objectPrefix}/` : ""}itb-intakes/`;
 };
 const isOwnedItbObject = (path: string) => path.startsWith(privatePrefix()) && path.length > privatePrefix().length;
 
@@ -890,7 +894,7 @@ const processDocument = async (req: TenantRequest, intakeId: number, attachmentI
       updatedAt: new Date(),
     }).where(eq(itbDocumentsTable.id, document.id)).returning();
   } catch (error) {
-    req.log.warn({ err: error, intakeId, attachmentId, documentId: document.id }, "ITB document parsing failed");
+    req.log.warn({ intakeId, attachmentId, documentId: document.id }, "ITB document parsing failed");
     [document] = await db.update(itbDocumentsTable).set({
       status: "failed",
       errorMessage: error instanceof Error ? error.message.slice(0, 500) : "Document parsing failed",
@@ -934,7 +938,7 @@ router.post("/itb-intakes/:intakeId/documents", requireRole("owner", "admin", "m
     }
     res.status(201).json(result);
   } catch (error) {
-    req.log.warn({ err: error, intakeId: params.data.intakeId, attachmentId: parsed.data.attachmentId }, "ITB document processing request rejected");
+    req.log.warn({ intakeId: params.data.intakeId, attachmentId: parsed.data.attachmentId }, "ITB document processing request rejected");
     res.status(409).json({ error: error instanceof Error ? error.message : "Document could not be processed" });
   }
 });
@@ -957,8 +961,8 @@ router.post("/itb-intakes/:intakeId/documents/:documentId/retry", requireRole("o
   try {
     const result = await processDocument(req, params.data.intakeId, current.document.attachmentId, current.document.role, current.document.id);
     res.json(result);
-  } catch (error) {
-    req.log.warn({ err: error, intakeId: params.data.intakeId, documentId: params.data.documentId }, "ITB document retry failed");
+  } catch {
+    req.log.warn({ intakeId: params.data.intakeId, documentId: params.data.documentId }, "ITB document retry failed");
     res.status(409).json({ error: "Document retry failed" });
   }
 });
