@@ -148,8 +148,9 @@ after(async () => {
 });
 
 describe("invitation and role authorization regressions", () => {
-  test("rejects anonymous requests and non-admin access to protected surfaces", async () => {
+  test("keeps normal workspace routes open while guarding platform administration", async () => {
     assert.equal((await request(undefined, "/tenant/members")).status, 401);
+    assert.equal((await request(clerkIds.memberA, "/projects")).status, 200);
     assert.equal((await request(clerkIds.viewerA, "/tenant/invitations")).status, 403);
     assert.equal((await request(clerkIds.ownerA, "/platform/customers")).status, 403);
     assert.equal((await request(clerkIds.platformAdmin, "/platform/customers")).status, 200);
