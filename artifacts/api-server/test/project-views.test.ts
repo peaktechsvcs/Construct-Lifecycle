@@ -5,6 +5,7 @@ import { filterActiveProjects } from "../src/lib/project-views.ts";
 const states = [
   { stableKey: "award", normalizedCategory: "AWARDED" },
   { stableKey: "deliver", normalizedCategory: "EXECUTION" },
+  { stableKey: "financial", normalizedCategory: "FINANCIAL" },
   { stableKey: "bid", normalizedCategory: "PRE_SALES" },
   { stableKey: "closeout", normalizedCategory: "COMPLETED" },
 ];

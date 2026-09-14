@@ -5,6 +5,30 @@ import {
   groupActiveProjectStatusSections,
 } from '../src/lib/project-views.ts';
 
+test('Active Projects prioritizes Active and Waiting before custom statuses', () => {
+  const sections = groupActiveProjectStatusSections(
+    [
+      { id: 5, projectNumber: 'PRJ-005', projectStatus: 'review_pending' },
+      { id: 6, projectNumber: 'PRJ-006', projectStatus: 'active' },
+      { id: 7, projectNumber: 'PRJ-007', projectStatus: 'field_active' },
+      { id: 8, projectNumber: 'PRJ-008', projectStatus: 'waiting' },
+    ],
+    [
+      { stableKey: 'review_pending', displayName: 'Review pending', displayOrder: 0 },
+      { stableKey: 'waiting', displayName: 'Waiting', displayOrder: 20 },
+      { stableKey: 'field_active', displayName: 'Field active', displayOrder: 5 },
+      { stableKey: 'active', displayName: 'Active', displayOrder: 30 },
+    ],
+  );
+
+  assert.deepEqual(sections.map((section) => section.stableKey), [
+    'active',
+    'waiting',
+    'review_pending',
+    'field_active',
+  ]);
+});
+
 const statuses = [
   { stableKey: 'waiting', displayName: 'Waiting', displayOrder: 1 },
   { stableKey: 'active', displayName: 'Active', displayOrder: 0 },
