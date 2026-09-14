@@ -1,9 +1,10 @@
 import { Router, type IRouter, type Response } from "express";
-import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 import {
   db,
   projectsTable,
+  usersTable,
   tradePartnersTable,
   tradePartnerComplianceDocumentsTable,
   projectComplianceRequirementsTable,
@@ -690,6 +691,67 @@ async function getAgreement(req: TenantRequest, agreementId: number) {
   return row;
 }
 
+async function getAgreementAuditEvents(req: TenantRequest, agreementId: number) {
+  const [scheduleValues, changeOrders, payApplications, closeoutItems] = await Promise.all([
+    db.select({ id: subcontractScheduleOfValuesTable.id }).from(subcontractScheduleOfValuesTable).where(and(
+      scope(req, subcontractScheduleOfValuesTable),
+      eq(subcontractScheduleOfValuesTable.agreementId, agreementId),
+    )),
+    db.select({ id: subcontractChangeOrdersTable.id }).from(subcontractChangeOrdersTable).where(and(
+      scope(req, subcontractChangeOrdersTable),
+      eq(subcontractChangeOrdersTable.agreementId, agreementId),
+    )),
+    db.select({ id: subcontractPayApplicationsTable.id }).from(subcontractPayApplicationsTable).where(and(
+      scope(req, subcontractPayApplicationsTable),
+      eq(subcontractPayApplicationsTable.agreementId, agreementId),
+    )),
+    db.select({ id: subcontractCloseoutItemsTable.id }).from(subcontractCloseoutItemsTable).where(and(
+      scope(req, subcontractCloseoutItemsTable),
+      eq(subcontractCloseoutItemsTable.agreementId, agreementId),
+    )),
+  ]);
+  const payApplicationIds = payApplications.map((item) => item.id);
+  const waivers = payApplicationIds.length
+    ? await db.select({ id: subcontractWaiversTable.id }).from(subcontractWaiversTable).where(and(
+      scope(req, subcontractWaiversTable),
+      inArray(subcontractWaiversTable.payApplicationId, payApplicationIds),
+    ))
+    : [];
+  const relatedEntities = [
+    and(eq(subcontractAuditEventsTable.entityType, "subcontract_agreement"), eq(subcontractAuditEventsTable.entityId, agreementId)),
+    ...(scheduleValues.length ? [and(eq(subcontractAuditEventsTable.entityType, "subcontract_schedule_of_values"), inArray(subcontractAuditEventsTable.entityId, scheduleValues.map((item) => item.id)))] : []),
+    ...(changeOrders.length ? [and(eq(subcontractAuditEventsTable.entityType, "subcontract_change_order"), inArray(subcontractAuditEventsTable.entityId, changeOrders.map((item) => item.id)))] : []),
+    ...(payApplications.length ? [and(eq(subcontractAuditEventsTable.entityType, "subcontract_pay_application"), inArray(subcontractAuditEventsTable.entityId, payApplicationIds))] : []),
+    ...(waivers.length ? [and(eq(subcontractAuditEventsTable.entityType, "subcontract_waiver"), inArray(subcontractAuditEventsTable.entityId, waivers.map((item) => item.id)))] : []),
+    ...(closeoutItems.length ? [and(eq(subcontractAuditEventsTable.entityType, "subcontract_closeout_item"), inArray(subcontractAuditEventsTable.entityId, closeoutItems.map((item) => item.id)))] : []),
+  ];
+  const rows = await db.select({
+    event: subcontractAuditEventsTable,
+    actorUserId: usersTable.id,
+    actorDisplayName: usersTable.displayName,
+    actorEmail: usersTable.email,
+  }).from(subcontractAuditEventsTable)
+    .leftJoin(usersTable, eq(subcontractAuditEventsTable.actorUserId, usersTable.id))
+    .where(and(scope(req, subcontractAuditEventsTable), or(...relatedEntities)))
+    .orderBy(desc(subcontractAuditEventsTable.createdAt))
+    .limit(200);
+  return rows.map(({ event, actorUserId, actorDisplayName, actorEmail }) => ({
+    id: event.id,
+    entityType: event.entityType,
+    entityId: event.entityId,
+    action: event.action,
+    fromStatus: event.fromStatus,
+    toStatus: event.toStatus,
+    details: event.details,
+    actor: actorUserId == null ? null : {
+      userId: actorUserId,
+      displayName: actorDisplayName,
+      email: actorEmail,
+    },
+    createdAt: event.createdAt,
+  }));
+}
+
 async function recalculateAgreementCurrentValue(req: TenantRequest, agreementId: number) {
   const row = await getAgreement(req, agreementId);
   if (!row) return;
@@ -761,6 +823,14 @@ router.get("/subcontract-agreements/:agreementId", async (req: TenantRequest, re
     waivers: waivers.map((item) => serializeWaiver(item.waiver)),
     closeoutItems,
   });
+});
+
+router.get("/subcontract-agreements/:agreementId/audit-events", async (req: TenantRequest, res) => {
+  const path = GetSubcontractAgreementParams.safeParse(req.params);
+  if (!path.success) { res.status(400).json({ error: "Invalid subcontract agreement id" }); return; }
+  const row = await getAgreement(req, path.data.agreementId);
+  if (!row) { res.status(404).json({ error: "Subcontract agreement not found" }); return; }
+  res.json(await getAgreementAuditEvents(req, row.agreement.id));
 });
 
 router.post("/subcontract-agreements/:agreementId/schedule-of-values", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {

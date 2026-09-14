@@ -37,6 +37,7 @@ let changeOrderId: number;
 let payApplicationId: number;
 let waiverId: number;
 let closeoutItemId: number;
+let otherEnvironmentAgreementId: number;
 
 async function request(clerkUserId: string, path: string, init: RequestInit = {}) {
   const response = await fetch(`${baseUrl}/api${path}`, {
@@ -102,6 +103,39 @@ before(async () => {
     environmentId,
   }).returning();
   agreementId = agreement.id;
+  const [otherEnvironment] = await db.insert(environmentsTable).values({
+    tenantId,
+    name: "Production",
+    slug: "production",
+    kind: "production",
+    status: "active",
+  }).returning();
+  const [otherProject] = await db.insert(projectsTable).values({
+    projectNumber: `SUB-PROD-${runId}`,
+    customerName: "Other Environment Customer",
+    projectName: "Other Environment Project",
+    category: "commercial",
+    tenantId,
+    environmentId: otherEnvironment.id,
+  }).returning();
+  const [otherPartner] = await db.insert(tradePartnersTable).values({
+    companyName: "Other Environment Trade Partner",
+    normalizedName: `other environment trade partner ${runId}`,
+    qualificationStatus: "approved",
+    tenantId,
+    environmentId: otherEnvironment.id,
+  }).returning();
+  const [otherEnvironmentAgreement] = await db.insert(subcontractAgreementsTable).values({
+    projectId: otherProject.id,
+    tradePartnerId: otherPartner.id,
+    agreementNumber: `AGR-PROD-${runId}`,
+    scope: "Production concrete work",
+    originalValue: "2000",
+    currentValue: "2000",
+    tenantId,
+    environmentId: otherEnvironment.id,
+  }).returning();
+  otherEnvironmentAgreementId = otherEnvironmentAgreement.id;
   const [changeOrder] = await db.insert(subcontractChangeOrdersTable).values({
     agreementId,
     changeNumber: "CO-001",
@@ -221,4 +255,24 @@ test("rejections require reasons and waiver rejection resets pay application wai
   assert.equal(body.waivers.find((item) => item.id === waiverId)?.status, "rejected");
   assert.equal(body.waivers.find((item) => item.id === waiverId)?.reviewedByUserId != null, true);
   assert.equal(body.closeoutItems.find((item) => item.id === closeoutItemId)?.rejectionReason, "Warranty document is incomplete");
+});
+
+test("workspace members can read the scoped timeline with actor identity", async () => {
+  const timeline = await request(memberClerkId, `/subcontract-agreements/${agreementId}/audit-events`);
+  assert.equal(timeline.status, 200, JSON.stringify(timeline.body));
+  const events = timeline.body as Array<{
+    action: string;
+    fromStatus: string | null;
+    toStatus: string | null;
+    actor: { displayName: string | null; email: string | null } | null;
+  }>;
+  const approval = events.find((event) => event.action === "subcontract_change_order_approved");
+  assert.ok(approval);
+  assert.equal(approval.fromStatus, "pending");
+  assert.equal(approval.toStatus, "approved");
+  assert.equal(approval.actor?.displayName, ownerClerkId);
+  assert.equal(approval.actor?.email, `${ownerClerkId}@integration.test`);
+
+  const otherEnvironment = await request(ownerClerkId, `/subcontract-agreements/${otherEnvironmentAgreementId}/audit-events`);
+  assert.equal(otherEnvironment.status, 404);
 });

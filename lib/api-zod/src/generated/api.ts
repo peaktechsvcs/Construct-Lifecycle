@@ -2407,6 +2407,31 @@ export const GetSubcontractAgreementResponse = zod.object({
 
 
 /**
+ * @summary List scoped audit events for a subcontract agreement
+ */
+export const ListSubcontractAgreementAuditEventsParams = zod.object({
+  "agreementId": zod.coerce.number().int()
+})
+
+export const ListSubcontractAgreementAuditEventsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "entityType": zod.string(),
+  "entityId": zod.number().int(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullable(),
+  "toStatus": zod.string().nullable(),
+  "details": zod.string().nullable(),
+  "actor": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().email().nullable()
+}),zod.null()]),
+  "createdAt": zod.coerce.date()
+})
+export const ListSubcontractAgreementAuditEventsResponse = zod.array(ListSubcontractAgreementAuditEventsResponseItem)
+
+
+/**
  * @summary Add a subcontract schedule-of-values line
  */
 export const CreateSubcontractScheduleOfValueParams = zod.object({

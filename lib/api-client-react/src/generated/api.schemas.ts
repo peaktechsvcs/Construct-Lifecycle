@@ -5722,6 +5722,29 @@ export type SubcontractAgreementDetail = SubcontractAgreement & {
   closeoutItems: SubcontractCloseoutItem[];
 };
 
+export type SubcontractAuditEventActor = {
+  userId: number;
+  /** @nullable */
+  displayName: string | null;
+  /** @nullable */
+  email: string | null;
+} | null;
+
+export interface SubcontractAuditEvent {
+  id: number;
+  entityType: string;
+  entityId: number;
+  action: string;
+  /** @nullable */
+  fromStatus: string | null;
+  /** @nullable */
+  toStatus: string | null;
+  /** @nullable */
+  details: string | null;
+  actor: SubcontractAuditEventActor;
+  createdAt: string;
+}
+
 export type SubcontractScheduleOfValueInputStatus = typeof SubcontractScheduleOfValueInputStatus[keyof typeof SubcontractScheduleOfValueInputStatus];
 
 

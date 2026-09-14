@@ -342,6 +342,8 @@ export * from './subcontractAgreementDetail';
 export * from './subcontractAgreementInput';
 export * from './subcontractAgreementInputApprovalStatus';
 export * from './subcontractAgreementStatus';
+export * from './subcontractAuditEvent';
+export * from './subcontractAuditEventActor';
 export * from './subcontractChangeOrder';
 export * from './subcontractChangeOrderApprovalStatus';
 export * from './subcontractChangeOrderInput';

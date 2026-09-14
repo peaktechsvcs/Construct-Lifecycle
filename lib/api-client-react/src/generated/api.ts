@@ -182,6 +182,7 @@ import type {
   SubcontractAgreement,
   SubcontractAgreementDetail,
   SubcontractAgreementInput,
+  SubcontractAuditEvent,
   SubcontractChangeOrder,
   SubcontractChangeOrderInput,
   SubcontractCloseoutItem,
@@ -3328,6 +3329,83 @@ export function useGetSubcontractAgreement<TData = Awaited<ReturnType<typeof get
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetSubcontractAgreementQueryOptions(agreementId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListSubcontractAgreementAuditEventsUrl = (agreementId: number,) => {
+
+
+
+
+  return `/api/subcontract-agreements/${agreementId}/audit-events`
+}
+
+/**
+ * @summary List scoped audit events for a subcontract agreement
+ */
+export const listSubcontractAgreementAuditEvents = async (agreementId: number, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractAuditEvent[]> => {
+
+  return customFetch<SubcontractAuditEvent[]>(getListSubcontractAgreementAuditEventsUrl(agreementId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSubcontractAgreementAuditEventsQueryKey = (agreementId: number,) => {
+    return [
+    `/api/subcontract-agreements/${agreementId}/audit-events`
+    ] as const;
+    }
+
+
+export const getListSubcontractAgreementAuditEventsQueryOptions = <TData = Awaited<ReturnType<typeof listSubcontractAgreementAuditEvents>>, TError = ErrorType<unknown>>(agreementId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubcontractAgreementAuditEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSubcontractAgreementAuditEventsQueryKey(agreementId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSubcontractAgreementAuditEvents>>> = ({ signal }) => listSubcontractAgreementAuditEvents(agreementId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: agreementId !== null && agreementId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSubcontractAgreementAuditEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSubcontractAgreementAuditEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listSubcontractAgreementAuditEvents>>>
+export type ListSubcontractAgreementAuditEventsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List scoped audit events for a subcontract agreement
+ */
+
+export function useListSubcontractAgreementAuditEvents<TData = Awaited<ReturnType<typeof listSubcontractAgreementAuditEvents>>, TError = ErrorType<unknown>>(
+ agreementId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubcontractAgreementAuditEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSubcontractAgreementAuditEventsQueryOptions(agreementId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

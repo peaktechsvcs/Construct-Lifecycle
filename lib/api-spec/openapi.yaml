@@ -762,6 +762,21 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubcontractAgreementDetail" }
+  /subcontract-agreements/{agreementId}/audit-events:
+    get:
+      operationId: listSubcontractAgreementAuditEvents
+      tags: [subcontractor-compliance]
+      summary: List scoped audit events for a subcontract agreement
+      parameters:
+        - $ref: "#/components/parameters/SubcontractAgreementId"
+      responses:
+        "200":
+          description: Subcontract agreement audit history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SubcontractAuditEvent" }
   /subcontract-agreements/{agreementId}/schedule-of-values:
     post:
       operationId: createSubcontractScheduleOfValue
@@ -7579,6 +7594,27 @@ components:
             closeoutItems:
               type: array
               items: { $ref: "#/components/schemas/SubcontractCloseoutItem" }
+    SubcontractAuditEvent:
+      type: object
+      required: [id, entityType, entityId, action, fromStatus, toStatus, details, actor, createdAt]
+      properties:
+        id: { type: integer }
+        entityType: { type: string }
+        entityId: { type: integer }
+        action: { type: string }
+        fromStatus: { type: ["string", "null"] }
+        toStatus: { type: ["string", "null"] }
+        details: { type: ["string", "null"] }
+        actor:
+          oneOf:
+            - type: object
+              required: [userId, displayName, email]
+              properties:
+                userId: { type: integer }
+                displayName: { type: ["string", "null"] }
+                email: { type: ["string", "null"], format: email }
+            - type: "null"
+        createdAt: { type: string, format: date-time }
     SubcontractScheduleOfValue:
       type: object
       required: [id, agreementId, lineNumber, description, scheduledValue, approvedValue, billedToDate, percentComplete, retentionHeld, status]

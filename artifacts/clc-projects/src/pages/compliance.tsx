@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Building2, CheckCircle2, ClipboardCheck, Clock3, Download, HandCoins, Plus, Search, ShieldCheck, Upload, XCircle, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, ClipboardCheck, Clock3, Download, HandCoins, History, Plus, Search, ShieldCheck, Upload, UserRound, XCircle, type LucideIcon } from 'lucide-react';
 import {
   getGetTradePartnerComplianceDocumentFileUrl,
   getGetSubcontractAgreementQueryKey,
+  getListSubcontractAgreementAuditEventsQueryKey,
   getGetTradePartnerQueryKey,
   getListProjectComplianceRequirementsQueryKey,
   getListProjectsQueryKey,
@@ -22,6 +23,7 @@ import {
   useListProjectComplianceRequirements,
   useListProjects,
   useListSubcontractAgreements,
+  useListSubcontractAgreementAuditEvents,
   useListTradePartners,
   useRequestTradePartnerComplianceDocumentReplacement,
   useRequestTradePartnerComplianceDocumentUpload,
@@ -53,6 +55,30 @@ function statusTone(status: string): 'green' | 'orange' | 'red' | 'teal' | 'neut
   if (['rejected', 'expired', 'suspended', 'missing'].includes(status)) return 'red';
   if (['submitted', 'pending', 'conditional', 'open'].includes(status)) return 'orange';
   return 'neutral';
+}
+
+function auditActionLabel(action: string) {
+  return action
+    .replace(/^subcontract_/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function auditEntityLabel(entityType: string) {
+  return entityType
+    .replace(/^subcontract_/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function auditTimestamp(value: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value));
 }
 
 function SectionHeading({ icon: Icon, eyebrow, title, action }: { icon: typeof ShieldCheck; eyebrow: string; title: string; action?: React.ReactNode }) {
@@ -105,6 +131,7 @@ export function Compliance() {
   const requirementsQuery = useListProjectComplianceRequirements(selectedProjectId ?? 0, { query: { enabled: Boolean(selectedProjectId), queryKey: getListProjectComplianceRequirementsQueryKey(selectedProjectId ?? 0) } });
   const agreementsQuery = useListSubcontractAgreements(undefined, { query: { queryKey: getListSubcontractAgreementsQueryKey() } });
   const agreementQuery = useGetSubcontractAgreement(selectedAgreementId ?? 0, { query: { enabled: Boolean(selectedAgreementId), queryKey: getGetSubcontractAgreementQueryKey(selectedAgreementId ?? 0) } });
+  const auditEventsQuery = useListSubcontractAgreementAuditEvents(selectedAgreementId ?? 0, { query: { enabled: Boolean(selectedAgreementId), queryKey: getListSubcontractAgreementAuditEventsQueryKey(selectedAgreementId ?? 0) } });
 
   const createPartner = useCreateTradePartner();
   const createDocument = useCreateTradePartnerComplianceDocument();
@@ -136,6 +163,7 @@ export function Compliance() {
     if (selectedPartnerId) qc.invalidateQueries({ queryKey: getGetTradePartnerQueryKey(selectedPartnerId) });
     if (selectedProjectId) qc.invalidateQueries({ queryKey: getListProjectComplianceRequirementsQueryKey(selectedProjectId) });
     if (selectedAgreementId) qc.invalidateQueries({ queryKey: getGetSubcontractAgreementQueryKey(selectedAgreementId) });
+    if (selectedAgreementId) qc.invalidateQueries({ queryKey: getListSubcontractAgreementAuditEventsQueryKey(selectedAgreementId) });
   };
 
   const summary = useMemo(() => {
@@ -438,6 +466,43 @@ export function Compliance() {
              {!agreementQuery.data.payApplications.some((application) => application.status === 'submitted') && !agreementQuery.data.changeOrders.some((change) => change.approvalStatus === 'pending') && !agreementQuery.data.waivers.some((waiver) => waiver.status === 'submitted') && !agreementQuery.data.closeoutItems.some((item) => ['open', 'submitted'].includes(item.status)) && <p className="text-xs text-muted-foreground">Nothing is waiting for GC review.</p>}
            </div>
          )}
+          {agreementQuery.data && (
+            <div className="mt-5 border-t border-border pt-5">
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="mono text-[9px] font-bold uppercase tracking-[.13em] text-primary">Immutable record</p>
+                  <h4 className="mt-1 flex items-center gap-2 text-sm font-bold"><History size={15} /> Compliance and payment audit trail</h4>
+                  <p className="mt-1 text-xs text-muted-foreground">Scoped to this agreement and the active customer environment. Document contents are not shown.</p>
+                </div>
+                <span className="mono text-[9px] uppercase tracking-[.1em] text-muted-foreground">Latest first</span>
+              </div>
+              {auditEventsQuery.isLoading ? <LoadingPanel lines={3} /> : auditEventsQuery.isError ? <ErrorPanel onRetry={() => auditEventsQuery.refetch()} /> : auditEventsQuery.data?.length ? (
+                <ol aria-label="Compliance and payment audit events" className="space-y-3">
+                  {auditEventsQuery.data.map((event) => {
+                    const actor = event.actor?.displayName || event.actor?.email || 'System';
+                    const transition = event.fromStatus || event.toStatus ? `${event.fromStatus || '—'} → ${event.toStatus || '—'}` : null;
+                    return (
+                      <li key={event.id} className="relative pl-7">
+                        <span aria-hidden="true" className="absolute left-1 top-2 h-2.5 w-2.5 rounded-full bg-primary ring-4 ring-primary/10" />
+                        <div className="rounded-lg border border-border bg-secondary/15 p-3">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-xs font-bold">{auditActionLabel(event.action)}</p>
+                              <p className="mt-1 text-[10px] text-muted-foreground">{auditEntityLabel(event.entityType)} · {actor}</p>
+                            </div>
+                            <time dateTime={event.createdAt} className="mono shrink-0 text-[9px] uppercase tracking-[.08em] text-muted-foreground">{auditTimestamp(event.createdAt)}</time>
+                          </div>
+                          {transition && <p className="mt-2 text-xs"><span className="font-semibold">Status:</span> {transition}</p>}
+                          {event.details && <p className="mt-2 border-l-2 border-status-warning/40 pl-2 text-xs text-muted-foreground">{event.details}</p>}
+                          {event.actor?.email && event.actor.displayName && <p className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground"><UserRound size={11} /> {event.actor.email}</p>}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              ) : <p className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">No audit events have been recorded for this agreement yet.</p>}
+            </div>
+          )}
       </section>
     </div>
   );
