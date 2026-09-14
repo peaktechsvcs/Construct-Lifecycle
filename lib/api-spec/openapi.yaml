@@ -2076,6 +2076,57 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubmittalDocumentUpload" }
+  /submittal-items/{itemId}/documents/providers/files:
+    get:
+      operationId: listSubmittalDocumentProviderFiles
+      tags: [submittals]
+      summary: List supported files from an entitled document provider
+      parameters:
+        - $ref: "#/components/parameters/SubmittalItemId"
+        - in: query
+          name: providerKey
+          required: false
+          schema: { type: string, enum: [google_workspace], default: google_workspace }
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 120, default: "" }
+        - in: query
+          name: pageToken
+          schema: { type: string, maxLength: 2000 }
+      responses:
+        "200":
+          description: Supported external files
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [files, nextPageToken]
+                properties:
+                  files:
+                    type: array
+                    items: { $ref: "#/components/schemas/SubmittalExternalDocumentReference" }
+                  nextPageToken: { type: ["string", "null"] }
+        "424": { description: Document provider is not authorized or unavailable }
+  /submittal-items/{itemId}/documents/import:
+    post:
+      operationId: importSubmittalDocument
+      tags: [submittals]
+      summary: Import a supported external file into protected submittal storage
+      parameters:
+        - $ref: "#/components/parameters/SubmittalItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalExternalDocumentImportInput" }
+      responses:
+        "201":
+          description: Imported submittal document
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalDocument" }
+        "409": { description: External document is already imported or currently importing }
+        "424": { description: Document provider is not authorized or unavailable }
   /submittal-documents/{documentId}/complete:
     post:
       operationId: completeSubmittalDocumentUpload
@@ -4652,7 +4703,7 @@ components:
         updatedAt: { type: string, format: date-time }
     SubmittalDocument:
       type: object
-      required: [id, itemId, originalName, contentType, size, pageCount, pageOrder, version, status, uploadedAt, createdAt, downloadUrl]
+      required: [id, itemId, originalName, contentType, size, pageCount, pageOrder, version, status, providerKey, externalId, sourceUrl, importStatus, failureReason, uploadedAt, createdAt, downloadUrl]
       properties:
         id: { type: integer }
         itemId: { type: integer }
@@ -4665,6 +4716,11 @@ components:
           items: { type: integer, minimum: 1 }
         version: { type: integer, minimum: 1 }
         status: { type: string, enum: [pending, uploaded, rejected] }
+        providerKey: { type: ["string", "null"] }
+        externalId: { type: ["string", "null"] }
+        sourceUrl: { type: ["string", "null"], format: uri }
+        importStatus: { type: string, enum: [not_imported, importing, imported, failed] }
+        failureReason: { type: ["string", "null"], maxLength: 500 }
         uploadedAt: { type: ["string", "null"], format: date-time }
         createdAt: { type: string, format: date-time }
         downloadUrl: { type: string }
@@ -4682,6 +4738,22 @@ components:
           required: [uploadURL]
           properties:
             uploadURL: { type: string, format: uri }
+    SubmittalExternalDocumentReference:
+      type: object
+      required: [externalId, name, contentType, size, modifiedAt, sourceUrl]
+      properties:
+        externalId: { type: string }
+        name: { type: string }
+        contentType: { type: string }
+        size: { type: ["integer", "null"], minimum: 0 }
+        modifiedAt: { type: ["string", "null"], format: date-time }
+        sourceUrl: { type: ["string", "null"], format: uri }
+    SubmittalExternalDocumentImportInput:
+      type: object
+      required: [providerKey, externalId]
+      properties:
+        providerKey: { type: string, enum: [google_workspace] }
+        externalId: { type: string, minLength: 1, maxLength: 200 }
     SubmittalRevision:
       type: object
       required: [id, packageId, revision, status, reviewerName, reviewComments, submittedAt, reviewedAt, createdAt]

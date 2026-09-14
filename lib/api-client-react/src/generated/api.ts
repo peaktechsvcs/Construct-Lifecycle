@@ -107,6 +107,8 @@ import type {
   ListProposalsParams,
   ListProvisioningEvents200Item,
   ListSubcontractAgreementsParams,
+  ListSubmittalDocumentProviderFiles200,
+  ListSubmittalDocumentProviderFilesParams,
   ListSubmittalPackagesParams,
   ListSupplierOrdersParams,
   ListSupplierProductsParams,
@@ -187,6 +189,7 @@ import type {
   SubmittalDocument,
   SubmittalDocumentUpload,
   SubmittalDocumentUploadInput,
+  SubmittalExternalDocumentImportInput,
   SubmittalItem,
   SubmittalItemInput,
   SubmittalItemOrderInput,
@@ -308,6 +311,8 @@ export const getHealthCheckQueryKey = () => {
     `/api/healthz`
     ] as const;
     }
+
+
 export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
@@ -390,6 +395,7 @@ export const getListProjectsQueryKey = (params?: ListProjectsParams,) => {
     `/api/projects`, ...(params ? [params] : [])
     ] as const;
     }
+
 
 export const getListProjectsQueryOptions = <TData = Awaited<ReturnType<typeof listProjects>>, TError = ErrorType<unknown>>(params?: ListProjectsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
@@ -9264,6 +9270,167 @@ export const useRequestSubmittalDocumentUpload = <TError = ErrorType<unknown>,
       return useMutation(getRequestSubmittalDocumentUploadMutationOptions(options));
     }
 
+export const getListSubmittalDocumentProviderFilesUrl = (itemId: number,
+    params?: ListSubmittalDocumentProviderFilesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/submittal-items/${itemId}/documents/providers/files?${stringifiedParams}` : `/api/submittal-items/${itemId}/documents/providers/files`
+}
+
+/**
+ * @summary List supported files from an entitled document provider
+ */
+export const listSubmittalDocumentProviderFiles = async (itemId: number,
+    params?: ListSubmittalDocumentProviderFilesParams, options?: Parameters<typeof customFetch>[1]): Promise<ListSubmittalDocumentProviderFiles200> => {
+
+  return customFetch<ListSubmittalDocumentProviderFiles200>(getListSubmittalDocumentProviderFilesUrl(itemId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSubmittalDocumentProviderFilesQueryKey = (itemId: number,
+    params?: ListSubmittalDocumentProviderFilesParams,) => {
+    return [
+    `/api/submittal-items/${itemId}/documents/providers/files`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSubmittalDocumentProviderFilesQueryOptions = <TData = Awaited<ReturnType<typeof listSubmittalDocumentProviderFiles>>, TError = ErrorType<void>>(itemId: number,
+    params?: ListSubmittalDocumentProviderFilesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubmittalDocumentProviderFiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSubmittalDocumentProviderFilesQueryKey(itemId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSubmittalDocumentProviderFiles>>> = ({ signal }) => listSubmittalDocumentProviderFiles(itemId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: itemId !== null && itemId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSubmittalDocumentProviderFiles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSubmittalDocumentProviderFilesQueryResult = NonNullable<Awaited<ReturnType<typeof listSubmittalDocumentProviderFiles>>>
+export type ListSubmittalDocumentProviderFilesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List supported files from an entitled document provider
+ */
+
+export function useListSubmittalDocumentProviderFiles<TData = Awaited<ReturnType<typeof listSubmittalDocumentProviderFiles>>, TError = ErrorType<void>>(
+ itemId: number,
+    params?: ListSubmittalDocumentProviderFilesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubmittalDocumentProviderFiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSubmittalDocumentProviderFilesQueryOptions(itemId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportSubmittalDocumentUrl = (itemId: number,) => {
+
+
+
+
+  return `/api/submittal-items/${itemId}/documents/import`
+}
+
+/**
+ * @summary Import a supported external file into protected submittal storage
+ */
+export const importSubmittalDocument = async (itemId: number,
+    submittalExternalDocumentImportInput: SubmittalExternalDocumentImportInput, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalDocument> => {
+
+  return customFetch<SubmittalDocument>(getImportSubmittalDocumentUrl(itemId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalExternalDocumentImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportSubmittalDocumentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importSubmittalDocument>>, TError,{itemId: number;data: BodyType<SubmittalExternalDocumentImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importSubmittalDocument>>, TError,{itemId: number;data: BodyType<SubmittalExternalDocumentImportInput>}, TContext> => {
+
+const mutationKey = ['importSubmittalDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importSubmittalDocument>>, {itemId: number;data: BodyType<SubmittalExternalDocumentImportInput>}> = (props) => {
+          const {itemId,data} = props ?? {};
+
+          return  importSubmittalDocument(itemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportSubmittalDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof importSubmittalDocument>>>
+    export type ImportSubmittalDocumentMutationBody = BodyType<SubmittalExternalDocumentImportInput>
+    export type ImportSubmittalDocumentMutationError = ErrorType<void>
+
+    /**
+ * @summary Import a supported external file into protected submittal storage
+ */
+export const useImportSubmittalDocument = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importSubmittalDocument>>, TError,{itemId: number;data: BodyType<SubmittalExternalDocumentImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importSubmittalDocument>>,
+        TError,
+        {itemId: number;data: BodyType<SubmittalExternalDocumentImportInput>},
+        TContext
+      > => {
+      return useMutation(getImportSubmittalDocumentMutationOptions(options));
+    }
+
 export const getCompleteSubmittalDocumentUploadUrl = (documentId: number,) => {
 
 
@@ -16654,4 +16821,3 @@ export const useRollbackEnvironmentRelease = <TError = ErrorType<void>,
       > => {
       return useMutation(getRollbackEnvironmentReleaseMutationOptions(options));
     }
-// Generated client definitions end here.

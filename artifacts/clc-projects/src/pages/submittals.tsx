@@ -30,6 +30,8 @@ import {
   useDeleteSubmittalPackage,
   useRequestSubmittalDocumentUpload,
   useCompleteSubmittalDocumentUpload,
+  useListSubmittalDocumentProviderFiles,
+  useImportSubmittalDocument,
   useCreateSubmittalCoordination,
   useGetSubmittalPackage,
   useListSubmittalCoordination,
@@ -41,6 +43,7 @@ import {
   useUpdateSubmittalCoordination,
   useDeleteSubmittalCoordination,
   getGetSubmittalPackageQueryKey,
+  getListSubmittalDocumentProviderFilesQueryKey,
   getListBidsQueryKey,
   getListProjectsQueryKey,
   getListSubmittalPackagesQueryKey,
@@ -325,8 +328,15 @@ function CoordinationPanel({ packageId, revisions, canEdit, onChanged }: { packa
 function DocumentUpload({ itemId, onUploaded }: { itemId: number; onUploaded: () => void }) {
   const requestUpload = useRequestSubmittalDocumentUpload();
   const completeUpload = useCompleteSubmittalDocumentUpload();
+  const importDocument = useImportSubmittalDocument();
   const [error, setError] = useState('');
   const [uploadingName, setUploadingName] = useState('');
+  const [showDrive, setShowDrive] = useState(false);
+  const [driveSearch, setDriveSearch] = useState('');
+  const driveFiles = useListSubmittalDocumentProviderFiles(itemId, {
+    providerKey: 'google_workspace',
+    search: driveSearch.trim(),
+  }, { query: { queryKey: getListSubmittalDocumentProviderFilesQueryKey(itemId, { providerKey: 'google_workspace', search: driveSearch.trim() }), enabled: showDrive } });
   const upload = async (file: File) => {
     setError('');
     setUploadingName(file.name);
@@ -353,35 +363,88 @@ function DocumentUpload({ itemId, onUploaded }: { itemId: number; onUploaded: ()
       setUploadingName('');
     }
   };
+  const importFile = (externalId: string, name: string) => {
+    setError('');
+    setUploadingName(name);
+    importDocument.mutate({
+      itemId,
+      data: { providerKey: 'google_workspace', externalId },
+    }, {
+      onSuccess: () => {
+        setUploadingName('');
+        setShowDrive(false);
+        onUploaded();
+      },
+      onError: (reason) => {
+        setUploadingName('');
+        setError(reason instanceof Error ? reason.message : 'The Drive file could not be imported. You can retry it.');
+      },
+    });
+  };
   return <div className="mt-3 rounded-lg border border-dashed border-border bg-secondary/25 p-3">
-    <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-accent hover:underline">
-      <Plus size={14} />
-      {uploadingName ? `Uploading ${uploadingName}…` : 'Upload document'}
-      <input
-        type="file"
-        className="sr-only"
-        disabled={Boolean(uploadingName)}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = '';
-          if (file) void upload(file);
-        }}
-      />
-    </label>
+    <div className="flex flex-wrap items-center gap-3">
+      <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-accent hover:underline">
+        <Plus size={14} />
+        {uploadingName ? `Uploading ${uploadingName}…` : 'Upload document'}
+        <input
+          type="file"
+          className="sr-only"
+          disabled={Boolean(uploadingName)}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (file) void upload(file);
+          }}
+        />
+      </label>
+      <Button type="button" variant="outline" className="h-7 px-2 text-[11px]" disabled={Boolean(uploadingName)} onClick={() => { setShowDrive((current) => !current); setError(''); }}>
+        {showDrive ? 'Hide Drive files' : 'Import from Drive'}
+      </Button>
+    </div>
     <p className="mt-1 text-[11px] text-muted-foreground">PDFs, images, office files, and other project documents up to 100 MB.</p>
+    {showDrive && <div className="mt-3 rounded-md border border-border bg-card p-3">
+      <div className="flex gap-2">
+        <Input aria-label="Search Google Drive files" value={driveSearch} onChange={(event) => setDriveSearch(event.target.value)} placeholder="Search Drive files" className="h-8 text-xs" />
+        <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => void driveFiles.refetch()}>Search</Button>
+      </div>
+      {driveFiles.isLoading ? <p className="mt-3 text-xs text-muted-foreground">Loading supported Drive files…</p>
+        : driveFiles.isError ? <p className="mt-3 text-xs text-destructive">Google Workspace Drive is not connected or could not be read.</p>
+        : driveFiles.data?.files.length === 0 ? <p className="mt-3 text-xs text-muted-foreground">No supported files found.</p>
+        : <div className="mt-3 max-h-52 space-y-2 overflow-y-auto">{driveFiles.data?.files.map((file) => <div key={file.externalId} className="flex items-center justify-between gap-3 rounded-md border border-border bg-secondary/20 px-3 py-2"><div className="min-w-0"><p className="truncate text-xs font-semibold">{file.name}</p><p className="truncate text-[10px] text-muted-foreground">{file.contentType}{file.size ? ` · ${Math.ceil(file.size / 1024)} KB` : ''}</p></div><Button type="button" variant="outline" className="h-7 shrink-0 px-2 text-[11px]" disabled={Boolean(uploadingName)} onClick={() => importFile(file.externalId, file.name)}>Import</Button></div>)}</div>}
+    </div>}
     {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
   </div>;
 }
 
 function DocumentLink({ document, canEdit, onChanged }: { document: SubmittalDocument; canEdit: boolean; onChanged: () => void }) {
   const remove = useDeleteSubmittalDocument();
+  const retryImport = useImportSubmittalDocument();
+  const [retryError, setRetryError] = useState('');
   const statusLabel = document.status === 'rejected' ? 'rejected by safety screening' : 'pending';
-  return <div className="flex items-center gap-2">
-    {document.status === 'uploaded'
-      ? <a className="inline-flex min-w-0 items-center gap-1 text-accent hover:underline" href={document.downloadUrl} target="_blank" rel="noreferrer"><span className="truncate">V{document.version} · {document.originalName}</span><ExternalLink size={12} /></a>
-      : <span className={document.status === 'rejected' ? 'text-destructive' : 'text-muted-foreground'}>{document.originalName} · {statusLabel}</span>}
-     <span className="mono text-[10px] text-muted-foreground">{Math.ceil(document.size / 1024)} KB{document.pageCount ? ` · ${document.pageCount} pages` : ''}</span>
-    {canEdit && <Button variant="ghost" className="p-1 text-muted-foreground" aria-label={`Delete ${document.originalName}`} onClick={() => remove.mutate({ documentId: document.id }, { onSuccess: onChanged })}><Trash2 size={13} /></Button>}
+  const canRetry = canEdit && document.importStatus === 'failed' && document.providerKey === 'google_workspace' && Boolean(document.externalId);
+  return <div className="flex flex-col gap-1">
+    <div className="flex items-center gap-2">
+      {document.status === 'uploaded'
+        ? <a className="inline-flex min-w-0 items-center gap-1 text-accent hover:underline" href={document.downloadUrl} target="_blank" rel="noreferrer"><span className="truncate">V{document.version} · {document.originalName}</span><ExternalLink size={12} /></a>
+        : <span className={document.status === 'rejected' ? 'text-destructive' : 'text-muted-foreground'}>{document.originalName} · {statusLabel}</span>}
+      <span className="mono text-[10px] text-muted-foreground">{Math.ceil(document.size / 1024)} KB{document.pageCount ? ` · ${document.pageCount} pages` : ''}</span>
+      {canEdit && <Button variant="ghost" className="p-1 text-muted-foreground" aria-label={`Delete ${document.originalName}`} onClick={() => remove.mutate({ documentId: document.id }, { onSuccess: onChanged })}><Trash2 size={13} /></Button>}
+    </div>
+    {document.providerKey && <p className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
+      <span>Imported from Google Drive</span>
+      {document.sourceUrl && <a className="inline-flex items-center gap-1 text-accent hover:underline" href={document.sourceUrl} target="_blank" rel="noreferrer">View source <ExternalLink size={10} /></a>}
+    </p>}
+    {document.importStatus === 'failed' && <div className="flex flex-wrap items-center gap-2 text-[11px] text-destructive">
+      <span>{document.failureReason || 'The external document could not be imported.'}</span>
+      {canRetry && <Button type="button" variant="outline" className="h-6 border-destructive/30 px-2 text-[10px] text-destructive" disabled={retryImport.isPending} onClick={() => {
+        setRetryError('');
+        retryImport.mutate({ itemId: document.itemId, data: { providerKey: 'google_workspace', externalId: document.externalId! } }, {
+          onSuccess: onChanged,
+          onError: (reason) => setRetryError(reason instanceof Error ? reason.message : 'Retry failed.'),
+        });
+      }}>{retryImport.isPending ? 'Retrying…' : 'Retry import'}</Button>}
+      {retryError && <span>{retryError}</span>}
+    </div>}
   </div>;
 }
 

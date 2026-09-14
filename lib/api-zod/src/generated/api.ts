@@ -6974,6 +6974,8 @@ export const listSubmittalPackagesResponseItemsItemDocumentUrlMax = 2000;
 
 
 
+export const listSubmittalPackagesResponseItemsItemDocumentsItemFailureReasonMax = 500;
+
 
 
 
@@ -7025,6 +7027,11 @@ export const ListSubmittalPackagesResponseItem = zod.object({
   "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "providerKey": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "sourceUrl": zod.string().url().nullable(),
+  "importStatus": zod.enum(['not_imported', 'importing', 'imported', 'failed']),
+  "failureReason": zod.string().max(listSubmittalPackagesResponseItemsItemDocumentsItemFailureReasonMax).nullable(),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -7150,6 +7157,8 @@ export const createSubmittalPackageResponseItemsItemDocumentUrlMax = 2000;
 
 
 
+export const createSubmittalPackageResponseItemsItemDocumentsItemFailureReasonMax = 500;
+
 
 
 
@@ -7201,6 +7210,11 @@ export const CreateSubmittalPackageResponse = zod.object({
   "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "providerKey": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "sourceUrl": zod.string().url().nullable(),
+  "importStatus": zod.enum(['not_imported', 'importing', 'imported', 'failed']),
+  "failureReason": zod.string().max(createSubmittalPackageResponseItemsItemDocumentsItemFailureReasonMax).nullable(),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -7328,6 +7342,8 @@ export const seedSubmittalRegisterFromBidResponseItemsItemDocumentUrlMax = 2000;
 
 
 
+export const seedSubmittalRegisterFromBidResponseItemsItemDocumentsItemFailureReasonMax = 500;
+
 
 
 
@@ -7379,6 +7395,11 @@ export const SeedSubmittalRegisterFromBidResponse = zod.object({
   "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "providerKey": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "sourceUrl": zod.string().url().nullable(),
+  "importStatus": zod.enum(['not_imported', 'importing', 'imported', 'failed']),
+  "failureReason": zod.string().max(seedSubmittalRegisterFromBidResponseItemsItemDocumentsItemFailureReasonMax).nullable(),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -7483,6 +7504,8 @@ export const getSubmittalPackageResponseItemsItemDocumentUrlMax = 2000;
 
 
 
+export const getSubmittalPackageResponseItemsItemDocumentsItemFailureReasonMax = 500;
+
 
 
 
@@ -7534,6 +7557,11 @@ export const GetSubmittalPackageResponse = zod.object({
   "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "providerKey": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "sourceUrl": zod.string().url().nullable(),
+  "importStatus": zod.enum(['not_imported', 'importing', 'imported', 'failed']),
+  "failureReason": zod.string().max(getSubmittalPackageResponseItemsItemDocumentsItemFailureReasonMax).nullable(),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -7666,6 +7694,8 @@ export const updateSubmittalPackageResponseItemsItemDocumentUrlMax = 2000;
 
 
 
+export const updateSubmittalPackageResponseItemsItemDocumentsItemFailureReasonMax = 500;
+
 
 
 
@@ -7717,6 +7747,11 @@ export const UpdateSubmittalPackageResponse = zod.object({
   "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "providerKey": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "sourceUrl": zod.string().url().nullable(),
+  "importStatus": zod.enum(['not_imported', 'importing', 'imported', 'failed']),
+  "failureReason": zod.string().max(updateSubmittalPackageResponseItemsItemDocumentsItemFailureReasonMax).nullable(),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -7856,6 +7891,8 @@ export const createSubmittalItemResponseDocumentUrlMax = 2000;
 
 
 
+export const createSubmittalItemResponseDocumentsItemFailureReasonMax = 500;
+
 
 
 export const CreateSubmittalItemResponse = zod.object({
@@ -7880,6 +7917,11 @@ export const CreateSubmittalItemResponse = zod.object({
   "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "providerKey": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "sourceUrl": zod.string().url().nullable(),
+  "importStatus": zod.enum(['not_imported', 'importing', 'imported', 'failed']),
+  "failureReason": zod.string().max(createSubmittalItemResponseDocumentsItemFailureReasonMax).nullable(),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -7981,6 +8023,8 @@ export const reorderSubmittalItemsResponseItemsItemDocumentUrlMax = 2000;
 
 
 
+export const reorderSubmittalItemsResponseItemsItemDocumentsItemFailureReasonMax = 500;
+
 
 
 
@@ -8032,6 +8076,11 @@ export const ReorderSubmittalItemsResponse = zod.object({
   "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "providerKey": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "sourceUrl": zod.string().url().nullable(),
+  "importStatus": zod.enum(['not_imported', 'importing', 'imported', 'failed']),
+  "failureReason": zod.string().max(reorderSubmittalItemsResponseItemsItemDocumentsItemFailureReasonMax).nullable(),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -8161,6 +8210,8 @@ export const updateSubmittalItemResponseDocumentUrlMax = 2000;
 
 
 
+export const updateSubmittalItemResponseDocumentsItemFailureReasonMax = 500;
+
 
 
 export const UpdateSubmittalItemResponse = zod.object({
@@ -8185,6 +8236,11 @@ export const UpdateSubmittalItemResponse = zod.object({
   "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "providerKey": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "sourceUrl": zod.string().url().nullable(),
+  "importStatus": zod.enum(['not_imported', 'importing', 'imported', 'failed']),
+  "failureReason": zod.string().max(updateSubmittalItemResponseDocumentsItemFailureReasonMax).nullable(),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -8231,6 +8287,8 @@ export const RequestSubmittalDocumentUploadBody = zod.object({
 
 
 
+export const requestSubmittalDocumentUploadResponseOneFailureReasonMax = 500;
+
 
 
 export const RequestSubmittalDocumentUploadResponse = zod.object({
@@ -8243,12 +8301,99 @@ export const RequestSubmittalDocumentUploadResponse = zod.object({
   "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "providerKey": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "sourceUrl": zod.string().url().nullable(),
+  "importStatus": zod.enum(['not_imported', 'importing', 'imported', 'failed']),
+  "failureReason": zod.string().max(requestSubmittalDocumentUploadResponseOneFailureReasonMax).nullable(),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
 }).and(zod.object({
   "uploadURL": zod.string().url()
 }))
+
+
+/**
+ * @summary List supported files from an entitled document provider
+ */
+export const ListSubmittalDocumentProviderFilesParams = zod.object({
+  "itemId": zod.coerce.number().int()
+})
+
+export const listSubmittalDocumentProviderFilesQueryProviderKeyDefault = `google_workspace`;
+export const listSubmittalDocumentProviderFilesQuerySearchDefault = ``;
+export const listSubmittalDocumentProviderFilesQuerySearchMax = 120;
+
+export const listSubmittalDocumentProviderFilesQueryPageTokenMax = 2000;
+
+
+
+export const ListSubmittalDocumentProviderFilesQueryParams = zod.object({
+  "providerKey": zod.enum(['google_workspace']).default(listSubmittalDocumentProviderFilesQueryProviderKeyDefault),
+  "search": zod.coerce.string().max(listSubmittalDocumentProviderFilesQuerySearchMax).default(listSubmittalDocumentProviderFilesQuerySearchDefault),
+  "pageToken": zod.coerce.string().max(listSubmittalDocumentProviderFilesQueryPageTokenMax).optional()
+})
+
+export const listSubmittalDocumentProviderFilesResponseFilesItemSizeMin = 0;
+
+
+
+export const ListSubmittalDocumentProviderFilesResponse = zod.object({
+  "files": zod.array(zod.object({
+  "externalId": zod.string(),
+  "name": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int().min(listSubmittalDocumentProviderFilesResponseFilesItemSizeMin).nullable(),
+  "modifiedAt": zod.coerce.date().nullable(),
+  "sourceUrl": zod.string().url().nullable()
+})),
+  "nextPageToken": zod.string().nullable()
+})
+
+
+/**
+ * @summary Import a supported external file into protected submittal storage
+ */
+export const ImportSubmittalDocumentParams = zod.object({
+  "itemId": zod.coerce.number().int()
+})
+
+export const importSubmittalDocumentBodyExternalIdMax = 200;
+
+
+
+export const ImportSubmittalDocumentBody = zod.object({
+  "providerKey": zod.enum(['google_workspace']),
+  "externalId": zod.string().min(1).max(importSubmittalDocumentBodyExternalIdMax)
+})
+
+
+
+
+export const importSubmittalDocumentResponseFailureReasonMax = 500;
+
+
+
+export const ImportSubmittalDocumentResponse = zod.object({
+  "id": zod.number().int(),
+  "itemId": zod.number().int(),
+  "originalName": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "pageCount": zod.number().int().min(1).nullable(),
+  "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
+  "version": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "providerKey": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "sourceUrl": zod.string().url().nullable(),
+  "importStatus": zod.enum(['not_imported', 'importing', 'imported', 'failed']),
+  "failureReason": zod.string().max(importSubmittalDocumentResponseFailureReasonMax).nullable(),
+  "uploadedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "downloadUrl": zod.string()
+})
 
 
 /**
@@ -8260,6 +8405,8 @@ export const CompleteSubmittalDocumentUploadParams = zod.object({
 
 
 
+
+export const completeSubmittalDocumentUploadResponseFailureReasonMax = 500;
 
 
 
@@ -8273,6 +8420,11 @@ export const CompleteSubmittalDocumentUploadResponse = zod.object({
   "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "providerKey": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "sourceUrl": zod.string().url().nullable(),
+  "importStatus": zod.enum(['not_imported', 'importing', 'imported', 'failed']),
+  "failureReason": zod.string().max(completeSubmittalDocumentUploadResponseFailureReasonMax).nullable(),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()
@@ -8318,6 +8470,8 @@ export const ReorderSubmittalDocumentPagesBody = zod.object({
 
 
 
+export const reorderSubmittalDocumentPagesResponseFailureReasonMax = 500;
+
 
 
 export const ReorderSubmittalDocumentPagesResponse = zod.object({
@@ -8330,6 +8484,11 @@ export const ReorderSubmittalDocumentPagesResponse = zod.object({
   "pageOrder": zod.array(zod.number().int().min(1)).nullable(),
   "version": zod.number().int().min(1),
   "status": zod.enum(['pending', 'uploaded', 'rejected']),
+  "providerKey": zod.string().nullable(),
+  "externalId": zod.string().nullable(),
+  "sourceUrl": zod.string().url().nullable(),
+  "importStatus": zod.enum(['not_imported', 'importing', 'imported', 'failed']),
+  "failureReason": zod.string().max(reorderSubmittalDocumentPagesResponseFailureReasonMax).nullable(),
   "uploadedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date(),
   "downloadUrl": zod.string()

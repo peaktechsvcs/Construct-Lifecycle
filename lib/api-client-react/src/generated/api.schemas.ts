@@ -1406,6 +1406,16 @@ export const SubmittalDocumentStatus = {
   rejected: 'rejected',
 } as const;
 
+export type SubmittalDocumentImportStatus = typeof SubmittalDocumentImportStatus[keyof typeof SubmittalDocumentImportStatus];
+
+
+export const SubmittalDocumentImportStatus = {
+  not_imported: 'not_imported',
+  importing: 'importing',
+  imported: 'imported',
+  failed: 'failed',
+} as const;
+
 export interface SubmittalDocument {
   id: number;
   itemId: number;
@@ -1425,6 +1435,18 @@ export interface SubmittalDocument {
   /** @minimum 1 */
   version: number;
   status: SubmittalDocumentStatus;
+  /** @nullable */
+  providerKey: string | null;
+  /** @nullable */
+  externalId: string | null;
+  /** @nullable */
+  sourceUrl: string | null;
+  importStatus: SubmittalDocumentImportStatus;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  failureReason: string | null;
   /** @nullable */
   uploadedAt: string | null;
   createdAt: string;
@@ -1482,6 +1504,37 @@ export interface SubmittalDocumentUploadInput {
 export type SubmittalDocumentUpload = SubmittalDocument & {
   uploadURL: string;
 };
+
+export interface SubmittalExternalDocumentReference {
+  externalId: string;
+  name: string;
+  contentType: string;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  size: number | null;
+  /** @nullable */
+  modifiedAt: string | null;
+  /** @nullable */
+  sourceUrl: string | null;
+}
+
+export type SubmittalExternalDocumentImportInputProviderKey = typeof SubmittalExternalDocumentImportInputProviderKey[keyof typeof SubmittalExternalDocumentImportInputProviderKey];
+
+
+export const SubmittalExternalDocumentImportInputProviderKey = {
+  google_workspace: 'google_workspace',
+} as const;
+
+export interface SubmittalExternalDocumentImportInput {
+  providerKey: SubmittalExternalDocumentImportInputProviderKey;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  externalId: string;
+}
 
 export interface SubmittalRevision {
   id: number;
@@ -6438,6 +6491,31 @@ status?: SubmittalPackageStatus;
  * @minimum 1
  */
 projectId?: number;
+};
+
+export type ListSubmittalDocumentProviderFilesParams = {
+providerKey?: ListSubmittalDocumentProviderFilesProviderKey;
+/**
+ * @maxLength 120
+ */
+search?: string;
+/**
+ * @maxLength 2000
+ */
+pageToken?: string;
+};
+
+export type ListSubmittalDocumentProviderFilesProviderKey = typeof ListSubmittalDocumentProviderFilesProviderKey[keyof typeof ListSubmittalDocumentProviderFilesProviderKey];
+
+
+export const ListSubmittalDocumentProviderFilesProviderKey = {
+  google_workspace: 'google_workspace',
+} as const;
+
+export type ListSubmittalDocumentProviderFiles200 = {
+  files: SubmittalExternalDocumentReference[];
+  /** @nullable */
+  nextPageToken: string | null;
 };
 
 export type ListBusinessCustomersParams = {

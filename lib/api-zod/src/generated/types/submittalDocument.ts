@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SubmittalDocumentImportStatus } from './submittalDocumentImportStatus';
 import type { SubmittalDocumentStatus } from './submittalDocumentStatus';
 
 export interface SubmittalDocument {
@@ -26,6 +27,18 @@ export interface SubmittalDocument {
   /** @minimum 1 */
   version: number;
   status: SubmittalDocumentStatus;
+  /** @nullable */
+  providerKey: string | null;
+  /** @nullable */
+  externalId: string | null;
+  /** @nullable */
+  sourceUrl: string | null;
+  importStatus: SubmittalDocumentImportStatus;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  failureReason: string | null;
   /** @nullable */
   uploadedAt: Date | null;
   createdAt: Date;

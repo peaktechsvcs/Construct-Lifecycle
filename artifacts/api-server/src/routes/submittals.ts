@@ -7,6 +7,7 @@ import {
   bidProposalAttachmentsTable,
   businessCustomersTable,
   db,
+  integrationAuditEventsTable,
   integrationEntitlementsTable,
   integrationsTable,
   platformAuditEventsTable,
@@ -48,6 +49,8 @@ import { screenStoredDocument } from "../lib/documentScreening";
 import { getSignatureProvider, getSignatureProviderAvailability } from "../lib/signatures/provider";
 import { activeSignatureRequestStatuses } from "../lib/signatures/state";
 import { validateAndNormalizeSignatureSigners } from "../lib/signatures/validation";
+import { ReplitConnectors } from "@replit/connectors-sdk";
+import { createSubmittalDocumentProvider, DocumentProviderError, type DocumentProviderKey } from "../lib/submittal-document-provider";
 
 const router: IRouter = Router();
 
@@ -72,6 +75,8 @@ const pageOrderInput = z.object({
   pageOrder: z.array(z.number().int().positive()).min(1).max(500),
 });
 const objectStorage = new ObjectStorageService();
+const connectors = new ReplitConnectors();
+const documentProvider = createSubmittalDocumentProvider(connectors);
 const maxDocumentSize = 100 * 1024 * 1024;
 const uploadRateWindowMs = 60_000;
 const uploadRateLimit = 20;
@@ -213,10 +218,45 @@ const serializeDocument = (document: typeof submittalDocumentsTable.$inferSelect
   pageOrder: document.pageOrder ? JSON.parse(document.pageOrder) : null,
   version: document.version,
   status: document.status,
+  providerKey: document.providerKey,
+  externalId: document.externalId,
+  sourceUrl: document.sourceUrl,
+  importStatus: document.importStatus,
+  failureReason: document.failureReason,
   uploadedAt: document.uploadedAt,
   createdAt: document.createdAt,
   downloadUrl: `/api/submittal-documents/${document.id}`,
 });
+
+const documentProviderInput = z.object({
+  providerKey: z.literal("google_workspace"),
+  externalId: z.string().trim().min(1).max(200),
+});
+
+const documentProviderQuery = z.object({
+  providerKey: z.literal("google_workspace").default("google_workspace"),
+  search: z.string().trim().max(120).default(""),
+  pageToken: z.string().trim().max(2000).optional(),
+});
+
+const connectedDocumentProvider = async (req: TenantRequest, providerKey: DocumentProviderKey) => {
+  const [integration] = await db.select().from(integrationsTable).where(and(
+    eq(integrationsTable.tenantId, req.tenantId!),
+    eq(integrationsTable.environmentId, req.environmentId!),
+    eq(integrationsTable.providerKey, providerKey),
+    eq(integrationsTable.status, "connected"),
+  )).limit(1);
+  const [entitlement] = await db.select({ id: integrationEntitlementsTable.id }).from(integrationEntitlementsTable).where(and(
+    eq(integrationEntitlementsTable.tenantId, req.tenantId!),
+    eq(integrationEntitlementsTable.capabilityKey, providerKey),
+    eq(integrationEntitlementsTable.enabled, true),
+  )).limit(1);
+  if (!integration || !entitlement || !integration.credentialsReference) return null;
+  const connectionId = integration.credentialsReference.split(":").at(-1);
+  const available = await connectors.listConnections({ connector_names: "google-mail", refresh_policy: "force" });
+  const selected = available.find((connection) => connection.id === connectionId && connection.status === "connected");
+  return selected ? integration : null;
+};
 
 const serializeItem = (
   item: typeof submittalItemsTable.$inferSelect,
@@ -972,6 +1012,188 @@ router.post("/submittal-items/:itemId/documents/request-upload", requireRole("ow
     }
     req.log.error({ err: error }, "Failed to create submittal document upload");
     res.status(503).json({ error: "Document storage is temporarily unavailable" });
+  }
+});
+
+router.get("/submittal-items/:itemId/documents/providers/files", requireRole("owner", "admin", "member"), async (req: TenantRequest, res): Promise<void> => {
+  const itemId = Number(req.params.itemId);
+  const parsed = documentProviderQuery.safeParse(req.query);
+  if (!Number.isInteger(itemId) || itemId < 1 || !parsed.success) {
+    res.status(400).json({ error: "Invalid document provider query" });
+    return;
+  }
+  const [item] = await db.select({ id: submittalItemsTable.id }).from(submittalItemsTable).where(and(
+    eq(submittalItemsTable.id, itemId),
+    eq(submittalItemsTable.tenantId, req.tenantId!),
+    eq(submittalItemsTable.environmentId, req.environmentId!),
+  ));
+  if (!item) {
+    res.status(404).json({ error: "Submittal item not found" });
+    return;
+  }
+  try {
+    if (!await connectedDocumentProvider(req, parsed.data.providerKey)) {
+      res.status(424).json({ error: "Google Workspace Drive is not connected for this environment" });
+      return;
+    }
+    res.json(await documentProvider.listFiles(parsed.data.providerKey, parsed.data.search, parsed.data.pageToken));
+  } catch (error) {
+    const status = error instanceof DocumentProviderError ? error.status : 424;
+    req.log.warn({ err: error, itemId }, "Submittal document provider listing unavailable");
+    res.status(status).json({ error: "Google Workspace Drive files could not be listed" });
+  }
+});
+
+router.post("/submittal-items/:itemId/documents/import", requireRole("owner", "admin", "member"), async (req: TenantRequest, res): Promise<void> => {
+  if (rejectUploadRate(req, res)) return;
+  const itemId = Number(req.params.itemId);
+  const parsed = documentProviderInput.safeParse(req.body);
+  if (!Number.isInteger(itemId) || itemId < 1 || !parsed.success) {
+    res.status(400).json({ error: "Invalid external document reference" });
+    return;
+  }
+  const [item] = await db.select({ id: submittalItemsTable.id }).from(submittalItemsTable).where(and(
+    eq(submittalItemsTable.id, itemId),
+    eq(submittalItemsTable.tenantId, req.tenantId!),
+    eq(submittalItemsTable.environmentId, req.environmentId!),
+  ));
+  if (!item) {
+    res.status(404).json({ error: "Submittal item not found" });
+    return;
+  }
+  const integration = await connectedDocumentProvider(req, parsed.data.providerKey);
+  if (!integration) {
+    res.status(424).json({ error: "Google Workspace Drive is not connected for this environment" });
+    return;
+  }
+  const [existing] = await db.select().from(submittalDocumentsTable).where(and(
+    eq(submittalDocumentsTable.itemId, itemId),
+    eq(submittalDocumentsTable.tenantId, req.tenantId!),
+    eq(submittalDocumentsTable.environmentId, req.environmentId!),
+    eq(submittalDocumentsTable.providerKey, parsed.data.providerKey),
+    eq(submittalDocumentsTable.externalId, parsed.data.externalId),
+  )).limit(1);
+  if (existing?.importStatus === "imported" && existing.status === "uploaded") {
+    res.status(409).json({ error: "This external document was already imported", documentId: existing.id });
+    return;
+  }
+  if (existing?.importStatus === "importing") {
+    res.status(409).json({ error: "This external document is already being imported", documentId: existing.id });
+    return;
+  }
+  let document = existing;
+  let objectPath: string | undefined;
+  try {
+    if (document) {
+      [document] = await db.update(submittalDocumentsTable).set({
+        importStatus: "importing",
+        failureReason: null,
+        status: "pending",
+      }).where(and(
+        eq(submittalDocumentsTable.id, document.id),
+        eq(submittalDocumentsTable.tenantId, req.tenantId!),
+        eq(submittalDocumentsTable.environmentId, req.environmentId!),
+      )).returning();
+    } else {
+      const [{ maxVersion }] = await db.select({
+        maxVersion: sql<number | null>`max(${submittalDocumentsTable.version})`,
+      }).from(submittalDocumentsTable).where(and(
+        eq(submittalDocumentsTable.itemId, itemId),
+        eq(submittalDocumentsTable.tenantId, req.tenantId!),
+        eq(submittalDocumentsTable.environmentId, req.environmentId!),
+      ));
+      [document] = await db.insert(submittalDocumentsTable).values({
+        itemId,
+        originalName: "external-document",
+        objectPath: `/objects/pending-submittal-import-${crypto.randomUUID()}`,
+        contentType: "application/octet-stream",
+        size: 1,
+        version: Number(maxVersion ?? 0) + 1,
+        status: "pending",
+        providerKey: parsed.data.providerKey,
+        externalId: parsed.data.externalId,
+        importStatus: "importing",
+        uploadedByUserId: req.localUserId!,
+        tenantId: req.tenantId!,
+        environmentId: req.environmentId!,
+      }).returning();
+    }
+    const imported = await documentProvider.importFile(parsed.data.providerKey, parsed.data.externalId);
+    const stored = await objectStorage.storeBytes("submittals", imported.bytes, imported.contentType);
+    objectPath = stored.objectPath;
+    const storedFile = await objectStorage.getObjectFile(stored.objectPath);
+    const screening = await screenStoredDocument(storedFile, imported.contentType, imported.bytes.length);
+    if (screening.status === "rejected") {
+      await objectStorage.deleteObject(stored.objectPath).catch(() => undefined);
+      objectPath = undefined;
+      throw new DocumentProviderError("External document failed upload safety screening", screening.reason === "content_mismatch" ? 415 : 422);
+    }
+    const pageCount = imported.contentType === "application/pdf"
+      ? (await PDFDocument.load(imported.bytes)).getPageCount()
+      : null;
+    const [updated] = await db.update(submittalDocumentsTable).set({
+      originalName: imported.name,
+      objectPath: stored.objectPath,
+      contentType: imported.contentType,
+      size: imported.bytes.length,
+      pageCount,
+      pageOrder: pageCount ? JSON.stringify(Array.from({ length: pageCount }, (_, index) => index + 1)) : null,
+      sourceUrl: imported.sourceUrl,
+      status: "uploaded",
+      importStatus: "imported",
+      failureReason: null,
+      uploadedAt: new Date(),
+    }).where(and(
+      eq(submittalDocumentsTable.id, document!.id),
+      eq(submittalDocumentsTable.tenantId, req.tenantId!),
+      eq(submittalDocumentsTable.environmentId, req.environmentId!),
+    )).returning();
+    await db.insert(integrationAuditEventsTable).values({
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+      integrationId: integration.id,
+      providerKey: parsed.data.providerKey,
+      action: "submittal_document_imported",
+      details: JSON.stringify({ itemId, documentId: updated.id, externalId: parsed.data.externalId }),
+      actorUserId: req.localUserId!,
+    });
+    res.status(201).json(serializeDocument(updated));
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") {
+      const [duplicate] = await db.select({ id: submittalDocumentsTable.id }).from(submittalDocumentsTable).where(and(
+        eq(submittalDocumentsTable.itemId, itemId),
+        eq(submittalDocumentsTable.tenantId, req.tenantId!),
+        eq(submittalDocumentsTable.environmentId, req.environmentId!),
+        eq(submittalDocumentsTable.providerKey, parsed.data.providerKey),
+        eq(submittalDocumentsTable.externalId, parsed.data.externalId),
+      )).limit(1);
+      res.status(409).json({ error: "This external document is already being imported", documentId: duplicate?.id });
+      return;
+    }
+    if (objectPath) await objectStorage.deleteObject(objectPath).catch(() => undefined);
+    const reason = error instanceof Error ? error.message.slice(0, 500) : "External document import failed";
+    if (document) {
+      await db.update(submittalDocumentsTable).set({
+        importStatus: "failed",
+        failureReason: reason,
+      }).where(and(
+        eq(submittalDocumentsTable.id, document.id),
+        eq(submittalDocumentsTable.tenantId, req.tenantId!),
+        eq(submittalDocumentsTable.environmentId, req.environmentId!),
+      ));
+    }
+    await db.insert(integrationAuditEventsTable).values({
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+      integrationId: integration.id,
+      providerKey: parsed.data.providerKey,
+      action: "submittal_document_import_failed",
+      details: JSON.stringify({ itemId, externalId: parsed.data.externalId, reason }),
+      actorUserId: req.localUserId!,
+    }).catch((auditError) => req.log.warn({ err: auditError }, "Unable to record document import failure audit"));
+    const status = error instanceof DocumentProviderError ? error.status : 503;
+    req.log.warn({ err: error, itemId, externalId: parsed.data.externalId }, "Submittal document import failed");
+    res.status(status).json({ error: "External document could not be imported", retryable: status >= 500 || status === 424 });
   }
 });
 
