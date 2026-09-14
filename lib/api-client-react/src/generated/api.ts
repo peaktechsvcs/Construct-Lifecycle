@@ -223,6 +223,8 @@ import type {
   SupplierCustomerTermsInput,
   SupplierDelivery,
   SupplierDeliveryInput,
+  SupplierDeliveryProofUpload,
+  SupplierDeliveryProofUploadInput,
   SupplierDeliveryUpdate,
   SupplierInvoice,
   SupplierInvoiceInput,
@@ -5489,6 +5491,226 @@ export const useUpdateSupplierDelivery = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getUpdateSupplierDeliveryMutationOptions(options));
     }
+
+export const getRequestSupplierDeliveryProofUploadUrl = (deliveryId: number,) => {
+
+
+
+
+  return `/api/supplier-deliveries/${deliveryId}/proof-upload`
+}
+
+/**
+ * @summary Request a protected proof-of-delivery upload
+ */
+export const requestSupplierDeliveryProofUpload = async (deliveryId: number,
+    supplierDeliveryProofUploadInput: SupplierDeliveryProofUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<SupplierDeliveryProofUpload> => {
+
+  return customFetch<SupplierDeliveryProofUpload>(getRequestSupplierDeliveryProofUploadUrl(deliveryId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(supplierDeliveryProofUploadInput)
+  }
+);}
+
+
+
+
+
+export const getRequestSupplierDeliveryProofUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestSupplierDeliveryProofUpload>>, TError,{deliveryId: number;data: BodyType<SupplierDeliveryProofUploadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestSupplierDeliveryProofUpload>>, TError,{deliveryId: number;data: BodyType<SupplierDeliveryProofUploadInput>}, TContext> => {
+
+const mutationKey = ['requestSupplierDeliveryProofUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestSupplierDeliveryProofUpload>>, {deliveryId: number;data: BodyType<SupplierDeliveryProofUploadInput>}> = (props) => {
+          const {deliveryId,data} = props ?? {};
+
+          return  requestSupplierDeliveryProofUpload(deliveryId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestSupplierDeliveryProofUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestSupplierDeliveryProofUpload>>>
+    export type RequestSupplierDeliveryProofUploadMutationBody = BodyType<SupplierDeliveryProofUploadInput>
+    export type RequestSupplierDeliveryProofUploadMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Request a protected proof-of-delivery upload
+ */
+export const useRequestSupplierDeliveryProofUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestSupplierDeliveryProofUpload>>, TError,{deliveryId: number;data: BodyType<SupplierDeliveryProofUploadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestSupplierDeliveryProofUpload>>,
+        TError,
+        {deliveryId: number;data: BodyType<SupplierDeliveryProofUploadInput>},
+        TContext
+      > => {
+      return useMutation(getRequestSupplierDeliveryProofUploadMutationOptions(options));
+    }
+
+export const getCompleteSupplierDeliveryProofUploadUrl = (deliveryId: number,) => {
+
+
+
+
+  return `/api/supplier-deliveries/${deliveryId}/proof-upload/complete`
+}
+
+/**
+ * @summary Complete and screen a proof-of-delivery upload
+ */
+export const completeSupplierDeliveryProofUpload = async (deliveryId: number, options?: Parameters<typeof customFetch>[1]): Promise<SupplierDelivery> => {
+
+  return customFetch<SupplierDelivery>(getCompleteSupplierDeliveryProofUploadUrl(deliveryId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCompleteSupplierDeliveryProofUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeSupplierDeliveryProofUpload>>, TError,{deliveryId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeSupplierDeliveryProofUpload>>, TError,{deliveryId: number}, TContext> => {
+
+const mutationKey = ['completeSupplierDeliveryProofUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeSupplierDeliveryProofUpload>>, {deliveryId: number}> = (props) => {
+          const {deliveryId} = props ?? {};
+
+          return  completeSupplierDeliveryProofUpload(deliveryId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteSupplierDeliveryProofUploadMutationResult = NonNullable<Awaited<ReturnType<typeof completeSupplierDeliveryProofUpload>>>
+
+    export type CompleteSupplierDeliveryProofUploadMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Complete and screen a proof-of-delivery upload
+ */
+export const useCompleteSupplierDeliveryProofUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeSupplierDeliveryProofUpload>>, TError,{deliveryId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeSupplierDeliveryProofUpload>>,
+        TError,
+        {deliveryId: number},
+        TContext
+      > => {
+      return useMutation(getCompleteSupplierDeliveryProofUploadMutationOptions(options));
+    }
+
+export const getGetSupplierDeliveryProofUrl = (deliveryId: number,) => {
+
+
+
+
+  return `/api/supplier-deliveries/${deliveryId}/proof`
+}
+
+/**
+ * @summary Download protected proof of delivery
+ */
+export const getSupplierDeliveryProof = async (deliveryId: number, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetSupplierDeliveryProofUrl(deliveryId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSupplierDeliveryProofQueryKey = (deliveryId: number,) => {
+    return [
+    `/api/supplier-deliveries/${deliveryId}/proof`
+    ] as const;
+    }
+
+
+export const getGetSupplierDeliveryProofQueryOptions = <TData = Awaited<ReturnType<typeof getSupplierDeliveryProof>>, TError = ErrorType<unknown>>(deliveryId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupplierDeliveryProof>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSupplierDeliveryProofQueryKey(deliveryId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSupplierDeliveryProof>>> = ({ signal }) => getSupplierDeliveryProof(deliveryId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: deliveryId !== null && deliveryId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSupplierDeliveryProof>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSupplierDeliveryProofQueryResult = NonNullable<Awaited<ReturnType<typeof getSupplierDeliveryProof>>>
+export type GetSupplierDeliveryProofQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download protected proof of delivery
+ */
+
+export function useGetSupplierDeliveryProof<TData = Awaited<ReturnType<typeof getSupplierDeliveryProof>>, TError = ErrorType<unknown>>(
+ deliveryId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupplierDeliveryProof>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSupplierDeliveryProofQueryOptions(deliveryId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getRecordSupplierReceivingUrl = (deliveryId: number,) => {
 

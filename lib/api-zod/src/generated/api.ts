@@ -3366,11 +3366,26 @@ export const ConvertSupplierQuoteResponse = zod.object({
   "jobsiteInstructions": zod.string().nullable(),
   "proofObjectPath": zod.string().regex(convertSupplierQuoteResponseTwoDeliveriesItemProofObjectPathRegExp).nullable(),
   "proofFileName": zod.string().nullable(),
+  "proofContentType": zod.string().nullable(),
+  "proofFileSize": zod.number().int().nullable(),
   "recipientName": zod.string().nullable(),
   "deliveredAt": zod.coerce.date().nullable(),
   "notes": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "deliveryId": zod.number().int(),
+  "orderLineId": zod.number().int(),
+  "quantityDelivered": zod.number(),
+  "quantityReceived": zod.number(),
+  "quantityDamaged": zod.number(),
+  "quantityShort": zod.number(),
+  "quantityReturned": zod.number(),
+  "exceptionNote": zod.string().nullable(),
+  "acceptedByUserId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})).optional()
 })),
   "invoices": zod.array(zod.object({
   "id": zod.number().int(),
@@ -3494,11 +3509,26 @@ export const GetSupplierOrderResponse = zod.object({
   "jobsiteInstructions": zod.string().nullable(),
   "proofObjectPath": zod.string().regex(getSupplierOrderResponseTwoDeliveriesItemProofObjectPathRegExp).nullable(),
   "proofFileName": zod.string().nullable(),
+  "proofContentType": zod.string().nullable(),
+  "proofFileSize": zod.number().int().nullable(),
   "recipientName": zod.string().nullable(),
   "deliveredAt": zod.coerce.date().nullable(),
   "notes": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "deliveryId": zod.number().int(),
+  "orderLineId": zod.number().int(),
+  "quantityDelivered": zod.number(),
+  "quantityReceived": zod.number(),
+  "quantityDamaged": zod.number(),
+  "quantityShort": zod.number(),
+  "quantityReturned": zod.number(),
+  "exceptionNote": zod.string().nullable(),
+  "acceptedByUserId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})).optional()
 })),
   "invoices": zod.array(zod.object({
   "id": zod.number().int(),
@@ -3598,11 +3628,26 @@ export const UpdateSupplierOrderResponse = zod.object({
   "jobsiteInstructions": zod.string().nullable(),
   "proofObjectPath": zod.string().regex(updateSupplierOrderResponseTwoDeliveriesItemProofObjectPathRegExp).nullable(),
   "proofFileName": zod.string().nullable(),
+  "proofContentType": zod.string().nullable(),
+  "proofFileSize": zod.number().int().nullable(),
   "recipientName": zod.string().nullable(),
   "deliveredAt": zod.coerce.date().nullable(),
   "notes": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "deliveryId": zod.number().int(),
+  "orderLineId": zod.number().int(),
+  "quantityDelivered": zod.number(),
+  "quantityReceived": zod.number(),
+  "quantityDamaged": zod.number(),
+  "quantityShort": zod.number(),
+  "quantityReturned": zod.number(),
+  "exceptionNote": zod.string().nullable(),
+  "acceptedByUserId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})).optional()
 })),
   "invoices": zod.array(zod.object({
   "id": zod.number().int(),
@@ -3687,11 +3732,26 @@ export const CreateSupplierDeliveryResponse = zod.object({
   "jobsiteInstructions": zod.string().nullable(),
   "proofObjectPath": zod.string().regex(createSupplierDeliveryResponseProofObjectPathRegExp).nullable(),
   "proofFileName": zod.string().nullable(),
+  "proofContentType": zod.string().nullable(),
+  "proofFileSize": zod.number().int().nullable(),
   "recipientName": zod.string().nullable(),
   "deliveredAt": zod.coerce.date().nullable(),
   "notes": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "deliveryId": zod.number().int(),
+  "orderLineId": zod.number().int(),
+  "quantityDelivered": zod.number(),
+  "quantityReceived": zod.number(),
+  "quantityDamaged": zod.number(),
+  "quantityShort": zod.number(),
+  "quantityReturned": zod.number(),
+  "exceptionNote": zod.string().nullable(),
+  "acceptedByUserId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})).optional()
 })
 
 
@@ -3702,9 +3762,6 @@ export const UpdateSupplierDeliveryParams = zod.object({
   "deliveryId": zod.coerce.number().int()
 })
 
-export const updateSupplierDeliveryBodyProofObjectPathRegExp = new RegExp('^/objects');
-export const updateSupplierDeliveryBodyProofFileNameMax = 240;
-
 export const updateSupplierDeliveryBodyRecipientNameMax = 180;
 
 export const updateSupplierDeliveryBodyNotesMax = 5000;
@@ -3713,8 +3770,6 @@ export const updateSupplierDeliveryBodyNotesMax = 5000;
 
 export const UpdateSupplierDeliveryBody = zod.object({
   "status": zod.enum(['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned', 'canceled']).optional(),
-  "proofObjectPath": zod.string().regex(updateSupplierDeliveryBodyProofObjectPathRegExp).nullish(),
-  "proofFileName": zod.string().max(updateSupplierDeliveryBodyProofFileNameMax).nullish(),
   "recipientName": zod.string().max(updateSupplierDeliveryBodyRecipientNameMax).nullish(),
   "notes": zod.string().max(updateSupplierDeliveryBodyNotesMax).nullish()
 })
@@ -3735,12 +3790,114 @@ export const UpdateSupplierDeliveryResponse = zod.object({
   "jobsiteInstructions": zod.string().nullable(),
   "proofObjectPath": zod.string().regex(updateSupplierDeliveryResponseProofObjectPathRegExp).nullable(),
   "proofFileName": zod.string().nullable(),
+  "proofContentType": zod.string().nullable(),
+  "proofFileSize": zod.number().int().nullable(),
   "recipientName": zod.string().nullable(),
   "deliveredAt": zod.coerce.date().nullable(),
   "notes": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "deliveryId": zod.number().int(),
+  "orderLineId": zod.number().int(),
+  "quantityDelivered": zod.number(),
+  "quantityReceived": zod.number(),
+  "quantityDamaged": zod.number(),
+  "quantityShort": zod.number(),
+  "quantityReturned": zod.number(),
+  "exceptionNote": zod.string().nullable(),
+  "acceptedByUserId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})).optional()
 })
+
+
+/**
+ * @summary Request a protected proof-of-delivery upload
+ */
+export const RequestSupplierDeliveryProofUploadParams = zod.object({
+  "deliveryId": zod.coerce.number().int()
+})
+
+export const requestSupplierDeliveryProofUploadBodyOriginalNameMax = 255;
+
+export const requestSupplierDeliveryProofUploadBodyContentTypeMax = 160;
+
+export const requestSupplierDeliveryProofUploadBodySizeMax = 26214400;
+
+
+
+export const RequestSupplierDeliveryProofUploadBody = zod.object({
+  "originalName": zod.string().min(1).max(requestSupplierDeliveryProofUploadBodyOriginalNameMax),
+  "contentType": zod.string().min(1).max(requestSupplierDeliveryProofUploadBodyContentTypeMax),
+  "size": zod.number().int().min(1).max(requestSupplierDeliveryProofUploadBodySizeMax)
+})
+
+export const requestSupplierDeliveryProofUploadResponseObjectPathRegExp = new RegExp('^/objects');
+
+
+export const RequestSupplierDeliveryProofUploadResponse = zod.object({
+  "uploadURL": zod.string().url(),
+  "objectPath": zod.string().regex(requestSupplierDeliveryProofUploadResponseObjectPathRegExp),
+  "proofFileName": zod.string()
+})
+
+
+/**
+ * @summary Complete and screen a proof-of-delivery upload
+ */
+export const CompleteSupplierDeliveryProofUploadParams = zod.object({
+  "deliveryId": zod.coerce.number().int()
+})
+
+export const completeSupplierDeliveryProofUploadResponseProofObjectPathRegExp = new RegExp('^/objects');
+
+
+export const CompleteSupplierDeliveryProofUploadResponse = zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "deliveryNumber": zod.string(),
+  "status": zod.enum(['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned', 'canceled']),
+  "appointmentDate": zod.coerce.date().nullable(),
+  "windowStart": zod.coerce.date().nullable(),
+  "windowEnd": zod.coerce.date().nullable(),
+  "carrier": zod.string().nullable(),
+  "trackingReference": zod.string().nullable(),
+  "jobsiteInstructions": zod.string().nullable(),
+  "proofObjectPath": zod.string().regex(completeSupplierDeliveryProofUploadResponseProofObjectPathRegExp).nullable(),
+  "proofFileName": zod.string().nullable(),
+  "proofContentType": zod.string().nullable(),
+  "proofFileSize": zod.number().int().nullable(),
+  "recipientName": zod.string().nullable(),
+  "deliveredAt": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "deliveryId": zod.number().int(),
+  "orderLineId": zod.number().int(),
+  "quantityDelivered": zod.number(),
+  "quantityReceived": zod.number(),
+  "quantityDamaged": zod.number(),
+  "quantityShort": zod.number(),
+  "quantityReturned": zod.number(),
+  "exceptionNote": zod.string().nullable(),
+  "acceptedByUserId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})).optional()
+})
+
+
+/**
+ * @summary Download protected proof of delivery
+ */
+export const GetSupplierDeliveryProofParams = zod.object({
+  "deliveryId": zod.coerce.number().int()
+})
+
+export const GetSupplierDeliveryProofResponse = zod.unknown()
 
 
 /**
@@ -3752,6 +3909,12 @@ export const RecordSupplierReceivingParams = zod.object({
 
 export const recordSupplierReceivingBodyLinesItemQuantityReceivedMin = 0;
 
+export const recordSupplierReceivingBodyLinesItemQuantityDamagedMin = 0;
+
+export const recordSupplierReceivingBodyLinesItemQuantityShortMin = 0;
+
+export const recordSupplierReceivingBodyLinesItemQuantityReturnedMin = 0;
+
 export const recordSupplierReceivingBodyLinesItemExceptionNoteMax = 2000;
 
 export const recordSupplierReceivingBodyLinesMax = 200;
@@ -3762,6 +3925,9 @@ export const RecordSupplierReceivingBody = zod.object({
   "lines": zod.array(zod.object({
   "deliveryLineId": zod.number().int(),
   "quantityReceived": zod.number().min(recordSupplierReceivingBodyLinesItemQuantityReceivedMin),
+  "quantityDamaged": zod.number().min(recordSupplierReceivingBodyLinesItemQuantityDamagedMin).optional(),
+  "quantityShort": zod.number().min(recordSupplierReceivingBodyLinesItemQuantityShortMin).optional(),
+  "quantityReturned": zod.number().min(recordSupplierReceivingBodyLinesItemQuantityReturnedMin).optional(),
   "accepted": zod.boolean().optional(),
   "exceptionNote": zod.string().max(recordSupplierReceivingBodyLinesItemExceptionNoteMax).optional()
 })).min(1).max(recordSupplierReceivingBodyLinesMax)
@@ -3826,11 +3992,26 @@ export const RecordSupplierReceivingResponse = zod.object({
   "jobsiteInstructions": zod.string().nullable(),
   "proofObjectPath": zod.string().regex(recordSupplierReceivingResponseTwoDeliveriesItemProofObjectPathRegExp).nullable(),
   "proofFileName": zod.string().nullable(),
+  "proofContentType": zod.string().nullable(),
+  "proofFileSize": zod.number().int().nullable(),
   "recipientName": zod.string().nullable(),
   "deliveredAt": zod.coerce.date().nullable(),
   "notes": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "deliveryId": zod.number().int(),
+  "orderLineId": zod.number().int(),
+  "quantityDelivered": zod.number(),
+  "quantityReceived": zod.number(),
+  "quantityDamaged": zod.number(),
+  "quantityShort": zod.number(),
+  "quantityReturned": zod.number(),
+  "exceptionNote": zod.string().nullable(),
+  "acceptedByUserId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})).optional()
 })),
   "invoices": zod.array(zod.object({
   "id": zod.number().int(),

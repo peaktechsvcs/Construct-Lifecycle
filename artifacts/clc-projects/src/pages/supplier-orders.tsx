@@ -2,16 +2,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  AlertTriangle,
+  CheckCircle2,
   ArrowRight,
   ClipboardList,
   Package,
   Plus,
   Receipt,
+  RotateCcw,
   Search,
   Truck,
+  Upload,
   Warehouse,
 } from 'lucide-react';
 import {
+  getGetSupplierDeliveryProofUrl,
   getGetSupplierOrderQueryKey,
   getGetSupplierQuoteQueryKey,
   getListBusinessCustomersQueryKey,
@@ -24,6 +29,9 @@ import {
   useCreateSupplierProduct,
   useCreateSupplierQuote,
   useCreateSupplierVendor,
+  useRecordSupplierReceiving,
+  useRequestSupplierDeliveryProofUpload,
+  useCompleteSupplierDeliveryProofUpload,
   useGetSupplierOrder,
   useGetSupplierQuote,
   useListBusinessCustomers,
@@ -37,6 +45,9 @@ import {
 } from '@workspace/api-client-react';
 import type {
   SupplierOrder,
+  SupplierDelivery,
+  SupplierDeliveryLine,
+  SupplierOrderLine,
   SupplierOrderStatus,
   SupplierProduct,
   SupplierQuote,
@@ -54,6 +65,17 @@ const tabs = [
 ] as const;
 
 type Tab = typeof tabs[number]['value'];
+type ReceivingDraft = {
+  received: string;
+  damaged: string;
+  short: string;
+  returned: string;
+  accepted: boolean;
+  note: string;
+};
+
+const maxDeliveryProofSize = 25 * 1024 * 1024;
+const allowedDeliveryProofTypes = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/gif']);
 
 function statusTone(status: string): 'green' | 'orange' | 'red' | 'teal' | 'neutral' {
   if (['fulfilled', 'paid', 'accepted', 'approved', 'delivered', 'active'].includes(status)) return 'green';
@@ -110,7 +132,10 @@ export function SupplierOrders() {
   const [productForm, setProductForm] = useState({ sku: '', name: '', unit: 'each', unitCost: '', listPrice: '', leadTimeDays: '0' });
   const [vendorForm, setVendorForm] = useState({ name: '', leadTimeDays: '0' });
   const [quoteForm, setQuoteForm] = useState({ customerId: '', description: '', quantity: '1', unitCost: '', unitPrice: '', promisedDate: '' });
-  const [deliveryForm, setDeliveryForm] = useState({ quantity: '1', status: 'scheduled', appointmentDate: '', carrier: '', trackingReference: '', notes: '' });
+  const [deliveryForm, setDeliveryForm] = useState({ status: 'scheduled', appointmentDate: '', carrier: '', trackingReference: '', notes: '' });
+  const [deliveryQuantities, setDeliveryQuantities] = useState<Record<number, string>>({});
+  const [receivingDrafts, setReceivingDrafts] = useState<Record<number, ReceivingDraft>>({});
+  const [proofError, setProofError] = useState('');
   const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', totalAmount: '', dueDate: '', status: 'submitted' });
   const [orderStatus, setOrderStatus] = useState<SupplierOrderStatus>('approved');
 
@@ -129,7 +154,28 @@ export function SupplierOrders() {
   const convertQuote = useConvertSupplierQuote();
   const updateOrder = useUpdateSupplierOrder();
   const createDelivery = useCreateSupplierDelivery();
+  const recordReceiving = useRecordSupplierReceiving();
+  const requestProofUpload = useRequestSupplierDeliveryProofUpload();
+  const completeProofUpload = useCompleteSupplierDeliveryProofUpload();
   const createInvoice = useCreateSupplierInvoice();
+
+  useEffect(() => {
+    if (!selectedOrder.data) return;
+    const next: Record<number, ReceivingDraft> = {};
+    for (const delivery of selectedOrder.data.deliveries) {
+      for (const line of delivery.lines ?? []) {
+        next[line.id] = {
+          received: String(line.quantityReceived),
+          damaged: String(line.quantityDamaged),
+          short: String(line.quantityShort),
+          returned: String(line.quantityReturned),
+          accepted: line.acceptedByUserId !== null,
+          note: line.exceptionNote ?? '',
+        };
+      }
+    }
+    setReceivingDrafts(next);
+  }, [selectedOrder.data?.id, selectedOrder.data?.updatedAt]);
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['/api/supplier-products'] });
@@ -206,8 +252,14 @@ export function SupplierOrders() {
 
   function saveDelivery(event: React.FormEvent) {
     event.preventDefault();
-    const line = selectedOrder.data?.lines[0];
-    if (!selectedOrderId || !line) return;
+    if (!selectedOrderId || !selectedOrder.data) return;
+    const lines = selectedOrder.data.lines
+      .map((line) => ({
+        orderLineId: line.id,
+        quantityDelivered: Number(deliveryQuantities[line.id] ?? Math.max(0, line.quantity - line.deliveredQuantity)),
+      }))
+      .filter((line) => line.quantityDelivered > 0);
+    if (!lines.length) return;
     createDelivery.mutate({
       orderId: selectedOrderId,
       data: {
@@ -216,9 +268,58 @@ export function SupplierOrders() {
         carrier: deliveryForm.carrier || undefined,
         trackingReference: deliveryForm.trackingReference || undefined,
         notes: deliveryForm.notes || undefined,
-        lines: [{ orderLineId: line.id, quantityDelivered: Number(deliveryForm.quantity || 0) }],
+        lines,
       },
     }, { onSuccess: refresh });
+  }
+
+  function saveReceiving(event: React.FormEvent, delivery: SupplierDelivery) {
+    event.preventDefault();
+    const lines = (delivery.lines ?? []).map((line) => {
+      const draft = receivingDrafts[line.id] ?? {
+        received: String(line.quantityReceived),
+        damaged: String(line.quantityDamaged),
+        short: String(line.quantityShort),
+        returned: String(line.quantityReturned),
+        accepted: line.acceptedByUserId !== null,
+        note: line.exceptionNote ?? '',
+      };
+      return {
+        deliveryLineId: line.id,
+        quantityReceived: Number(draft.received || 0),
+        quantityDamaged: Number(draft.damaged || 0),
+        quantityShort: Number(draft.short || 0),
+        quantityReturned: Number(draft.returned || 0),
+        accepted: draft.accepted,
+        exceptionNote: draft.note || undefined,
+      };
+    });
+    if (!selectedOrderId || !lines.length) return;
+    recordReceiving.mutate({ deliveryId: delivery.id, data: { lines } }, { onSuccess: refresh });
+  }
+
+  async function uploadProof(deliveryId: number, file: File) {
+    setProofError('');
+    if (!allowedDeliveryProofTypes.has(file.type) || file.size > maxDeliveryProofSize) {
+      setProofError('Choose a PDF, JPG, PNG, or GIF file up to 25 MB.');
+      return;
+    }
+    try {
+      const pending = await requestProofUpload.mutateAsync({
+        deliveryId,
+        data: { originalName: file.name, contentType: file.type, size: file.size },
+      });
+      const stored = await fetch(pending.uploadURL, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!stored.ok) throw new Error('The proof file could not be stored.');
+      await completeProofUpload.mutateAsync({ deliveryId });
+      refresh();
+    } catch (reason) {
+      setProofError(reason instanceof Error ? reason.message : 'The proof file could not be uploaded.');
+    }
   }
 
   function saveInvoice(event: React.FormEvent) {
@@ -350,7 +451,18 @@ export function SupplierOrders() {
               <div className="grid grid-cols-3 gap-2"><Metric label="Sell" value={money(selectedOrder.data.totalSell)} /><Metric label="Cost" value={money(selectedOrder.data.totalCost)} /><Metric label="Margin" value={money(selectedOrder.data.grossMargin)} /></div>
               <div className="space-y-2">{selectedOrder.data.lines.map((line) => <div key={line.id} className="rounded-lg border border-border p-3"><div className="flex justify-between gap-2 text-sm"><span className="font-semibold">{line.description}</span><span>{line.receivedQuantity}/{line.quantity} received</span></div><div className="mt-2 flex flex-wrap gap-1.5"><Badge tone={line.backorderedQuantity > 0 ? 'orange' : 'green'}>{line.backorderedQuantity > 0 ? `${line.backorderedQuantity} backordered` : 'fully purchased'}</Badge>{line.approvedSubstitution && <Badge tone="teal">substitution approved</Badge>}</div></div>)}</div>
               <form onSubmit={saveOrderStatus} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_auto] sm:items-end"><Field label="Order status"><select value={orderStatus} onChange={(event) => setOrderStatus(event.target.value as SupplierOrderStatus)} className={inputClass}>{['draft', 'pending_approval', 'approved', 'purchasing', 'partially_fulfilled', 'fulfilled', 'closed', 'canceled'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Button type="submit" disabled={updateOrder.isPending}>Save status</Button></form>
-              <form onSubmit={saveDelivery} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2"><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary sm:col-span-2">Schedule delivery / partial fulfillment</p><Field label="Quantity for first line"><Input type="number" min="0" step="0.001" value={deliveryForm.quantity} onChange={(event) => setDeliveryForm({ ...deliveryForm, quantity: event.target.value })} className={inputClass} /></Field><Field label="Status"><select value={deliveryForm.status} onChange={(event) => setDeliveryForm({ ...deliveryForm, status: event.target.value })} className={inputClass}>{['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Field label="Appointment date"><Input type="date" value={deliveryForm.appointmentDate} onChange={(event) => setDeliveryForm({ ...deliveryForm, appointmentDate: event.target.value })} className={inputClass} /></Field><Field label="Carrier / reference"><Input value={deliveryForm.carrier} onChange={(event) => setDeliveryForm({ ...deliveryForm, carrier: event.target.value })} className={inputClass} /></Field><div className="sm:col-span-2"><Button type="submit" disabled={createDelivery.isPending}>Record delivery</Button></div></form>
+               <form onSubmit={saveDelivery} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2">
+                 <p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary sm:col-span-2">Schedule delivery / partial fulfillment</p>
+                 {selectedOrder.data.lines.map((line) => <Field key={line.id} label={`Quantity delivered · ${line.description}`}><Input type="number" min="0" max={Math.max(0, line.quantity - line.deliveredQuantity)} step="0.001" value={deliveryQuantities[line.id] ?? String(Math.max(0, line.quantity - line.deliveredQuantity))} onChange={(event) => setDeliveryQuantities({ ...deliveryQuantities, [line.id]: event.target.value })} className={inputClass} /></Field>)}
+                 <Field label="Status"><select value={deliveryForm.status} onChange={(event) => setDeliveryForm({ ...deliveryForm, status: event.target.value })} className={inputClass}>{['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field>
+                 <Field label="Appointment date"><Input type="date" value={deliveryForm.appointmentDate} onChange={(event) => setDeliveryForm({ ...deliveryForm, appointmentDate: event.target.value })} className={inputClass} /></Field>
+                 <Field label="Carrier / reference"><Input value={deliveryForm.carrier} onChange={(event) => setDeliveryForm({ ...deliveryForm, carrier: event.target.value })} className={inputClass} /></Field>
+                 <div className="sm:col-span-2"><Button type="submit" disabled={createDelivery.isPending}>{createDelivery.isPending ? 'Recording…' : 'Record delivery'}</Button></div>
+               </form>
+               <section className="space-y-3">
+                 <div><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary">Receiving closeout</p><h4 className="mt-1 text-sm font-bold">Proof, exceptions, and returns</h4><p className="mt-1 text-xs text-muted-foreground">Record the final quantity disposition for every delivery line. Order received totals are recalculated from these entries.</p></div>
+                 {selectedOrder.data.deliveries.length ? selectedOrder.data.deliveries.map((delivery) => <DeliveryReceivingCard key={delivery.id} delivery={delivery} orderLines={selectedOrder.data!.lines} drafts={receivingDrafts} onDraftChange={(lineId, draft) => setReceivingDrafts((current) => ({ ...current, [lineId]: draft }))} onSave={saveReceiving} onUpload={uploadProof} proofError={proofError} isSaving={recordReceiving.isPending} isUploading={requestProofUpload.isPending || completeProofUpload.isPending} />) : <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">Record a delivery above to start receiving.</div>}
+               </section>
               <form onSubmit={saveInvoice} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2"><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary sm:col-span-2">Supplier invoice</p><Field label="Invoice number"><Input required value={invoiceForm.invoiceNumber} onChange={(event) => setInvoiceForm({ ...invoiceForm, invoiceNumber: event.target.value })} className={inputClass} /></Field><Field label="Total amount"><Input required type="number" min="0" step="0.01" value={invoiceForm.totalAmount} onChange={(event) => setInvoiceForm({ ...invoiceForm, totalAmount: event.target.value })} className={inputClass} /></Field><Field label="Due date"><Input type="date" value={invoiceForm.dueDate} onChange={(event) => setInvoiceForm({ ...invoiceForm, dueDate: event.target.value })} className={inputClass} /></Field><Field label="Payment status"><select value={invoiceForm.status} onChange={(event) => setInvoiceForm({ ...invoiceForm, status: event.target.value })} className={inputClass}>{['submitted', 'approved', 'partially_paid', 'paid', 'disputed'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><div className="sm:col-span-2"><Button type="submit" disabled={createInvoice.isPending}>Add invoice</Button></div></form>
               {selectedOrder.data.invoices.length > 0 && <div><p className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-muted-foreground">Invoices</p><div className="space-y-2">{selectedOrder.data.invoices.map((invoice) => <div key={invoice.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm"><span className="font-semibold">{invoice.invoiceNumber}</span><span>{money(invoice.totalAmount)} <Badge tone={statusTone(invoice.status)}>{labelStatus(invoice.status)}</Badge></span></div>)}</div></div>}
               {events.data?.length ? <div><p className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-muted-foreground">Audit history</p><div className="space-y-2">{events.data.slice(0, 6).map((event) => <div key={event.id} className="flex gap-3 rounded-lg border border-border p-3 text-xs"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" /><div><p className="font-semibold">{labelStatus(event.action)}</p><p className="text-muted-foreground">{event.details || `${event.fromStatus || '—'} → ${event.toStatus || '—'}`} · {shortDate(event.createdAt.toString())}</p></div></div>)}</div></div> : null}
@@ -359,6 +471,79 @@ export function SupplierOrders() {
         </div>
       )}
     </div>
+  );
+}
+
+function DeliveryReceivingCard({
+  delivery,
+  orderLines,
+  drafts,
+  onDraftChange,
+  onSave,
+  onUpload,
+  proofError,
+  isSaving,
+  isUploading,
+}: {
+  delivery: SupplierDelivery;
+  orderLines: SupplierOrderLine[];
+  drafts: Record<number, ReceivingDraft>;
+  onDraftChange: (lineId: number, draft: ReceivingDraft) => void;
+  onSave: (event: React.FormEvent, delivery: SupplierDelivery) => void;
+  onUpload: (deliveryId: number, file: File) => void;
+  proofError: string;
+  isSaving: boolean;
+  isUploading: boolean;
+}) {
+  const lines = delivery.lines ?? [];
+  return (
+    <form onSubmit={(event) => onSave(event, delivery)} className="rounded-lg border border-border bg-secondary/20 p-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="mono text-[10px] font-bold uppercase tracking-[.1em]">{delivery.deliveryNumber}</p>
+            <Badge tone={statusTone(delivery.status)}>{labelStatus(delivery.status)}</Badge>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">{delivery.carrier || 'Carrier not recorded'}{delivery.trackingReference ? ` · ${delivery.trackingReference}` : ''}{delivery.deliveredAt ? ` · ${shortDate(delivery.deliveredAt)}` : ''}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {delivery.proofFileName ? <button type="button" className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline" onClick={() => window.open(getGetSupplierDeliveryProofUrl(delivery.id), '_blank', 'noopener,noreferrer')}><CheckCircle2 size={13} /> View proof</button> : <label className={`inline-flex cursor-pointer items-center gap-1 text-[10px] font-bold text-primary hover:underline ${isUploading ? 'pointer-events-none opacity-50' : ''}`}><Upload size={13} /> {isUploading ? 'Uploading…' : 'Add proof'}<input type="file" className="sr-only" accept=".pdf,.jpg,.jpeg,.png,.gif" disabled={isUploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(delivery.id, file); event.currentTarget.value = ''; }} /></label>}
+        </div>
+      </div>
+      {proofError && <p role="alert" className="mt-2 text-xs text-destructive">{proofError}</p>}
+      {lines.length ? <div className="mt-3 space-y-3">
+        {lines.map((line) => {
+          const orderLine = orderLines.find((candidate) => candidate.id === line.orderLineId);
+          const draft = drafts[line.id] ?? {
+            received: String(line.quantityReceived),
+            damaged: String(line.quantityDamaged),
+            short: String(line.quantityShort),
+            returned: String(line.quantityReturned),
+            accepted: line.acceptedByUserId !== null,
+            note: line.exceptionNote ?? '',
+          };
+          const accounted = Number(draft.received || 0) + Number(draft.damaged || 0) + Number(draft.short || 0) + Number(draft.returned || 0);
+          return <div key={line.id} className="rounded-lg border border-border bg-card p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div><p className="text-sm font-semibold">{orderLine?.description || `Order line ${line.orderLineId}`}</p><p className="mono mt-1 text-[9px] uppercase tracking-[.08em] text-muted-foreground">{accounted} / {line.quantityDelivered} accounted for</p></div>
+              {accounted > line.quantityDelivered && <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-destructive"><AlertTriangle size={12} /> Over delivery</span>}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Field label="Accepted"><Input type="number" min="0" max={line.quantityDelivered} step="0.001" value={draft.received} onChange={(event) => onDraftChange(line.id, { ...draft, received: event.target.value })} className={inputClass} /></Field>
+              <Field label="Damaged"><Input type="number" min="0" max={line.quantityDelivered} step="0.001" value={draft.damaged} onChange={(event) => onDraftChange(line.id, { ...draft, damaged: event.target.value })} className={inputClass} /></Field>
+              <Field label="Short"><Input type="number" min="0" max={line.quantityDelivered} step="0.001" value={draft.short} onChange={(event) => onDraftChange(line.id, { ...draft, short: event.target.value })} className={inputClass} /></Field>
+              <Field label="Returned"><Input type="number" min="0" max={line.quantityDelivered} step="0.001" value={draft.returned} onChange={(event) => onDraftChange(line.id, { ...draft, returned: event.target.value })} className={inputClass} /></Field>
+            </div>
+            <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-muted-foreground"><input type="checkbox" checked={draft.accepted} onChange={(event) => onDraftChange(line.id, { ...draft, accepted: event.target.checked })} /> Accept this line for receiving</label>
+            <Input value={draft.note} onChange={(event) => onDraftChange(line.id, { ...draft, note: event.target.value })} placeholder="Exception note for damage, shortage, or return" className={`mt-3 ${inputClass}`} />
+          </div>;
+        })}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {delivery.status === 'exception' || delivery.status === 'returned' ? <p className="inline-flex items-center gap-1 text-xs text-muted-foreground"><RotateCcw size={13} /> Review the exception before closing the order.</p> : <span />}
+          <Button type="submit" disabled={isSaving}>{isSaving ? 'Saving receiving…' : 'Save receiving'}</Button>
+        </div>
+      </div> : <p className="mt-3 text-xs text-muted-foreground">This delivery has no receiving lines.</p>}
+    </form>
   );
 }
 

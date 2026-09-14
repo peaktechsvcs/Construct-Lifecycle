@@ -1252,6 +1252,50 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SupplierDelivery" }
+  /supplier-deliveries/{deliveryId}/proof-upload:
+    post:
+      operationId: requestSupplierDeliveryProofUpload
+      tags: [supplier-orders]
+      summary: Request a protected proof-of-delivery upload
+      parameters:
+        - $ref: "#/components/parameters/SupplierDeliveryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierDeliveryProofUploadInput" }
+      responses:
+        "201":
+          description: Protected proof upload reservation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierDeliveryProofUpload" }
+  /supplier-deliveries/{deliveryId}/proof-upload/complete:
+    post:
+      operationId: completeSupplierDeliveryProofUpload
+      tags: [supplier-orders]
+      summary: Complete and screen a proof-of-delivery upload
+      parameters:
+        - $ref: "#/components/parameters/SupplierDeliveryId"
+      responses:
+        "200":
+          description: Supplier delivery
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierDelivery" }
+  /supplier-deliveries/{deliveryId}/proof:
+    get:
+      operationId: getSupplierDeliveryProof
+      tags: [supplier-orders]
+      summary: Download protected proof of delivery
+      parameters:
+        - $ref: "#/components/parameters/SupplierDeliveryId"
+      responses:
+        "200":
+          description: Proof of delivery file
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
   /supplier-deliveries/{deliveryId}/receiving:
     post:
       operationId: recordSupplierReceiving
@@ -8039,7 +8083,7 @@ components:
         scopeReference: { type: ["string", "null"] }
     SupplierDelivery:
       type: object
-      required: [id, orderId, deliveryNumber, status, appointmentDate, windowStart, windowEnd, carrier, trackingReference, jobsiteInstructions, proofObjectPath, proofFileName, recipientName, deliveredAt, notes, createdAt, updatedAt]
+      required: [id, orderId, deliveryNumber, status, appointmentDate, windowStart, windowEnd, carrier, trackingReference, jobsiteInstructions, proofObjectPath, proofFileName, proofContentType, proofFileSize, recipientName, deliveredAt, notes, createdAt, updatedAt]
       properties:
         id: { type: integer }
         orderId: { type: integer }
@@ -8053,11 +8097,45 @@ components:
         jobsiteInstructions: { type: ["string", "null"] }
         proofObjectPath: { type: ["string", "null"], pattern: "^/objects/" }
         proofFileName: { type: ["string", "null"] }
+        proofContentType: { type: ["string", "null"] }
+        proofFileSize: { type: ["integer", "null"] }
         recipientName: { type: ["string", "null"] }
         deliveredAt: { type: ["string", "null"], format: date-time }
         notes: { type: ["string", "null"] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierDeliveryLine" }
+    SupplierDeliveryLine:
+      type: object
+      required: [id, deliveryId, orderLineId, quantityDelivered, quantityReceived, quantityDamaged, quantityShort, quantityReturned, exceptionNote, acceptedByUserId, createdAt]
+      properties:
+        id: { type: integer }
+        deliveryId: { type: integer }
+        orderLineId: { type: integer }
+        quantityDelivered: { type: number }
+        quantityReceived: { type: number }
+        quantityDamaged: { type: number }
+        quantityShort: { type: number }
+        quantityReturned: { type: number }
+        exceptionNote: { type: ["string", "null"] }
+        acceptedByUserId: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+    SupplierDeliveryProofUploadInput:
+      type: object
+      required: [originalName, contentType, size]
+      properties:
+        originalName: { type: string, minLength: 1, maxLength: 255 }
+        contentType: { type: string, minLength: 1, maxLength: 160 }
+        size: { type: integer, minimum: 1, maximum: 26214400 }
+    SupplierDeliveryProofUpload:
+      type: object
+      required: [uploadURL, objectPath, proofFileName]
+      properties:
+        uploadURL: { type: string, format: uri }
+        objectPath: { type: string, pattern: "^/objects/" }
+        proofFileName: { type: string }
     SupplierDeliveryInput:
       type: object
       required: [lines]
@@ -8077,8 +8155,6 @@ components:
       type: object
       properties:
         status: { type: string, enum: [scheduled, confirmed, in_transit, delivered, partial, exception, returned, canceled] }
-        proofObjectPath: { type: ["string", "null"], pattern: "^/objects/" }
-        proofFileName: { type: ["string", "null"], maxLength: 240 }
         recipientName: { type: ["string", "null"], maxLength: 180 }
         notes: { type: ["string", "null"], maxLength: 5000 }
     SupplierDeliveryLineInput:
@@ -8106,6 +8182,9 @@ components:
       properties:
         deliveryLineId: { type: integer }
         quantityReceived: { type: number, minimum: 0 }
+        quantityDamaged: { type: number, minimum: 0 }
+        quantityShort: { type: number, minimum: 0 }
+        quantityReturned: { type: number, minimum: 0 }
         accepted: { type: boolean }
         exceptionNote: { type: string, maxLength: 2000 }
     SupplierInvoice:

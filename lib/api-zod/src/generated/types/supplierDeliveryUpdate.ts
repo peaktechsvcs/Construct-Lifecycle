@@ -10,16 +10,6 @@ import type { SupplierDeliveryUpdateStatus } from './supplierDeliveryUpdateStatu
 export interface SupplierDeliveryUpdate {
   status?: SupplierDeliveryUpdateStatus;
   /**
-     * @nullable
-     * @pattern ^/objects/
-     */
-  proofObjectPath?: string | null;
-  /**
-     * @maxLength 240
-     * @nullable
-     */
-  proofFileName?: string | null;
-  /**
      * @maxLength 180
      * @nullable
      */

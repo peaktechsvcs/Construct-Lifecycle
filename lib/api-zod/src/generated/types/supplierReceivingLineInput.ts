@@ -10,6 +10,12 @@ export interface SupplierReceivingLineInput {
   deliveryLineId: number;
   /** @minimum 0 */
   quantityReceived: number;
+  /** @minimum 0 */
+  quantityDamaged?: number;
+  /** @minimum 0 */
+  quantityShort?: number;
+  /** @minimum 0 */
+  quantityReturned?: number;
   accepted?: boolean;
   /** @maxLength 2000 */
   exceptionNote?: string;

@@ -25,6 +25,7 @@ try {
        path.join(testDir, "subcontractor-review.integration.test.ts"),
       path.join(testDir, "itb-evidence-mapping.integration.test.ts"),
       path.join(testDir, "opportunity-preconstruction.integration.test.ts"),
+      path.join(testDir, "supplier-orders.integration.test.ts"),
     ],
     platform: "node",
     bundle: true,
@@ -59,6 +60,7 @@ globalThis.__dirname = __path.dirname(globalThis.__filename);`,
     path.join(outdir, "subcontractor-review.integration.test.mjs"),
     path.join(outdir, "itb-evidence-mapping.integration.test.mjs"),
       path.join(outdir, "opportunity-preconstruction.integration.test.mjs"),
+    path.join(outdir, "supplier-orders.integration.test.mjs"),
   ];
   const exitCode = await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--test", ...testFiles], {

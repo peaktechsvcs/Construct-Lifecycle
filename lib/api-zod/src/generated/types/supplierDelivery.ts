@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SupplierDeliveryLine } from './supplierDeliveryLine';
 import type { SupplierDeliveryStatus } from './supplierDeliveryStatus';
 
 export interface SupplierDelivery {
@@ -32,6 +33,10 @@ export interface SupplierDelivery {
   /** @nullable */
   proofFileName: string | null;
   /** @nullable */
+  proofContentType: string | null;
+  /** @nullable */
+  proofFileSize: number | null;
+  /** @nullable */
   recipientName: string | null;
   /** @nullable */
   deliveredAt: Date | null;
@@ -39,4 +44,5 @@ export interface SupplierDelivery {
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
+  lines?: SupplierDeliveryLine[];
 }

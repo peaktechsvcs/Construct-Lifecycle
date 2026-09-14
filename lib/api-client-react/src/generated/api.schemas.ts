@@ -6364,6 +6364,22 @@ export const SupplierDeliveryStatus = {
   canceled: 'canceled',
 } as const;
 
+export interface SupplierDeliveryLine {
+  id: number;
+  deliveryId: number;
+  orderLineId: number;
+  quantityDelivered: number;
+  quantityReceived: number;
+  quantityDamaged: number;
+  quantityShort: number;
+  quantityReturned: number;
+  /** @nullable */
+  exceptionNote: string | null;
+  /** @nullable */
+  acceptedByUserId: number | null;
+  createdAt: string;
+}
+
 export interface SupplierDelivery {
   id: number;
   orderId: number;
@@ -6389,6 +6405,10 @@ export interface SupplierDelivery {
   /** @nullable */
   proofFileName: string | null;
   /** @nullable */
+  proofContentType: string | null;
+  /** @nullable */
+  proofFileSize: number | null;
+  /** @nullable */
   recipientName: string | null;
   /** @nullable */
   deliveredAt: string | null;
@@ -6396,6 +6416,32 @@ export interface SupplierDelivery {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  lines?: SupplierDeliveryLine[];
+}
+
+export interface SupplierDeliveryProofUploadInput {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  originalName: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  contentType: string;
+  /**
+     * @minimum 1
+     * @maximum 26214400
+     */
+  size: number;
+}
+
+export interface SupplierDeliveryProofUpload {
+  uploadURL: string;
+  /** @pattern ^/objects/ */
+  objectPath: string;
+  proofFileName: string;
 }
 
 export type SupplierDeliveryInputStatus = typeof SupplierDeliveryInputStatus[keyof typeof SupplierDeliveryInputStatus];
@@ -6461,16 +6507,6 @@ export const SupplierDeliveryUpdateStatus = {
 export interface SupplierDeliveryUpdate {
   status?: SupplierDeliveryUpdateStatus;
   /**
-     * @nullable
-     * @pattern ^/objects/
-     */
-  proofObjectPath?: string | null;
-  /**
-     * @maxLength 240
-     * @nullable
-     */
-  proofFileName?: string | null;
-  /**
      * @maxLength 180
      * @nullable
      */
@@ -6486,6 +6522,12 @@ export interface SupplierReceivingLineInput {
   deliveryLineId: number;
   /** @minimum 0 */
   quantityReceived: number;
+  /** @minimum 0 */
+  quantityDamaged?: number;
+  /** @minimum 0 */
+  quantityShort?: number;
+  /** @minimum 0 */
+  quantityReturned?: number;
   accepted?: boolean;
   /** @maxLength 2000 */
   exceptionNote?: string;

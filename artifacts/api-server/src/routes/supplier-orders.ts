@@ -40,6 +40,9 @@ import {
   ListSupplierPriceListsResponse,
   RecordSupplierReceivingBody,
   RecordSupplierReceivingParams,
+  RequestSupplierDeliveryProofUploadBody,
+  RequestSupplierDeliveryProofUploadParams,
+  CompleteSupplierDeliveryProofUploadParams,
   SupplierOrderStatus,
   UpdateSupplierDeliveryBody,
   UpdateSupplierDeliveryParams,
@@ -50,8 +53,16 @@ import {
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
+import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
+import { screenStoredDocument } from "../lib/documentScreening";
 
 const router: IRouter = Router();
+const objectStorage = new ObjectStorageService();
+const maxDeliveryProofSize = 25 * 1024 * 1024;
+const deliveryProofUploadRateWindowMs = 60_000;
+const deliveryProofUploadRateLimit = 10;
+const deliveryProofUploadAttempts = new Map<string, { count: number; resetAt: number }>();
+const allowedDeliveryProofContentTypes = new Set(["application/pdf", "image/jpeg", "image/png", "image/gif"]);
 const scope = (req: TenantRequest, table: { tenantId: any; environmentId: any }) =>
   and(eq(table.tenantId, req.tenantId!), eq(table.environmentId, req.environmentId!));
 
@@ -60,6 +71,24 @@ const dateOnly = (value: Date | string | null | undefined) =>
   value == null ? value : value instanceof Date ? value.toISOString().slice(0, 10) : value;
 const normalize = (value: string) => value.trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim();
 const money = (value: number) => Math.round(value * 100) / 100;
+const sanitizeFileName = (value: string) => value.replace(/[\r\n"]/g, "_").replace(/[^\p{L}\p{N}._ -]/gu, "_").slice(0, 255);
+
+function rejectDeliveryProofUploadRate(req: TenantRequest, res: Parameters<Parameters<IRouter["get"]>[1]>[1]) {
+  const key = `${req.tenantId}:${req.environmentId}:${req.localUserId ?? req.ip}`;
+  const now = Date.now();
+  const current = deliveryProofUploadAttempts.get(key);
+  if (!current || current.resetAt <= now) {
+    deliveryProofUploadAttempts.set(key, { count: 1, resetAt: now + deliveryProofUploadRateWindowMs });
+    return false;
+  }
+  if (current.count >= deliveryProofUploadRateLimit) {
+    res.setHeader("Retry-After", Math.ceil((current.resetAt - now) / 1000));
+    res.status(429).json({ error: "Too many proof uploads. Try again shortly." });
+    return true;
+  }
+  current.count += 1;
+  return false;
+}
 
 function badRequest(res: Parameters<Parameters<IRouter["get"]>[1]>[1], message: string) {
   res.status(400).json({ error: message });
@@ -180,7 +209,23 @@ function serializeOrderLine(row: typeof supplierOrderLinesTable.$inferSelect) {
   };
 }
 
-function serializeDelivery(row: typeof supplierDeliveriesTable.$inferSelect) {
+function serializeDeliveryLine(row: typeof supplierDeliveryLinesTable.$inferSelect) {
+  return {
+    id: row.id,
+    deliveryId: row.deliveryId,
+    orderLineId: row.orderLineId,
+    quantityDelivered: asNumber(row.quantityDelivered),
+    quantityReceived: asNumber(row.quantityReceived),
+    quantityDamaged: asNumber(row.quantityDamaged),
+    quantityShort: asNumber(row.quantityShort),
+    quantityReturned: asNumber(row.quantityReturned),
+    exceptionNote: row.exceptionNote,
+    acceptedByUserId: row.acceptedByUserId,
+    createdAt: row.createdAt,
+  };
+}
+
+function serializeDelivery(row: typeof supplierDeliveriesTable.$inferSelect, lines: typeof supplierDeliveryLinesTable.$inferSelect[] = []) {
   return {
     id: row.id,
     orderId: row.orderId,
@@ -194,11 +239,14 @@ function serializeDelivery(row: typeof supplierDeliveriesTable.$inferSelect) {
     jobsiteInstructions: row.jobsiteInstructions,
     proofObjectPath: row.proofObjectPath,
     proofFileName: row.proofFileName,
+    proofContentType: row.proofContentType,
+    proofFileSize: row.proofFileSize,
     recipientName: row.recipientName,
     deliveredAt: row.deliveredAt,
     notes: row.notes,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    lines: lines.map(serializeDeliveryLine),
   };
 }
 
@@ -326,6 +374,12 @@ async function serializeOrderDetail(req: TenantRequest, orderId: number) {
       scope(req, supplierInvoicesTable),
     )).orderBy(desc(supplierInvoicesTable.createdAt)),
   ]);
+  const deliveryLines = deliveries.length
+    ? await db.select().from(supplierDeliveryLinesTable).where(and(
+      scope(req, supplierDeliveryLinesTable),
+      or(...deliveries.map((delivery) => eq(supplierDeliveryLinesTable.deliveryId, delivery.id)))!,
+    )).orderBy(asc(supplierDeliveryLinesTable.id))
+    : [];
   return {
     id: row.order.id,
     orderNumber: row.order.orderNumber,
@@ -349,7 +403,7 @@ async function serializeOrderDetail(req: TenantRequest, orderId: number) {
     createdAt: row.order.createdAt,
     updatedAt: row.order.updatedAt,
     lines: lines.map(serializeOrderLine),
-    deliveries: deliveries.map(serializeDelivery),
+    deliveries: deliveries.map((delivery) => serializeDelivery(delivery, deliveryLines.filter((line) => line.deliveryId === delivery.id))),
     invoices: invoices.map(serializeInvoice),
   };
 }
@@ -871,7 +925,10 @@ router.post("/supplier-orders/:orderId/deliveries", requireRole("owner", "admin"
   const lineMap = new Map(orderLines.map((line) => [line.id, line]));
   for (const line of parsed.data.lines) {
     const orderLine = lineMap.get(line.orderLineId);
-    if (!orderLine || line.quantityDelivered + asNumber(orderLine.deliveredQuantity) > asNumber(orderLine.quantity)) {
+    const exceptionQuantity = (line.quantityDamaged ?? 0) + (line.quantityShort ?? 0) + (line.quantityReturned ?? 0);
+    if (!orderLine
+      || line.quantityDelivered + asNumber(orderLine.deliveredQuantity) > asNumber(orderLine.quantity)
+      || exceptionQuantity > line.quantityDelivered) {
       badRequest(res, "Delivery quantity exceeds the open order quantity"); return;
     }
   }
@@ -895,11 +952,12 @@ router.post("/supplier-orders/:orderId/deliveries", requireRole("owner", "admin"
       deliveryId: created.id,
       orderLineId: line.orderLineId,
       quantityDelivered: String(line.quantityDelivered),
+      quantityReceived: "0",
       quantityDamaged: String(line.quantityDamaged ?? 0),
       quantityShort: String(line.quantityShort ?? 0),
       quantityReturned: String(line.quantityReturned ?? 0),
       exceptionNote: line.exceptionNote?.trim() ?? null,
-      acceptedByUserId: req.localUserId ?? null,
+      acceptedByUserId: null,
       tenantId: req.tenantId!,
       environmentId: req.environmentId!,
     })));
@@ -932,8 +990,6 @@ router.patch("/supplier-deliveries/:deliveryId", requireRole("owner", "admin", "
   if (!existing) { notFound(res, "Supplier delivery not found"); return; }
   const [row] = await db.update(supplierDeliveriesTable).set({
     ...(parsed.data.status === undefined ? {} : { status: parsed.data.status }),
-    ...(parsed.data.proofObjectPath === undefined ? {} : { proofObjectPath: parsed.data.proofObjectPath }),
-    ...(parsed.data.proofFileName === undefined ? {} : { proofFileName: parsed.data.proofFileName }),
     ...(parsed.data.recipientName === undefined ? {} : { recipientName: parsed.data.recipientName }),
     ...(parsed.data.notes === undefined ? {} : { notes: parsed.data.notes }),
     ...(parsed.data.status && ["delivered", "partial"].includes(parsed.data.status) ? { deliveredAt: existing.deliveredAt ?? new Date() } : {}),
@@ -941,6 +997,159 @@ router.patch("/supplier-deliveries/:deliveryId", requireRole("owner", "admin", "
   }).where(and(eq(supplierDeliveriesTable.id, path.data.deliveryId), scope(req, supplierDeliveriesTable))).returning();
   await audit(req, existing.orderId, "delivery", row.id, "delivery_updated", existing.status, row.status);
   res.json(serializeDelivery(row));
+});
+
+router.post("/supplier-deliveries/:deliveryId/proof-upload", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  if (rejectDeliveryProofUploadRate(req, res)) return;
+  const path = RequestSupplierDeliveryProofUploadParams.safeParse(req.params);
+  const parsed = RequestSupplierDeliveryProofUploadBody.safeParse(req.body);
+  if (!path.success || !parsed.success || !allowedDeliveryProofContentTypes.has(parsed.data.contentType)) {
+    badRequest(res, "Invalid proof-of-delivery file name, size, or content type");
+    return;
+  }
+  const [delivery] = await db.select().from(supplierDeliveriesTable).where(and(
+    eq(supplierDeliveriesTable.id, path.data.deliveryId),
+    scope(req, supplierDeliveriesTable),
+  ));
+  if (!delivery) { notFound(res, "Supplier delivery not found"); return; }
+  if (delivery.proofObjectPath) {
+    try {
+      await objectStorage.getObjectFile(delivery.proofObjectPath);
+      res.status(409).json({ error: "This delivery already has proof of delivery attached" });
+      return;
+    } catch (error) {
+      if (!(error instanceof ObjectNotFoundError)) throw error;
+    }
+  }
+  let objectPath: string | undefined;
+  try {
+    const upload = await objectStorage.requestUpload("supplier-delivery-proof");
+    objectPath = upload.objectPath;
+    const [reserved] = await db.update(supplierDeliveriesTable).set({
+      proofObjectPath: objectPath,
+      proofFileName: sanitizeFileName(parsed.data.originalName),
+      proofContentType: parsed.data.contentType,
+      proofFileSize: parsed.data.size,
+      updatedAt: new Date(),
+    }).where(and(
+      eq(supplierDeliveriesTable.id, delivery.id),
+      scope(req, supplierDeliveriesTable),
+    )).returning();
+    await audit(req, delivery.orderId, "delivery", delivery.id, "proof_upload_reserved", delivery.status, delivery.status, reserved.proofFileName ?? undefined);
+    res.status(201).json({
+      uploadURL: upload.uploadURL,
+      objectPath: upload.objectPath,
+      proofFileName: reserved.proofFileName!,
+    });
+  } catch (error) {
+    if (objectPath) await objectStorage.deleteObject(objectPath).catch((cleanupError) => req.log.warn({ err: cleanupError }, "Unable to clean up proof upload reservation"));
+    req.log.error({ err: error, deliveryId: delivery.id }, "Failed to create proof-of-delivery upload");
+    res.status(503).json({ error: "Proof-of-delivery storage is temporarily unavailable" });
+  }
+});
+
+router.post("/supplier-deliveries/:deliveryId/proof-upload/complete", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  if (rejectDeliveryProofUploadRate(req, res)) return;
+  const path = CompleteSupplierDeliveryProofUploadParams.safeParse(req.params);
+  if (!path.success) { badRequest(res, "Invalid supplier delivery"); return; }
+  const [delivery] = await db.select().from(supplierDeliveriesTable).where(and(
+    eq(supplierDeliveriesTable.id, path.data.deliveryId),
+    scope(req, supplierDeliveriesTable),
+  ));
+  if (!delivery) { notFound(res, "Supplier delivery not found"); return; }
+  if (!delivery.proofObjectPath || !delivery.proofFileName || !delivery.proofContentType || !delivery.proofFileSize) {
+    res.status(409).json({ error: "Proof-of-delivery upload metadata is incomplete" });
+    return;
+  }
+  try {
+    const file = await objectStorage.getObjectFile(delivery.proofObjectPath);
+    const [metadata] = await file.getMetadata();
+    const storedSize = Number(metadata.size ?? 0);
+    const storedContentType = typeof metadata.contentType === "string" ? metadata.contentType : null;
+    if (storedSize <= 0 || storedSize > delivery.proofFileSize || storedSize > maxDeliveryProofSize) {
+      await objectStorage.deleteObject(delivery.proofObjectPath).catch(() => undefined);
+      await db.update(supplierDeliveriesTable).set({
+        proofObjectPath: null,
+        proofFileName: null,
+        proofContentType: null,
+        proofFileSize: null,
+        updatedAt: new Date(),
+      }).where(and(eq(supplierDeliveriesTable.id, delivery.id), scope(req, supplierDeliveriesTable)));
+      res.status(413).json({ error: "Uploaded proof exceeds the declared size" });
+      return;
+    }
+    if (storedContentType && storedContentType !== delivery.proofContentType) {
+      await objectStorage.deleteObject(delivery.proofObjectPath).catch(() => undefined);
+      await db.update(supplierDeliveriesTable).set({
+        proofObjectPath: null,
+        proofFileName: null,
+        proofContentType: null,
+        proofFileSize: null,
+        updatedAt: new Date(),
+      }).where(and(eq(supplierDeliveriesTable.id, delivery.id), scope(req, supplierDeliveriesTable)));
+      res.status(415).json({ error: "Uploaded proof content type does not match its declared type" });
+      return;
+    }
+    const screening = await screenStoredDocument(file, delivery.proofContentType, storedSize);
+    if (screening.status === "rejected") {
+      await objectStorage.deleteObject(delivery.proofObjectPath).catch(() => undefined);
+      await db.update(supplierDeliveriesTable).set({
+        proofObjectPath: null,
+        proofFileName: null,
+        proofContentType: null,
+        proofFileSize: null,
+        updatedAt: new Date(),
+      }).where(and(eq(supplierDeliveriesTable.id, delivery.id), scope(req, supplierDeliveriesTable)));
+      res.status(screening.reason === "content_mismatch" ? 415 : 422).json({ error: "Proof-of-delivery file failed upload safety screening" });
+      return;
+    }
+    const [updated] = await db.update(supplierDeliveriesTable).set({
+      proofFileSize: storedSize,
+      updatedAt: new Date(),
+    }).where(and(eq(supplierDeliveriesTable.id, delivery.id), scope(req, supplierDeliveriesTable))).returning();
+    await audit(req, delivery.orderId, "delivery", delivery.id, "proof_uploaded", delivery.status, delivery.status, updated.proofFileName ?? undefined);
+    res.json(serializeDelivery(updated));
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(409).json({ error: "Proof upload has not completed yet" });
+      return;
+    }
+    req.log.error({ err: error, deliveryId: delivery.id }, "Failed to complete proof-of-delivery upload");
+    res.status(503).json({ error: "Proof-of-delivery storage is temporarily unavailable" });
+  }
+});
+
+router.get("/supplier-deliveries/:deliveryId/proof", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const path = CompleteSupplierDeliveryProofUploadParams.safeParse(req.params);
+  if (!path.success) { badRequest(res, "Invalid supplier delivery"); return; }
+  const [delivery] = await db.select().from(supplierDeliveriesTable).where(and(
+    eq(supplierDeliveriesTable.id, path.data.deliveryId),
+    scope(req, supplierDeliveriesTable),
+  ));
+  if (!delivery?.proofObjectPath || !delivery.proofFileName || !delivery.proofContentType) {
+    res.status(404).json({ error: "Proof of delivery not found" });
+    return;
+  }
+  try {
+    const file = await objectStorage.getObjectFile(delivery.proofObjectPath);
+    const [metadata] = await file.getMetadata();
+    res.setHeader("Content-Type", metadata.contentType || delivery.proofContentType);
+    res.setHeader("Content-Length", String(metadata.size ?? delivery.proofFileSize ?? 0));
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Disposition", `attachment; filename="${sanitizeFileName(delivery.proofFileName)}"`);
+    file.createReadStream().on("error", (error) => {
+      req.log.error({ err: error, deliveryId: delivery.id }, "Failed to stream proof of delivery");
+      if (!res.headersSent) res.status(500).json({ error: "Failed to read proof of delivery" });
+    }).pipe(res);
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: "Stored proof of delivery not found" });
+      return;
+    }
+    req.log.error({ err: error, deliveryId: delivery.id }, "Failed to open proof of delivery");
+    res.status(503).json({ error: "Proof-of-delivery storage is temporarily unavailable" });
+  }
 });
 
 router.post("/supplier-deliveries/:deliveryId/receiving", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
@@ -952,17 +1161,22 @@ router.post("/supplier-deliveries/:deliveryId/receiving", requireRole("owner", "
     scope(req, supplierDeliveriesTable),
   ));
   if (!delivery) { notFound(res, "Supplier delivery not found"); return; }
+  if (delivery.status === "canceled") { badRequest(res, "Canceled deliveries cannot be received"); return; }
   for (const line of parsed.data.lines) {
     const [deliveryLine] = await db.select().from(supplierDeliveryLinesTable).where(and(
       eq(supplierDeliveryLinesTable.id, line.deliveryLineId),
       eq(supplierDeliveryLinesTable.deliveryId, delivery.id),
       scope(req, supplierDeliveryLinesTable),
     ));
-    if (!deliveryLine || line.quantityReceived > asNumber(deliveryLine.quantityDelivered)) {
+    const quantityReceived = line.accepted === false ? 0 : line.quantityReceived;
+    const accountedQuantity = quantityReceived + (line.quantityDamaged ?? 0) + (line.quantityShort ?? 0) + (line.quantityReturned ?? 0);
+    if (!deliveryLine || accountedQuantity > asNumber(deliveryLine.quantityDelivered)) {
       badRequest(res, "Received quantity exceeds the delivered quantity"); return;
     }
   }
+  let nextDeliveryStatus = delivery.status;
   await db.transaction(async (tx) => {
+    const touchedOrderLineIds = new Set<number>();
     for (const line of parsed.data.lines) {
       const [deliveryLine] = await tx.select().from(supplierDeliveryLinesTable).where(and(
         eq(supplierDeliveryLinesTable.id, line.deliveryLineId),
@@ -970,25 +1184,60 @@ router.post("/supplier-deliveries/:deliveryId/receiving", requireRole("owner", "
         scope(req, supplierDeliveryLinesTable),
       ));
       if (!deliveryLine) continue;
+      const quantityReceived = line.accepted === false ? 0 : line.quantityReceived;
+      touchedOrderLineIds.add(deliveryLine.orderLineId);
       await tx.update(supplierDeliveryLinesTable).set({
         acceptedByUserId: line.accepted === false ? null : req.localUserId ?? null,
+        quantityReceived: String(quantityReceived),
+        quantityDamaged: String(line.quantityDamaged ?? 0),
+        quantityShort: String(line.quantityShort ?? 0),
+        quantityReturned: String(line.quantityReturned ?? 0),
         exceptionNote: line.exceptionNote?.trim() ?? deliveryLine.exceptionNote,
       }).where(and(eq(supplierDeliveryLinesTable.id, deliveryLine.id), scope(req, supplierDeliveryLinesTable)));
-      if (line.accepted !== false) {
-        const [orderLine] = await tx.select().from(supplierOrderLinesTable).where(and(
-          eq(supplierOrderLinesTable.id, deliveryLine.orderLineId),
-          scope(req, supplierOrderLinesTable),
+    }
+    for (const orderLineId of touchedOrderLineIds) {
+      const [orderLine] = await tx.select().from(supplierOrderLinesTable).where(and(
+        eq(supplierOrderLinesTable.id, orderLineId),
+        scope(req, supplierOrderLinesTable),
+      ));
+      if (!orderLine) continue;
+      const deliveryLines = await tx.select({ quantityReceived: supplierDeliveryLinesTable.quantityReceived })
+        .from(supplierDeliveryLinesTable)
+        .where(and(
+          eq(supplierDeliveryLinesTable.orderLineId, orderLineId),
+          scope(req, supplierDeliveryLinesTable),
         ));
-        if (orderLine) {
-          await tx.update(supplierOrderLinesTable).set({
-            receivedQuantity: String(Math.min(asNumber(orderLine.quantity), asNumber(orderLine.receivedQuantity) + line.quantityReceived)),
-            updatedAt: new Date(),
-          }).where(and(eq(supplierOrderLinesTable.id, orderLine.id), scope(req, supplierOrderLinesTable)));
-        }
-      }
+      const receivedQuantity = deliveryLines.reduce((sum, item) => sum + asNumber(item.quantityReceived), 0);
+      await tx.update(supplierOrderLinesTable).set({
+        receivedQuantity: String(Math.min(asNumber(orderLine.quantity), receivedQuantity)),
+        updatedAt: new Date(),
+      }).where(and(eq(supplierOrderLinesTable.id, orderLine.id), scope(req, supplierOrderLinesTable)));
+    }
+    const deliveryLines = await tx.select().from(supplierDeliveryLinesTable).where(and(
+      eq(supplierDeliveryLinesTable.deliveryId, delivery.id),
+      scope(req, supplierDeliveryLinesTable),
+    ));
+    const allAccounted = deliveryLines.length > 0 && deliveryLines.every((line) =>
+      asNumber(line.quantityReceived) + asNumber(line.quantityDamaged) + asNumber(line.quantityShort) + asNumber(line.quantityReturned)
+        >= asNumber(line.quantityDelivered),
+    );
+    const hasException = deliveryLines.some((line) => asNumber(line.quantityDamaged) > 0 || asNumber(line.quantityShort) > 0 || asNumber(line.quantityReturned) > 0);
+    const allReturned = deliveryLines.length > 0 && deliveryLines.every((line) =>
+      asNumber(line.quantityReturned) >= asNumber(line.quantityDelivered),
+    );
+    nextDeliveryStatus = allReturned ? "returned" : hasException ? "exception" : allAccounted ? "delivered" : "partial";
+    if (nextDeliveryStatus !== delivery.status) {
+      await tx.update(supplierDeliveriesTable).set({
+        status: nextDeliveryStatus,
+        deliveredAt: ["delivered", "partial", "exception", "returned"].includes(nextDeliveryStatus) ? delivery.deliveredAt ?? new Date() : delivery.deliveredAt,
+        updatedAt: new Date(),
+      }).where(and(eq(supplierDeliveriesTable.id, delivery.id), scope(req, supplierDeliveriesTable)));
     }
   });
-  await audit(req, delivery.orderId, "delivery", delivery.id, "receiving_recorded", null, null, parsed.data.lines.some((line) => line.accepted === false) ? "Receiving exceptions recorded" : "Receiving accepted");
+  if (nextDeliveryStatus !== delivery.status) {
+    await audit(req, delivery.orderId, "delivery", delivery.id, "delivery_status_changed", delivery.status, nextDeliveryStatus);
+  }
+  await audit(req, delivery.orderId, "delivery", delivery.id, "receiving_recorded", null, nextDeliveryStatus, parsed.data.lines.some((line) => (line.quantityDamaged ?? 0) > 0 || (line.quantityShort ?? 0) > 0 || (line.quantityReturned ?? 0) > 0 || line.accepted === false) ? "Receiving exceptions recorded" : "Receiving accepted");
   await updateOrderFulfillment(req, delivery.orderId);
   const detail = await serializeOrderDetail(req, delivery.orderId);
   res.json(detail);
