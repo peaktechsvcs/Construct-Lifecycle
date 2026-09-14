@@ -10,6 +10,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { bidsTable } from "./bids";
+import { integrationsTable } from "./integrations";
 import { projectsTable } from "./projects";
 import { submittalPackagesTable } from "./submittals";
 import { environmentsTable, tenantsTable, usersTable } from "./tenants";
@@ -204,6 +205,34 @@ export const projectFinancialsTable = pgTable("project_financials", {
   uniqueIndex("project_financials_scope_project_idx").on(table.tenantId, table.environmentId, table.projectId),
 ]);
 
+export const projectAccountingSyncsTable = pgTable("project_accounting_syncs", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projectsTable.id, { onDelete: "cascade" }),
+  resourceType: text("resource_type").notNull(),
+  resourceKey: text("resource_key").notNull(),
+  providerKey: text("provider_key").notNull(),
+  integrationId: integer("integration_id").references(() => integrationsTable.id, { onDelete: "set null" }),
+  syncStatus: text("sync_status").notNull().default("not_synced"),
+  externalId: text("external_id"),
+  lastAttemptedAt: timestamp("last_attempted_at", { withTimezone: true }),
+  lastSuccessfulSyncAt: timestamp("last_successful_sync_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  metadata: text("metadata").notNull().default("{}"),
+  ...scopeColumns,
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("project_accounting_syncs_scope_resource_provider_idx").on(
+    table.tenantId,
+    table.environmentId,
+    table.projectId,
+    table.resourceType,
+    table.resourceKey,
+    table.providerKey,
+  ),
+  index("project_accounting_syncs_scope_project_idx").on(table.tenantId, table.environmentId, table.projectId),
+]);
+
 export const projectPayApplicationsTable = pgTable("project_pay_applications", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").notNull().references(() => projectsTable.id, { onDelete: "cascade" }),
@@ -270,6 +299,7 @@ export type ProjectCommitment = typeof projectCommitmentsTable.$inferSelect;
 export type ProjectIssue = typeof projectIssuesTable.$inferSelect;
 export type ProjectChangeOrder = typeof projectChangeOrdersTable.$inferSelect;
 export type ProjectFinancials = typeof projectFinancialsTable.$inferSelect;
+export type ProjectAccountingSync = typeof projectAccountingSyncsTable.$inferSelect;
 export type ProjectPayApplication = typeof projectPayApplicationsTable.$inferSelect;
 export type ProjectCloseoutRequirement = typeof projectCloseoutRequirementsTable.$inferSelect;
 export type ProjectControlEvent = typeof projectControlEventsTable.$inferSelect;

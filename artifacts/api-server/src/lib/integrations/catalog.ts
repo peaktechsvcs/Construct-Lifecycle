@@ -69,10 +69,11 @@ export const connectorCatalog: ConnectorDefinition[] = [
     name: "QuickBooks Online",
     category: "accounting",
     categoryLabel: "Accounting & Financial",
-    description: "Prepare accounting and payment references for a future QuickBooks Online connection.",
-    capabilities: ["Customers", "Estimates", "Invoices", "Payments"],
+    description: "Sync approved owner applications and project cost status through the managed QuickBooks Online connector.",
+    capabilities: ["Customers", "Invoices", "Payments", "Project Cost Status"],
     entitlementKey: "quickbooks",
     connectorStatus: "cataloged",
+    managedConnectorName: "quickbooks",
   },
   {
     providerKey: "measuresquare",
