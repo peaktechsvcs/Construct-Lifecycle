@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Response } from "express";
 import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import {
   db,
@@ -617,7 +617,11 @@ router.get("/platform/customers", async (_req: TenantRequest, res) => {
   res.json(customers);
 });
 
-router.post("/platform/customers", async (req: TenantRequest, res) => {
+export async function createPlatformCustomerHandler(
+  req: TenantRequest,
+  res: Response,
+  createWorkspace: typeof createCustomerWorkspace = createCustomerWorkspace,
+) {
   const parsed = CreatePlatformCustomerBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid customer", details: parsed.error.issues });
@@ -637,7 +641,7 @@ router.post("/platform/customers", async (req: TenantRequest, res) => {
   const businessTypes = (parsed.data.businessTypes ?? DEFAULT_TENANT_BUSINESS_TYPES) as TenantBusinessType[];
   let tenant: typeof tenantsTable.$inferSelect;
   try {
-    ({ tenant } = await createCustomerWorkspace(
+    ({ tenant } = await createWorkspace(
       { name: parsed.data.name.trim(), slug, businessTypes },
       req.localUserId,
     ));
@@ -668,7 +672,9 @@ router.post("/platform/customers", async (req: TenantRequest, res) => {
     businessTypes,
   });
   res.status(201).json({ customer: await serializeCustomer(tenant), invitation, invitationToken });
-});
+}
+
+router.post("/platform/customers", (req, res) => createPlatformCustomerHandler(req, res));
 
 router.get("/platform/customers/:tenantId", async (req: TenantRequest, res) => {
   const tenantId = Number(req.params.tenantId);
