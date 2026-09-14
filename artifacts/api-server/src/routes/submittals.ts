@@ -4,6 +4,7 @@ import { z } from "zod";
 import { PDFDocument } from "pdf-lib";
 import {
   bidsTable,
+  bidProposalAttachmentsTable,
   businessCustomersTable,
   db,
   integrationEntitlementsTable,
@@ -16,6 +17,7 @@ import {
   submittalItemsTable,
   submittalPackagesTable,
   submittalRevisionsTable,
+  submittalTransmittalsTable,
   submittalSignatureEventsTable,
   submittalSignatureRequestsTable,
   submittalSignatureSignersTable,
@@ -55,6 +57,7 @@ const itemTypes = ["shop_drawing", "product_data", "sample", "mockup", "calculat
 const itemStatuses = ["pending", "included", "needs_revision", "accepted", "superseded"] as const;
 const coordinationTypes = ["procurement", "fabrication", "installation", "schedule"] as const;
 const coordinationStatuses = ["pending", "in_progress", "blocked", "completed", "failed"] as const;
+const transmittalPurposes = ["review", "resubmission", "record", "closeout"] as const;
 const assemblyInput = z.object({
   items: z.array(z.object({
     itemId: z.number().int().positive(),
@@ -95,6 +98,26 @@ const coordinationUpdate = coordinationInput.partial().extend({
   notes: z.string().trim().max(5000).nullable().optional(),
   dueDate: z.string().date().nullable().optional(),
   failureReason: z.string().trim().max(2000).nullable().optional(),
+});
+const seedFromBidInput = z.object({
+  bidId: z.number().int().positive(),
+  projectId: z.number().int().positive(),
+  attachmentIds: z.array(z.number().int().positive()).max(200).optional(),
+  name: z.string().trim().min(1).max(180),
+  description: z.string().trim().max(5000).optional(),
+  specificationSection: z.string().trim().max(120).optional(),
+  responsibleParty: z.string().trim().max(180).optional(),
+  dueDate: z.string().date().optional(),
+  originType: z.enum(originTypes).optional(),
+});
+const transmittalInput = z.object({
+  revisionId: z.number().int().positive().optional(),
+  purpose: z.enum(transmittalPurposes).optional(),
+  transmittalNumber: z.string().trim().max(120).optional(),
+  dueDate: z.string().date().optional(),
+  fromParty: z.string().trim().max(180).optional(),
+  toParty: z.string().trim().max(180).optional(),
+  notes: z.string().trim().max(5000).optional(),
 });
 const sanitizeFileName = (value: string) =>
   value.replace(/[\u0000-\u001f\u007f]/g, "").split(/[\\/]/).pop()?.trim().slice(0, 255) || "submittal-document";
@@ -209,6 +232,9 @@ const serializeItem = (
   status: item.status,
   documentName: item.documentName,
   documentUrl: item.documentUrl,
+  sourceBidAttachmentId: item.sourceBidAttachmentId,
+  reviewerName: item.reviewerName,
+  reviewComments: item.reviewComments,
   documents: documents.map(serializeDocument),
   revision: item.revision,
   createdAt: item.createdAt,
@@ -362,9 +388,23 @@ const serializeCoordination = (record: typeof submittalCoordinationTable.$inferS
   updatedAt: record.updatedAt,
 });
 
+const serializeTransmittal = (record: typeof submittalTransmittalsTable.$inferSelect) => ({
+  id: record.id,
+  packageId: record.packageId,
+  revisionId: record.revisionId,
+  transmittalNumber: record.transmittalNumber,
+  purpose: record.purpose,
+  sentAt: record.sentAt,
+  dueDate: record.dueDate,
+  fromParty: record.fromParty,
+  toParty: record.toParty,
+  notes: record.notes,
+  createdAt: record.createdAt,
+});
+
 const serializePackage = async (req: TenantRequest, row: Awaited<ReturnType<typeof getPackageBase>>) => {
   if (!row) return null;
-  const [items, revisions, signatureRequests] = await Promise.all([
+  const [items, revisions, transmittals, signatureRequests] = await Promise.all([
     db.select().from(submittalItemsTable)
       .where(and(
         eq(submittalItemsTable.packageId, row.package.id),
@@ -379,6 +419,13 @@ const serializePackage = async (req: TenantRequest, row: Awaited<ReturnType<type
         eq(submittalRevisionsTable.environmentId, row.package.environmentId),
       ))
       .orderBy(desc(submittalRevisionsTable.revision)),
+    db.select().from(submittalTransmittalsTable)
+      .where(and(
+        eq(submittalTransmittalsTable.packageId, row.package.id),
+        eq(submittalTransmittalsTable.tenantId, row.package.tenantId),
+        eq(submittalTransmittalsTable.environmentId, row.package.environmentId),
+      ))
+      .orderBy(desc(submittalTransmittalsTable.sentAt), desc(submittalTransmittalsTable.id)),
     loadSignatureRequests(req, row.package.id),
   ]);
   const assemblies = await db.select().from(submittalPackageAssembliesTable)
@@ -428,6 +475,7 @@ const serializePackage = async (req: TenantRequest, row: Awaited<ReturnType<type
     itemCount: items.length,
     items: items.map((item) => serializeItem(item, documentsByItem.get(item.id))),
     revisions: revisions.map(serializeRevision),
+    transmittals: transmittals.map(serializeTransmittal),
     assemblies: assemblies.map(serializeAssembly),
     signatureProviderAvailable: getSignatureProviderAvailability(await getConnectedSignatureProviderKeys(req)).available,
     signatureRequests,
@@ -450,6 +498,105 @@ const getRevisionInPackage = async (req: TenantRequest, packageId: number, revis
   ));
   return revision;
 };
+
+router.post("/submittals/from-bid", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const parsed = seedFromBidInput.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid awarded bid submittal register details", details: parsed.error.issues });
+    return;
+  }
+  const [bid] = await db.select().from(bidsTable).where(and(
+    eq(bidsTable.id, parsed.data.bidId),
+    eq(bidsTable.tenantId, req.tenantId!),
+    eq(bidsTable.environmentId, req.environmentId!),
+  ));
+  if (!bid) {
+    res.status(404).json({ error: "Bid not found in the active environment" });
+    return;
+  }
+  if (bid.stage !== "awarded") {
+    res.status(409).json({ error: "Only awarded bids can seed a project submittal register" });
+    return;
+  }
+  const [project] = await db.select({ id: projectsTable.id }).from(projectsTable).where(and(
+    eq(projectsTable.id, parsed.data.projectId),
+    eq(projectsTable.tenantId, req.tenantId!),
+    eq(projectsTable.environmentId, req.environmentId!),
+  ));
+  if (!project) {
+    res.status(400).json({ error: "Project not found in the active environment" });
+    return;
+  }
+  const attachments = await db.select().from(bidProposalAttachmentsTable).where(and(
+    eq(bidProposalAttachmentsTable.bidId, bid.id),
+    eq(bidProposalAttachmentsTable.tenantId, req.tenantId!),
+    eq(bidProposalAttachmentsTable.environmentId, req.environmentId!),
+    parsed.data.attachmentIds?.length ? inArray(bidProposalAttachmentsTable.id, parsed.data.attachmentIds) : undefined,
+  ));
+  if (parsed.data.attachmentIds?.length && attachments.length !== parsed.data.attachmentIds.length) {
+    res.status(400).json({ error: "Every selected bid-stage attachment must belong to the active bid and environment" });
+    return;
+  }
+  const commitments = attachments.filter((attachment) =>
+    ["alternate", "substitution_request", "requested_product_data"].includes(attachment.purpose)
+    && attachment.conversionStatus === "accepted",
+  );
+  if (commitments.length === 0) {
+    res.status(400).json({ error: "Select at least one accepted alternate, substitution request, or requested product data attachment" });
+    return;
+  }
+  const originType = parsed.data.originType
+    ?? (commitments.some((attachment) => attachment.purpose === "substitution_request") ? "accepted_substitution"
+      : commitments.some((attachment) => attachment.purpose === "alternate") ? "accepted_alternate" : "contract");
+  const created = await db.transaction(async (tx) => {
+    const [{ count }] = await tx.select({ count: sql<number>`count(*)::int` }).from(submittalPackagesTable)
+      .where(and(eq(submittalPackagesTable.tenantId, req.tenantId!), eq(submittalPackagesTable.environmentId, req.environmentId!)));
+    const packageNumber = `SUB-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
+    const [pkg] = await tx.insert(submittalPackagesTable).values({
+      packageNumber,
+      projectId: parsed.data.projectId,
+      sourceBidId: bid.id,
+      originType,
+      name: parsed.data.name,
+      description: parsed.data.description || null,
+      specificationSection: parsed.data.specificationSection || null,
+      responsibleParty: parsed.data.responsibleParty || null,
+      dueDate: parsed.data.dueDate || null,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    }).returning();
+    await tx.insert(submittalItemsTable).values(commitments.map((attachment, index) => ({
+      packageId: pkg.id,
+      itemNumber: `${packageNumber}.${index + 1}`,
+      sortOrder: index,
+      itemType: attachment.purpose === "requested_product_data" ? "product_data" : "other",
+      name: attachment.title,
+      description: attachment.description,
+      status: "pending",
+      documentName: attachment.documentName,
+      documentUrl: attachment.documentUrl,
+      sourceBidAttachmentId: attachment.id,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    })));
+    await tx.update(bidProposalAttachmentsTable).set({
+      conversionStatus: "converted",
+      updatedAt: new Date(),
+    }).where(and(
+      inArray(bidProposalAttachmentsTable.id, commitments.map((attachment) => attachment.id)),
+      eq(bidProposalAttachmentsTable.tenantId, req.tenantId!),
+      eq(bidProposalAttachmentsTable.environmentId, req.environmentId!),
+    ));
+    return pkg;
+  });
+  await db.insert(platformAuditEventsTable).values({
+    actorUserId: req.localUserId!,
+    tenantId: req.tenantId!,
+    action: "submittal_register_seeded_from_awarded_bid",
+    details: JSON.stringify({ submittalId: created.id, bidId: bid.id, projectId: project.id, environmentId: req.environmentId }),
+  });
+  res.status(201).json(await serializePackage(req, await getPackageBase(req, created.id)));
+});
 
 router.get("/submittals", async (req: TenantRequest, res) => {
   const parsed = ListSubmittalPackagesQueryParams.safeParse({
@@ -710,6 +857,9 @@ router.patch("/submittal-items/:itemId", requireRole("owner", "admin", "member")
     ...(parsed.data.status !== undefined ? { status: parsed.data.status } : {}),
     ...(parsed.data.documentName !== undefined ? { documentName: parsed.data.documentName?.trim() || null } : {}),
     ...(parsed.data.documentUrl !== undefined ? { documentUrl: parsed.data.documentUrl?.trim() || null } : {}),
+    ...(parsed.data.reviewerName !== undefined ? { reviewerName: parsed.data.reviewerName?.trim() || null } : {}),
+    ...(parsed.data.reviewComments !== undefined ? { reviewComments: parsed.data.reviewComments?.trim() || null } : {}),
+    revision: existing.revision + 1,
     updatedAt: new Date(),
   }).where(and(
     eq(submittalItemsTable.id, params.data.itemId),
@@ -1302,6 +1452,62 @@ router.post("/submittals/:submittalId/revisions", requireRole("owner", "admin", 
     eq(submittalPackagesTable.environmentId, req.environmentId!),
   ));
   res.status(201).json(serializeRevision(created));
+});
+
+router.get("/submittals/:submittalId/transmittals", async (req: TenantRequest, res) => {
+  const submittalId = Number(req.params.submittalId);
+  if (!Number.isInteger(submittalId) || submittalId < 1) {
+    res.status(400).json({ error: "Invalid submittal package id" });
+    return;
+  }
+  const pkg = await getPackageBase(req, submittalId);
+  if (!pkg) {
+    res.status(404).json({ error: "Submittal package not found" });
+    return;
+  }
+  const records = await db.select().from(submittalTransmittalsTable).where(and(
+    eq(submittalTransmittalsTable.packageId, submittalId),
+    eq(submittalTransmittalsTable.tenantId, req.tenantId!),
+    eq(submittalTransmittalsTable.environmentId, req.environmentId!),
+  )).orderBy(desc(submittalTransmittalsTable.sentAt), desc(submittalTransmittalsTable.id));
+  res.json(records.map(serializeTransmittal));
+});
+
+router.post("/submittals/:submittalId/transmittals", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const submittalId = Number(req.params.submittalId);
+  const parsed = transmittalInput.safeParse(req.body);
+  if (!Number.isInteger(submittalId) || submittalId < 1 || !parsed.success) {
+    res.status(400).json({ error: "Invalid submittal transmittal details" });
+    return;
+  }
+  const pkg = await getPackageForMutation(req, submittalId);
+  if (!pkg) {
+    res.status(404).json({ error: "Submittal package not found" });
+    return;
+  }
+  if (parsed.data.revisionId && !(await getRevisionInPackage(req, pkg.id, parsed.data.revisionId))) {
+    res.status(400).json({ error: "Revision does not belong to this submittal package" });
+    return;
+  }
+  const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(submittalTransmittalsTable).where(and(
+    eq(submittalTransmittalsTable.packageId, pkg.id),
+    eq(submittalTransmittalsTable.tenantId, req.tenantId!),
+    eq(submittalTransmittalsTable.environmentId, req.environmentId!),
+  ));
+  const [created] = await db.insert(submittalTransmittalsTable).values({
+    packageId: pkg.id,
+    revisionId: parsed.data.revisionId ?? null,
+    transmittalNumber: parsed.data.transmittalNumber || `TRN-${pkg.packageNumber}-${String(Number(count) + 1).padStart(2, "0")}`,
+    purpose: parsed.data.purpose ?? "review",
+    dueDate: parsed.data.dueDate || null,
+    fromParty: parsed.data.fromParty || null,
+    toParty: parsed.data.toParty || null,
+    notes: parsed.data.notes || null,
+    createdByUserId: req.localUserId!,
+    tenantId: req.tenantId!,
+    environmentId: req.environmentId!,
+  }).returning();
+  res.status(201).json(serializeTransmittal(created));
 });
 
 router.get("/submittals/:submittalId/coordination", async (req: TenantRequest, res) => {

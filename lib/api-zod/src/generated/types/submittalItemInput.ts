@@ -22,4 +22,8 @@ export interface SubmittalItemInput {
   documentName?: string;
   /** @maxLength 2000 */
   documentUrl?: string;
+  /** @maxLength 180 */
+  reviewerName?: string;
+  /** @maxLength 5000 */
+  reviewComments?: string;
 }

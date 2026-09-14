@@ -12,6 +12,8 @@ export * from "./estimates";
 export * from "./proposals";
 export * from "./proposal-templates";
 export * from "./submittals";
+export * from "./bid-attachments";
+export * from "./submittal-transmittals";
 export * from "./submittal-documents";
 export * from "./submittal-coordination";
 export * from "./submittal-assemblies";

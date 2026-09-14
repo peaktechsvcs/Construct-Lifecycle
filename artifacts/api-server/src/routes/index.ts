@@ -15,6 +15,7 @@ import notificationsRouter from "./notifications";
 import opportunitiesRouter from "./opportunities";
 import bidsRouter from "./bids";
 import submittalsRouter from "./submittals";
+import bidProposalAttachmentsRouter from "./bid-proposal-attachments";
 import estimatesRouter from "./estimates";
 import proposalsRouter from "./proposals";
 import projectControlsRouter from "./project-controls";
@@ -38,6 +39,7 @@ if (process.env.RUNTIME_ENVIRONMENT_ID) {
   router.use(opportunitiesRouter);
   router.use(bidsRouter);
   router.use(submittalsRouter);
+  router.use(bidProposalAttachmentsRouter);
   router.use(estimatesRouter);
   router.use(proposalsRouter);
   router.use(workflowsRouter);
@@ -61,6 +63,7 @@ if (process.env.RUNTIME_ENVIRONMENT_ID) {
   router.use(opportunitiesRouter);
   router.use(bidsRouter);
   router.use(submittalsRouter);
+  router.use(bidProposalAttachmentsRouter);
   router.use(estimatesRouter);
   router.use(proposalsRouter);
   router.use(tenantAdminRouter);

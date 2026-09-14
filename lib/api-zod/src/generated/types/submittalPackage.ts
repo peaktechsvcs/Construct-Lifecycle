@@ -11,6 +11,7 @@ import type { SubmittalOriginType } from './submittalOriginType';
 import type { SubmittalPackageStatus } from './submittalPackageStatus';
 import type { SubmittalRevision } from './submittalRevision';
 import type { SubmittalSignatureRequest } from './submittalSignatureRequest';
+import type { SubmittalTransmittal } from './submittalTransmittal';
 
 export interface SubmittalPackage {
   id: number;
@@ -47,6 +48,7 @@ export interface SubmittalPackage {
   itemCount: number;
   items: SubmittalItem[];
   revisions: SubmittalRevision[];
+  transmittals: SubmittalTransmittal[];
   assemblies: SubmittalAssembly[];
   signatureProviderAvailable: boolean;
   signatureRequests: SubmittalSignatureRequest[];

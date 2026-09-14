@@ -11,6 +11,8 @@ import {
   SubmittalCoordinationType,
   SubmittalItemType,
   SubmittalItemStatus,
+  SubmittalItem,
+  SubmittalTransmittalInputPurpose,
   SubmittalOriginType,
   SubmittalDocument,
   SubmittalAssembly,
@@ -19,6 +21,8 @@ import {
   SubmittalSignatureRequest,
   useCreateSubmittalSignatureRequest,
   useCreateSubmittalItem,
+  useUpdateSubmittalItem,
+  useCreateSubmittalTransmittal,
   useCreateSubmittalPackage,
   useCreateSubmittalRevision,
   useDeleteSubmittalItem,
@@ -180,14 +184,27 @@ function PackageForm({ item, onClose, onSaved }: { item?: SubmittalPackage; onCl
   );
 }
 
-function ItemForm({ packageId, onClose, onSaved }: { packageId: number; onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState({ itemType: 'product_data' as SubmittalItemType, name: '', description: '', status: 'pending' as SubmittalItemStatus, documentName: '', documentUrl: '' });
+function ItemForm({ packageId, item, onClose, onSaved }: { packageId: number; item?: SubmittalItem | null; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState(() => ({
+    itemType: item?.itemType ?? 'product_data' as SubmittalItemType,
+    name: item?.name ?? '',
+    description: item?.description ?? '',
+    status: item?.status ?? 'pending' as SubmittalItemStatus,
+    documentName: item?.documentName ?? '',
+    documentUrl: item?.documentUrl ?? '',
+    reviewerName: item?.reviewerName ?? '',
+    reviewComments: item?.reviewComments ?? '',
+  }));
   const create = useCreateSubmittalItem();
+  const update = useUpdateSubmittalItem();
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    create.mutate({ submittalId: packageId, data: { ...form, description: form.description.trim() || undefined, documentName: form.documentName.trim() || undefined, documentUrl: form.documentUrl.trim() || undefined } }, { onSuccess: onSaved });
+    const data = { ...form, description: form.description.trim() || undefined, documentName: form.documentName.trim() || undefined, documentUrl: form.documentUrl.trim() || undefined, reviewerName: form.reviewerName.trim() || undefined, reviewComments: form.reviewComments.trim() || undefined };
+    if (item) update.mutate({ itemId: item.id, data }, { onSuccess: onSaved });
+    else create.mutate({ submittalId: packageId, data }, { onSuccess: onSaved });
   };
-  return <Modal title="Add package item" onClose={onClose}><form className="space-y-4" onSubmit={submit}>
+  const pending = create.isPending || update.isPending;
+  return <Modal title={item ? 'Edit package item' : 'Add package item'} onClose={onClose}><form className="space-y-4" onSubmit={submit}>
     <div className="grid gap-4 md:grid-cols-2">
       <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Item name</span><Input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="AHU-1 equipment schedule" /></label>
       <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Type</span><Select value={form.itemType} onValueChange={(value) => setForm({ ...form, itemType: value as SubmittalItemType })}><SelectTrigger aria-label="Submittal item type"><SelectValue /></SelectTrigger><SelectContent className="bg-popover">{itemTypes.map((type) => <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>)}</SelectContent></Select></label>
@@ -195,7 +212,8 @@ function ItemForm({ packageId, onClose, onSaved }: { packageId: number; onClose:
     <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Item status</span><Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value as SubmittalItemStatus })}><SelectTrigger aria-label="Submittal item status"><SelectValue /></SelectTrigger><SelectContent className="bg-popover">{itemStatuses.map((status) => <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>)}</SelectContent></Select></label>
     <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Description</span><Textarea rows={3} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="What the reviewer should verify" /></label>
     <div className="grid gap-4 md:grid-cols-2"><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Document name</span><Input value={form.documentName} onChange={(event) => setForm({ ...form, documentName: event.target.value })} placeholder="AHU-1-product-data.pdf" /></label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Document link</span><Input type="url" value={form.documentUrl} onChange={(event) => setForm({ ...form, documentUrl: event.target.value })} placeholder="https://..." /></label></div>
-    <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={onClose}>Cancel</Button><Button type="submit" disabled={create.isPending || !form.name.trim()}>{create.isPending ? 'Adding…' : 'Add item'}</Button></div>
+    <div className="grid gap-4 md:grid-cols-2"><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Reviewer</span><Input value={form.reviewerName} onChange={(event) => setForm({ ...form, reviewerName: event.target.value })} placeholder="Architect / engineer / owner" /></label><label className="block md:col-span-2"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Item review comments</span><Textarea rows={3} value={form.reviewComments} onChange={(event) => setForm({ ...form, reviewComments: event.target.value })} placeholder="Item-specific corrections or approval notes" /></label></div>
+    <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending || !form.name.trim()}>{pending ? 'Saving…' : item ? 'Save item' : 'Add item'}</Button></div>
   </form></Modal>;
 }
 
@@ -212,6 +230,35 @@ function RevisionForm({ packageId, onClose, onSaved }: { packageId: number; onCl
     <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Review comments</span><Textarea rows={4} value={form.reviewComments} onChange={(event) => setForm({ ...form, reviewComments: event.target.value })} placeholder="Disposition notes and required corrections" /></label>
     <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={onClose}>Cancel</Button><Button type="submit" disabled={create.isPending}>{create.isPending ? 'Recording…' : 'Record revision'}</Button></div>
   </form></Modal>;
+}
+
+const transmittalPurposes: { value: SubmittalTransmittalInputPurpose; label: string }[] = [
+  { value: 'review', label: 'Initial review' },
+  { value: 'resubmission', label: 'Resubmission' },
+  { value: 'record', label: 'Record copy' },
+  { value: 'closeout', label: 'Closeout' },
+];
+
+function TransmittalsPanel({ pkg, canEdit, onChanged }: { pkg: SubmittalPackage; canEdit: boolean; onChanged: () => void }) {
+  const create = useCreateSubmittalTransmittal();
+  const [form, setForm] = useState({ purpose: 'review' as SubmittalTransmittalInputPurpose, transmittalNumber: '', revisionId: '', dueDate: '', fromParty: '', toParty: '', notes: '' });
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    create.mutate({ submittalId: pkg.id, data: {
+      purpose: form.purpose,
+      transmittalNumber: form.transmittalNumber.trim() || undefined,
+      revisionId: form.revisionId ? Number(form.revisionId) : undefined,
+      dueDate: form.dueDate || undefined,
+      fromParty: form.fromParty.trim() || undefined,
+      toParty: form.toParty.trim() || undefined,
+      notes: form.notes.trim() || undefined,
+    } }, { onSuccess: () => { setForm({ purpose: 'review', transmittalNumber: '', revisionId: '', dueDate: '', fromParty: '', toParty: '', notes: '' }); onChanged(); } });
+  };
+  return <section className="rounded-xl border border-border bg-card p-5">
+    <div className="flex items-start justify-between gap-3"><div><h2 className="text-base font-bold">Transmittals</h2><p className="mt-1 text-xs text-muted-foreground">Keep each sent package, revision, recipient, and due date in the project record.</p></div><Badge tone="neutral">{pkg.transmittals.length}</Badge></div>
+    <div className="mt-4 space-y-3">{pkg.transmittals.length === 0 ? <p className="text-sm text-muted-foreground">No transmittals recorded yet.</p> : pkg.transmittals.map((transmittal) => <div key={transmittal.id} className="rounded-lg border border-border bg-secondary/20 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="mono text-xs font-semibold">{transmittal.transmittalNumber}</p><Badge tone="neutral">{transmittalPurposes.find((item) => item.value === transmittal.purpose)?.label ?? transmittal.purpose}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{transmittal.fromParty || 'Unassigned sender'} → {transmittal.toParty || 'Unassigned recipient'} · Sent {shortDate(transmittal.sentAt)}{transmittal.dueDate ? ` · Due ${shortDate(transmittal.dueDate)}` : ''}</p>{transmittal.revisionId && <p className="mt-1 text-xs text-muted-foreground">Linked review revision R{pkg.revisions.find((revision) => revision.id === transmittal.revisionId)?.revision ?? '—'}</p>}{transmittal.notes && <p className="mt-2 text-sm">{transmittal.notes}</p>}</div>)}</div>
+    {canEdit && <form onSubmit={submit} className="mt-4 space-y-3 border-t border-border pt-4"><div className="grid gap-3 md:grid-cols-2"><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Purpose</span><Select value={form.purpose} onValueChange={(value) => setForm({ ...form, purpose: value as SubmittalTransmittalInputPurpose })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent className="bg-popover">{transmittalPurposes.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent></Select></label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Transmittal number (optional)</span><Input value={form.transmittalNumber} onChange={(event) => setForm({ ...form, transmittalNumber: event.target.value })} placeholder="Auto-number" /></label></div><div className="grid gap-3 md:grid-cols-2"><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Review revision</span><Select value={form.revisionId || 'none'} onValueChange={(value) => setForm({ ...form, revisionId: value === 'none' ? '' : value })}><SelectTrigger><SelectValue placeholder="No revision linked" /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="none">No revision linked</SelectItem>{pkg.revisions.map((revision) => <SelectItem key={revision.id} value={String(revision.id)}>R{revision.revision} · {label(packageStatuses, revision.status)}</SelectItem>)}</SelectContent></Select></label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Due date</span><Input type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} /></label></div><div className="grid gap-3 md:grid-cols-2"><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">From</span><Input value={form.fromParty} onChange={(event) => setForm({ ...form, fromParty: event.target.value })} placeholder="Contractor / subcontractor" /></label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">To</span><Input value={form.toParty} onChange={(event) => setForm({ ...form, toParty: event.target.value })} placeholder="Architect / engineer / owner" /></label></div><Textarea rows={2} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Cover notes or review instructions" /><div className="flex justify-end"><Button type="submit" disabled={create.isPending}>{create.isPending ? 'Recording…' : 'Record transmittal'}</Button></div></form>}
+  </section>;
 }
 
 function CoordinationForm({ packageId, revisions, onClose, onSaved }: { packageId: number; revisions: SubmittalPackage['revisions']; onClose: () => void; onSaved: () => void }) {
@@ -560,7 +607,7 @@ function PackageDetail({ id }: { id: number }) {
   const canEdit = activeRole === 'owner' || activeRole === 'admin' || activeRole === 'member';
   const query = useGetSubmittalPackage(id, { query: { queryKey: getGetSubmittalPackageQueryKey(id) } });
   const [showEdit, setShowEdit] = useState(false);
-  const [showItem, setShowItem] = useState(false);
+  const [showItem, setShowItem] = useState<SubmittalItem | null | false>(false);
   const [showRevision, setShowRevision] = useState(false);
   const [showBuilder, setShowBuilder] = useState(false);
   const removeItem = useDeleteSubmittalItem();
@@ -579,19 +626,20 @@ function PackageDetail({ id }: { id: number }) {
     </div>
     <div className="grid gap-5 xl:grid-cols-[1.45fr_.8fr]">
       <section className="rounded-xl border border-border bg-card">
-        <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-base font-bold">Package contents</h2><p className="text-xs text-muted-foreground">Coordinate the technical items before release or installation.</p></div>{canEdit && <Button onClick={() => setShowItem(true)}><Plus size={15} /> Add item</Button>}</div>
-        {pkg.items.length === 0 ? <div className="p-5"><EmptyState icon={FileText} title="No items in this package" text="Add shop drawings, product data, samples, or other required documentation." action={canEdit ? <Button onClick={() => setShowItem(true)}><Plus size={15} /> Add first item</Button> : undefined} /></div> : <div className="divide-y divide-border">{pkg.items.map((item) => <div key={item.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="mono text-[10px] text-accent">{item.itemNumber}</span><Badge tone={tone(item.status)}>{label(itemStatuses, item.status)}</Badge></div><p className="mt-1 text-sm font-bold">{item.name}</p><p className="text-xs text-muted-foreground">{label(itemTypes, item.itemType)}{item.description ? ` · ${item.description}` : ''}</p>{item.documentName && <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">{item.documentUrl ? <a className="inline-flex items-center gap-1 text-accent hover:underline" href={item.documentUrl} target="_blank" rel="noreferrer">{item.documentName} <ExternalLink size={12} /></a> : item.documentName}</p>}{item.documents && item.documents.length > 0 && <div className="mt-3 space-y-1 text-xs">{item.documents.map((document) => <DocumentLink key={document.id} document={document} canEdit={canEdit} onChanged={refresh} />)}</div>}{canEdit && <DocumentUpload itemId={item.id} onUploaded={refresh} />}</div>{canEdit && <Button variant="ghost" className="self-end p-2 sm:self-start" aria-label={`Delete ${item.name}`} onClick={() => { if (window.confirm(`Delete ${item.name}?`)) removeItem.mutate({ itemId: item.id }, { onSuccess: refresh }); }}><Trash2 size={15} /></Button>}</div>)}</div>}
+        <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-base font-bold">Package contents</h2><p className="text-xs text-muted-foreground">Coordinate the technical items before release or installation.</p></div>{canEdit && <Button onClick={() => setShowItem(null)}><Plus size={15} /> Add item</Button>}</div>
+        {pkg.items.length === 0 ? <div className="p-5"><EmptyState icon={FileText} title="No items in this package" text="Add shop drawings, product data, samples, or other required documentation." action={canEdit ? <Button onClick={() => setShowItem(null)}><Plus size={15} /> Add first item</Button> : undefined} /></div> : <div className="divide-y divide-border">{pkg.items.map((item) => <div key={item.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="mono text-[10px] text-accent">{item.itemNumber}</span><Badge tone={tone(item.status)}>{label(itemStatuses, item.status)}</Badge><span className="mono text-[10px] text-muted-foreground">R{item.revision}</span></div><p className="mt-1 text-sm font-bold">{item.name}</p><p className="text-xs text-muted-foreground">{label(itemTypes, item.itemType)}{item.description ? ` · ${item.description}` : ''}</p>{item.reviewComments && <p className="mt-2 rounded-md border-l-2 border-primary/25 pl-2 text-xs text-muted-foreground">{item.reviewerName || 'Review'}: {item.reviewComments}</p>}{item.documentName && <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">{item.documentUrl ? <a className="inline-flex items-center gap-1 text-accent hover:underline" href={item.documentUrl} target="_blank" rel="noreferrer">{item.documentName} <ExternalLink size={12} /></a> : item.documentName}</p>}{item.documents && item.documents.length > 0 && <div className="mt-3 space-y-1 text-xs">{item.documents.map((document) => <DocumentLink key={document.id} document={document} canEdit={canEdit} onChanged={refresh} />)}</div>}{canEdit && <DocumentUpload itemId={item.id} onUploaded={refresh} />}</div>{canEdit && <div className="flex self-end gap-1 sm:self-start"><Button variant="ghost" className="p-2" aria-label={`Edit ${item.name}`} onClick={() => setShowItem(item)}><Pencil size={15} /></Button><Button variant="ghost" className="p-2" aria-label={`Delete ${item.name}`} onClick={() => { if (window.confirm(`Delete ${item.name}?`)) removeItem.mutate({ itemId: item.id }, { onSuccess: refresh }); }}><Trash2 size={15} /></Button></div>}</div>)}</div>}
       </section>
       <div className="space-y-5">
          <SignaturePanel pkg={pkg} canEdit={canEdit} onChanged={refresh} />
         <CoordinationPanel packageId={pkg.id} revisions={pkg.revisions} canEdit={canEdit} onChanged={refresh} />
+        <TransmittalsPanel pkg={pkg} canEdit={canEdit} onChanged={refresh} />
         <section className="rounded-xl border border-border bg-card p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="text-base font-bold">Review history</h2><p className="mt-1 text-xs text-muted-foreground">Every disposition creates an immutable revision record.</p></div>{canEdit && <Button variant="outline" onClick={() => setShowRevision(true)}><Plus size={15} /> Revision</Button>}</div><div className="mt-4 space-y-4">{pkg.revisions.length === 0 ? <p className="text-sm text-muted-foreground">No formal review recorded yet.</p> : pkg.revisions.map((revision) => <div key={revision.id} className="border-l-2 border-primary/25 pl-3"><div className="flex flex-wrap items-center gap-2"><span className="mono text-[10px] text-muted-foreground">R{revision.revision}</span><Badge tone={tone(revision.status)}>{label(packageStatuses, revision.status)}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{revision.reviewerName || 'Team review'} · {shortDate(revision.createdAt)}</p>{revision.reviewComments && <p className="mt-2 text-sm">{revision.reviewComments}</p>}</div>)}</div></section>
          <section className="rounded-xl border border-border bg-card p-5"><h2 className="text-base font-bold">Package context</h2><dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Origin</dt><dd className="text-right font-semibold">{label(originTypes, pkg.originType)}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Specification</dt><dd className="text-right font-semibold">{pkg.specificationSection || 'Not assigned'}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">Responsible party</dt><dd className="text-right font-semibold">{pkg.responsibleParty || 'Not assigned'}</dd></div>{pkg.sourceBidNumber && <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Source bid</dt><dd className="text-right font-semibold">{pkg.sourceBidNumber}</dd></div>}</dl>{pkg.description && <p className="mt-4 border-t border-border pt-4 text-sm leading-6 text-muted-foreground">{pkg.description}</p>}{pkg.assemblies.length > 0 && <div className="mt-5 border-t border-border pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Built versions</p><div className="mt-3 space-y-2">{pkg.assemblies.map((assembly) => <a key={assembly.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/20 px-3 py-2 text-xs hover:bg-secondary/40" href={assembly.downloadUrl} target="_blank" rel="noreferrer"><span><span className="font-semibold">Version {assembly.version}</span><span className="ml-2 text-muted-foreground">{Math.ceil(assembly.size / 1024)} KB · {shortDate(assembly.createdAt)}</span></span><Download size={14} className="text-accent" /></a>)}</div></div>}</section>
         {activeRole === 'owner' || activeRole === 'admin' ? <Button variant="danger" className="w-full justify-center" onClick={() => { if (window.confirm(`Delete ${pkg.name}?`)) removePackage.mutate({ submittalId: pkg.id }, { onSuccess: () => navigate('/submittals') }); }}>Delete package</Button> : null}
       </div>
     </div>
     {showEdit && <PackageForm item={pkg} onClose={() => setShowEdit(false)} onSaved={() => { setShowEdit(false); refresh(); }} />}
-    {showItem && <ItemForm packageId={pkg.id} onClose={() => setShowItem(false)} onSaved={() => { setShowItem(false); refresh(); }} />}
+    {showItem !== false && <ItemForm packageId={pkg.id} item={showItem} onClose={() => setShowItem(false)} onSaved={() => { setShowItem(false); refresh(); }} />}
     {showRevision && <RevisionForm packageId={pkg.id} onClose={() => setShowRevision(false)} onSaved={() => { setShowRevision(false); refresh(); }} />}
      {showBuilder && <PackageBuilder pkg={pkg} onClose={() => setShowBuilder(false)} onSaved={() => { setShowBuilder(false); refresh(); }} />}
   </div>;

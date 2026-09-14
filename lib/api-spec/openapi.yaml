@@ -1614,6 +1614,102 @@ paths:
       responses:
         "204": { description: Bid scope deleted }
         "404": { description: Bid scope not found }
+  /bids/{bidId}/attachments:
+    get:
+      operationId: listBidAttachments
+      tags: [bids]
+      summary: List bid-stage proposal attachments
+      parameters:
+        - $ref: "#/components/parameters/BidId"
+      responses:
+        "200":
+          description: Bid-stage attachments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BidProposalAttachment" }
+    post:
+      operationId: createBidAttachment
+      tags: [bids]
+      summary: Add a bid-stage proposal attachment
+      parameters:
+        - $ref: "#/components/parameters/BidId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BidProposalAttachmentInput" }
+      responses:
+        "201":
+          description: Bid-stage attachment created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BidProposalAttachment" }
+  /proposals/{proposalId}/attachments:
+    get:
+      operationId: listProposalAttachments
+      tags: [proposals]
+      summary: List proposal-stage attachments
+      parameters:
+        - $ref: "#/components/parameters/ProposalId"
+      responses:
+        "200":
+          description: Proposal-stage attachments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BidProposalAttachment" }
+    post:
+      operationId: createProposalAttachment
+      tags: [proposals]
+      summary: Add a proposal-stage attachment
+      parameters:
+        - $ref: "#/components/parameters/ProposalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BidProposalAttachmentInput" }
+      responses:
+        "201":
+          description: Proposal-stage attachment created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BidProposalAttachment" }
+  /bid-proposal-attachments/{attachmentId}:
+    patch:
+      operationId: updateBidProposalAttachment
+      tags: [bids]
+      summary: Update a bid-stage attachment
+      parameters:
+        - in: path
+          name: attachmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BidProposalAttachmentUpdate" }
+      responses:
+        "200":
+          description: Updated bid-stage attachment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BidProposalAttachment" }
+    delete:
+      operationId: deleteBidProposalAttachment
+      tags: [bids]
+      summary: Delete a bid-stage attachment
+      parameters:
+        - in: path
+          name: attachmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "204": { description: Bid-stage attachment deleted }
   /estimates:
     get:
       operationId: listEstimates
@@ -1812,6 +1908,23 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubmittalPackage" }
+  /submittals/from-bid:
+    post:
+      operationId: seedSubmittalRegisterFromBid
+      tags: [submittals]
+      summary: Seed a project submittal register from an awarded bid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalRegisterSeedInput" }
+      responses:
+        "201":
+          description: Project submittal register created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalPackage" }
+        "409": { description: Bid is not awarded }
   /submittals/{submittalId}:
     get:
       operationId: getSubmittalPackage
@@ -1869,6 +1982,38 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SubmittalItem" }
+  /submittals/{submittalId}/transmittals:
+    get:
+      operationId: listSubmittalTransmittals
+      tags: [submittals]
+      summary: List package transmittals
+      parameters:
+        - $ref: "#/components/parameters/SubmittalId"
+      responses:
+        "200":
+          description: Package transmittals
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SubmittalTransmittal" }
+    post:
+      operationId: createSubmittalTransmittal
+      tags: [submittals]
+      summary: Record a submittal package transmittal
+      parameters:
+        - $ref: "#/components/parameters/SubmittalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalTransmittalInput" }
+      responses:
+        "201":
+          description: Transmittal recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalTransmittal" }
   /submittals/{submittalId}/items/reorder:
     patch:
       operationId: reorderSubmittalItems
@@ -4261,6 +4406,61 @@ components:
         takeoffCoverage: { $ref: "#/components/schemas/BidIntegrationCoverage" }
         estimatingProvider: { type: ["string", "null"], maxLength: 160 }
         estimatingCoverage: { $ref: "#/components/schemas/BidIntegrationCoverage" }
+    BidProposalAttachmentPurpose:
+      type: string
+      enum: [qualification, scope_inclusion, assumption, exclusion, alternate, substitution_request, requested_product_data, other]
+    BidProposalAttachmentConversionStatus:
+      type: string
+      enum: [open, accepted, rejected, converted]
+    BidProposalAttachment:
+      type: object
+      required: [id, bidId, proposalId, purpose, title, description, documentName, documentUrl, integrationProviderKey, externalReference, metadata, conversionStatus, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        bidId: { type: ["integer", "null"] }
+        proposalId: { type: ["integer", "null"] }
+        purpose: { $ref: "#/components/schemas/BidProposalAttachmentPurpose" }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        documentName: { type: ["string", "null"] }
+        documentUrl: { type: ["string", "null"], format: uri }
+        integrationProviderKey: { type: ["string", "null"] }
+        externalReference: { type: ["string", "null"] }
+        metadata:
+          type: object
+          additionalProperties: true
+        conversionStatus: { $ref: "#/components/schemas/BidProposalAttachmentConversionStatus" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    BidProposalAttachmentInput:
+      type: object
+      required: [title]
+      properties:
+        purpose: { $ref: "#/components/schemas/BidProposalAttachmentPurpose" }
+        title: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: string, maxLength: 5000 }
+        documentName: { type: string, maxLength: 255 }
+        documentUrl: { type: string, maxLength: 2000, format: uri }
+        integrationProviderKey: { type: string, maxLength: 64, pattern: "^[a-z][a-z0-9_]{1,63}$" }
+        externalReference: { type: string, maxLength: 240 }
+        metadata:
+          type: object
+          additionalProperties: true
+        conversionStatus: { $ref: "#/components/schemas/BidProposalAttachmentConversionStatus" }
+    BidProposalAttachmentUpdate:
+      type: object
+      properties:
+        purpose: { $ref: "#/components/schemas/BidProposalAttachmentPurpose" }
+        title: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: ["string", "null"], maxLength: 5000 }
+        documentName: { type: ["string", "null"], maxLength: 255 }
+        documentUrl: { type: ["string", "null"], maxLength: 2000, format: uri }
+        integrationProviderKey: { type: ["string", "null"], maxLength: 64, pattern: "^[a-z][a-z0-9_]{1,63}$" }
+        externalReference: { type: ["string", "null"], maxLength: 240 }
+        metadata:
+          type: ["object", "null"]
+          additionalProperties: true
+        conversionStatus: { $ref: "#/components/schemas/BidProposalAttachmentConversionStatus" }
     EstimateStage:
       type: string
       enum: [draft, takeoff, estimating, review, approved, rejected]
@@ -4429,7 +4629,7 @@ components:
       enum: [pending, included, needs_revision, accepted, superseded]
     SubmittalItem:
       type: object
-      required: [id, packageId, itemNumber, sortOrder, itemType, name, description, status, documentName, documentUrl, revision, createdAt, updatedAt]
+      required: [id, packageId, itemNumber, sortOrder, itemType, name, description, status, documentName, documentUrl, sourceBidAttachmentId, revision, reviewerName, reviewComments, createdAt, updatedAt]
       properties:
         id: { type: integer }
         packageId: { type: integer }
@@ -4441,10 +4641,13 @@ components:
         status: { $ref: "#/components/schemas/SubmittalItemStatus" }
         documentName: { type: ["string", "null"] }
         documentUrl: { type: ["string", "null"], maxLength: 2000 }
+        sourceBidAttachmentId: { type: ["integer", "null"] }
         documents:
           type: array
           items: { $ref: "#/components/schemas/SubmittalDocument" }
         revision: { type: integer }
+        reviewerName: { type: ["string", "null"] }
+        reviewComments: { type: ["string", "null"] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     SubmittalDocument:
@@ -4568,7 +4771,7 @@ components:
         downloadUrl: { type: string }
     SubmittalPackage:
       type: object
-      required: [id, environmentId, packageNumber, projectId, projectNumber, projectName, customerName, sourceBidId, sourceBidNumber, originType, name, description, specificationSection, responsibleParty, status, dueDate, revision, reviewerName, reviewComments, submittedAt, reviewedAt, itemCount, items, revisions, assemblies, signatureProviderAvailable, signatureRequests, createdAt, updatedAt]
+      required: [id, environmentId, packageNumber, projectId, projectNumber, projectName, customerName, sourceBidId, sourceBidNumber, originType, name, description, specificationSection, responsibleParty, status, dueDate, revision, reviewerName, reviewComments, submittedAt, reviewedAt, itemCount, items, revisions, transmittals, assemblies, signatureProviderAvailable, signatureRequests, createdAt, updatedAt]
       properties:
         id: { type: integer }
         environmentId: { type: integer }
@@ -4598,6 +4801,9 @@ components:
         revisions:
           type: array
           items: { $ref: "#/components/schemas/SubmittalRevision" }
+        transmittals:
+          type: array
+          items: { $ref: "#/components/schemas/SubmittalTransmittal" }
         assemblies:
           type: array
           items: { $ref: "#/components/schemas/SubmittalAssembly" }
@@ -4620,6 +4826,22 @@ components:
         responsibleParty: { type: string, maxLength: 180 }
         status: { $ref: "#/components/schemas/SubmittalPackageStatus" }
         dueDate: { type: string, format: date }
+    SubmittalRegisterSeedInput:
+      type: object
+      required: [bidId, projectId, name]
+      properties:
+        bidId: { type: integer, minimum: 1 }
+        projectId: { type: integer, minimum: 1 }
+        attachmentIds:
+          type: array
+          maxItems: 200
+          items: { type: integer, minimum: 1 }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: string, maxLength: 5000 }
+        specificationSection: { type: string, maxLength: 120 }
+        responsibleParty: { type: string, maxLength: 180 }
+        dueDate: { type: string, format: date }
+        originType: { $ref: "#/components/schemas/SubmittalOriginType" }
     SubmittalPackageUpdate:
       type: object
       properties:
@@ -4643,6 +4865,8 @@ components:
         status: { $ref: "#/components/schemas/SubmittalItemStatus" }
         documentName: { type: string, maxLength: 240 }
         documentUrl: { type: string, maxLength: 2000 }
+        reviewerName: { type: string, maxLength: 180 }
+        reviewComments: { type: string, maxLength: 5000 }
     SubmittalItemUpdate:
       type: object
       properties:
@@ -4652,6 +4876,33 @@ components:
         status: { $ref: "#/components/schemas/SubmittalItemStatus" }
         documentName: { type: ["string", "null"], maxLength: 240 }
         documentUrl: { type: ["string", "null"], maxLength: 2000 }
+        reviewerName: { type: ["string", "null"], maxLength: 180 }
+        reviewComments: { type: ["string", "null"], maxLength: 5000 }
+    SubmittalTransmittal:
+      type: object
+      required: [id, packageId, revisionId, transmittalNumber, purpose, sentAt, dueDate, fromParty, toParty, notes, createdAt]
+      properties:
+        id: { type: integer }
+        packageId: { type: integer }
+        revisionId: { type: ["integer", "null"] }
+        transmittalNumber: { type: string }
+        purpose: { type: string, enum: [review, resubmission, record, closeout] }
+        sentAt: { type: string, format: date-time }
+        dueDate: { type: ["string", "null"], format: date }
+        fromParty: { type: ["string", "null"] }
+        toParty: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+    SubmittalTransmittalInput:
+      type: object
+      properties:
+        revisionId: { type: integer, minimum: 1 }
+        purpose: { type: string, enum: [review, resubmission, record, closeout] }
+        transmittalNumber: { type: string, maxLength: 120 }
+        dueDate: { type: string, format: date }
+        fromParty: { type: string, maxLength: 180 }
+        toParty: { type: string, maxLength: 180 }
+        notes: { type: string, maxLength: 5000 }
     SubmittalItemOrderInput:
       type: object
       required: [itemIds]
@@ -6150,7 +6401,7 @@ components:
           items: { $ref: "#/components/schemas/BrandingVersion" }
     IntegrationCatalogItem:
       type: object
-      required: [providerKey, name, category, categoryLabel, description, capabilities, connectorStatus, entitlement, supportsConnection, connection, activity]
+      required: [providerKey, name, category, categoryLabel, description, capabilities, connectorStatus, entitlement, supportsConnection, state, connection, activity]
       properties:
         providerKey: { type: string }
         name: { type: string }
@@ -6163,6 +6414,7 @@ components:
         connectorStatus: { type: string, enum: [cataloged] }
         entitlement: { type: string, enum: [enabled] }
         supportsConnection: { type: boolean }
+        state: { $ref: "#/components/schemas/IntegrationCatalogItemState" }
         connection:
           oneOf:
             - $ref: "#/components/schemas/IntegrationConnection"
@@ -6170,14 +6422,26 @@ components:
         activity: { $ref: "#/components/schemas/IntegrationActivitySummary" }
     IntegrationConnection:
       type: object
-      required: [id, status, connectionType, lastSyncAt, lastSyncStatus, lastError]
+      required: [id, status, connectionType, healthStatus, lastSyncAt, lastSuccessfulSyncAt, lastSyncStatus, lastFailureAt, lastError, retryCount, deadLetterCount, nextRetryAt]
       properties:
         id: { type: integer }
         status: { type: string, enum: [not_connected, connected, warning, failed, disabled] }
         connectionType: { type: string }
+        healthStatus: { $ref: "#/components/schemas/IntegrationConnectionHealthStatus" }
         lastSyncAt: { type: ["string", "null"], format: date-time }
+        lastSuccessfulSyncAt: { type: ["string", "null"], format: date-time }
         lastSyncStatus: { type: ["string", "null"] }
+        lastFailureAt: { type: ["string", "null"], format: date-time }
         lastError: { type: ["string", "null"] }
+        retryCount: { type: integer, minimum: 0 }
+        deadLetterCount: { type: integer, minimum: 0 }
+        nextRetryAt: { type: ["string", "null"], format: date-time }
+    IntegrationCatalogItemState:
+      type: string
+      enum: [cataloged, connected, degraded]
+    IntegrationConnectionHealthStatus:
+      type: string
+      enum: [unknown, healthy, degraded, failed, disabled]
     IntegrationActivitySummary:
       type: object
       required: [lastActivityAt, activityCount]
@@ -6193,6 +6457,25 @@ components:
         action: { type: string }
         details: { type: object, additionalProperties: true }
         createdAt: { type: string, format: date-time }
+    IntegrationJob:
+      type: object
+      required: [id, providerKey, jobType, status, attempts, maxAttempts, nextRetryAt, lastError, deadLetteredAt, completedAt, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        providerKey: { type: string }
+        jobType: { type: string }
+        status: { $ref: "#/components/schemas/IntegrationJobStatus" }
+        attempts: { type: integer, minimum: 0 }
+        maxAttempts: { type: integer, minimum: 1 }
+        nextRetryAt: { type: ["string", "null"], format: date-time }
+        lastError: { type: ["string", "null"] }
+        deadLetteredAt: { type: ["string", "null"], format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    IntegrationJobStatus:
+      type: string
+      enum: [queued, processing, succeeded, retry, dead_letter, failed]
     WorkflowTemplate:
       type: object
       required: [id, tenantId, environmentId, name, activeProjectStatusKeys, status, isDefault, version, createdAt, updatedAt]

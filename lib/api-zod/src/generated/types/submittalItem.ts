@@ -27,8 +27,14 @@ export interface SubmittalItem {
      * @nullable
      */
   documentUrl: string | null;
+  /** @nullable */
+  sourceBidAttachmentId: number | null;
   documents?: SubmittalDocument[];
   revision: number;
+  /** @nullable */
+  reviewerName: string | null;
+  /** @nullable */
+  reviewComments: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

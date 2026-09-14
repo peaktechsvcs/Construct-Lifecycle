@@ -31,4 +31,14 @@ export interface SubmittalItemUpdate {
      * @nullable
      */
   documentUrl?: string | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  reviewerName?: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  reviewComments?: string | null;
 }

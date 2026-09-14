@@ -875,6 +875,125 @@ export interface BidScopeUpdate {
   estimatingCoverage?: BidIntegrationCoverage;
 }
 
+export type BidProposalAttachmentPurpose = typeof BidProposalAttachmentPurpose[keyof typeof BidProposalAttachmentPurpose];
+
+
+export const BidProposalAttachmentPurpose = {
+  qualification: 'qualification',
+  scope_inclusion: 'scope_inclusion',
+  assumption: 'assumption',
+  exclusion: 'exclusion',
+  alternate: 'alternate',
+  substitution_request: 'substitution_request',
+  requested_product_data: 'requested_product_data',
+  other: 'other',
+} as const;
+
+export type BidProposalAttachmentConversionStatus = typeof BidProposalAttachmentConversionStatus[keyof typeof BidProposalAttachmentConversionStatus];
+
+
+export const BidProposalAttachmentConversionStatus = {
+  open: 'open',
+  accepted: 'accepted',
+  rejected: 'rejected',
+  converted: 'converted',
+} as const;
+
+export type BidProposalAttachmentMetadata = { [key: string]: unknown };
+
+export interface BidProposalAttachment {
+  id: number;
+  /** @nullable */
+  bidId: number | null;
+  /** @nullable */
+  proposalId: number | null;
+  purpose: BidProposalAttachmentPurpose;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  documentName: string | null;
+  /** @nullable */
+  documentUrl: string | null;
+  /** @nullable */
+  integrationProviderKey: string | null;
+  /** @nullable */
+  externalReference: string | null;
+  metadata: BidProposalAttachmentMetadata;
+  conversionStatus: BidProposalAttachmentConversionStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type BidProposalAttachmentInputMetadata = { [key: string]: unknown };
+
+export interface BidProposalAttachmentInput {
+  purpose?: BidProposalAttachmentPurpose;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title: string;
+  /** @maxLength 5000 */
+  description?: string;
+  /** @maxLength 255 */
+  documentName?: string;
+  /** @maxLength 2000 */
+  documentUrl?: string;
+  /**
+     * @maxLength 64
+     * @pattern ^[a-z][a-z0-9_]{1,63}$
+     */
+  integrationProviderKey?: string;
+  /** @maxLength 240 */
+  externalReference?: string;
+  metadata?: BidProposalAttachmentInputMetadata;
+  conversionStatus?: BidProposalAttachmentConversionStatus;
+}
+
+/**
+ * @nullable
+ */
+export type BidProposalAttachmentUpdateMetadata = { [key: string]: unknown } | null;
+
+export interface BidProposalAttachmentUpdate {
+  purpose?: BidProposalAttachmentPurpose;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title?: string;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @maxLength 255
+     * @nullable
+     */
+  documentName?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  documentUrl?: string | null;
+  /**
+     * @maxLength 64
+     * @nullable
+     * @pattern ^[a-z][a-z0-9_]{1,63}$
+     */
+  integrationProviderKey?: string | null;
+  /**
+     * @maxLength 240
+     * @nullable
+     */
+  externalReference?: string | null;
+  /** @nullable */
+  metadata?: BidProposalAttachmentUpdateMetadata;
+  conversionStatus?: BidProposalAttachmentConversionStatus;
+}
+
 export type EstimateStage = typeof EstimateStage[keyof typeof EstimateStage];
 
 
@@ -1330,8 +1449,14 @@ export interface SubmittalItem {
      * @nullable
      */
   documentUrl: string | null;
+  /** @nullable */
+  sourceBidAttachmentId: number | null;
   documents?: SubmittalDocument[];
   revision: number;
+  /** @nullable */
+  reviewerName: string | null;
+  /** @nullable */
+  reviewComments: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1498,6 +1623,35 @@ export interface SubmittalAssembly {
   downloadUrl: string;
 }
 
+export type SubmittalTransmittalPurpose = typeof SubmittalTransmittalPurpose[keyof typeof SubmittalTransmittalPurpose];
+
+
+export const SubmittalTransmittalPurpose = {
+  review: 'review',
+  resubmission: 'resubmission',
+  record: 'record',
+  closeout: 'closeout',
+} as const;
+
+export interface SubmittalTransmittal {
+  id: number;
+  packageId: number;
+  /** @nullable */
+  revisionId: number | null;
+  transmittalNumber: string;
+  purpose: SubmittalTransmittalPurpose;
+  sentAt: string;
+  /** @nullable */
+  dueDate: string | null;
+  /** @nullable */
+  fromParty: string | null;
+  /** @nullable */
+  toParty: string | null;
+  /** @nullable */
+  notes: string | null;
+  createdAt: string;
+}
+
 export type SubmittalSignatureRequestStatus = typeof SubmittalSignatureRequestStatus[keyof typeof SubmittalSignatureRequestStatus];
 
 
@@ -1603,6 +1757,7 @@ export interface SubmittalPackage {
   itemCount: number;
   items: SubmittalItem[];
   revisions: SubmittalRevision[];
+  transmittals: SubmittalTransmittal[];
   assemblies: SubmittalAssembly[];
   signatureProviderAvailable: boolean;
   signatureRequests: SubmittalSignatureRequest[];
@@ -1629,6 +1784,31 @@ export interface SubmittalPackageInput {
   responsibleParty?: string;
   status?: SubmittalPackageStatus;
   dueDate?: string;
+}
+
+export interface SubmittalRegisterSeedInput {
+  /** @minimum 1 */
+  bidId: number;
+  /** @minimum 1 */
+  projectId: number;
+  /**
+     * @maxItems 200
+     * @items.minimum 1
+     */
+  attachmentIds?: number[];
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  /** @maxLength 5000 */
+  description?: string;
+  /** @maxLength 120 */
+  specificationSection?: string;
+  /** @maxLength 180 */
+  responsibleParty?: string;
+  dueDate?: string;
+  originType?: SubmittalOriginType;
 }
 
 export interface SubmittalPackageUpdate {
@@ -1687,6 +1867,10 @@ export interface SubmittalItemInput {
   documentName?: string;
   /** @maxLength 2000 */
   documentUrl?: string;
+  /** @maxLength 180 */
+  reviewerName?: string;
+  /** @maxLength 5000 */
+  reviewComments?: string;
 }
 
 export interface SubmittalItemUpdate {
@@ -1712,6 +1896,41 @@ export interface SubmittalItemUpdate {
      * @nullable
      */
   documentUrl?: string | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  reviewerName?: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  reviewComments?: string | null;
+}
+
+export type SubmittalTransmittalInputPurpose = typeof SubmittalTransmittalInputPurpose[keyof typeof SubmittalTransmittalInputPurpose];
+
+
+export const SubmittalTransmittalInputPurpose = {
+  review: 'review',
+  resubmission: 'resubmission',
+  record: 'record',
+  closeout: 'closeout',
+} as const;
+
+export interface SubmittalTransmittalInput {
+  /** @minimum 1 */
+  revisionId?: number;
+  purpose?: SubmittalTransmittalInputPurpose;
+  /** @maxLength 120 */
+  transmittalNumber?: string;
+  dueDate?: string;
+  /** @maxLength 180 */
+  fromParty?: string;
+  /** @maxLength 180 */
+  toParty?: string;
+  /** @maxLength 5000 */
+  notes?: string;
 }
 
 export interface SubmittalItemOrderInput {
@@ -5994,6 +6213,94 @@ export interface ProvisionEnvironmentInput {
      */
   providerKey?: string;
 }
+
+export interface IdempotencyInput {
+  /**
+     * @minLength 8
+     * @maxLength 200
+     */
+  idempotencyKey: string;
+}
+
+export type RefreshEnvironmentInputSanitizationPolicy = typeof RefreshEnvironmentInputSanitizationPolicy[keyof typeof RefreshEnvironmentInputSanitizationPolicy];
+
+
+export const RefreshEnvironmentInputSanitizationPolicy = {
+  'redact-secrets': 'redact-secrets',
+  'replace-identifiers': 'replace-identifiers',
+  full: 'full',
+} as const;
+
+export interface RefreshEnvironmentInput {
+  /** @minimum 1 */
+  sourceEnvironmentId: number;
+  sanitizationPolicy: RefreshEnvironmentInputSanitizationPolicy;
+  /**
+     * @minLength 8
+     * @maxLength 200
+     */
+  idempotencyKey: string;
+}
+
+export interface RestoreSnapshotInput {
+  /**
+     * @minLength 8
+     * @maxLength 200
+     */
+  idempotencyKey: string;
+  rollback?: boolean;
+}
+
+export type EnvironmentResourceInventoryResourcesItemResourceType = typeof EnvironmentResourceInventoryResourcesItemResourceType[keyof typeof EnvironmentResourceInventoryResourcesItemResourceType];
+
+
+export const EnvironmentResourceInventoryResourcesItemResourceType = {
+  runtime: 'runtime',
+  database: 'database',
+  storage: 'storage',
+  queue: 'queue',
+  secrets: 'secrets',
+  jobs: 'jobs',
+  logs: 'logs',
+} as const;
+
+export type EnvironmentResourceInventoryResourcesItemStatus = typeof EnvironmentResourceInventoryResourcesItemStatus[keyof typeof EnvironmentResourceInventoryResourcesItemStatus];
+
+
+export const EnvironmentResourceInventoryResourcesItemStatus = {
+  requested: 'requested',
+  provisioning: 'provisioning',
+  ready: 'ready',
+  degraded: 'degraded',
+  failed: 'failed',
+  deprovisioning: 'deprovisioning',
+  deprovisioned: 'deprovisioned',
+} as const;
+
+export type EnvironmentResourceInventoryResourcesItem = {
+  id: number;
+  tenantId: number;
+  environmentId: number;
+  resourceType: EnvironmentResourceInventoryResourcesItemResourceType;
+  status: EnvironmentResourceInventoryResourcesItemStatus;
+  providerKey: string;
+  /**
+     * Opaque provider key identifier; never key material.
+     * @nullable
+     */
+  secretReference?: string | null;
+  /** @nullable */
+  externalId?: string | null;
+  /** @nullable */
+  endpoint?: string | null;
+};
+
+export interface EnvironmentResourceInventory {
+  environment: Environment;
+  executionContextReady: boolean;
+  resources: EnvironmentResourceInventoryResourcesItem[];
+}
+
 export type ListProjectsParams = {
 search?: string;
 stage?: ProjectStage;
@@ -6181,8 +6488,6 @@ providerKey: string;
 limit?: number;
 };
 
-export type ListProvisioningEvents200Item = { [key: string]: unknown };
-
 export type ListIntegrationJobsParams = {
 /**
  * @pattern ^[a-z][a-z0-9_]{1,63}$
@@ -6195,86 +6500,4 @@ providerKey: string;
 limit?: number;
 };
 
-export type EnvironmentResourceInventoryResourcesItemStatus = typeof EnvironmentResourceInventoryResourcesItemStatus[keyof typeof EnvironmentResourceInventoryResourcesItemStatus];
-
-export interface RestoreSnapshotInput {
-  /**
-     * @minLength 8
-     * @maxLength 200
-     */
-  idempotencyKey: string;
-  rollback?: boolean;
-}
-
-export type RefreshEnvironmentInputSanitizationPolicy = typeof RefreshEnvironmentInputSanitizationPolicy[keyof typeof RefreshEnvironmentInputSanitizationPolicy];
-
-export type EnvironmentResourceInventoryResourcesItem = {
-  id: number;
-  tenantId: number;
-  environmentId: number;
-  resourceType: EnvironmentResourceInventoryResourcesItemResourceType;
-  status: EnvironmentResourceInventoryResourcesItemStatus;
-  providerKey: string;
-  /**
-     * Opaque provider key identifier; never key material.
-     * @nullable
-     */
-  secretReference?: string | null;
-  /** @nullable */
-  externalId?: string | null;
-  /** @nullable */
-  endpoint?: string | null;
-};
-
-export interface IdempotencyInput {
-  /**
-     * @minLength 8
-     * @maxLength 200
-     */
-  idempotencyKey: string;
-}
-
-export const EnvironmentResourceInventoryResourcesItemResourceType = {
-  runtime: 'runtime',
-  database: 'database',
-  storage: 'storage',
-  queue: 'queue',
-  secrets: 'secrets',
-  jobs: 'jobs',
-  logs: 'logs',
-} as const;
-
-export const EnvironmentResourceInventoryResourcesItemStatus = {
-  requested: 'requested',
-  provisioning: 'provisioning',
-  ready: 'ready',
-  degraded: 'degraded',
-  failed: 'failed',
-  deprovisioning: 'deprovisioning',
-  deprovisioned: 'deprovisioned',
-} as const;
-
-export type EnvironmentResourceInventoryResourcesItemResourceType = typeof EnvironmentResourceInventoryResourcesItemResourceType[keyof typeof EnvironmentResourceInventoryResourcesItemResourceType];
-
-export const RefreshEnvironmentInputSanitizationPolicy = {
-  'redact-secrets': 'redact-secrets',
-  'replace-identifiers': 'replace-identifiers',
-  full: 'full',
-} as const;
-
-export interface EnvironmentResourceInventory {
-  environment: Environment;
-  executionContextReady: boolean;
-  resources: EnvironmentResourceInventoryResourcesItem[];
-}
-
-export interface RefreshEnvironmentInput {
-  /** @minimum 1 */
-  sourceEnvironmentId: number;
-  sanitizationPolicy: RefreshEnvironmentInputSanitizationPolicy;
-  /**
-     * @minLength 8
-     * @maxLength 200
-     */
-  idempotencyKey: string;
-}
+export type ListProvisioningEvents200Item = { [key: string]: unknown };
