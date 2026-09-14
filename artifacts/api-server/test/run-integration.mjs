@@ -17,6 +17,7 @@ try {
       path.join(testDir, "tenant-isolation.integration.test.ts"),
       path.join(testDir, "billing.integration.test.ts"),
       path.join(testDir, "feature-feedback.integration.test.ts"),
+      path.join(testDir, "customer-onboarding.integration.test.ts"),
     ],
     platform: "node",
     bundle: true,

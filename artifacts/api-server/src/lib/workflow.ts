@@ -73,40 +73,58 @@ export type WorkflowConfigInput = {
   }>;
 };
 
-export async function readWorkflow(templateId: number): Promise<WorkflowConfig | null> {
-  const [template] = await db.select().from(workflowTemplatesTable).where(eq(workflowTemplatesTable.id, templateId)).limit(1);
+export type WorkflowExecutor = Pick<typeof db, "select" | "insert">;
+
+export async function readWorkflow(
+  templateId: number,
+  executor: WorkflowExecutor = db,
+): Promise<WorkflowConfig | null> {
+  const [template] = await executor.select().from(workflowTemplatesTable).where(eq(workflowTemplatesTable.id, templateId)).limit(1);
   if (!template) return null;
   const [states, statuses, transitions] = await Promise.all([
-    db.select().from(workflowStatesTable).where(eq(workflowStatesTable.workflowTemplateId, template.id)).orderBy(asc(workflowStatesTable.displayOrder)),
-    db.select().from(workflowStatusesTable).where(eq(workflowStatusesTable.workflowTemplateId, template.id)).orderBy(asc(workflowStatusesTable.displayOrder)),
-    db.select().from(workflowTransitionsTable).where(eq(workflowTransitionsTable.workflowTemplateId, template.id)).orderBy(asc(workflowTransitionsTable.fromStateKey)),
+    executor.select().from(workflowStatesTable).where(eq(workflowStatesTable.workflowTemplateId, template.id)).orderBy(asc(workflowStatesTable.displayOrder)),
+    executor.select().from(workflowStatusesTable).where(eq(workflowStatusesTable.workflowTemplateId, template.id)).orderBy(asc(workflowStatusesTable.displayOrder)),
+    executor.select().from(workflowTransitionsTable).where(eq(workflowTransitionsTable.workflowTemplateId, template.id)).orderBy(asc(workflowTransitionsTable.fromStateKey)),
   ]);
   return { template, states, statuses, transitions };
 }
 
-export async function getPublishedWorkflow(tenantId: number, environmentId: number) {
-  const [template] = await db.select().from(workflowTemplatesTable).where(and(
+export async function getPublishedWorkflow(
+  tenantId: number,
+  environmentId: number,
+  executor: WorkflowExecutor = db,
+) {
+  const [template] = await executor.select().from(workflowTemplatesTable).where(and(
     eq(workflowTemplatesTable.tenantId, tenantId),
     eq(workflowTemplatesTable.environmentId, environmentId),
     eq(workflowTemplatesTable.status, "published"),
   )).orderBy(desc(workflowTemplatesTable.version), desc(workflowTemplatesTable.id)).limit(1);
-  return template ? readWorkflow(template.id) : null;
+  return template ? readWorkflow(template.id, executor) : null;
 }
 
-export async function getDraftWorkflow(tenantId: number, environmentId: number) {
-  const [template] = await db.select().from(workflowTemplatesTable).where(and(
+export async function getDraftWorkflow(
+  tenantId: number,
+  environmentId: number,
+  executor: WorkflowExecutor = db,
+) {
+  const [template] = await executor.select().from(workflowTemplatesTable).where(and(
     eq(workflowTemplatesTable.tenantId, tenantId),
     eq(workflowTemplatesTable.environmentId, environmentId),
     eq(workflowTemplatesTable.status, "draft"),
   )).orderBy(desc(workflowTemplatesTable.version), desc(workflowTemplatesTable.id)).limit(1);
-  return template ? readWorkflow(template.id) : null;
+  return template ? readWorkflow(template.id, executor) : null;
 }
 
-export async function ensurePublishedWorkflow(tenantId: number, environmentId: number, userId?: number) {
-  const existing = await getPublishedWorkflow(tenantId, environmentId);
+export async function ensurePublishedWorkflow(
+  tenantId: number,
+  environmentId: number,
+  userId?: number,
+  executor: WorkflowExecutor = db,
+) {
+  const existing = await getPublishedWorkflow(tenantId, environmentId, executor);
   if (existing) return existing;
 
-  const created = await db.transaction(async (tx) => {
+  const create = async (tx: WorkflowExecutor) => {
     const [template] = await tx.insert(workflowTemplatesTable).values({
       tenantId,
       environmentId,
@@ -144,8 +162,9 @@ export async function ensurePublishedWorkflow(tenantId: number, environmentId: n
       allowedRoles: ["owner", "admin", "member"],
     })));
     return template;
-  });
-  return readWorkflow(created.id);
+  };
+  const created = executor === db ? await db.transaction(create) : await create(executor);
+  return readWorkflow(created.id, executor === db ? db : executor);
 }
 
 export function validateWorkflowConfig(input: WorkflowConfigInput) {

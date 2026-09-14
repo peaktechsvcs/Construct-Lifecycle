@@ -32,7 +32,7 @@ import {
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requirePlatformAdmin } from "../middlewares/platformAdmin";
 import { createTenantInvitation, serializeInvitation } from "./tenant-admin";
-import { ensurePublishedWorkflow } from "../lib/workflow";
+import { createCustomerWorkspace } from "../lib/customer-onboarding";
 import { DEFAULT_TENANT_BUSINESS_TYPES, getTenantBusinessTypes } from "../lib/tenant-business-profile";
 import { isIsolatedEnvironmentReady, isRecentHealthyCheck } from "../lib/provisioning";
 
@@ -589,35 +589,20 @@ router.post("/platform/customers", async (req: TenantRequest, res) => {
     return;
   }
 
-  const [tenant] = await db
-    .insert(tenantsTable)
-    .values({ name: parsed.data.name.trim(), slug, status: "active" })
-    .returning();
   const businessTypes = (parsed.data.businessTypes ?? DEFAULT_TENANT_BUSINESS_TYPES) as TenantBusinessType[];
-  await db.insert(tenantBusinessTypesTable).values(
-    businessTypes.map((businessType) => ({ tenantId: tenant.id, businessType })),
-  );
-  await db.insert(environmentsTable).values([
-    {
-      tenantId: tenant.id,
-      name: "Development / Test / Demo",
-      slug: "dtd",
-      kind: "dtd",
-      status: "active",
-    },
-    {
-      tenantId: tenant.id,
-      name: "Production",
-      slug: "production",
-      kind: "production",
-      status: "active",
-    },
-  ]);
-  const environments = await db
-    .select({ id: environmentsTable.id })
-    .from(environmentsTable)
-    .where(eq(environmentsTable.tenantId, tenant.id));
-  await Promise.all(environments.map((environment) => ensurePublishedWorkflow(tenant.id, environment.id, req.localUserId)));
+  let tenant: typeof tenantsTable.$inferSelect;
+  try {
+    ({ tenant } = await createCustomerWorkspace(
+      { name: parsed.data.name.trim(), slug, businessTypes },
+      req.localUserId,
+    ));
+  } catch (error) {
+    req.log.error({ err: error, slug }, "Customer workspace onboarding failed");
+    res.status(500).json({
+      error: "Customer workspace setup failed. No workspace was created. Please try again.",
+    });
+    return;
+  }
 
   let invitation: ReturnType<typeof serializeInvitation> | null = null;
   let invitationToken: string | null = null;

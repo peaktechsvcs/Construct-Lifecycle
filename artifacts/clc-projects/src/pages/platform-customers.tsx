@@ -34,6 +34,14 @@ function platformPermissionMessage(error: unknown): string {
   return typeof message === 'string' && message.trim() ? message : 'Platform administrator permission required.';
 }
 
+function platformCustomerCreationMessage(error: unknown): string {
+  const data = error && typeof error === 'object' ? (error as { data?: unknown }).data : null;
+  const message = data && typeof data === 'object' ? (data as { error?: unknown }).error : null;
+  return typeof message === 'string' && message.trim()
+    ? message
+    : 'Customer workspace setup failed. No workspace was created. Please try again.';
+}
+
 export function PlatformCustomers() {
   const qc = useQueryClient();
   const customers = useListPlatformCustomers({ query: { queryKey: getListPlatformCustomersQueryKey() } });
@@ -135,7 +143,7 @@ export function PlatformCustomers() {
               {businessTypes.length === 0 && <p role="alert" className="text-xs text-destructive">Select at least one business type.</p>}
             </fieldset>
             <Button type="submit" disabled={create.isPending || businessTypes.length === 0}><Plus size={15} /> {create.isPending ? 'Creating…' : 'Create customer'}</Button>
-            {create.isError && <p role="alert" className="text-xs text-destructive">Customer could not be created. Try again.</p>}
+            {create.isError && <p role="alert" className="text-xs text-destructive">{platformCustomerCreationMessage(create.error)}</p>}
           </form>
           {link && <div className="mt-5 rounded-lg border border-primary/20 bg-primary/5 p-4"><p className="text-xs font-semibold">One-time owner invitation link</p><div className="mt-2 flex gap-2"><input readOnly value={link} aria-label="Owner invitation link" className={`${inputClass} text-xs`} /><Button variant="outline" onClick={() => { navigator.clipboard.writeText(link); setCopied(true); }}><Copy size={14} /> {copied ? 'Copied' : 'Copy'}</Button></div></div>}
         </section>
