@@ -5527,6 +5527,84 @@ export const ApplyItbDocumentFindingsResponse = zod.object({
 
 
 /**
+ * @summary List evidence mappings applied from a parsed ITB document
+ */
+
+
+
+
+export const ListItbDocumentEvidenceMappingsParams = zod.object({
+  "intakeId": zod.coerce.number().int().min(1),
+  "documentId": zod.coerce.number().int().min(1)
+})
+
+export const ListItbDocumentEvidenceMappingsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "intakeId": zod.number().int(),
+  "documentId": zod.number().int(),
+  "targetType": zod.enum(['opportunity', 'bid', 'project']),
+  "targetId": zod.number().int(),
+  "findingKey": zod.string(),
+  "targetField": zod.string(),
+  "appliedValue": zod.string(),
+  "evidence": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListItbDocumentEvidenceMappingsResponse = zod.array(ListItbDocumentEvidenceMappingsResponseItem)
+
+
+/**
+ * @summary Apply accepted document evidence to an existing target record
+ */
+
+
+
+
+export const MapItbDocumentEvidenceParams = zod.object({
+  "intakeId": zod.coerce.number().int().min(1),
+  "documentId": zod.coerce.number().int().min(1)
+})
+
+
+export const mapItbDocumentEvidenceBodyMappingsItemFindingKeyMax = 120;
+
+export const mapItbDocumentEvidenceBodyMappingsItemTargetFieldMax = 80;
+
+export const mapItbDocumentEvidenceBodyMappingsMax = 20;
+
+
+
+export const MapItbDocumentEvidenceBody = zod.object({
+  "targetType": zod.enum(['opportunity', 'bid', 'project']),
+  "targetId": zod.number().int().min(1),
+  "mappings": zod.array(zod.object({
+  "findingKey": zod.string().min(1).max(mapItbDocumentEvidenceBodyMappingsItemFindingKeyMax),
+  "targetField": zod.string().min(1).max(mapItbDocumentEvidenceBodyMappingsItemTargetFieldMax)
+})).min(1).max(mapItbDocumentEvidenceBodyMappingsMax)
+})
+
+export const MapItbDocumentEvidenceResponseItem = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "intakeId": zod.number().int(),
+  "documentId": zod.number().int(),
+  "targetType": zod.enum(['opportunity', 'bid', 'project']),
+  "targetId": zod.number().int(),
+  "findingKey": zod.string(),
+  "targetField": zod.string(),
+  "appliedValue": zod.string(),
+  "evidence": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const MapItbDocumentEvidenceResponse = zod.array(MapItbDocumentEvidenceResponseItem)
+
+
+/**
  * @summary List opportunities for the active customer environment
  */
 export const listOpportunitiesQuerySearchMax = 120;

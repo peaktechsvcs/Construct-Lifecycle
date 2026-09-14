@@ -89,6 +89,8 @@ import type {
   ItbAttachmentUpload,
   ItbAttachmentUploadInput,
   ItbDocument,
+  ItbDocumentEvidenceMapping,
+  ItbDocumentEvidenceMappingInput,
   ItbDocumentFindingUpdate,
   ItbDocumentProcessInput,
   ItbIntake,
@@ -6381,6 +6383,162 @@ export const useApplyItbDocumentFindings = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getApplyItbDocumentFindingsMutationOptions(options));
+    }
+
+export const getListItbDocumentEvidenceMappingsUrl = (intakeId: number,
+    documentId: number,) => {
+
+
+
+
+  return `/api/itb-intakes/${intakeId}/documents/${documentId}/evidence-mappings`
+}
+
+/**
+ * @summary List evidence mappings applied from a parsed ITB document
+ */
+export const listItbDocumentEvidenceMappings = async (intakeId: number,
+    documentId: number, options?: Parameters<typeof customFetch>[1]): Promise<ItbDocumentEvidenceMapping[]> => {
+
+  return customFetch<ItbDocumentEvidenceMapping[]>(getListItbDocumentEvidenceMappingsUrl(intakeId,documentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListItbDocumentEvidenceMappingsQueryKey = (intakeId: number,
+    documentId: number,) => {
+    return [
+    `/api/itb-intakes/${intakeId}/documents/${documentId}/evidence-mappings`
+    ] as const;
+    }
+
+
+export const getListItbDocumentEvidenceMappingsQueryOptions = <TData = Awaited<ReturnType<typeof listItbDocumentEvidenceMappings>>, TError = ErrorType<void>>(intakeId: number,
+    documentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listItbDocumentEvidenceMappings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListItbDocumentEvidenceMappingsQueryKey(intakeId,documentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listItbDocumentEvidenceMappings>>> = ({ signal }) => listItbDocumentEvidenceMappings(intakeId,documentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: intakeId !== null && intakeId !== undefined && documentId !== null && documentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listItbDocumentEvidenceMappings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListItbDocumentEvidenceMappingsQueryResult = NonNullable<Awaited<ReturnType<typeof listItbDocumentEvidenceMappings>>>
+export type ListItbDocumentEvidenceMappingsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List evidence mappings applied from a parsed ITB document
+ */
+
+export function useListItbDocumentEvidenceMappings<TData = Awaited<ReturnType<typeof listItbDocumentEvidenceMappings>>, TError = ErrorType<void>>(
+ intakeId: number,
+    documentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listItbDocumentEvidenceMappings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListItbDocumentEvidenceMappingsQueryOptions(intakeId,documentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMapItbDocumentEvidenceUrl = (intakeId: number,
+    documentId: number,) => {
+
+
+
+
+  return `/api/itb-intakes/${intakeId}/documents/${documentId}/evidence-mappings`
+}
+
+/**
+ * @summary Apply accepted document evidence to an existing target record
+ */
+export const mapItbDocumentEvidence = async (intakeId: number,
+    documentId: number,
+    itbDocumentEvidenceMappingInput: ItbDocumentEvidenceMappingInput, options?: Parameters<typeof customFetch>[1]): Promise<ItbDocumentEvidenceMapping[]> => {
+
+  return customFetch<ItbDocumentEvidenceMapping[]>(getMapItbDocumentEvidenceUrl(intakeId,documentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(itbDocumentEvidenceMappingInput)
+  }
+);}
+
+
+
+
+
+export const getMapItbDocumentEvidenceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mapItbDocumentEvidence>>, TError,{intakeId: number;documentId: number;data: BodyType<ItbDocumentEvidenceMappingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mapItbDocumentEvidence>>, TError,{intakeId: number;documentId: number;data: BodyType<ItbDocumentEvidenceMappingInput>}, TContext> => {
+
+const mutationKey = ['mapItbDocumentEvidence'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mapItbDocumentEvidence>>, {intakeId: number;documentId: number;data: BodyType<ItbDocumentEvidenceMappingInput>}> = (props) => {
+          const {intakeId,documentId,data} = props ?? {};
+
+          return  mapItbDocumentEvidence(intakeId,documentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MapItbDocumentEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof mapItbDocumentEvidence>>>
+    export type MapItbDocumentEvidenceMutationBody = BodyType<ItbDocumentEvidenceMappingInput>
+    export type MapItbDocumentEvidenceMutationError = ErrorType<void>
+
+    /**
+ * @summary Apply accepted document evidence to an existing target record
+ */
+export const useMapItbDocumentEvidence = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mapItbDocumentEvidence>>, TError,{intakeId: number;documentId: number;data: BodyType<ItbDocumentEvidenceMappingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof mapItbDocumentEvidence>>,
+        TError,
+        {intakeId: number;documentId: number;data: BodyType<ItbDocumentEvidenceMappingInput>},
+        TContext
+      > => {
+      return useMutation(getMapItbDocumentEvidenceMutationOptions(options));
     }
 
 export const getListOpportunitiesUrl = (params?: ListOpportunitiesParams,) => {

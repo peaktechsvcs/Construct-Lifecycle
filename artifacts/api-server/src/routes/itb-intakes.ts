@@ -6,6 +6,7 @@ import {
   bidsTable,
   businessCustomersTable,
   db,
+  itbDocumentEvidenceMappingsTable,
   itbIntakeAttachmentsTable,
   itbDocumentsTable,
   itbIntakesTable,
@@ -13,6 +14,7 @@ import {
   membershipsTable,
   opportunitiesTable,
   platformAuditEventsTable,
+  projectsTable,
   usersTable,
 } from "@workspace/db";
 import {
@@ -29,6 +31,9 @@ import {
   ReviewItbDocumentFindingsBody,
   ReviewItbDocumentFindingsParams,
   ApplyItbDocumentFindingsParams,
+  ListItbDocumentEvidenceMappingsParams,
+  MapItbDocumentEvidenceParams,
+  MapItbDocumentEvidenceBody,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
@@ -764,6 +769,42 @@ const getDocument = async (req: TenantRequest, intakeId: number, documentId: num
   return row;
 };
 
+const evidenceTargetFields = {
+  opportunity: new Set(["name", "description", "estimatedValue", "expectedCloseDate", "contactName", "contactEmail", "contactPhone"]),
+  bid: new Set(["name", "description", "estimatedValue", "dueDate"]),
+  project: new Set(["projectName", "address", "requirementsSummary"]),
+} as const;
+
+const normalizeMappedValue = (targetField: string, rawValue: string) => {
+  const value = rawValue.replace(/\s+/g, " ").trim().slice(0, 500);
+  if (!value) throw new Error("Mapped evidence cannot be empty");
+  if (["estimatedValue", "contractValue"].includes(targetField)) {
+    const match = value.replace(/,/g, "").match(/^\$?\s*(\d+(?:\.\d+)?)\s*([kmb])?$/i);
+    if (!match) throw new Error(`Evidence for ${targetField} must be a number`);
+    const multiplier = match[2]?.toLowerCase() === "k" ? 1_000 : match[2]?.toLowerCase() === "m" ? 1_000_000 : match[2]?.toLowerCase() === "b" ? 1_000_000_000 : 1;
+    const number = Number(match[1]) * multiplier;
+    if (!Number.isFinite(number) || number > 999_999_999_999) throw new Error(`Evidence for ${targetField} is out of range`);
+    return String(Math.round(number * 100) / 100);
+  }
+  if (["expectedCloseDate", "dueDate"].includes(targetField)) {
+    const date = parseDate(value);
+    if (!date) throw new Error(`Evidence for ${targetField} must be a valid date`);
+    return date;
+  }
+  if (targetField === "contactEmail" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    throw new Error("Evidence for contactEmail must be a valid email address");
+  }
+  return targetField === "contactEmail" ? value.toLowerCase() : value;
+};
+
+const listEvidenceMappings = async (req: TenantRequest, intakeId: number, documentId: number) =>
+  db.select().from(itbDocumentEvidenceMappingsTable).where(and(
+    eq(itbDocumentEvidenceMappingsTable.intakeId, intakeId),
+    eq(itbDocumentEvidenceMappingsTable.documentId, documentId),
+    eq(itbDocumentEvidenceMappingsTable.tenantId, req.tenantId!),
+    eq(itbDocumentEvidenceMappingsTable.environmentId, req.environmentId!),
+  )).orderBy(desc(itbDocumentEvidenceMappingsTable.updatedAt));
+
 const parseWithTimeout = async (name: string, contentType: string, bytes: Buffer) => {
   const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Document parsing timed out")), 30_000));
   return Promise.race([parseConstructionDocument(name, contentType, bytes), timeout]);
@@ -1015,6 +1056,193 @@ router.post("/itb-intakes/:intakeId/documents/:documentId/apply", requireRole("o
     details: JSON.stringify({ documentId: current.document.id, intakeId: intake.id, findingCount: accepted.length, environmentId: req.environmentId }),
   });
   res.json(serialize(updated, await getAttachments(updated.id)));
+});
+
+router.get("/itb-intakes/:intakeId/documents/:documentId/evidence-mappings", async (req: TenantRequest, res) => {
+  const params = ListItbDocumentEvidenceMappingsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid document id" });
+    return;
+  }
+  const current = await getDocument(req, params.data.intakeId, params.data.documentId);
+  if (!current) {
+    res.status(404).json({ error: "Document not found" });
+    return;
+  }
+  res.json(await listEvidenceMappings(req, params.data.intakeId, params.data.documentId));
+});
+
+router.post("/itb-intakes/:intakeId/documents/:documentId/evidence-mappings", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const params = MapItbDocumentEvidenceParams.safeParse(req.params);
+  const parsed = MapItbDocumentEvidenceBody.safeParse(req.body);
+  if (!params.success || !parsed.success) {
+    res.status(400).json({ error: "Invalid evidence mapping request" });
+    return;
+  }
+  const current = await getDocument(req, params.data.intakeId, params.data.documentId);
+  if (!current) {
+    res.status(404).json({ error: "Document not found" });
+    return;
+  }
+  const findings = documentJson<DocumentFinding[]>(current.document.findingsJson, []);
+  const accepted = new Map(findings
+    .filter((finding) => ["accepted", "corrected"].includes(finding.status))
+    .map((finding) => [finding.key, finding]));
+  if (accepted.size === 0) {
+    res.status(409).json({ error: "Accept or correct at least one finding before mapping document evidence" });
+    return;
+  }
+  const seenFields = new Set<string>();
+  for (const mapping of parsed.data.mappings) {
+    if (!accepted.has(mapping.findingKey)) {
+      res.status(409).json({ error: `Finding ${mapping.findingKey} must be accepted or corrected before mapping` });
+      return;
+    }
+    if (!evidenceTargetFields[parsed.data.targetType].has(mapping.targetField as never)) {
+      res.status(400).json({ error: `${mapping.targetField} is not a supported ${parsed.data.targetType} field` });
+      return;
+    }
+    if (seenFields.has(mapping.targetField)) {
+      res.status(400).json({ error: "Each target field may be mapped only once per request" });
+      return;
+    }
+    seenFields.add(mapping.targetField);
+  }
+
+  const intake = await getIntake(req, params.data.intakeId);
+  if (!intake) {
+    res.status(404).json({ error: "Intake not found" });
+    return;
+  }
+
+  try {
+    const saved = await db.transaction(async (tx) => {
+      const now = new Date();
+      let targetLabel = `${parsed.data.targetType} #${parsed.data.targetId}`;
+      if (parsed.data.targetType === "opportunity") {
+        const [target] = await tx.select().from(opportunitiesTable).where(and(
+          eq(opportunitiesTable.id, parsed.data.targetId),
+          eq(opportunitiesTable.tenantId, req.tenantId!),
+          eq(opportunitiesTable.environmentId, req.environmentId!),
+        ));
+        if (!target) throw new Error("TARGET_NOT_FOUND");
+        if (intake.opportunityId && intake.opportunityId !== target.id) throw new Error("TARGET_NOT_LINKED");
+        targetLabel = target.name;
+        for (const mapping of parsed.data.mappings) {
+          const finding = accepted.get(mapping.findingKey)!;
+          const value = normalizeMappedValue(mapping.targetField, finding.status === "corrected" ? finding.correctedValue ?? "" : finding.value);
+          await tx.update(opportunitiesTable).set({ [mapping.targetField]: value, updatedAt: now } as never)
+            .where(and(eq(opportunitiesTable.id, target.id), eq(opportunitiesTable.tenantId, req.tenantId!), eq(opportunitiesTable.environmentId, req.environmentId!)));
+          await tx.insert(itbDocumentEvidenceMappingsTable).values({
+            tenantId: req.tenantId!, environmentId: req.environmentId!, intakeId: intake.id, documentId: current.document.id,
+            targetType: parsed.data.targetType, targetId: target.id, findingKey: finding.key, targetField: mapping.targetField,
+            appliedValue: value, evidence: `Document ${current.attachment.originalName}: ${finding.evidence}`.slice(0, 700),
+            createdByUserId: req.localUserId!, createdAt: now, updatedAt: now,
+          }).onConflictDoUpdate({
+            target: [
+              itbDocumentEvidenceMappingsTable.tenantId,
+              itbDocumentEvidenceMappingsTable.environmentId,
+              itbDocumentEvidenceMappingsTable.documentId,
+              itbDocumentEvidenceMappingsTable.targetType,
+              itbDocumentEvidenceMappingsTable.targetId,
+              itbDocumentEvidenceMappingsTable.targetField,
+            ],
+            set: { findingKey: finding.key, appliedValue: value, evidence: `Document ${current.attachment.originalName}: ${finding.evidence}`.slice(0, 700), createdByUserId: req.localUserId!, updatedAt: now },
+          });
+        }
+      } else if (parsed.data.targetType === "bid") {
+        const [target] = await tx.select().from(bidsTable).where(and(
+          eq(bidsTable.id, parsed.data.targetId),
+          eq(bidsTable.tenantId, req.tenantId!),
+          eq(bidsTable.environmentId, req.environmentId!),
+        ));
+        if (!target) throw new Error("TARGET_NOT_FOUND");
+        if (intake.bidId && intake.bidId !== target.id) throw new Error("TARGET_NOT_LINKED");
+        if (intake.opportunityId && intake.opportunityId !== target.opportunityId) throw new Error("TARGET_NOT_LINKED");
+        targetLabel = target.name;
+        for (const mapping of parsed.data.mappings) {
+          const finding = accepted.get(mapping.findingKey)!;
+          const value = normalizeMappedValue(mapping.targetField, finding.status === "corrected" ? finding.correctedValue ?? "" : finding.value);
+          await tx.update(bidsTable).set({ [mapping.targetField]: value, updatedAt: now } as never)
+            .where(and(eq(bidsTable.id, target.id), eq(bidsTable.tenantId, req.tenantId!), eq(bidsTable.environmentId, req.environmentId!)));
+          await tx.insert(itbDocumentEvidenceMappingsTable).values({
+            tenantId: req.tenantId!, environmentId: req.environmentId!, intakeId: intake.id, documentId: current.document.id,
+            targetType: parsed.data.targetType, targetId: target.id, findingKey: finding.key, targetField: mapping.targetField,
+            appliedValue: value, evidence: `Document ${current.attachment.originalName}: ${finding.evidence}`.slice(0, 700),
+            createdByUserId: req.localUserId!, createdAt: now, updatedAt: now,
+          }).onConflictDoUpdate({
+            target: [
+              itbDocumentEvidenceMappingsTable.tenantId,
+              itbDocumentEvidenceMappingsTable.environmentId,
+              itbDocumentEvidenceMappingsTable.documentId,
+              itbDocumentEvidenceMappingsTable.targetType,
+              itbDocumentEvidenceMappingsTable.targetId,
+              itbDocumentEvidenceMappingsTable.targetField,
+            ],
+            set: { findingKey: finding.key, appliedValue: value, evidence: `Document ${current.attachment.originalName}: ${finding.evidence}`.slice(0, 700), createdByUserId: req.localUserId!, updatedAt: now },
+          });
+        }
+      } else {
+        const [target] = await tx.select().from(projectsTable).where(and(
+          eq(projectsTable.id, parsed.data.targetId),
+          eq(projectsTable.tenantId, req.tenantId!),
+          eq(projectsTable.environmentId, req.environmentId!),
+        ));
+        if (!target) throw new Error("TARGET_NOT_FOUND");
+        targetLabel = target.projectName;
+        for (const mapping of parsed.data.mappings) {
+          const finding = accepted.get(mapping.findingKey)!;
+          const value = normalizeMappedValue(mapping.targetField, finding.status === "corrected" ? finding.correctedValue ?? "" : finding.value);
+          await tx.update(projectsTable).set({ [mapping.targetField]: value, updatedAt: now } as never)
+            .where(and(eq(projectsTable.id, target.id), eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)));
+          await tx.insert(itbDocumentEvidenceMappingsTable).values({
+            tenantId: req.tenantId!, environmentId: req.environmentId!, intakeId: intake.id, documentId: current.document.id,
+            targetType: parsed.data.targetType, targetId: target.id, findingKey: finding.key, targetField: mapping.targetField,
+            appliedValue: value, evidence: `Document ${current.attachment.originalName}: ${finding.evidence}`.slice(0, 700),
+            createdByUserId: req.localUserId!, createdAt: now, updatedAt: now,
+          }).onConflictDoUpdate({
+            target: [
+              itbDocumentEvidenceMappingsTable.tenantId,
+              itbDocumentEvidenceMappingsTable.environmentId,
+              itbDocumentEvidenceMappingsTable.documentId,
+              itbDocumentEvidenceMappingsTable.targetType,
+              itbDocumentEvidenceMappingsTable.targetId,
+              itbDocumentEvidenceMappingsTable.targetField,
+            ],
+            set: { findingKey: finding.key, appliedValue: value, evidence: `Document ${current.attachment.originalName}: ${finding.evidence}`.slice(0, 700), createdByUserId: req.localUserId!, updatedAt: now },
+          });
+        }
+      }
+      await tx.insert(platformAuditEventsTable).values({
+        actorUserId: req.localUserId!, tenantId: req.tenantId!, action: "itb_document_evidence_mapped",
+        details: JSON.stringify({
+          documentId: current.document.id, intakeId: intake.id, targetType: parsed.data.targetType,
+          targetId: parsed.data.targetId, targetLabel, mappings: parsed.data.mappings, environmentId: req.environmentId,
+        }),
+      });
+      return tx.select().from(itbDocumentEvidenceMappingsTable).where(and(
+        eq(itbDocumentEvidenceMappingsTable.intakeId, intake.id),
+        eq(itbDocumentEvidenceMappingsTable.documentId, current.document.id),
+        eq(itbDocumentEvidenceMappingsTable.tenantId, req.tenantId!),
+        eq(itbDocumentEvidenceMappingsTable.environmentId, req.environmentId!),
+      )).orderBy(desc(itbDocumentEvidenceMappingsTable.updatedAt));
+    });
+    res.json(saved);
+  } catch (error) {
+    if (error instanceof Error && error.message === "TARGET_NOT_FOUND") {
+      res.status(404).json({ error: "Target record not found in the active environment" });
+      return;
+    }
+    if (error instanceof Error && error.message === "TARGET_NOT_LINKED") {
+      res.status(409).json({ error: "Choose the opportunity or bid already linked to this intake" });
+      return;
+    }
+    if (error instanceof Error) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    res.status(400).json({ error: "Document evidence could not be mapped" });
+  }
 });
 
 router.get("/itb-intakes/:intakeId/attachments/:attachmentId", async (req: TenantRequest, res) => {

@@ -270,6 +270,55 @@ export interface ItbDocumentFindingUpdate {
   correctedValue?: string | null;
 }
 
+export type ItbEvidenceTargetType = typeof ItbEvidenceTargetType[keyof typeof ItbEvidenceTargetType];
+
+
+export const ItbEvidenceTargetType = {
+  opportunity: 'opportunity',
+  bid: 'bid',
+  project: 'project',
+} as const;
+
+export interface ItbDocumentEvidenceMapping {
+  id: number;
+  tenantId: number;
+  environmentId: number;
+  intakeId: number;
+  documentId: number;
+  targetType: ItbEvidenceTargetType;
+  targetId: number;
+  findingKey: string;
+  targetField: string;
+  appliedValue: string;
+  evidence: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ItbDocumentEvidenceMappingInputMappingsItem = {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  findingKey: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  targetField: string;
+};
+
+export interface ItbDocumentEvidenceMappingInput {
+  targetType: ItbEvidenceTargetType;
+  /** @minimum 1 */
+  targetId: number;
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  mappings: ItbDocumentEvidenceMappingInputMappingsItem[];
+}
+
 export interface ItbIntake {
   id: number;
   tenantId: number;

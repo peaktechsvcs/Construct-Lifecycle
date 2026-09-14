@@ -1449,6 +1449,46 @@ paths:
               schema: { $ref: "#/components/schemas/ItbIntake" }
         "404": { description: Document not found }
         "409": { description: Intake is already approved or no findings are accepted }
+  /itb-intakes/{intakeId}/documents/{documentId}/evidence-mappings:
+    get:
+      operationId: listItbDocumentEvidenceMappings
+      tags: [itb-intakes]
+      summary: List evidence mappings applied from a parsed ITB document
+      parameters:
+        - $ref: "#/components/parameters/ItbIntakeId"
+        - $ref: "#/components/parameters/ItbDocumentId"
+      responses:
+        "200":
+          description: Auditable evidence mappings for the document
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ItbDocumentEvidenceMapping" }
+        "404": { description: Document not found }
+    post:
+      operationId: mapItbDocumentEvidence
+      tags: [itb-intakes]
+      summary: Apply accepted document evidence to an existing target record
+      parameters:
+        - $ref: "#/components/parameters/ItbIntakeId"
+        - $ref: "#/components/parameters/ItbDocumentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItbDocumentEvidenceMappingInput" }
+      responses:
+        "200":
+          description: Evidence mappings and updated target values
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ItbDocumentEvidenceMapping" }
+        "400": { description: Invalid target or field mapping }
+        "404": { description: Document or target record not found }
+        "409": { description: No accepted or corrected evidence is available }
   /opportunities:
     get:
       operationId: listOpportunities
@@ -4192,6 +4232,42 @@ components:
         key: { type: string, minLength: 1, maxLength: 120 }
         status: { $ref: "#/components/schemas/ItbDocumentFindingStatus" }
         correctedValue: { type: ["string", "null"], maxLength: 500 }
+    ItbEvidenceTargetType:
+      type: string
+      enum: [opportunity, bid, project]
+    ItbDocumentEvidenceMapping:
+      type: object
+      required: [id, tenantId, environmentId, intakeId, documentId, targetType, targetId, findingKey, targetField, appliedValue, evidence, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        environmentId: { type: integer }
+        intakeId: { type: integer }
+        documentId: { type: integer }
+        targetType: { $ref: "#/components/schemas/ItbEvidenceTargetType" }
+        targetId: { type: integer }
+        findingKey: { type: string }
+        targetField: { type: string }
+        appliedValue: { type: string }
+        evidence: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ItbDocumentEvidenceMappingInput:
+      type: object
+      required: [targetType, targetId, mappings]
+      properties:
+        targetType: { $ref: "#/components/schemas/ItbEvidenceTargetType" }
+        targetId: { type: integer, minimum: 1 }
+        mappings:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: object
+            required: [findingKey, targetField]
+            properties:
+              findingKey: { type: string, minLength: 1, maxLength: 120 }
+              targetField: { type: string, minLength: 1, maxLength: 80 }
     ItbIntake:
       type: object
       required: [id, tenantId, environmentId, sourceType, sourceFingerprint, status, extractionStatus, extraction, warnings, attachments, createdAt, updatedAt]

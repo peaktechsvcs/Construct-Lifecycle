@@ -8,9 +8,11 @@ import {
 import {
   ItbIntake, ItbIntakeApprovalInput, ItbIntakeInput, ItbIntakeStatus,
   useApproveItbIntake, useCreateItbIntake, useGetItbIntake, useImportItbMailboxMessage, useMergeItbIntake,
-  useListBusinessCustomers, useListItbDocuments, useListItbIntakes, usePreviewItbMailbox,
+  useListBids, useListBusinessCustomers, useListItbDocumentEvidenceMappings, useListItbDocuments, useListItbIntakes,
+  useListOpportunities, useListProjects, useMapItbDocumentEvidence, usePreviewItbMailbox,
   useApplyItbDocumentFindings, useProcessItbDocument, useRetryItbDocument, useReviewItbDocumentFindings,
   useRequestItbAttachmentUpload, useUpdateItbIntake,
+  getListBidsQueryKey, getListItbDocumentEvidenceMappingsQueryKey, getListOpportunitiesQueryKey, getListProjectsQueryKey,
   getGetItbIntakeQueryKey, getListBusinessCustomersQueryKey, getListItbDocumentsQueryKey, getListItbIntakesQueryKey,
   getPreviewItbMailboxQueryKey,
 } from '@workspace/api-client-react';
@@ -90,7 +92,127 @@ function Mailbox({ onImported }: { onImported: (id: number) => void }) {
   </div></Modal>;
 }
 
-function DocumentReview({ intakeId, attachments }: { intakeId: number; attachments: ItbIntake['attachments'] }) {
+type EvidenceTarget = 'opportunity' | 'bid' | 'project';
+type ReviewableFinding = { key: string; label: string; value: string; confidence: number; evidence: string; page?: number | null; status: string; correctedValue?: string | null };
+
+const evidenceFieldOptions: Record<EvidenceTarget, Array<{ value: string; label: string }>> = {
+  opportunity: [
+    { value: 'name', label: 'Opportunity name' },
+    { value: 'description', label: 'Description' },
+    { value: 'estimatedValue', label: 'Estimated value' },
+    { value: 'expectedCloseDate', label: 'Expected close date' },
+    { value: 'contactName', label: 'Contact name' },
+    { value: 'contactEmail', label: 'Contact email' },
+    { value: 'contactPhone', label: 'Contact phone' },
+  ],
+  bid: [
+    { value: 'name', label: 'Bid name' },
+    { value: 'description', label: 'Description' },
+    { value: 'estimatedValue', label: 'Estimated value' },
+    { value: 'dueDate', label: 'Bid due date' },
+  ],
+  project: [
+    { value: 'projectName', label: 'Project name' },
+    { value: 'address', label: 'Project address' },
+    { value: 'requirementsSummary', label: 'Requirements summary' },
+  ],
+};
+
+const defaultEvidenceField = (findingKey: string, targetType: EvidenceTarget) => {
+  const defaults: Record<string, Partial<Record<EvidenceTarget, string>>> = {
+    project_name: { opportunity: 'name', bid: 'name', project: 'projectName' },
+    location: { project: 'address' },
+    bid_due_date: { opportunity: 'expectedCloseDate', bid: 'dueDate' },
+    estimated_value: { opportunity: 'estimatedValue', bid: 'estimatedValue' },
+    contact_name: { opportunity: 'contactName' },
+    contact_email: { opportunity: 'contactEmail' },
+    contact_phone: { opportunity: 'contactPhone' },
+    requirements: { bid: 'description', project: 'requirementsSummary' },
+  };
+  return defaults[findingKey]?.[targetType] ?? '';
+};
+
+function DocumentEvidenceMapper({
+  intakeId,
+  documentId,
+  findings,
+  linkedOpportunityId,
+  linkedBidId,
+  onMapped,
+}: {
+  intakeId: number;
+  documentId: number;
+  findings: ReviewableFinding[];
+  linkedOpportunityId?: number | null;
+  linkedBidId?: number | null;
+  onMapped: () => void;
+}) {
+  const qc = useQueryClient();
+  const initialType: EvidenceTarget = linkedOpportunityId ? 'opportunity' : linkedBidId ? 'bid' : 'project';
+  const [targetType, setTargetType] = useState<EvidenceTarget>(initialType);
+  const [targetId, setTargetId] = useState(linkedOpportunityId ? String(linkedOpportunityId) : linkedBidId ? String(linkedBidId) : '');
+  const [fieldSelections, setFieldSelections] = useState<Record<string, string>>({});
+  const [message, setMessage] = useState('');
+  const mappings = useListItbDocumentEvidenceMappings(intakeId, documentId, {
+    query: { queryKey: getListItbDocumentEvidenceMappingsQueryKey(intakeId, documentId) },
+  });
+  const opportunities = useListOpportunities(undefined, { query: { queryKey: getListOpportunitiesQueryKey() } });
+  const bids = useListBids(undefined, { query: { queryKey: getListBidsQueryKey() } });
+  const projects = useListProjects(undefined, { query: { queryKey: getListProjectsQueryKey() } });
+  const mapEvidence = useMapItbDocumentEvidence();
+  const acceptedFindings = findings.filter((finding) => finding.status === 'accepted' || finding.status === 'corrected');
+  const targets = targetType === 'opportunity'
+    ? (opportunities.data ?? []).map((item) => ({ id: item.id, label: `${item.opportunityNumber} · ${item.name}` }))
+    : targetType === 'bid'
+      ? (bids.data ?? []).map((item) => ({ id: item.id, label: `${item.bidNumber} · ${item.name}` }))
+      : (projects.data ?? []).map((item) => ({ id: item.id, label: `${item.projectNumber} · ${item.projectName}` }));
+  const allFieldsSelected = acceptedFindings.every((finding) => fieldSelections[finding.key] ?? defaultEvidenceField(finding.key, targetType));
+  const applyMappings = () => {
+    setMessage('');
+    if (!targetId || acceptedFindings.length === 0 || !allFieldsSelected) {
+      setMessage('Choose a target and a destination field for each accepted finding.');
+      return;
+    }
+    mapEvidence.mutate({
+      intakeId,
+      documentId,
+      data: {
+        targetType,
+        targetId: Number(targetId),
+        mappings: acceptedFindings.map((finding) => ({
+          findingKey: finding.key,
+          targetField: fieldSelections[finding.key] ?? defaultEvidenceField(finding.key, targetType),
+        })),
+      },
+    }, {
+      onSuccess: () => {
+        setMessage('Accepted evidence was applied to the selected record.');
+        qc.invalidateQueries({ queryKey: getListItbDocumentEvidenceMappingsQueryKey(intakeId, documentId) });
+        qc.invalidateQueries({ queryKey: getListOpportunitiesQueryKey() });
+        qc.invalidateQueries({ queryKey: getListBidsQueryKey() });
+        qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+        onMapped();
+      },
+      onError: () => setMessage('The evidence mapping was rejected. Confirm the target and field types.'),
+    });
+  };
+  return <div className="mt-3 rounded-lg border border-accent/25 bg-accent/5 p-3">
+    <div className="flex items-start justify-between gap-3">
+      <div><p className="mono text-[10px] uppercase tracking-[.14em] text-accent">Map accepted evidence</p><p className="mt-1 text-[11px] text-muted-foreground">Choose an existing opportunity, bid, or project. No new records are created.</p></div>
+      <Badge tone="neutral">{acceptedFindings.length} ready</Badge>
+    </div>
+    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <label><span className="mb-1 block text-[11px] font-semibold">Target record type</span><Select value={targetType} onValueChange={(value) => { const next = value as EvidenceTarget; setTargetType(next); setTargetId(''); }}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="opportunity">Opportunity</SelectItem><SelectItem value="bid">Bid</SelectItem><SelectItem value="project">Project</SelectItem></SelectContent></Select></label>
+      <label><span className="mb-1 block text-[11px] font-semibold">Existing target record</span><Select value={targetId || 'none'} onValueChange={(value) => setTargetId(value === 'none' ? '' : value)}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Choose a record" /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="none">Choose a record</SelectItem>{targets.map((target) => <SelectItem key={target.id} value={String(target.id)}>{target.label}</SelectItem>)}</SelectContent></Select></label>
+    </div>
+    {acceptedFindings.length > 0 ? <div className="mt-3 space-y-2">{acceptedFindings.map((finding) => <div key={finding.key} className="grid gap-2 rounded-md border border-border bg-card p-2 sm:grid-cols-[minmax(0,1fr)_minmax(180px,240px)] sm:items-center"><div className="min-w-0"><p className="truncate text-xs font-semibold">{finding.label}</p><p className="mt-0.5 truncate text-[11px] text-muted-foreground">“{finding.correctedValue ?? finding.value}” · {finding.status}</p><p className="mt-1 truncate border-l-2 border-accent/40 pl-2 text-[10px] text-muted-foreground">{finding.evidence}</p></div><Select value={(fieldSelections[finding.key] ?? defaultEvidenceField(finding.key, targetType)) || 'none'} onValueChange={(value) => setFieldSelections((current) => ({ ...current, [finding.key]: value === 'none' ? '' : value }))}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Choose destination field" /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="none">Choose destination field</SelectItem>{evidenceFieldOptions[targetType].map((field) => <SelectItem key={field.value} value={field.value}>{field.label}</SelectItem>)}</SelectContent></Select></div>)}</div> : <p className="mt-3 text-[11px] text-muted-foreground">Accept or correct a finding before mapping document evidence.</p>}
+    {message && <p className="mt-2 text-[11px] text-muted-foreground" role="status">{message}</p>}
+    <div className="mt-3 flex justify-end"><Button className="h-8" onClick={applyMappings} disabled={mapEvidence.isPending || acceptedFindings.length === 0 || !targetId || !allFieldsSelected}><CheckCircle2 size={13} /> {mapEvidence.isPending ? 'Applying…' : 'Apply evidence mapping'}</Button></div>
+    {mappings.data && mappings.data.length > 0 && <div className="mt-3 border-t border-accent/15 pt-3"><p className="mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Mapping history</p><div className="mt-2 space-y-1">{mappings.data.map((item) => <p key={item.id} className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground">{item.targetType} #{item.targetId}</span> · {item.targetField} ← {item.findingKey} · “{item.appliedValue}”</p>)}</div></div>}
+  </div>;
+}
+
+function DocumentReview({ intakeId, attachments, linkedOpportunityId, linkedBidId }: { intakeId: number; attachments: ItbIntake['attachments']; linkedOpportunityId?: number | null; linkedBidId?: number | null }) {
   const qc = useQueryClient();
   const documents = useListItbDocuments(intakeId, { query: { queryKey: getListItbDocumentsQueryKey(intakeId) } });
   const process = useProcessItbDocument();
@@ -105,7 +227,7 @@ function DocumentReview({ intakeId, attachments }: { intakeId: number; attachmen
       return <div key={attachment.id} className="rounded-lg border border-border bg-background p-3">
         <div className="flex flex-wrap items-center gap-2"><Paperclip size={14} className="text-accent" /><span className="min-w-0 flex-1 truncate text-xs font-semibold">{attachment.originalName}</span>{document && <Badge tone={document.status === 'completed' ? 'green' : document.status === 'failed' ? 'red' : 'orange'}>{document.status.replace('_', ' ')}</Badge>}{!document && <Button variant="outline" className="h-8" onClick={() => process.mutate({ intakeId, data: { attachmentId: attachment.id } }, { onSuccess: refresh })} disabled={process.isPending}><FileText size={13} /> {process.isPending ? 'Parsing…' : 'Parse document'}</Button>}{document && ['failed', 'needs_review'].includes(document.status) && document.attemptCount < 3 && <Button variant="ghost" className="h-8" onClick={() => retry.mutate({ intakeId, documentId: document.id }, { onSuccess: refresh })} disabled={retry.isPending}><RotateCcw size={13} /> Retry</Button>}</div>
         {document?.errorMessage && <p className="mt-2 text-xs text-status-warning">{document.errorMessage}</p>}
-        {document?.findings && document.findings.length > 0 && <div className="mt-3 space-y-2">{document.findings.map((finding) => <DocumentFinding key={finding.key} intakeId={intakeId} documentId={document.id} finding={finding} onSaved={refresh} />)}{document.findings.some((finding) => finding.status === 'accepted' || finding.status === 'corrected') && <Button variant="outline" className="mt-2 h-8 w-full" onClick={() => apply.mutate({ intakeId, documentId: document.id })} disabled={apply.isPending}><CheckCircle2 size={13} /> {apply.isPending ? 'Applying to intake…' : 'Apply accepted findings to intake'}</Button>}</div>}
+         {document?.findings && document.findings.length > 0 && <div className="mt-3 space-y-2">{document.findings.map((finding) => <DocumentFinding key={finding.key} intakeId={intakeId} documentId={document.id} finding={finding} onSaved={refresh} />)}{document.findings.some((finding) => finding.status === 'accepted' || finding.status === 'corrected') && <><Button variant="outline" className="mt-2 h-8 w-full" onClick={() => apply.mutate({ intakeId, documentId: document.id })} disabled={apply.isPending}><CheckCircle2 size={13} /> {apply.isPending ? 'Applying to intake…' : 'Apply accepted findings to intake'}</Button><DocumentEvidenceMapper intakeId={intakeId} documentId={document.id} findings={document.findings} linkedOpportunityId={linkedOpportunityId} linkedBidId={linkedBidId} onMapped={refresh} /></>}</div>}
         {document?.status === 'completed' && document.findings.length === 0 && <p className="mt-3 text-xs text-muted-foreground">Text was extracted, but no structured findings were detected.</p>}
       </div>;
     })}</div>}
@@ -141,7 +263,7 @@ function IntakeDetail({ id, onChanged, candidates }: { id: number; onChanged: ()
     {intake.warnings.length > 0 && <div className="rounded-lg border border-status-warning/30 bg-status-warning/10 p-3 text-xs text-status-warning">{intake.warnings.join(' ')}</div>}
     <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]"><section className="rounded-xl border border-border bg-card p-4"><div className="mb-4 flex items-center justify-between"><p className="mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Extracted fields</p><span className="text-xs text-muted-foreground">Review before approval</span></div><div className="grid gap-3 sm:grid-cols-2">{(['projectName', 'issuer', 'contactName', 'contactEmail', 'contactPhone', 'location', 'dueDate', 'estimatedValue'] as const).map((key) => <Field key={key} name={key} value={extraction[key].value || ''} confidence={extraction[key].confidence} evidence={extraction[key].evidence} onChange={(value) => patchField(key, value)} />)}</div></section>
       <aside className="space-y-4"><section className="rounded-xl border border-border bg-card p-4"><p className="mono mb-3 text-[10px] uppercase tracking-[.14em] text-muted-foreground">Source evidence</p><div className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-secondary/45 p-3 text-xs leading-5">{sourceBody || 'Source body is available to the extraction service but was not returned by this API response.'}</div></section><section className="rounded-xl border border-border bg-card p-4"><p className="mono mb-3 text-[10px] uppercase tracking-[.14em] text-muted-foreground">Protected attachments</p>{intake.attachments.length === 0 ? <p className="text-xs text-muted-foreground">No attachments on this intake.</p> : intake.attachments.map((attachment) => <a key={attachment.id} href={attachment.downloadUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-md px-2 py-2 text-xs font-semibold hover:bg-secondary"><Paperclip size={14} className="text-accent" /> <span className="min-w-0 flex-1 truncate">{attachment.originalName}</span><ExternalLink size={13} /></a>)}</section></aside></div>
-    <DocumentReview intakeId={id} attachments={intake.attachments} />
+     <DocumentReview intakeId={id} attachments={intake.attachments} linkedOpportunityId={intake.opportunityId} linkedBidId={intake.bidId} />
     {intake.status === 'review' && <section className="rounded-xl border border-accent/25 bg-accent/5 p-4"><p className="mono mb-3 text-[10px] uppercase tracking-[.14em] text-accent">Human approval gate</p><div className="grid gap-3 md:grid-cols-2"><label><span className="mb-1.5 block text-xs font-semibold">Business customer</span><Select value={customer} onValueChange={setCustomer}><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger><SelectContent className="bg-popover">{(customers.data ?? []).map((item) => <SelectItem key={item.id} value={String(item.id)}>{item.companyName}</SelectItem>)}</SelectContent></Select></label><label className="flex items-center gap-2 self-end pb-2 text-xs"><input type="checkbox" checked={createOpportunity} onChange={(e) => setCreateOpportunity(e.target.checked)} /> Create opportunity</label><label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={createBid} onChange={(e) => setCreateBid(e.target.checked)} /> Create bid</label>{createBid && <label><span className="mb-1.5 block text-xs font-semibold">Optional bid name</span><Input value={bidName} onChange={(e) => setBidName(e.target.value)} placeholder={extraction.projectName.value || 'Bid name'} /></label>}</div><div className="mt-4 flex flex-wrap items-end justify-end gap-2 border-t border-accent/15 pt-4"><label className="mr-auto min-w-[210px]"><span className="mb-1.5 block text-xs font-semibold">Merge duplicate into</span><Select value={mergeTarget || 'none'} onValueChange={(value) => setMergeTarget(value === 'none' ? '' : value)}><SelectTrigger><SelectValue placeholder="Choose surviving intake" /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="none">No merge</SelectItem>{candidates.filter((candidate) => candidate.id !== id && ['review', 'failed'].includes(candidate.status)).map((candidate) => <SelectItem key={candidate.id} value={String(candidate.id)}>{candidate.sourceSubject || `Intake #${candidate.id}`}</SelectItem>)}</SelectContent></Select></label>{mergeTarget && <Button variant="outline" onClick={mergeIntake} disabled={merge.isPending}><Archive size={15} /> {merge.isPending ? 'Merging…' : 'Merge duplicate'}</Button>}<Button variant="danger" onClick={() => decision('rejected')} disabled={update.isPending}><XCircle size={15} /> Reject</Button><Button variant="outline" onClick={() => decision('archived')} disabled={update.isPending}><Archive size={15} /> Archive</Button><Button onClick={approveIntake} disabled={!customer || approve.isPending}><CheckCircle2 size={15} /> {approve.isPending ? 'Approving…' : 'Approve intake'}</Button></div></section>}
   </div>;
 }
