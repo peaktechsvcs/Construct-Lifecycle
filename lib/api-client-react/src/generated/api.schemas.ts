@@ -4244,6 +4244,33 @@ export interface PlatformCustomerDetails {
   invitations: TenantInvitation[];
 }
 
+export interface PlatformAuditActor {
+  id: number;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  displayName: string | null;
+}
+
+export interface PlatformAuditWorkspace {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export type PlatformCustomerAuditEventDetails = { [key: string]: unknown };
+
+export interface PlatformCustomerAuditEvent {
+  id: number;
+  tenantId: number;
+  action: string;
+  details: PlatformCustomerAuditEventDetails;
+  createdAt: string;
+  actor: PlatformAuditActor;
+  affectedUser: PlatformAuditActor | null;
+  workspace: PlatformAuditWorkspace;
+}
+
 export type CreatePlatformCustomerInvitationInputRole = typeof CreatePlatformCustomerInvitationInputRole[keyof typeof CreatePlatformCustomerInvitationInputRole];
 
 

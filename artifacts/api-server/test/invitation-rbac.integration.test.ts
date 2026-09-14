@@ -156,6 +156,48 @@ describe("invitation and role authorization regressions", () => {
     assert.equal((await request(clerkIds.platformAdmin, "/platform/customers")).status, 200);
   });
 
+  test("shows platform admins a tenant-scoped access timeline with actor and subject details", async () => {
+    await db.insert(platformAuditEventsTable).values([
+      {
+        actorUserId: userId.platformAdmin,
+        tenantId: tenantAId,
+        action: "customer_member_access_updated",
+        details: JSON.stringify({ userId: userId.memberA, role: "admin", environmentIds: [] }),
+      },
+      {
+        actorUserId: userId.platformAdmin,
+        tenantId: tenantBId,
+        action: "customer_status_changed",
+        details: JSON.stringify({ status: "suspended" }),
+      },
+    ]);
+
+    assert.equal((await request(clerkIds.memberA, `/platform/customers/${tenantAId}/audit-events`)).status, 403);
+    const response = await request(clerkIds.platformAdmin, `/platform/customers/${tenantAId}/audit-events`);
+    assert.equal(response.status, 200);
+    assert(Array.isArray(response.body));
+    const events = response.body as Array<Record<string, unknown>>;
+    const accessEvent = events.find((event) => event.action === "customer_member_access_updated");
+    assert(accessEvent);
+    assert.equal(accessEvent.tenantId, tenantAId);
+    assert.deepEqual(accessEvent.workspace, {
+      id: tenantAId,
+      name: "Authorization Tenant A",
+      slug: `rbac-a-${runId}`,
+    });
+    assert.deepEqual(accessEvent.actor, {
+      id: userId.platformAdmin,
+      email: `platform-admin-${runId}@integration.test`,
+      displayName: "Platform Admin",
+    });
+    assert.deepEqual(accessEvent.affectedUser, {
+      id: userId.memberA,
+      email: `member-a-${runId}@integration.test`,
+      displayName: "Member A",
+    });
+    assert.equal(events.some((event) => event.tenantId === tenantBId), false);
+  });
+
   test("resolves customer scope from authenticated membership instead of request input", async () => {
     const members = await request(
       clerkIds.ownerA,

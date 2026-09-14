@@ -3427,6 +3427,26 @@ paths:
               schema: { $ref: "#/components/schemas/PlatformCustomer" }
         "403": { description: Platform administrator permission required }
         "404": { description: Customer not found }
+  /platform/customers/{tenantId}/audit-events:
+    get:
+      operationId: listPlatformCustomerAuditEvents
+      tags: [platform]
+      summary: List the access and workspace audit timeline for a customer
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Customer-scoped platform audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PlatformCustomerAuditEvent" }
+        "403": { description: Platform administrator permission required }
+        "404": { description: Customer not found }
   /platform/customers/{tenantId}/invitations:
     post:
       operationId: createPlatformCustomerInvitation
@@ -6816,6 +6836,37 @@ components:
         invitations:
           type: array
           items: { $ref: "#/components/schemas/TenantInvitation" }
+    PlatformAuditActor:
+      type: object
+      required: [id, email, displayName]
+      properties:
+        id: { type: integer }
+        email: { type: ["string", "null"], format: email }
+        displayName: { type: ["string", "null"] }
+    PlatformAuditWorkspace:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+    PlatformCustomerAuditEvent:
+      type: object
+      required: [id, tenantId, action, details, createdAt, actor, affectedUser, workspace]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        action: { type: string }
+        details:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string, format: date-time }
+        actor: { $ref: "#/components/schemas/PlatformAuditActor" }
+        affectedUser:
+          oneOf:
+            - $ref: "#/components/schemas/PlatformAuditActor"
+            - type: "null"
+        workspace: { $ref: "#/components/schemas/PlatformAuditWorkspace" }
     CreatePlatformCustomerInvitationInput:
       type: object
       required: [email, role]

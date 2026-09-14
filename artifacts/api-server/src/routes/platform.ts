@@ -238,6 +238,18 @@ async function serializeCustomerDetails(tenant: typeof tenantsTable.$inferSelect
   };
 }
 
+function parseAuditDetails(value: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+const isSafeUserId = (value: unknown): value is number =>
+  typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+
 router.post("/platform/bootstrap", async (req: TenantRequest, res) => {
   if (APP_ENV !== "production") {
     res.status(403).json({ error: "Production bootstrap is only available in production" });
@@ -639,6 +651,72 @@ router.get("/platform/customers/:tenantId", async (req: TenantRequest, res) => {
   res.json(await serializeCustomerDetails(tenant));
 });
 
+router.get("/platform/customers/:tenantId/audit-events", async (req: TenantRequest, res) => {
+  const tenantId = Number(req.params.tenantId);
+  if (!Number.isInteger(tenantId) || tenantId < 1) {
+    res.status(400).json({ error: "Invalid customer" });
+    return;
+  }
+  const tenant = await getCustomer(tenantId);
+  if (!tenant) {
+    res.status(404).json({ error: "Customer not found" });
+    return;
+  }
+
+  const events = await db
+    .select({
+      id: platformAuditEventsTable.id,
+      tenantId: platformAuditEventsTable.tenantId,
+      action: platformAuditEventsTable.action,
+      details: platformAuditEventsTable.details,
+      createdAt: platformAuditEventsTable.createdAt,
+      actorId: usersTable.id,
+      actorEmail: usersTable.email,
+      actorDisplayName: usersTable.displayName,
+    })
+    .from(platformAuditEventsTable)
+    .innerJoin(usersTable, eq(platformAuditEventsTable.actorUserId, usersTable.id))
+    .where(eq(platformAuditEventsTable.tenantId, tenantId))
+    .orderBy(desc(platformAuditEventsTable.createdAt), desc(platformAuditEventsTable.id))
+    .limit(100);
+
+  const parsedEvents = events.map((event) => ({
+    ...event,
+    parsedDetails: parseAuditDetails(event.details),
+  }));
+  const affectedUserIds = [...new Set(
+    parsedEvents
+      .map(({ parsedDetails }) => parsedDetails.userId)
+      .filter(isSafeUserId),
+  )];
+  const affectedUsers = affectedUserIds.length === 0
+    ? []
+    : await db
+      .select({ id: usersTable.id, email: usersTable.email, displayName: usersTable.displayName })
+      .from(usersTable)
+      .where(inArray(usersTable.id, affectedUserIds));
+  const affectedUsersById = new Map(affectedUsers.map((user) => [user.id, user]));
+
+  res.json(parsedEvents.map(({ details: _details, parsedDetails, ...event }) => {
+    const affectedUserId = isSafeUserId(parsedDetails.userId) ? parsedDetails.userId : null;
+    return {
+      ...event,
+      details: parsedDetails,
+      actor: {
+        id: event.actorId,
+        email: event.actorEmail,
+        displayName: event.actorDisplayName,
+      },
+      affectedUser: affectedUserId === null ? null : (affectedUsersById.get(affectedUserId) ?? null),
+      workspace: {
+        id: tenant.id,
+        name: tenant.name,
+        slug: tenant.slug,
+      },
+    };
+  }));
+});
+
 router.post("/platform/customers/:tenantId/invitations", async (req: TenantRequest, res) => {
   const tenantId = Number(req.params.tenantId);
   const parsed = CreatePlatformCustomerInvitationBody.safeParse(req.body);
@@ -851,6 +929,15 @@ router.patch("/platform/customers/:tenantId", async (req: TenantRequest, res) =>
     res.status(400).json({ error: "Invalid customer update" });
     return;
   }
+  const [currentTenant] = await db
+    .select()
+    .from(tenantsTable)
+    .where(eq(tenantsTable.id, tenantId))
+    .limit(1);
+  if (!currentTenant) {
+    res.status(404).json({ error: "Customer not found" });
+    return;
+  }
   const [tenant] = await db
     .update(tenantsTable)
     .set({
@@ -866,7 +953,17 @@ router.patch("/platform/customers/:tenantId", async (req: TenantRequest, res) =>
     res.status(404).json({ error: "Customer not found" });
     return;
   }
-  await writeAudit(req, "customer_status_changed", tenant.id, { status: tenant.status });
+  if (currentTenant.status !== tenant.status) {
+    await writeAudit(req, "customer_status_changed", tenant.id, { status: tenant.status });
+  }
+  if (
+    parsed.data.customerBrandingEnabled !== undefined
+    && currentTenant.customerBrandingEnabled !== tenant.customerBrandingEnabled
+  ) {
+    await writeAudit(req, "customer_branding_changed", tenant.id, {
+      customerBrandingEnabled: tenant.customerBrandingEnabled,
+    });
+  }
   res.json(await serializeCustomer(tenant));
 });
 

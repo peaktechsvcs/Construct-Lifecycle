@@ -1,11 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, Copy, Mail, Save, Trash2, XCircle } from 'lucide-react';
+import { Check, CircleUserRound, Clock3, Copy, History, Mail, Save, Trash2, XCircle } from 'lucide-react';
 import {
+  PlatformCustomerAuditEvent,
   PlatformCustomerDetails,
   getGetPlatformCustomerQueryKey,
+  getListPlatformCustomerAuditEventsQueryKey,
   getListPlatformCustomersQueryKey,
   useCreatePlatformCustomerInvitation,
+  useListPlatformCustomerAuditEvents,
   useRevokePlatformCustomerInvitation,
   useRemovePlatformCustomerMember,
   useUpdatePlatformCustomer,
@@ -27,6 +30,9 @@ export function PlatformCustomerAccess({
   const invite = useCreatePlatformCustomerInvitation();
   const revoke = useRevokePlatformCustomerInvitation();
   const updateCustomer = useUpdatePlatformCustomer();
+  const audit = useListPlatformCustomerAuditEvents(tenantId, {
+    query: { queryKey: getListPlatformCustomerAuditEventsQueryKey(tenantId) },
+  });
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CustomerRole>('member');
   const [inviteLink, setInviteLink] = useState<string | null>(null);
@@ -162,6 +168,111 @@ export function PlatformCustomerAccess({
             ))}
           </div>
           {revoke.isError && <p role="alert" className="mt-2 text-xs text-destructive">The invitation could not be revoked. It may no longer be pending.</p>}
+        </div>
+      )}
+
+      <PlatformAuditTimeline audit={audit.data ?? []} isLoading={audit.isLoading} isError={audit.isError} />
+    </section>
+  );
+}
+
+function auditPersonLabel(person: PlatformCustomerAuditEvent['actor'] | null) {
+  return person?.displayName || person?.email || (person ? `User #${person.id}` : 'Unknown user');
+}
+
+function auditActionLabel(action: string) {
+  return action
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function auditSummary(event: PlatformCustomerAuditEvent) {
+  const affectedUser = auditPersonLabel(event.affectedUser);
+  const details = event.details;
+  switch (event.action) {
+    case 'customer_created':
+      return 'Customer workspace created';
+    case 'customer_status_changed':
+      return `Workspace status changed to ${String(details.status ?? 'updated')}`;
+    case 'customer_branding_changed':
+      return `Customer branding ${details.customerBrandingEnabled === true ? 'enabled' : 'disabled'}`;
+    case 'customer_member_access_updated':
+      return `${affectedUser} access updated to ${String(details.role ?? 'updated')}`;
+    case 'customer_member_removed':
+      return `${affectedUser} removed from the workspace`;
+    case 'customer_invitation_revoked':
+      return 'A customer invitation was revoked';
+    default:
+      return auditActionLabel(event.action);
+  }
+}
+
+function formatAuditTimestamp(value: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
+function PlatformAuditTimeline({
+  audit,
+  isLoading,
+  isError,
+}: {
+  audit: PlatformCustomerAuditEvent[];
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  return (
+    <section className="mt-6 border-t border-border pt-5" aria-labelledby="platform-audit-heading" data-testid="platform-audit-timeline">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary"><History size={16} /></span>
+          <div>
+            <h3 id="platform-audit-heading" className="text-sm font-bold">Access and workspace history</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Platform-admin actions for this customer, with the actor and affected workspace or user.</p>
+          </div>
+        </div>
+        <span className="mono text-[10px] uppercase tracking-[.1em] text-muted-foreground">{audit.length} entries</span>
+      </div>
+
+      {isLoading && <p className="mt-4 rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">Loading audit history…</p>}
+      {isError && <p className="mt-4 rounded-lg border border-status-danger/30 bg-status-danger/5 p-4 text-xs text-destructive" role="alert">Audit history could not be loaded.</p>}
+      {!isLoading && !isError && audit.length === 0 && (
+        <p className="mt-4 rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">No platform access changes have been recorded for this customer.</p>
+      )}
+      {!isLoading && !isError && audit.length > 0 && (
+        <div className="mt-4 space-y-3">
+          {audit.map((event, index) => (
+            <article key={event.id} className="relative flex gap-3 rounded-lg border border-border bg-background p-4" data-testid={`platform-audit-event-${event.id}`}>
+              {index < audit.length - 1 && <span className="absolute bottom-[-13px] left-[21px] z-10 h-3 w-px bg-border" aria-hidden="true" />}
+              <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-primary">
+                <CircleUserRound size={14} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold">{auditSummary(event)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground">{auditPersonLabel(event.actor)}</span>
+                      {' · '}
+                      {event.affectedUser ? `Affected user: ${auditPersonLabel(event.affectedUser)}` : `Workspace: ${event.workspace.name}`}
+                    </p>
+                  </div>
+                  <span className="mono inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Clock3 size={11} /> {formatAuditTimestamp(event.createdAt)}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="mono rounded-md bg-secondary px-2 py-1 text-[10px] font-bold uppercase tracking-[.08em] text-muted-foreground">{auditActionLabel(event.action)}</span>
+                  <span className="mono text-[10px] text-muted-foreground">{event.workspace.slug}</span>
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
       )}
     </section>

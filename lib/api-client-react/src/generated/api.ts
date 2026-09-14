@@ -129,6 +129,7 @@ import type {
   OpportunityPreconstructionGraph,
   OpportunityUpdate,
   PlatformCustomer,
+  PlatformCustomerAuditEvent,
   PlatformCustomerDetails,
   PlatformCustomerMember,
   PlatformRelease,
@@ -15375,6 +15376,83 @@ export const useUpdatePlatformCustomer = <TError = ErrorType<void>,
       > => {
       return useMutation(getUpdatePlatformCustomerMutationOptions(options));
     }
+
+export const getListPlatformCustomerAuditEventsUrl = (tenantId: number,) => {
+
+
+
+
+  return `/api/platform/customers/${tenantId}/audit-events`
+}
+
+/**
+ * @summary List the access and workspace audit timeline for a customer
+ */
+export const listPlatformCustomerAuditEvents = async (tenantId: number, options?: Parameters<typeof customFetch>[1]): Promise<PlatformCustomerAuditEvent[]> => {
+
+  return customFetch<PlatformCustomerAuditEvent[]>(getListPlatformCustomerAuditEventsUrl(tenantId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlatformCustomerAuditEventsQueryKey = (tenantId: number,) => {
+    return [
+    `/api/platform/customers/${tenantId}/audit-events`
+    ] as const;
+    }
+
+
+export const getListPlatformCustomerAuditEventsQueryOptions = <TData = Awaited<ReturnType<typeof listPlatformCustomerAuditEvents>>, TError = ErrorType<void>>(tenantId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformCustomerAuditEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlatformCustomerAuditEventsQueryKey(tenantId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlatformCustomerAuditEvents>>> = ({ signal }) => listPlatformCustomerAuditEvents(tenantId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: tenantId !== null && tenantId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlatformCustomerAuditEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlatformCustomerAuditEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listPlatformCustomerAuditEvents>>>
+export type ListPlatformCustomerAuditEventsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List the access and workspace audit timeline for a customer
+ */
+
+export function useListPlatformCustomerAuditEvents<TData = Awaited<ReturnType<typeof listPlatformCustomerAuditEvents>>, TError = ErrorType<void>>(
+ tenantId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformCustomerAuditEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlatformCustomerAuditEventsQueryOptions(tenantId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getCreatePlatformCustomerInvitationUrl = (tenantId: number,) => {
 

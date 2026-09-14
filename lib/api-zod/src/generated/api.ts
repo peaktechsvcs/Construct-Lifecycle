@@ -11701,6 +11701,41 @@ export const UpdatePlatformCustomerResponse = zod.object({
 
 
 /**
+ * @summary List the access and workspace audit timeline for a customer
+ */
+
+
+
+export const ListPlatformCustomerAuditEventsParams = zod.object({
+  "tenantId": zod.coerce.number().int().min(1)
+})
+
+export const ListPlatformCustomerAuditEventsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "action": zod.string(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "actor": zod.object({
+  "id": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),
+  "affectedUser": zod.union([zod.object({
+  "id": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "workspace": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})
+})
+export const ListPlatformCustomerAuditEventsResponse = zod.array(ListPlatformCustomerAuditEventsResponseItem)
+
+
+/**
  * @summary Invite a customer user from the platform administration surface
  */
 
