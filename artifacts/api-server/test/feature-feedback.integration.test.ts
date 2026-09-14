@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { after, before, describe, test } from "node:test";
 import type { Server } from "node:http";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   configureRuntimeReplayGuard,
   createRuntimeNonce,
@@ -95,6 +95,33 @@ function feature(body: Json | undefined, key: string) {
 }
 
 before(async () => {
+  const featureControlTables = await db.execute(sql<{ tableName: string }>`
+    SELECT table_name AS "tableName"
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name IN ('platform_feature_flags', 'feature_feedback_votes')
+    ORDER BY table_name
+  `);
+  assert.deepEqual(
+    featureControlTables.rows.map((row) => row.tableName),
+    ["feature_feedback_votes", "platform_feature_flags"],
+  );
+
+  const featureControlIndexes = await db.execute(sql<{ indexName: string }>`
+    SELECT indexname AS "indexName"
+    FROM pg_indexes
+    WHERE schemaname = 'public'
+      AND indexname IN (
+        'feature_feedback_votes_tenant_user_idx',
+        'feature_feedback_votes_feature_idx'
+      )
+    ORDER BY indexname
+  `);
+  assert.deepEqual(
+    featureControlIndexes.rows.map((row) => row.indexName),
+    ["feature_feedback_votes_feature_idx", "feature_feedback_votes_tenant_user_idx"],
+  );
+
   originalFlags = await db
     .select()
     .from(platformFeatureFlagsTable)
