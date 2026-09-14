@@ -20,6 +20,7 @@ import {
   useCreateProjectIssue,
   useCreateProjectScheduleItem,
   useGetProjectControls,
+  useSyncProjectAccounting,
   useUpdateProjectFinancials,
   useUpsertProjectContract,
 } from '@workspace/api-client-react';
@@ -88,6 +89,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
   const commitmentMutation = useCreateProjectCommitment();
   const issueMutation = useCreateProjectIssue();
   const changeMutation = useCreateProjectChangeOrder();
+  const accountingSyncMutation = useSyncProjectAccounting();
   const [formKind, setFormKind] = useState<FormKind>();
   const [feedback, setFeedback] = useState('');
   const [form, setForm] = useState(emptyForm);
@@ -134,6 +136,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
   const forecastMargin = data?.metrics.forecastMargin ?? 0;
   const marginPercent = data?.metrics.contractValue ? Math.round((forecastMargin / data.metrics.contractValue) * 100) : 0;
   const upcomingMilestones = useMemo(() => (data?.scheduleItems ?? []).filter((item) => item.status !== 'complete').slice(0, 4), [data?.scheduleItems]);
+  const latestAccountingSync = useMemo(() => [...(data?.accountingSyncs ?? [])].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0], [data?.accountingSyncs]);
 
   if (query.isLoading) return <LoadingPanel lines={5} />;
   if (query.isError || !data) return <ErrorPanel title="Project controls are unavailable" text="The project loaded, but its controls could not be retrieved." onRetry={() => query.refetch()} />;
@@ -230,8 +233,9 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
 
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
         <div className="rounded-lg border border-border p-4">
-          <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><Receipt size={15} className="text-primary" /><h3 className="text-sm font-bold">Owner pay applications</h3></div><Badge tone={data.payApplications.some((item) => item.status === 'rejected') ? 'red' : 'teal'}>{data.payApplications.length} submitted</Badge></div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><Receipt size={15} className="text-primary" /><h3 className="text-sm font-bold">Owner pay applications</h3></div><div className="flex flex-wrap items-center justify-end gap-2"><Badge tone={data.payApplications.some((item) => item.status === 'rejected') ? 'red' : 'teal'}>{data.payApplications.length} submitted</Badge><Button variant="outline" className="px-2.5 py-1.5 text-[10px]" disabled={accountingSyncMutation.isPending} onClick={() => accountingSyncMutation.mutate({ projectId, data: { providerKey: 'quickbooks' } }, { onSuccess: () => { refresh(); setFeedback('QuickBooks sync completed.'); }, onError: () => setFeedback('QuickBooks sync could not be completed. Check the provider connection and try again.') })}><Landmark size={12} />{accountingSyncMutation.isPending ? 'Syncing…' : 'Sync QuickBooks'}</Button></div></div>
           {data.payApplications.length ? <div className="divide-y divide-border">{data.payApplications.slice(0, 4).map((item) => <div key={item.id} className="flex items-center gap-3 py-2.5"><div className="min-w-0 flex-1"><p className="text-xs font-semibold">{item.applicationNumber} · {currency.format(item.netAmount)}</p><p className="text-[10px] text-muted-foreground">{shortDate(item.periodEnd)} · {currency.format(item.retainageAmount)} retainage</p></div><Badge tone={toneForStatus(item.status)}>{item.status}</Badge></div>)}</div> : <p className="text-xs text-muted-foreground">No owner pay applications have been prepared.</p>}
+          <div className="mt-3 flex items-center justify-between border-t border-border/70 pt-2 text-[10px] text-muted-foreground"><span>Accounting status</span><span className="font-semibold">{latestAccountingSync ? latestAccountingSync.syncStatus.replace(/_/g, ' ') : 'not synced'}</span></div>
         </div>
         <div className="rounded-lg border border-border p-4">
           <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><CheckCircle2 size={15} className="text-primary" /><h3 className="text-sm font-bold">Closeout requirements</h3></div><Badge tone={data.metrics.closeoutReadiness === 100 ? 'green' : 'orange'}>{data.metrics.closeoutReadiness}% ready</Badge></div>

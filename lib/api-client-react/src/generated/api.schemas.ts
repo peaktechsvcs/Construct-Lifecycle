@@ -3318,6 +3318,80 @@ export interface ProjectPayApplicationUpdate {
   notes?: string | null;
 }
 
+export interface ProjectAccountingSyncInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  providerKey: string;
+}
+
+export interface ProjectAccountingSyncResource {
+  resourceType: string;
+  resourceKey: string;
+  externalId: string;
+}
+
+export interface ProjectAccountingSyncFailure {
+  resourceType: string;
+  resourceKey: string;
+  error: string;
+}
+
+export type ProjectAccountingSyncRecordSyncStatus = typeof ProjectAccountingSyncRecordSyncStatus[keyof typeof ProjectAccountingSyncRecordSyncStatus];
+
+
+export const ProjectAccountingSyncRecordSyncStatus = {
+  not_synced: 'not_synced',
+  syncing: 'syncing',
+  synced: 'synced',
+  failed: 'failed',
+} as const;
+
+export type ProjectAccountingSyncRecordMetadata = { [key: string]: unknown };
+
+export interface ProjectAccountingSyncRecord {
+  id: number;
+  projectId: number;
+  resourceType: string;
+  resourceKey: string;
+  providerKey: string;
+  /** @nullable */
+  integrationId: number | null;
+  syncStatus: ProjectAccountingSyncRecordSyncStatus;
+  /** @nullable */
+  externalId: string | null;
+  /** @nullable */
+  lastAttemptedAt: string | null;
+  /** @nullable */
+  lastSuccessfulSyncAt: string | null;
+  /** @nullable */
+  lastError: string | null;
+  metadata: ProjectAccountingSyncRecordMetadata;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProjectAccountingSyncStatus = typeof ProjectAccountingSyncStatus[keyof typeof ProjectAccountingSyncStatus];
+
+
+export const ProjectAccountingSyncStatus = {
+  success: 'success',
+  partial: 'partial',
+  failed: 'failed',
+} as const;
+
+export interface ProjectAccountingSync {
+  projectId: number;
+  providerKey: string;
+  status: ProjectAccountingSyncStatus;
+  startedAt: string;
+  completedAt: string;
+  successful: ProjectAccountingSyncResource[];
+  failed: ProjectAccountingSyncFailure[];
+  syncs: ProjectAccountingSyncRecord[];
+}
+
 export type ProjectCloseoutRequirementStatus = typeof ProjectCloseoutRequirementStatus[keyof typeof ProjectCloseoutRequirementStatus];
 
 
@@ -3452,6 +3526,7 @@ export interface ProjectControlsSummary {
   payApplications: ProjectPayApplication[];
   closeoutRequirements: ProjectCloseoutRequirement[];
   financials: ProjectFinancials | null;
+  accountingSyncs: ProjectAccountingSyncRecord[];
   metrics: ProjectControlsMetrics;
   events: ProjectControlEvent[];
 }

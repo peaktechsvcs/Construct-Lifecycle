@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProjectAccountingSyncRecord } from './projectAccountingSyncRecord';
 import type { ProjectChangeOrder } from './projectChangeOrder';
 import type { ProjectCloseoutRequirement } from './projectCloseoutRequirement';
 import type { ProjectCommitment } from './projectCommitment';
@@ -28,6 +29,7 @@ export interface ProjectControlsSummary {
   payApplications: ProjectPayApplication[];
   closeoutRequirements: ProjectCloseoutRequirement[];
   financials: ProjectFinancials | null;
+  accountingSyncs: ProjectAccountingSyncRecord[];
   metrics: ProjectControlsMetrics;
   events: ProjectControlEvent[];
 }

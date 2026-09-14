@@ -138,6 +138,8 @@ import type {
   PlatformReleaseRejectionInput,
   PreviewItbMailboxParams,
   Project,
+  ProjectAccountingSync,
+  ProjectAccountingSyncInput,
   ProjectChangeOrder,
   ProjectChangeOrderInput,
   ProjectChangeOrderUpdate,
@@ -1910,6 +1912,78 @@ export const useUpdateProjectPayApplication = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateProjectPayApplicationMutationOptions(options));
+    }
+
+export const getSyncProjectAccountingUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/controls/accounting/sync`
+}
+
+/**
+ * @summary Sync approved owner pay applications and project cost status to accounting
+ */
+export const syncProjectAccounting = async (projectId: number,
+    projectAccountingSyncInput: ProjectAccountingSyncInput, options?: Parameters<typeof customFetch>[1]): Promise<ProjectAccountingSync> => {
+
+  return customFetch<ProjectAccountingSync>(getSyncProjectAccountingUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(projectAccountingSyncInput)
+  }
+);}
+
+
+
+
+
+export const getSyncProjectAccountingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncProjectAccounting>>, TError,{projectId: number;data: BodyType<ProjectAccountingSyncInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncProjectAccounting>>, TError,{projectId: number;data: BodyType<ProjectAccountingSyncInput>}, TContext> => {
+
+const mutationKey = ['syncProjectAccounting'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncProjectAccounting>>, {projectId: number;data: BodyType<ProjectAccountingSyncInput>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  syncProjectAccounting(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncProjectAccountingMutationResult = NonNullable<Awaited<ReturnType<typeof syncProjectAccounting>>>
+    export type SyncProjectAccountingMutationBody = BodyType<ProjectAccountingSyncInput>
+    export type SyncProjectAccountingMutationError = ErrorType<void>
+
+    /**
+ * @summary Sync approved owner pay applications and project cost status to accounting
+ */
+export const useSyncProjectAccounting = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncProjectAccounting>>, TError,{projectId: number;data: BodyType<ProjectAccountingSyncInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncProjectAccounting>>,
+        TError,
+        {projectId: number;data: BodyType<ProjectAccountingSyncInput>},
+        TContext
+      > => {
+      return useMutation(getSyncProjectAccountingMutationOptions(options));
     }
 
 export const getCreateProjectCloseoutRequirementUrl = (projectId: number,) => {

@@ -566,6 +566,22 @@ export const GetProjectControlsResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }),zod.null()]),
+  "accountingSyncs": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "resourceType": zod.string(),
+  "resourceKey": zod.string(),
+  "providerKey": zod.string(),
+  "integrationId": zod.number().int().nullable(),
+  "syncStatus": zod.enum(['not_synced', 'syncing', 'synced', 'failed']),
+  "externalId": zod.string().nullable(),
+  "lastAttemptedAt": zod.coerce.date().nullable(),
+  "lastSuccessfulSyncAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
   "metrics": zod.object({
   "contractValue": zod.number(),
   "committedCost": zod.number(),
@@ -1364,6 +1380,56 @@ export const UpdateProjectPayApplicationResponse = zod.object({
   "notes": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Sync approved owner pay applications and project cost status to accounting
+ */
+export const SyncProjectAccountingParams = zod.object({
+  "projectId": zod.coerce.number().int()
+})
+
+export const syncProjectAccountingBodyProviderKeyMax = 80;
+
+
+
+export const SyncProjectAccountingBody = zod.object({
+  "providerKey": zod.string().min(1).max(syncProjectAccountingBodyProviderKeyMax)
+})
+
+export const SyncProjectAccountingResponse = zod.object({
+  "projectId": zod.number().int(),
+  "providerKey": zod.string(),
+  "status": zod.enum(['success', 'partial', 'failed']),
+  "startedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date(),
+  "successful": zod.array(zod.object({
+  "resourceType": zod.string(),
+  "resourceKey": zod.string(),
+  "externalId": zod.string()
+})),
+  "failed": zod.array(zod.object({
+  "resourceType": zod.string(),
+  "resourceKey": zod.string(),
+  "error": zod.string()
+})),
+  "syncs": zod.array(zod.object({
+  "id": zod.number().int(),
+  "projectId": zod.number().int(),
+  "resourceType": zod.string(),
+  "resourceKey": zod.string(),
+  "providerKey": zod.string(),
+  "integrationId": zod.number().int().nullable(),
+  "syncStatus": zod.enum(['not_synced', 'syncing', 'synced', 'failed']),
+  "externalId": zod.string().nullable(),
+  "lastAttemptedAt": zod.coerce.date().nullable(),
+  "lastSuccessfulSyncAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
 })
 
 

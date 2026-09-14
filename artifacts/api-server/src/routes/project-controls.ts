@@ -8,6 +8,7 @@ import {
   projectContractsTable,
   projectControlEventsTable,
   projectFinancialsTable,
+  projectAccountingSyncsTable,
   projectIssuesTable,
   projectIssueNumberSequencesTable,
   projectPayApplicationsTable,
@@ -53,10 +54,14 @@ import {
   CreateProjectCloseoutRequirementBody,
   UpdateProjectCloseoutRequirementParams,
   UpdateProjectCloseoutRequirementBody,
+  SyncProjectAccountingParams,
+  SyncProjectAccountingBody,
+  SyncProjectAccountingResponse,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { getCurrentTenantRole, requireRole } from "../middlewares/rbac";
 import { canApproveProjectChange } from "../lib/project-control-policy";
+import { AccountingSyncError, syncProjectAccounting } from "../lib/accounting/sync";
 
 const router: IRouter = Router();
 
@@ -139,6 +144,16 @@ function toPayApplication(row: typeof projectPayApplicationsTable.$inferSelect) 
     netAmount: money(row.netAmount),
   };
 }
+function toAccountingSync(row: typeof projectAccountingSyncsTable.$inferSelect) {
+  let metadata: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(row.metadata);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
+  } catch {
+    // Keep malformed provider metadata from breaking the controls workspace.
+  }
+  return { ...row, metadata };
+}
 
 async function getProject(req: TenantRequest, projectId: number) {
   const [project] = await db.select().from(projectsTable).where(and(
@@ -192,7 +207,7 @@ router.get("/projects/:projectId/controls", async (req: TenantRequest, res) => {
   if (!project) { res.status(404).json({ error: "Project not found" }); return; }
   const projectId = project.id;
   const [contract] = await db.select().from(projectContractsTable).where(and(scope(req, projectContractsTable), eq(projectContractsTable.projectId, projectId))).limit(1);
-  const [scheduleItems, sovLines, commitments, issues, changeOrders, financials, events, payApplications, closeoutRequirements] = await Promise.all([
+  const [scheduleItems, sovLines, commitments, issues, changeOrders, financials, events, payApplications, closeoutRequirements, accountingSyncs] = await Promise.all([
     db.select().from(projectScheduleItemsTable).where(and(scope(req, projectScheduleItemsTable), eq(projectScheduleItemsTable.projectId, projectId))).orderBy(asc(projectScheduleItemsTable.plannedEnd)),
     db.select().from(scheduleOfValuesTable).where(and(scope(req, scheduleOfValuesTable), eq(scheduleOfValuesTable.projectId, projectId))).orderBy(asc(scheduleOfValuesTable.lineNumber)),
     db.select().from(projectCommitmentsTable).where(and(scope(req, projectCommitmentsTable), eq(projectCommitmentsTable.projectId, projectId))).orderBy(desc(projectCommitmentsTable.updatedAt)),
@@ -202,6 +217,7 @@ router.get("/projects/:projectId/controls", async (req: TenantRequest, res) => {
     db.select().from(projectControlEventsTable).where(and(scope(req, projectControlEventsTable), eq(projectControlEventsTable.projectId, projectId))).orderBy(desc(projectControlEventsTable.createdAt)).limit(20),
     db.select().from(projectPayApplicationsTable).where(and(scope(req, projectPayApplicationsTable), eq(projectPayApplicationsTable.projectId, projectId))).orderBy(desc(projectPayApplicationsTable.updatedAt)),
     db.select().from(projectCloseoutRequirementsTable).where(and(scope(req, projectCloseoutRequirementsTable), eq(projectCloseoutRequirementsTable.projectId, projectId))).orderBy(asc(projectCloseoutRequirementsTable.dueDate)),
+    db.select().from(projectAccountingSyncsTable).where(and(scope(req, projectAccountingSyncsTable), eq(projectAccountingSyncsTable.projectId, projectId))).orderBy(desc(projectAccountingSyncsTable.updatedAt)),
   ]);
   const participants = contract
     ? await db.select().from(contractParticipantsTable).where(and(scope(req, contractParticipantsTable), eq(contractParticipantsTable.contractId, contract.id))).orderBy(asc(contractParticipantsTable.organizationName))
@@ -247,6 +263,7 @@ router.get("/projects/:projectId/controls", async (req: TenantRequest, res) => {
     changeOrders: changeOrders.map(toChangeOrder),
     payApplications: payApplications.map(toPayApplication),
     closeoutRequirements,
+    accountingSyncs: accountingSyncs.map(toAccountingSync),
     financials: financial,
     metrics: {
       contractValue: forecastRevenue,
@@ -617,6 +634,26 @@ router.put("/projects/:projectId/controls/financials", requireRole("owner", "adm
   }).returning();
   await appendEvent(req, params.data.projectId, "financials", row.id, "financials_updated");
   res.json(toFinancials(row));
+});
+
+router.post("/projects/:projectId/controls/accounting/sync", requireRole("owner", "admin", "member"), async (req: TenantRequest, res): Promise<void> => {
+  const params = SyncProjectAccountingParams.safeParse(req.params);
+  const parsed = SyncProjectAccountingBody.safeParse(req.body);
+  if (!params.success || !parsed.success) {
+    res.status(400).json({ error: "Invalid accounting sync request" });
+    return;
+  }
+  try {
+    const result = await syncProjectAccounting(req, params.data.projectId, parsed.data.providerKey);
+    res.json(SyncProjectAccountingResponse.parse(result));
+  } catch (error) {
+    if (error instanceof AccountingSyncError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    req.log.error({ err: error, projectId: params.data.projectId }, "Project accounting sync failed unexpectedly");
+    res.status(503).json({ error: "Project accounting synchronization is temporarily unavailable" });
+  }
 });
 
 router.post("/projects/:projectId/controls/pay-applications", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {

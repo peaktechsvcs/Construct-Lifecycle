@@ -440,6 +440,26 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProjectPayApplication" }
+  /projects/{projectId}/controls/accounting/sync:
+    post:
+      operationId: syncProjectAccounting
+      tags: [project-controls]
+      summary: Sync approved owner pay applications and project cost status to accounting
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectAccountingSyncInput" }
+      responses:
+        "200":
+          description: Accounting synchronization result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectAccountingSync" }
+        "403": { description: Accounting provider entitlement is not enabled }
+        "409": { description: Accounting provider is not connected or cannot sync }
   /projects/{projectId}/controls/closeout-requirements:
     post:
       operationId: createProjectCloseoutRequirement
@@ -5938,6 +5958,61 @@ components:
         retainageAmount: { type: number, minimum: 0 }
         status: { type: string, enum: [draft, submitted, approved, paid, rejected] }
         notes: { type: ["string", "null"], maxLength: 2000 }
+    ProjectAccountingSyncInput:
+      type: object
+      required: [providerKey]
+      properties:
+        providerKey: { type: string, minLength: 1, maxLength: 80 }
+    ProjectAccountingSyncResource:
+      type: object
+      required: [resourceType, resourceKey, externalId]
+      properties:
+        resourceType: { type: string }
+        resourceKey: { type: string }
+        externalId: { type: string }
+    ProjectAccountingSyncFailure:
+      type: object
+      required: [resourceType, resourceKey, error]
+      properties:
+        resourceType: { type: string }
+        resourceKey: { type: string }
+        error: { type: string }
+    ProjectAccountingSyncRecord:
+      type: object
+      required: [id, projectId, resourceType, resourceKey, providerKey, integrationId, syncStatus, externalId, lastAttemptedAt, lastSuccessfulSyncAt, lastError, metadata, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        resourceType: { type: string }
+        resourceKey: { type: string }
+        providerKey: { type: string }
+        integrationId: { type: ["integer", "null"] }
+        syncStatus: { type: string, enum: [not_synced, syncing, synced, failed] }
+        externalId: { type: ["string", "null"] }
+        lastAttemptedAt: { type: ["string", "null"], format: date-time }
+        lastSuccessfulSyncAt: { type: ["string", "null"], format: date-time }
+        lastError: { type: ["string", "null"] }
+        metadata: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectAccountingSync:
+      type: object
+      required: [projectId, providerKey, status, startedAt, completedAt, successful, failed, syncs]
+      properties:
+        projectId: { type: integer }
+        providerKey: { type: string }
+        status: { type: string, enum: [success, partial, failed] }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+        successful:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectAccountingSyncResource" }
+        failed:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectAccountingSyncFailure" }
+        syncs:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectAccountingSyncRecord" }
     ProjectCloseoutRequirement:
       type: object
       required: [id, projectId, requirementNumber, requirementType, title, status, dueDate, responsibleParty, documentUrl, completedAt, createdAt, updatedAt]
@@ -6002,7 +6077,7 @@ components:
         closeoutReadiness: { type: integer, minimum: 0, maximum: 100 }
     ProjectControlsSummary:
       type: object
-      required: [projectId, contract, scheduleItems, sovLines, commitments, issues, changeOrders, payApplications, closeoutRequirements, financials, metrics, events]
+      required: [projectId, contract, scheduleItems, sovLines, commitments, issues, changeOrders, payApplications, closeoutRequirements, financials, accountingSyncs, metrics, events]
       properties:
         projectId: { type: integer }
         contract:
@@ -6034,6 +6109,9 @@ components:
           oneOf:
             - $ref: "#/components/schemas/ProjectFinancials"
             - type: "null"
+        accountingSyncs:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectAccountingSyncRecord" }
         metrics: { $ref: "#/components/schemas/ProjectControlsMetrics" }
         events:
           type: array
