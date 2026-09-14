@@ -35,6 +35,7 @@ import {
   Badge,
 } from '@/components/app-ui';
 import { stageLabels } from '@/lib/stage-config';
+import { groupActiveProjectStatusSections } from '@/lib/project-views';
 import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/construct-lifecycle-design-system/components/ui/select';
@@ -487,6 +488,10 @@ export function DashboardDrilldown() {
       { stableKey: 'active', displayName: 'Active', displayOrder: 0 },
       { stableKey: 'waiting', displayName: 'Waiting', displayOrder: 1 },
     ];
+  const activeProjectStatusSections = groupActiveProjectStatusSections(
+    data?.projects ?? [],
+    activeProjectStatuses,
+  );
 
   return (
     <div className="animate-rise">
@@ -583,21 +588,18 @@ export function DashboardDrilldown() {
           )}
           {isActiveProjects ? (
             <div className="space-y-6">
-              {activeProjectStatuses.map((status) => {
-                const statusProjects = data!.projects!.filter((project) => project.projectStatus?.toLowerCase() === status.stableKey);
-                return statusProjects.length > 0 && (
+              {activeProjectStatusSections.map((status) => (
                 <section key={status.stableKey} aria-labelledby={`active-projects-${status.stableKey}`}>
                   <div className="mb-2 flex items-end justify-between gap-3">
                     <div>
                       <h2 id={`active-projects-${status.stableKey}`} className="text-base font-bold">{status.displayName} projects</h2>
                       <p className="text-xs text-muted-foreground">Projects currently carrying the {status.displayName} status.</p>
                     </div>
-                    <span className="mono text-xs text-muted-foreground">{statusProjects.length}</span>
+                    <span className="mono text-xs text-muted-foreground">{status.projects.length}</span>
                   </div>
-                  <ProjectsTable projects={statusProjects} returnUrl={returnUrl} />
+                  <ProjectsTable projects={status.projects} returnUrl={returnUrl} />
                 </section>
-                );
-              })}
+              ))}
             </div>
           ) : (
             <ProjectsTable

@@ -21,6 +21,7 @@ import {
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { getCurrentTenantRole, requireRole } from "../middlewares/rbac";
 import { normalizeCustomerName } from "./customers";
+import { filterActiveProjects } from "../lib/project-views";
 import { ensurePublishedWorkflow, validateProjectTransition } from "../lib/workflow";
 
 const router: IRouter = Router();
@@ -484,9 +485,7 @@ router.get("/dashboard/drilldown", async (req: TenantRequest, res) => {
   const projects = await db.select().from(projectsTable).where(and(...conditions));
   const today = dateToday();
   const matches = type === "active-projects"
-    ? projects.filter((p) =>
-        isActiveCategory(workflowCategory(workflow, p.stage))
-        && activeProjectStatusKeys(workflow).has(p.projectStatus?.toLowerCase() ?? ""))
+    ? filterActiveProjects(projects, workflow?.states ?? [], activeProjectStatusKeys(workflow))
     : type === "pipeline-value"
       ? projects.filter((p) => isPipelineCategory(workflowCategory(workflow, p.stage)))
       : type === "stage"

@@ -15,6 +15,7 @@ import {
 import { stageLabels } from '@/lib/stage-config';
 import { ProjectFormModal } from '@/components/project-form-modal';
 import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
+import { getAllProjectsTableRows } from '@/lib/project-views';
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/construct-lifecycle-design-system/components/ui/select';
 
@@ -239,7 +240,7 @@ export function Projects() {
         />
       ) : (
         <ProjectTable
-          projects={projects}
+          projects={getAllProjectsTableRows(projects)}
           workflow={workflow}
           onEdit={(project) => { setEditing(project); setShowForm(true); }}
           onDelete={handleDelete}
