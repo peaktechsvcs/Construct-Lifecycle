@@ -6058,6 +6058,7 @@ export interface SupplierCustomerTerms {
   creditLimit: number;
   discountPercent: number;
   retainageRequired: number;
+  waiverRequired: boolean;
   status: SupplierCustomerTermsStatus;
   createdAt: string;
   updatedAt: string;
@@ -6087,6 +6088,7 @@ export interface SupplierCustomerTermsInput {
      * @maximum 100
      */
   retainageRequired?: number;
+  waiverRequired?: boolean;
   status?: SupplierCustomerTermsInputStatus;
 }
 
@@ -6554,6 +6556,17 @@ export const SupplierInvoiceStatus = {
   void: 'void',
 } as const;
 
+export type SupplierInvoiceWaiverStatus = typeof SupplierInvoiceWaiverStatus[keyof typeof SupplierInvoiceWaiverStatus];
+
+
+export const SupplierInvoiceWaiverStatus = {
+  not_required: 'not_required',
+  pending: 'pending',
+  received: 'received',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
 export interface SupplierInvoice {
   id: number;
   orderId: number;
@@ -6569,6 +6582,9 @@ export interface SupplierInvoice {
   status: SupplierInvoiceStatus;
   /** @nullable */
   paymentReference: string | null;
+  waiverStatus: SupplierInvoiceWaiverStatus;
+  /** @nullable */
+  waiverReference: string | null;
   /** @nullable */
   paidAt: string | null;
   /**
@@ -6595,6 +6611,17 @@ export const SupplierInvoiceInputStatus = {
   void: 'void',
 } as const;
 
+export type SupplierInvoiceInputWaiverStatus = typeof SupplierInvoiceInputWaiverStatus[keyof typeof SupplierInvoiceInputWaiverStatus];
+
+
+export const SupplierInvoiceInputWaiverStatus = {
+  not_required: 'not_required',
+  pending: 'pending',
+  received: 'received',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
 export interface SupplierInvoiceInput {
   /**
      * @minLength 1
@@ -6614,6 +6641,9 @@ export interface SupplierInvoiceInput {
   status?: SupplierInvoiceInputStatus;
   /** @maxLength 180 */
   paymentReference?: string;
+  waiverStatus?: SupplierInvoiceInputWaiverStatus;
+  /** @maxLength 180 */
+  waiverReference?: string;
   /** @pattern ^/objects/ */
   objectPath?: string;
   /** @maxLength 5000 */
@@ -6643,6 +6673,84 @@ export type SupplierOrderDetail = SupplierOrder & {
   deliveries: SupplierDelivery[];
   invoices: SupplierInvoice[];
 };
+
+export interface SupplierAccountSummary {
+  orderCount: number;
+  invoiceCount: number;
+  invoicedAmount: number;
+  paidAmount: number;
+  outstandingAmount: number;
+  retainageHeld: number;
+  payableAmount: number;
+  blockedAmount: number;
+}
+
+export type SupplierAccountInvoicePaymentGateStatus = typeof SupplierAccountInvoicePaymentGateStatus[keyof typeof SupplierAccountInvoicePaymentGateStatus];
+
+
+export const SupplierAccountInvoicePaymentGateStatus = {
+  ready: 'ready',
+  blocked: 'blocked',
+} as const;
+
+export type SupplierAccountInvoicePaymentGateWaiverStatus = typeof SupplierAccountInvoicePaymentGateWaiverStatus[keyof typeof SupplierAccountInvoicePaymentGateWaiverStatus];
+
+
+export const SupplierAccountInvoicePaymentGateWaiverStatus = {
+  not_required: 'not_required',
+  pending: 'pending',
+  received: 'received',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type SupplierAccountInvoicePaymentGate = {
+  status: SupplierAccountInvoicePaymentGateStatus;
+  retainageRequired: number;
+  waiverRequired: boolean;
+  waiverStatus: SupplierAccountInvoicePaymentGateWaiverStatus;
+  reasons: string[];
+};
+
+export type SupplierAccountInvoice = SupplierInvoice & ({
+  outstandingAmount: number;
+  payableAmount: number;
+  paymentGate: SupplierAccountInvoicePaymentGate;
+  /** @nullable */
+  projectId: number | null;
+  /** @nullable */
+  projectName: string | null;
+  /** @nullable */
+  commitmentId: number | null;
+  /** @nullable */
+  commitmentNumber: string | null;
+});
+
+export interface SupplierAccountOrder {
+  orderId: number;
+  orderNumber: string;
+  orderStatus: SupplierOrderStatus;
+  paymentStatus: string;
+  totalSell: number;
+  /** @nullable */
+  projectId: number | null;
+  /** @nullable */
+  projectName: string | null;
+  /** @nullable */
+  commitmentId: number | null;
+  /** @nullable */
+  commitmentNumber: string | null;
+  invoices: SupplierAccountInvoice[];
+}
+
+export interface SupplierAccountHistory {
+  customerId: number;
+  customerName: string;
+  terms: SupplierCustomerTerms | null;
+  summary: SupplierAccountSummary;
+  orders: SupplierAccountOrder[];
+  paymentEvents: SupplierOrderEvent[];
+}
 
 export type SupplierOrderUpdatePaymentStatus = typeof SupplierOrderUpdatePaymentStatus[keyof typeof SupplierOrderUpdatePaymentStatus];
 

@@ -8,8 +8,10 @@ import {
   environmentsTable,
   membershipsTable,
   pool,
+  supplierCustomerTermsTable,
   supplierDeliveriesTable,
   supplierDeliveryLinesTable,
+  supplierInvoicesTable,
   supplierOrderEventsTable,
   supplierOrderLinesTable,
   supplierOrdersTable,
@@ -31,6 +33,7 @@ let baseUrl = "";
 let tenantId: number;
 let environmentId: number;
 let otherEnvironmentId: number;
+let otherCustomerId: number;
 let orderId: number;
 let orderLineId: number;
 let deliveryId: number;
@@ -131,6 +134,7 @@ before(async () => {
     companyName: "Other Environment Customer",
     normalizedName: `other-environment-customer-${runId}`,
   }).returning();
+  otherCustomerId = otherCustomer.id;
   const [otherOrder] = await db.insert(supplierOrdersTable).values({
     tenantId,
     environmentId: otherEnvironmentId,
@@ -262,4 +266,85 @@ test("proof uploads are screened, downloadable, and environment-scoped", async (
 
   const otherEnvironment = await request(`/supplier-deliveries/${otherDeliveryId}/proof`);
   assert.equal(otherEnvironment.response.status, 404);
+});
+
+test("account history applies retainage and waiver gates without crossing environments", async () => {
+  const terms = await request("/supplier-customer-terms", {
+    method: "POST",
+    body: JSON.stringify({
+      businessCustomerId: (await db.select({ id: businessCustomersTable.id }).from(businessCustomersTable).where(and(
+        eq(businessCustomersTable.tenantId, tenantId),
+        eq(businessCustomersTable.environmentId, environmentId),
+      )))[0].id,
+      paymentTerms: "Net 30",
+      retainageRequired: 10,
+      waiverRequired: true,
+    }),
+  });
+  assert.equal(terms.response.status, 201, JSON.stringify(terms.body));
+
+  const blocked = await request(`/supplier-orders/${orderId}/invoices`, {
+    method: "POST",
+    body: JSON.stringify({
+      invoiceNumber: `INV-BLOCKED-${runId}`,
+      totalAmount: 100,
+      paidAmount: 90,
+      status: "paid",
+    }),
+  });
+  assert.equal(blocked.response.status, 409, JSON.stringify(blocked.body));
+
+  const submitted = await request(`/supplier-orders/${orderId}/invoices`, {
+    method: "POST",
+    body: JSON.stringify({
+      invoiceNumber: `INV-SUBMITTED-${runId}`,
+      totalAmount: 100,
+      status: "submitted",
+    }),
+  });
+  assert.equal(submitted.response.status, 201, JSON.stringify(submitted.body));
+  assert.equal((submitted.body as { retainageAmount: number }).retainageAmount, 10);
+  assert.equal((submitted.body as { waiverStatus: string }).waiverStatus, "pending");
+
+  const paid = await request(`/supplier-orders/${orderId}/invoices`, {
+    method: "POST",
+    body: JSON.stringify({
+      invoiceNumber: `INV-PAID-${runId}`,
+      totalAmount: 100,
+      paidAmount: 90,
+      status: "paid",
+      paymentReference: "ACH-ACCOUNT-HISTORY",
+      waiverStatus: "approved",
+      waiverReference: "WAIVER-ACCOUNT-HISTORY",
+    }),
+  });
+  assert.equal(paid.response.status, 201, JSON.stringify(paid.body));
+
+  const customerId = (await db.select({ id: businessCustomersTable.id }).from(businessCustomersTable).where(and(
+    eq(businessCustomersTable.tenantId, tenantId),
+    eq(businessCustomersTable.environmentId, environmentId),
+  )))[0].id;
+  const history = await request(`/business-customers/${customerId}/supplier-account-history`);
+  assert.equal(history.response.status, 200, JSON.stringify(history.body));
+  const historyBody = history.body as {
+    summary: { invoiceCount: number; invoicedAmount: number; paidAmount: number; outstandingAmount: number; retainageHeld: number };
+    orders: Array<{ invoices: Array<{ paymentReference: string | null; paymentGate: { status: string } }> }>;
+    paymentEvents: Array<{ action: string; details: string | null }>;
+  };
+  assert.equal(historyBody.summary.invoiceCount, 2);
+  assert.equal(historyBody.summary.invoicedAmount, 200);
+  assert.equal(historyBody.summary.paidAmount, 90);
+  assert.equal(historyBody.summary.outstandingAmount, 110);
+  assert.equal(historyBody.summary.retainageHeld, 20);
+  const historyInvoices = historyBody.orders.flatMap((order) => order.invoices);
+  assert(historyInvoices.some((invoice) => invoice.paymentReference === "ACH-ACCOUNT-HISTORY" && invoice.paymentGate.status === "ready"));
+  assert(historyBody.paymentEvents.some((event) => event.action === "payment_recorded" && event.details === "ACH-ACCOUNT-HISTORY"));
+
+  const otherHistory = await request(`/business-customers/${otherCustomerId}/supplier-account-history`);
+  assert.equal(otherHistory.response.status, 404);
+
+  const storedInvoices = await db.select().from(supplierInvoicesTable).where(eq(supplierInvoicesTable.orderId, orderId));
+  assert.equal(storedInvoices.length, 2);
+  const storedTerms = await db.select().from(supplierCustomerTermsTable).where(eq(supplierCustomerTermsTable.businessCustomerId, customerId));
+  assert.equal(storedTerms[0].waiverRequired, true);
 });

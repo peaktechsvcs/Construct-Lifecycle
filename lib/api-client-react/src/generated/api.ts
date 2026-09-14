@@ -219,6 +219,7 @@ import type {
   SubmittalSignatureRequestSendInput,
   SubmittalTransmittal,
   SubmittalTransmittalInput,
+  SupplierAccountHistory,
   SupplierCustomerTerms,
   SupplierCustomerTermsInput,
   SupplierDelivery,
@@ -4590,6 +4591,83 @@ export const useCreateSupplierCustomerTerms = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getCreateSupplierCustomerTermsMutationOptions(options));
     }
+
+export const getGetBusinessCustomerSupplierAccountHistoryUrl = (customerId: number,) => {
+
+
+
+
+  return `/api/business-customers/${customerId}/supplier-account-history`
+}
+
+/**
+ * @summary Get supplier account history for a business customer
+ */
+export const getBusinessCustomerSupplierAccountHistory = async (customerId: number, options?: Parameters<typeof customFetch>[1]): Promise<SupplierAccountHistory> => {
+
+  return customFetch<SupplierAccountHistory>(getGetBusinessCustomerSupplierAccountHistoryUrl(customerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBusinessCustomerSupplierAccountHistoryQueryKey = (customerId: number,) => {
+    return [
+    `/api/business-customers/${customerId}/supplier-account-history`
+    ] as const;
+    }
+
+
+export const getGetBusinessCustomerSupplierAccountHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getBusinessCustomerSupplierAccountHistory>>, TError = ErrorType<void>>(customerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessCustomerSupplierAccountHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBusinessCustomerSupplierAccountHistoryQueryKey(customerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBusinessCustomerSupplierAccountHistory>>> = ({ signal }) => getBusinessCustomerSupplierAccountHistory(customerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: customerId !== null && customerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBusinessCustomerSupplierAccountHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBusinessCustomerSupplierAccountHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getBusinessCustomerSupplierAccountHistory>>>
+export type GetBusinessCustomerSupplierAccountHistoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get supplier account history for a business customer
+ */
+
+export function useGetBusinessCustomerSupplierAccountHistory<TData = Awaited<ReturnType<typeof getBusinessCustomerSupplierAccountHistory>>, TError = ErrorType<void>>(
+ customerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBusinessCustomerSupplierAccountHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBusinessCustomerSupplierAccountHistoryQueryOptions(customerId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSupplierPriceListsUrl = () => {
 

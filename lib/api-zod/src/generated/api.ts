@@ -3004,6 +3004,7 @@ export const ListSupplierCustomerTermsResponseItem = zod.object({
   "creditLimit": zod.number(),
   "discountPercent": zod.number(),
   "retainageRequired": zod.number(),
+  "waiverRequired": zod.boolean(),
   "status": zod.enum(['active', 'inactive']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -3032,6 +3033,7 @@ export const CreateSupplierCustomerTermsBody = zod.object({
   "creditLimit": zod.number().min(createSupplierCustomerTermsBodyCreditLimitMin).optional(),
   "discountPercent": zod.number().min(createSupplierCustomerTermsBodyDiscountPercentMin).max(createSupplierCustomerTermsBodyDiscountPercentMax).optional(),
   "retainageRequired": zod.number().min(createSupplierCustomerTermsBodyRetainageRequiredMin).max(createSupplierCustomerTermsBodyRetainageRequiredMax).optional(),
+  "waiverRequired": zod.boolean().optional(),
   "status": zod.enum(['active', 'inactive']).optional()
 })
 
@@ -3042,9 +3044,106 @@ export const CreateSupplierCustomerTermsResponse = zod.object({
   "creditLimit": zod.number(),
   "discountPercent": zod.number(),
   "retainageRequired": zod.number(),
+  "waiverRequired": zod.boolean(),
   "status": zod.enum(['active', 'inactive']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get supplier account history for a business customer
+ */
+export const GetBusinessCustomerSupplierAccountHistoryParams = zod.object({
+  "customerId": zod.coerce.number().int()
+})
+
+export const getBusinessCustomerSupplierAccountHistoryResponseOrdersItemInvoicesItemOneObjectPathRegExp = new RegExp('^/objects');
+
+
+export const GetBusinessCustomerSupplierAccountHistoryResponse = zod.object({
+  "customerId": zod.number().int(),
+  "customerName": zod.string(),
+  "terms": zod.union([zod.object({
+  "id": zod.number().int(),
+  "businessCustomerId": zod.number().int(),
+  "paymentTerms": zod.string(),
+  "creditLimit": zod.number(),
+  "discountPercent": zod.number(),
+  "retainageRequired": zod.number(),
+  "waiverRequired": zod.boolean(),
+  "status": zod.enum(['active', 'inactive']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),zod.null()]),
+  "summary": zod.object({
+  "orderCount": zod.number().int(),
+  "invoiceCount": zod.number().int(),
+  "invoicedAmount": zod.number(),
+  "paidAmount": zod.number(),
+  "outstandingAmount": zod.number(),
+  "retainageHeld": zod.number(),
+  "payableAmount": zod.number(),
+  "blockedAmount": zod.number()
+}),
+  "orders": zod.array(zod.object({
+  "orderId": zod.number().int(),
+  "orderNumber": zod.string(),
+  "orderStatus": zod.enum(['draft', 'pending_approval', 'approved', 'purchasing', 'partially_fulfilled', 'fulfilled', 'closed', 'canceled']),
+  "paymentStatus": zod.string(),
+  "totalSell": zod.number(),
+  "projectId": zod.number().int().nullable(),
+  "projectName": zod.string().nullable(),
+  "commitmentId": zod.number().int().nullable(),
+  "commitmentNumber": zod.string().nullable(),
+  "invoices": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.coerce.date().nullable(),
+  "dueDate": zod.coerce.date().nullable(),
+  "subtotal": zod.number(),
+  "retainageAmount": zod.number(),
+  "totalAmount": zod.number(),
+  "paidAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']),
+  "paymentReference": zod.string().nullable(),
+  "waiverStatus": zod.enum(['not_required', 'pending', 'received', 'approved', 'rejected']),
+  "waiverReference": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "objectPath": zod.string().regex(getBusinessCustomerSupplierAccountHistoryResponseOrdersItemInvoicesItemOneObjectPathRegExp).nullable(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "outstandingAmount": zod.number(),
+  "payableAmount": zod.number(),
+  "paymentGate": zod.object({
+  "status": zod.enum(['ready', 'blocked']),
+  "retainageRequired": zod.number(),
+  "waiverRequired": zod.boolean(),
+  "waiverStatus": zod.enum(['not_required', 'pending', 'received', 'approved', 'rejected']),
+  "reasons": zod.array(zod.string())
+}),
+  "projectId": zod.number().int().nullable(),
+  "projectName": zod.string().nullable(),
+  "commitmentId": zod.number().int().nullable(),
+  "commitmentNumber": zod.string().nullable()
+})))
+})),
+  "paymentEvents": zod.array(zod.object({
+  "id": zod.number().int(),
+  "orderId": zod.number().int(),
+  "entityType": zod.string(),
+  "entityId": zod.number().int(),
+  "action": zod.string(),
+  "fromStatus": zod.string().nullable(),
+  "toStatus": zod.string().nullable(),
+  "details": zod.string().nullable(),
+  "visibleToCustomer": zod.boolean(),
+  "actorUserId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+}))
 })
 
 
@@ -3399,6 +3498,8 @@ export const ConvertSupplierQuoteResponse = zod.object({
   "paidAmount": zod.number(),
   "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']),
   "paymentReference": zod.string().nullable(),
+  "waiverStatus": zod.enum(['not_required', 'pending', 'received', 'approved', 'rejected']),
+  "waiverReference": zod.string().nullable(),
   "paidAt": zod.coerce.date().nullable(),
   "objectPath": zod.string().regex(convertSupplierQuoteResponseTwoInvoicesItemObjectPathRegExp).nullable(),
   "notes": zod.string().nullable(),
@@ -3542,6 +3643,8 @@ export const GetSupplierOrderResponse = zod.object({
   "paidAmount": zod.number(),
   "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']),
   "paymentReference": zod.string().nullable(),
+  "waiverStatus": zod.enum(['not_required', 'pending', 'received', 'approved', 'rejected']),
+  "waiverReference": zod.string().nullable(),
   "paidAt": zod.coerce.date().nullable(),
   "objectPath": zod.string().regex(getSupplierOrderResponseTwoInvoicesItemObjectPathRegExp).nullable(),
   "notes": zod.string().nullable(),
@@ -3661,6 +3764,8 @@ export const UpdateSupplierOrderResponse = zod.object({
   "paidAmount": zod.number(),
   "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']),
   "paymentReference": zod.string().nullable(),
+  "waiverStatus": zod.enum(['not_required', 'pending', 'received', 'approved', 'rejected']),
+  "waiverReference": zod.string().nullable(),
   "paidAt": zod.coerce.date().nullable(),
   "objectPath": zod.string().regex(updateSupplierOrderResponseTwoInvoicesItemObjectPathRegExp).nullable(),
   "notes": zod.string().nullable(),
@@ -4025,6 +4130,8 @@ export const RecordSupplierReceivingResponse = zod.object({
   "paidAmount": zod.number(),
   "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']),
   "paymentReference": zod.string().nullable(),
+  "waiverStatus": zod.enum(['not_required', 'pending', 'received', 'approved', 'rejected']),
+  "waiverReference": zod.string().nullable(),
   "paidAt": zod.coerce.date().nullable(),
   "objectPath": zod.string().regex(recordSupplierReceivingResponseTwoInvoicesItemObjectPathRegExp).nullable(),
   "notes": zod.string().nullable(),
@@ -4053,6 +4160,8 @@ export const createSupplierInvoiceBodyPaidAmountMin = 0;
 
 export const createSupplierInvoiceBodyPaymentReferenceMax = 180;
 
+export const createSupplierInvoiceBodyWaiverReferenceMax = 180;
+
 export const createSupplierInvoiceBodyObjectPathRegExp = new RegExp('^/objects');
 export const createSupplierInvoiceBodyNotesMax = 5000;
 
@@ -4068,6 +4177,8 @@ export const CreateSupplierInvoiceBody = zod.object({
   "paidAmount": zod.number().min(createSupplierInvoiceBodyPaidAmountMin).optional(),
   "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']).optional(),
   "paymentReference": zod.string().max(createSupplierInvoiceBodyPaymentReferenceMax).optional(),
+  "waiverStatus": zod.enum(['not_required', 'pending', 'received', 'approved', 'rejected']).optional(),
+  "waiverReference": zod.string().max(createSupplierInvoiceBodyWaiverReferenceMax).optional(),
   "objectPath": zod.string().regex(createSupplierInvoiceBodyObjectPathRegExp).optional(),
   "notes": zod.string().max(createSupplierInvoiceBodyNotesMax).optional()
 })
@@ -4087,6 +4198,8 @@ export const CreateSupplierInvoiceResponse = zod.object({
   "paidAmount": zod.number(),
   "status": zod.enum(['draft', 'submitted', 'approved', 'partially_paid', 'paid', 'disputed', 'void']),
   "paymentReference": zod.string().nullable(),
+  "waiverStatus": zod.enum(['not_required', 'pending', 'received', 'approved', 'rejected']),
+  "waiverReference": zod.string().nullable(),
   "paidAt": zod.coerce.date().nullable(),
   "objectPath": zod.string().regex(createSupplierInvoiceResponseObjectPathRegExp).nullable(),
   "notes": zod.string().nullable(),

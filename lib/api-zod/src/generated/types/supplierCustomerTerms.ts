@@ -14,6 +14,7 @@ export interface SupplierCustomerTerms {
   creditLimit: number;
   discountPercent: number;
   retainageRequired: number;
+  waiverRequired: boolean;
   status: SupplierCustomerTermsStatus;
   createdAt: Date;
   updatedAt: Date;

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SupplierInvoiceStatus } from './supplierInvoiceStatus';
+import type { SupplierInvoiceWaiverStatus } from './supplierInvoiceWaiverStatus';
 
 export interface SupplierInvoice {
   id: number;
@@ -22,6 +23,9 @@ export interface SupplierInvoice {
   status: SupplierInvoiceStatus;
   /** @nullable */
   paymentReference: string | null;
+  waiverStatus: SupplierInvoiceWaiverStatus;
+  /** @nullable */
+  waiverReference: string | null;
   /** @nullable */
   paidAt: Date | null;
   /**

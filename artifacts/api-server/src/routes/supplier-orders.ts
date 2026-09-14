@@ -1,8 +1,10 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import {
   businessCustomersTable,
   db,
+  projectCommitmentsTable,
+  projectsTable,
   supplierCustomerTermsTable,
   supplierDeliveriesTable,
   supplierDeliveryLinesTable,
@@ -32,6 +34,7 @@ import {
   CreateSupplierVendorBody,
   GetSupplierOrderParams,
   GetSupplierQuoteParams,
+  GetBusinessCustomerSupplierAccountHistoryParams,
   ListSupplierCustomerTermsResponse,
   ListSupplierOrdersQueryParams,
   ListSupplierProductsQueryParams,
@@ -140,6 +143,7 @@ function serializeTerms(row: typeof supplierCustomerTermsTable.$inferSelect) {
     creditLimit: asNumber(row.creditLimit),
     discountPercent: asNumber(row.discountPercent),
     retainageRequired: asNumber(row.retainageRequired),
+    waiverRequired: row.waiverRequired,
     status: row.status,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -263,6 +267,8 @@ function serializeInvoice(row: typeof supplierInvoicesTable.$inferSelect) {
     paidAmount: asNumber(row.paidAmount),
     status: row.status,
     paymentReference: row.paymentReference,
+    waiverStatus: row.waiverStatus,
+    waiverReference: row.waiverReference,
     paidAt: row.paidAt,
     objectPath: row.objectPath,
     notes: row.notes,
@@ -285,6 +291,67 @@ function serializeEvent(row: typeof supplierOrderEventsTable.$inferSelect) {
     actorUserId: row.actorUserId,
     createdAt: row.createdAt,
   };
+}
+
+function buildPaymentGate(
+  invoice: typeof supplierInvoicesTable.$inferSelect,
+  terms: typeof supplierCustomerTermsTable.$inferSelect | undefined,
+) {
+  const retainageRequired = asNumber(terms?.retainageRequired);
+  const waiverRequired = terms?.waiverRequired === true;
+  const reasons: string[] = [];
+  if (retainageRequired > 0 && asNumber(invoice.retainageAmount) <= 0) {
+    reasons.push(`Retainage of ${retainageRequired}% must be recorded before payment`);
+  }
+  if (waiverRequired && !["received", "approved"].includes(invoice.waiverStatus)) {
+    reasons.push(`Waiver is ${invoice.waiverStatus.replaceAll("_", " ")} and must be approved before payment`);
+  }
+  return {
+    status: reasons.length ? "blocked" as const : "ready" as const,
+    retainageRequired,
+    waiverRequired,
+    waiverStatus: invoice.waiverStatus,
+    reasons,
+  };
+}
+
+async function updateLinkedCommitmentTotals(req: TenantRequest, orderId: number) {
+  const [order] = await db.select({
+    linkedCommitmentId: supplierOrdersTable.linkedCommitmentId,
+  }).from(supplierOrdersTable).where(and(
+    eq(supplierOrdersTable.id, orderId),
+    scope(req, supplierOrdersTable),
+  ));
+  if (!order?.linkedCommitmentId) return;
+  const invoiceRows = await db.select({
+    totalAmount: supplierInvoicesTable.totalAmount,
+    paidAmount: supplierInvoicesTable.paidAmount,
+  }).from(supplierInvoicesTable)
+    .innerJoin(supplierOrdersTable, eq(supplierInvoicesTable.orderId, supplierOrdersTable.id))
+    .where(and(
+      eq(supplierOrdersTable.linkedCommitmentId, order.linkedCommitmentId),
+      scope(req, supplierInvoicesTable),
+      scope(req, supplierOrdersTable),
+    ));
+  const invoicedValue = invoiceRows.reduce((sum, row) => sum + asNumber(row.totalAmount), 0);
+  const paidValue = invoiceRows.reduce((sum, row) => sum + asNumber(row.paidAmount), 0);
+  await db.update(projectCommitmentsTable).set({
+    invoicedValue: String(money(invoicedValue)),
+    paidValue: String(money(paidValue)),
+    updatedAt: new Date(),
+  }).where(and(
+    eq(projectCommitmentsTable.id, order.linkedCommitmentId),
+    scope(req, projectCommitmentsTable),
+  ));
+}
+
+async function getSupplierTerms(req: TenantRequest, businessCustomerId: number) {
+  const [terms] = await db.select().from(supplierCustomerTermsTable).where(and(
+    eq(supplierCustomerTermsTable.businessCustomerId, businessCustomerId),
+    scope(req, supplierCustomerTermsTable),
+    eq(supplierCustomerTermsTable.status, "active"),
+  ));
+  return terms;
 }
 
 async function requireCustomer(req: TenantRequest, businessCustomerId: number) {
@@ -577,6 +644,7 @@ router.post("/supplier-customer-terms", requireRole("owner", "admin", "member"),
     creditLimit: String(parsed.data.creditLimit ?? 0),
     discountPercent: String(parsed.data.discountPercent ?? 0),
     retainageRequired: String(parsed.data.retainageRequired ?? 0),
+    waiverRequired: parsed.data.waiverRequired ?? false,
     status: parsed.data.status ?? "active",
     tenantId: req.tenantId!,
     environmentId: req.environmentId!,
@@ -587,11 +655,116 @@ router.post("/supplier-customer-terms", requireRole("owner", "admin", "member"),
       creditLimit: String(parsed.data.creditLimit ?? 0),
       discountPercent: String(parsed.data.discountPercent ?? 0),
       retainageRequired: String(parsed.data.retainageRequired ?? 0),
+      waiverRequired: parsed.data.waiverRequired ?? false,
       status: parsed.data.status ?? "active",
       updatedAt: new Date(),
     },
   }).returning();
   res.status(201).json(serializeTerms(row));
+});
+
+router.get("/business-customers/:customerId/supplier-account-history", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const params = GetBusinessCustomerSupplierAccountHistoryParams.safeParse(req.params);
+  if (!params.success) { badRequest(res, "Invalid business customer"); return; }
+  const customer = await requireCustomer(req, params.data.customerId);
+  if (!customer) { notFound(res, "Business customer not found"); return; }
+  const terms = await getSupplierTerms(req, params.data.customerId);
+  const orderRows = await db.select({
+    order: supplierOrdersTable,
+    projectName: projectsTable.projectName,
+    commitmentNumber: projectCommitmentsTable.commitmentNumber,
+  }).from(supplierOrdersTable)
+    .leftJoin(projectsTable, and(
+      eq(projectsTable.id, supplierOrdersTable.projectId),
+      eq(projectsTable.tenantId, req.tenantId!),
+      eq(projectsTable.environmentId, req.environmentId!),
+    ))
+    .leftJoin(projectCommitmentsTable, and(
+      eq(projectCommitmentsTable.id, supplierOrdersTable.linkedCommitmentId),
+      eq(projectCommitmentsTable.tenantId, req.tenantId!),
+      eq(projectCommitmentsTable.environmentId, req.environmentId!),
+    ))
+    .where(and(
+      eq(supplierOrdersTable.businessCustomerId, params.data.customerId),
+      scope(req, supplierOrdersTable),
+    ))
+    .orderBy(desc(supplierOrdersTable.updatedAt));
+
+  let invoicedAmount = 0;
+  let paidAmount = 0;
+  let outstandingAmount = 0;
+  let retainageHeld = 0;
+  let payableAmount = 0;
+  let blockedAmount = 0;
+  let invoiceCount = 0;
+  const orders = await Promise.all(orderRows.map(async (row) => {
+    const invoices = await db.select().from(supplierInvoicesTable).where(and(
+      eq(supplierInvoicesTable.orderId, row.order.id),
+      scope(req, supplierInvoicesTable),
+    )).orderBy(desc(supplierInvoicesTable.createdAt));
+    const accountInvoices = invoices.map((invoice) => {
+      const total = asNumber(invoice.totalAmount);
+      const paid = asNumber(invoice.paidAmount);
+      const retainage = asNumber(invoice.retainageAmount);
+      const outstanding = Math.max(total - paid, 0);
+      const payable = Math.max(total - retainage - paid, 0);
+      const paymentGate = buildPaymentGate(invoice, terms);
+      invoicedAmount += total;
+      paidAmount += paid;
+      outstandingAmount += outstanding;
+      retainageHeld += retainage;
+      payableAmount += payable;
+      if (paymentGate.status === "blocked") blockedAmount += payable;
+      invoiceCount += 1;
+      return {
+        ...serializeInvoice(invoice),
+        outstandingAmount: money(outstanding),
+        payableAmount: money(payable),
+        paymentGate,
+        projectId: row.order.projectId,
+        projectName: row.projectName,
+        commitmentId: row.order.linkedCommitmentId,
+        commitmentNumber: row.commitmentNumber,
+      };
+    });
+    return {
+      orderId: row.order.id,
+      orderNumber: row.order.orderNumber,
+      orderStatus: row.order.orderStatus,
+      paymentStatus: row.order.paymentStatus,
+      totalSell: asNumber(row.order.totalSell),
+      projectId: row.order.projectId,
+      projectName: row.projectName,
+      commitmentId: row.order.linkedCommitmentId,
+      commitmentNumber: row.commitmentNumber,
+      invoices: accountInvoices,
+    };
+  }));
+  const orderIds = orderRows.map((row) => row.order.id);
+  const paymentEvents = orderIds.length ? await db.select().from(supplierOrderEventsTable).where(and(
+    inArray(supplierOrderEventsTable.orderId, orderIds),
+    scope(req, supplierOrderEventsTable),
+    eq(supplierOrderEventsTable.visibleToCustomer, "true"),
+    or(eq(supplierOrderEventsTable.action, "payment_recorded"), eq(supplierOrderEventsTable.action, "invoice_recorded")),
+  )).orderBy(desc(supplierOrderEventsTable.createdAt)) : [];
+
+  res.json({
+    customerId: customer.id,
+    customerName: customer.companyName,
+    terms: terms ? serializeTerms(terms) : null,
+    summary: {
+      orderCount: orders.length,
+      invoiceCount,
+      invoicedAmount: money(invoicedAmount),
+      paidAmount: money(paidAmount),
+      outstandingAmount: money(outstandingAmount),
+      retainageHeld: money(retainageHeld),
+      payableAmount: money(payableAmount),
+      blockedAmount: money(blockedAmount),
+    },
+    orders,
+    paymentEvents: paymentEvents.map(serializeEvent),
+  });
 });
 
 router.get("/supplier-price-lists", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
@@ -895,6 +1068,21 @@ router.patch("/supplier-orders/:orderId", requireRole("owner", "admin", "member"
   if (!path.success || !parsed.success) { badRequest(res, "Invalid supplier order update"); return; }
   const existing = await getOrder(req, path.data.orderId);
   if (!existing) { notFound(res, "Supplier order not found"); return; }
+  if (parsed.data.orderStatus === "closed") {
+    const terms = await getSupplierTerms(req, existing.order.businessCustomerId);
+    const invoices = await db.select().from(supplierInvoicesTable).where(and(
+      eq(supplierInvoicesTable.orderId, path.data.orderId),
+      scope(req, supplierInvoicesTable),
+    ));
+    const blocked = invoices.find((invoice) => {
+      const payable = Math.max(asNumber(invoice.totalAmount) - asNumber(invoice.retainageAmount) - asNumber(invoice.paidAmount), 0);
+      return payable > 0 && buildPaymentGate(invoice, terms).status === "blocked";
+    });
+    if (blocked) {
+      res.status(409).json({ error: "Supplier order cannot close until retainage and waiver requirements are satisfied" });
+      return;
+    }
+  }
   const [updated] = await db.update(supplierOrdersTable).set({
     ...(parsed.data.orderStatus === undefined ? {} : {
       orderStatus: parsed.data.orderStatus,
@@ -1249,19 +1437,38 @@ router.post("/supplier-orders/:orderId/invoices", requireRole("owner", "admin", 
   if (!path.success || !parsed.success) { badRequest(res, "Invalid supplier invoice"); return; }
   const order = await getOrder(req, path.data.orderId);
   if (!order) { notFound(res, "Supplier order not found"); return; }
-  const paidAmount = parsed.data.paidAmount ?? 0;
-  const status = parsed.data.status ?? (paidAmount >= parsed.data.totalAmount ? "paid" : "submitted");
+  const terms = await getSupplierTerms(req, order.order.businessCustomerId);
+  const totalAmount = parsed.data.totalAmount;
+  const retainageAmount = parsed.data.retainageAmount ?? money(totalAmount * asNumber(terms?.retainageRequired) / 100);
+  const payableAmount = Math.max(totalAmount - retainageAmount, 0);
+  const paidAmount = parsed.data.paidAmount ?? (parsed.data.status === "paid" ? payableAmount : 0);
+  const waiverStatus = parsed.data.waiverStatus ?? (terms?.waiverRequired ? "pending" : "not_required");
+  if (paidAmount > payableAmount) {
+    badRequest(res, "Paid amount cannot exceed the invoice total after retainage");
+    return;
+  }
+  if (paidAmount > 0 && terms?.waiverRequired && !["received", "approved"].includes(waiverStatus)) {
+    res.status(409).json({ error: "Payment is blocked until the supplier waiver is received or approved" });
+    return;
+  }
+  if (parsed.data.status === "paid" && paidAmount < payableAmount) {
+    badRequest(res, "A paid invoice must include the amount paid after retainage");
+    return;
+  }
+  const status = parsed.data.status ?? (paidAmount >= payableAmount && payableAmount > 0 ? "paid" : paidAmount > 0 ? "partially_paid" : "submitted");
   const [row] = await db.insert(supplierInvoicesTable).values({
     orderId: path.data.orderId,
     invoiceNumber: parsed.data.invoiceNumber.trim(),
     invoiceDate: dateOnly(parsed.data.invoiceDate) ?? null,
     dueDate: dateOnly(parsed.data.dueDate) ?? null,
     subtotal: String(parsed.data.subtotal ?? parsed.data.totalAmount),
-    retainageAmount: String(parsed.data.retainageAmount ?? 0),
-    totalAmount: String(parsed.data.totalAmount),
+    retainageAmount: String(retainageAmount),
+    totalAmount: String(totalAmount),
     paidAmount: String(paidAmount),
     status,
     paymentReference: parsed.data.paymentReference?.trim() ?? null,
+    waiverStatus,
+    waiverReference: parsed.data.waiverReference?.trim() ?? null,
     paidAt: status === "paid" ? new Date() : null,
     objectPath: parsed.data.objectPath ?? null,
     notes: parsed.data.notes?.trim() ?? null,
@@ -1274,6 +1481,10 @@ router.post("/supplier-orders/:orderId/invoices", requireRole("owner", "admin", 
     scope(req, supplierOrdersTable),
   ));
   await audit(req, path.data.orderId, "invoice", row.id, "invoice_recorded", null, status);
+  if (paidAmount > 0) {
+    await audit(req, path.data.orderId, "invoice", row.id, "payment_recorded", null, status, parsed.data.paymentReference?.trim() || "Payment recorded");
+  }
+  await updateLinkedCommitmentTotals(req, path.data.orderId);
   res.status(201).json(serializeInvoice(row));
 });
 

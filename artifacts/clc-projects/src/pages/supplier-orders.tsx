@@ -20,12 +20,14 @@ import {
   getGetSupplierOrderQueryKey,
   getGetSupplierQuoteQueryKey,
   getListBusinessCustomersQueryKey,
+  getListSupplierCustomerTermsQueryKey,
   getListSupplierOrdersQueryKey,
   getListSupplierProductsQueryKey,
   getListSupplierQuotesQueryKey,
   getListSupplierVendorsQueryKey,
   useCreateSupplierDelivery,
   useCreateSupplierInvoice,
+  useCreateSupplierCustomerTerms,
   useCreateSupplierProduct,
   useCreateSupplierQuote,
   useCreateSupplierVendor,
@@ -35,6 +37,7 @@ import {
   useGetSupplierOrder,
   useGetSupplierQuote,
   useListBusinessCustomers,
+  useListSupplierCustomerTerms,
   useListSupplierOrders,
   useListSupplierProducts,
   useListSupplierQuotes,
@@ -136,12 +139,14 @@ export function SupplierOrders() {
   const [deliveryQuantities, setDeliveryQuantities] = useState<Record<number, string>>({});
   const [receivingDrafts, setReceivingDrafts] = useState<Record<number, ReceivingDraft>>({});
   const [proofError, setProofError] = useState('');
-  const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', totalAmount: '', dueDate: '', status: 'submitted' });
+  const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', totalAmount: '', dueDate: '', status: 'submitted', paidAmount: '', paymentReference: '', waiverStatus: 'not_required', waiverReference: '' });
+  const [termsForm, setTermsForm] = useState({ customerId: '', paymentTerms: 'Net 30', creditLimit: '0', discountPercent: '0', retainageRequired: '0', waiverRequired: false });
   const [orderStatus, setOrderStatus] = useState<SupplierOrderStatus>('approved');
 
   const products = useListSupplierProducts({ search: search || undefined }, { query: { queryKey: getListSupplierProductsQueryKey({ search: search || undefined }) } });
   const vendors = useListSupplierVendors({ query: { queryKey: getListSupplierVendorsQueryKey() } });
   const customers = useListBusinessCustomers({ includeArchived: false }, { query: { queryKey: getListBusinessCustomersQueryKey({ includeArchived: false }) } });
+  const terms = useListSupplierCustomerTerms({ query: { queryKey: getListSupplierCustomerTermsQueryKey() } });
   const quotes = useListSupplierQuotes(undefined, { query: { queryKey: getListSupplierQuotesQueryKey() } });
   const orders = useListSupplierOrders(undefined, { query: { queryKey: getListSupplierOrdersQueryKey() } });
   const selectedQuote = useGetSupplierQuote(selectedQuoteId ?? 0, { query: { enabled: Boolean(selectedQuoteId), queryKey: getGetSupplierQuoteQueryKey(selectedQuoteId ?? 0) } });
@@ -158,6 +163,7 @@ export function SupplierOrders() {
   const requestProofUpload = useRequestSupplierDeliveryProofUpload();
   const completeProofUpload = useCompleteSupplierDeliveryProofUpload();
   const createInvoice = useCreateSupplierInvoice();
+  const createTerms = useCreateSupplierCustomerTerms();
 
   useEffect(() => {
     if (!selectedOrder.data) return;
@@ -215,6 +221,21 @@ export function SupplierOrders() {
     createVendor.mutate({ data: { name: vendorForm.name, leadTimeDays: Number(vendorForm.leadTimeDays || 0) } }, {
       onSuccess: () => { setShowVendorForm(false); setVendorForm({ name: '', leadTimeDays: '0' }); refresh(); },
     });
+  }
+
+  function saveTerms(event: React.FormEvent) {
+    event.preventDefault();
+    if (!termsForm.customerId) return;
+    createTerms.mutate({
+      data: {
+        businessCustomerId: Number(termsForm.customerId),
+        paymentTerms: termsForm.paymentTerms,
+        creditLimit: Number(termsForm.creditLimit || 0),
+        discountPercent: Number(termsForm.discountPercent || 0),
+        retainageRequired: Number(termsForm.retainageRequired || 0),
+        waiverRequired: termsForm.waiverRequired,
+      },
+    }, { onSuccess: () => { void qc.invalidateQueries({ queryKey: getListSupplierCustomerTermsQueryKey() }); } });
   }
 
   function saveQuote(event: React.FormEvent) {
@@ -331,6 +352,10 @@ export function SupplierOrders() {
         invoiceNumber: invoiceForm.invoiceNumber,
         totalAmount: Number(invoiceForm.totalAmount || 0),
         dueDate: invoiceForm.dueDate || undefined,
+        paidAmount: invoiceForm.paidAmount ? Number(invoiceForm.paidAmount) : undefined,
+        paymentReference: invoiceForm.paymentReference || undefined,
+        waiverStatus: invoiceForm.waiverStatus as 'not_required' | 'pending' | 'received' | 'approved' | 'rejected',
+        waiverReference: invoiceForm.waiverReference || undefined,
         status: invoiceForm.status as 'draft' | 'submitted' | 'approved' | 'partially_paid' | 'paid' | 'disputed' | 'void',
       },
     }, { onSuccess: refresh });
@@ -411,6 +436,31 @@ export function SupplierOrders() {
             </form>}
             {vendors.data?.length ? <div className="space-y-2">{vendors.data.map((vendor) => <div key={vendor.id} className="flex items-center justify-between rounded-lg border border-border p-3"><div><p className="text-sm font-bold">{vendor.name}</p><p className="mono mt-1 text-[9px] uppercase tracking-[.08em] text-muted-foreground">{vendor.leadTimeDays} day lead time</p></div><Badge tone={statusTone(vendor.status)}>{vendor.status}</Badge></div>)}</div> : <EmptyState icon={Warehouse} title="No vendors yet" text="Add the supplier relationships that will support quoting and purchasing." />}
           </Section>
+           <Section eyebrow="Account controls" title="Customer terms">
+             <form onSubmit={saveTerms} className="grid gap-3">
+               <Field label="Customer"><select required value={termsForm.customerId} onChange={(event) => {
+                 const customerId = event.target.value;
+                 const existing = terms.data?.find((term) => term.businessCustomerId === Number(customerId));
+                 setTermsForm({
+                   customerId,
+                   paymentTerms: existing?.paymentTerms ?? 'Net 30',
+                   creditLimit: String(existing?.creditLimit ?? 0),
+                   discountPercent: String(existing?.discountPercent ?? 0),
+                   retainageRequired: String(existing?.retainageRequired ?? 0),
+                   waiverRequired: existing?.waiverRequired ?? false,
+                 });
+               }} className={inputClass}><option value="">Choose customer</option>{customers.data?.map((customer) => <option key={customer.id} value={customer.id}>{customer.companyName}</option>)}</select></Field>
+               <div className="grid gap-3 sm:grid-cols-2">
+                 <Field label="Payment terms"><Input value={termsForm.paymentTerms} onChange={(event) => setTermsForm({ ...termsForm, paymentTerms: event.target.value })} className={inputClass} /></Field>
+                 <Field label="Retainage required (%)"><Input type="number" min="0" max="100" step="0.01" value={termsForm.retainageRequired} onChange={(event) => setTermsForm({ ...termsForm, retainageRequired: event.target.value })} className={inputClass} /></Field>
+                 <Field label="Credit limit"><Input type="number" min="0" step="0.01" value={termsForm.creditLimit} onChange={(event) => setTermsForm({ ...termsForm, creditLimit: event.target.value })} className={inputClass} /></Field>
+                 <Field label="Discount (%)"><Input type="number" min="0" max="100" step="0.01" value={termsForm.discountPercent} onChange={(event) => setTermsForm({ ...termsForm, discountPercent: event.target.value })} className={inputClass} /></Field>
+               </div>
+               <label className="flex items-start gap-2 rounded-lg border border-border/70 p-3 text-xs"><input type="checkbox" checked={termsForm.waiverRequired} onChange={(event) => setTermsForm({ ...termsForm, waiverRequired: event.target.checked })} className="mt-0.5" /><span><span className="block font-semibold text-foreground">Require waiver before payment or closeout</span><span className="mt-1 block text-muted-foreground">Invoices remain blocked until the waiver is received or approved.</span></span></label>
+               <Button type="submit" disabled={!termsForm.customerId || createTerms.isPending}>{createTerms.isPending ? 'Saving…' : 'Save customer terms'}</Button>
+               {createTerms.isError && <p role="alert" className="text-xs text-destructive">Customer terms could not be saved.</p>}
+             </form>
+           </Section>
         </div>
       )}
 
@@ -463,7 +513,7 @@ export function SupplierOrders() {
                  <div><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary">Receiving closeout</p><h4 className="mt-1 text-sm font-bold">Proof, exceptions, and returns</h4><p className="mt-1 text-xs text-muted-foreground">Record the final quantity disposition for every delivery line. Order received totals are recalculated from these entries.</p></div>
                  {selectedOrder.data.deliveries.length ? selectedOrder.data.deliveries.map((delivery) => <DeliveryReceivingCard key={delivery.id} delivery={delivery} orderLines={selectedOrder.data!.lines} drafts={receivingDrafts} onDraftChange={(lineId, draft) => setReceivingDrafts((current) => ({ ...current, [lineId]: draft }))} onSave={saveReceiving} onUpload={uploadProof} proofError={proofError} isSaving={recordReceiving.isPending} isUploading={requestProofUpload.isPending || completeProofUpload.isPending} />) : <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">Record a delivery above to start receiving.</div>}
                </section>
-              <form onSubmit={saveInvoice} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2"><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary sm:col-span-2">Supplier invoice</p><Field label="Invoice number"><Input required value={invoiceForm.invoiceNumber} onChange={(event) => setInvoiceForm({ ...invoiceForm, invoiceNumber: event.target.value })} className={inputClass} /></Field><Field label="Total amount"><Input required type="number" min="0" step="0.01" value={invoiceForm.totalAmount} onChange={(event) => setInvoiceForm({ ...invoiceForm, totalAmount: event.target.value })} className={inputClass} /></Field><Field label="Due date"><Input type="date" value={invoiceForm.dueDate} onChange={(event) => setInvoiceForm({ ...invoiceForm, dueDate: event.target.value })} className={inputClass} /></Field><Field label="Payment status"><select value={invoiceForm.status} onChange={(event) => setInvoiceForm({ ...invoiceForm, status: event.target.value })} className={inputClass}>{['submitted', 'approved', 'partially_paid', 'paid', 'disputed'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><div className="sm:col-span-2"><Button type="submit" disabled={createInvoice.isPending}>Add invoice</Button></div></form>
+              <form onSubmit={saveInvoice} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2"><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary sm:col-span-2">Supplier invoice</p><Field label="Invoice number"><Input required value={invoiceForm.invoiceNumber} onChange={(event) => setInvoiceForm({ ...invoiceForm, invoiceNumber: event.target.value })} className={inputClass} /></Field><Field label="Total amount"><Input required type="number" min="0" step="0.01" value={invoiceForm.totalAmount} onChange={(event) => setInvoiceForm({ ...invoiceForm, totalAmount: event.target.value })} className={inputClass} /></Field><Field label="Due date"><Input type="date" value={invoiceForm.dueDate} onChange={(event) => setInvoiceForm({ ...invoiceForm, dueDate: event.target.value })} className={inputClass} /></Field><Field label="Payment status"><select value={invoiceForm.status} onChange={(event) => setInvoiceForm({ ...invoiceForm, status: event.target.value })} className={inputClass}>{['submitted', 'approved', 'partially_paid', 'paid', 'disputed'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Field label="Amount paid"><Input type="number" min="0" step="0.01" value={invoiceForm.paidAmount} onChange={(event) => setInvoiceForm({ ...invoiceForm, paidAmount: event.target.value })} className={inputClass} /></Field><Field label="Payment reference"><Input value={invoiceForm.paymentReference} onChange={(event) => setInvoiceForm({ ...invoiceForm, paymentReference: event.target.value })} placeholder="Check, ACH, or remittance reference" className={inputClass} /></Field><Field label="Waiver status"><select value={invoiceForm.waiverStatus} onChange={(event) => setInvoiceForm({ ...invoiceForm, waiverStatus: event.target.value })} className={inputClass}>{['not_required', 'pending', 'received', 'approved', 'rejected'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Field label="Waiver reference"><Input value={invoiceForm.waiverReference} onChange={(event) => setInvoiceForm({ ...invoiceForm, waiverReference: event.target.value })} className={inputClass} /></Field><div className="sm:col-span-2"><Button type="submit" disabled={createInvoice.isPending}>Add invoice</Button></div></form>
               {selectedOrder.data.invoices.length > 0 && <div><p className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-muted-foreground">Invoices</p><div className="space-y-2">{selectedOrder.data.invoices.map((invoice) => <div key={invoice.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm"><span className="font-semibold">{invoice.invoiceNumber}</span><span>{money(invoice.totalAmount)} <Badge tone={statusTone(invoice.status)}>{labelStatus(invoice.status)}</Badge></span></div>)}</div></div>}
               {events.data?.length ? <div><p className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-muted-foreground">Audit history</p><div className="space-y-2">{events.data.slice(0, 6).map((event) => <div key={event.id} className="flex gap-3 rounded-lg border border-border p-3 text-xs"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" /><div><p className="font-semibold">{labelStatus(event.action)}</p><p className="text-muted-foreground">{event.details || `${event.fromStatus || '—'} → ${event.toStatus || '—'}`} · {shortDate(event.createdAt.toString())}</p></div></div>)}</div></div> : null}
             </div> : <EmptyState icon={ClipboardList} title="Order not found" text="Refresh the workspace and choose another order." />}

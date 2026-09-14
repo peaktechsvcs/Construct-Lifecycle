@@ -1,5 +1,6 @@
 import {
   date,
+  boolean,
   index,
   integer,
   numeric,
@@ -95,6 +96,7 @@ export const supplierCustomerTermsTable = pgTable("supplier_customer_terms", {
   creditLimit: numeric("credit_limit", { precision: 14, scale: 2 }).notNull().default("0"),
   discountPercent: numeric("discount_percent", { precision: 5, scale: 2 }).notNull().default("0"),
   retainageRequired: numeric("retainage_required", { precision: 5, scale: 2 }).notNull().default("0"),
+  waiverRequired: boolean("waiver_required").notNull().default(false),
   status: text("status").notNull().default("active"),
   ...scopeColumns,
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -259,6 +261,8 @@ export const supplierInvoicesTable = pgTable("supplier_invoices", {
   paidAmount: numeric("paid_amount", { precision: 14, scale: 2 }).notNull().default("0"),
   status: text("status").notNull().default("draft"),
   paymentReference: text("payment_reference"),
+  waiverStatus: text("waiver_status").notNull().default("not_required"),
+  waiverReference: text("waiver_reference"),
   paidAt: timestamp("paid_at", { withTimezone: true }),
   objectPath: text("object_path"),
   notes: text("notes"),

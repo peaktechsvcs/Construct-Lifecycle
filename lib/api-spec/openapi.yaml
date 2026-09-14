@@ -1048,6 +1048,20 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SupplierCustomerTerms" }
+  /business-customers/{customerId}/supplier-account-history:
+    get:
+      operationId: getBusinessCustomerSupplierAccountHistory
+      tags: [supplier-orders]
+      summary: Get supplier account history for a business customer
+      parameters:
+        - $ref: "#/components/parameters/CustomerId"
+      responses:
+        "200":
+          description: Environment-scoped supplier account history
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierAccountHistory" }
+        "404": { description: Business customer not found }
   /supplier-price-lists:
     get:
       operationId: listSupplierPriceLists
@@ -7874,7 +7888,7 @@ components:
         status: { type: string, enum: [active, archived] }
     SupplierCustomerTerms:
       type: object
-      required: [id, businessCustomerId, paymentTerms, creditLimit, discountPercent, retainageRequired, status, createdAt, updatedAt]
+      required: [id, businessCustomerId, paymentTerms, creditLimit, discountPercent, retainageRequired, waiverRequired, status, createdAt, updatedAt]
       properties:
         id: { type: integer }
         businessCustomerId: { type: integer }
@@ -7882,6 +7896,7 @@ components:
         creditLimit: { type: number }
         discountPercent: { type: number }
         retainageRequired: { type: number }
+        waiverRequired: { type: boolean }
         status: { type: string, enum: [active, inactive] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -7894,6 +7909,7 @@ components:
         creditLimit: { type: number, minimum: 0 }
         discountPercent: { type: number, minimum: 0, maximum: 100 }
         retainageRequired: { type: number, minimum: 0, maximum: 100 }
+        waiverRequired: { type: boolean }
         status: { type: string, enum: [active, inactive] }
     SupplierPriceList:
       type: object
@@ -8189,7 +8205,7 @@ components:
         exceptionNote: { type: string, maxLength: 2000 }
     SupplierInvoice:
       type: object
-      required: [id, orderId, invoiceNumber, invoiceDate, dueDate, subtotal, retainageAmount, totalAmount, paidAmount, status, paymentReference, paidAt, objectPath, notes, createdAt, updatedAt]
+      required: [id, orderId, invoiceNumber, invoiceDate, dueDate, subtotal, retainageAmount, totalAmount, paidAmount, status, paymentReference, waiverStatus, waiverReference, paidAt, objectPath, notes, createdAt, updatedAt]
       properties:
         id: { type: integer }
         orderId: { type: integer }
@@ -8202,6 +8218,8 @@ components:
         paidAmount: { type: number }
         status: { type: string, enum: [draft, submitted, approved, partially_paid, paid, disputed, void] }
         paymentReference: { type: ["string", "null"] }
+        waiverStatus: { type: string, enum: [not_required, pending, received, approved, rejected] }
+        waiverReference: { type: ["string", "null"] }
         paidAt: { type: ["string", "null"], format: date-time }
         objectPath: { type: ["string", "null"], pattern: "^/objects/" }
         notes: { type: ["string", "null"] }
@@ -8220,6 +8238,8 @@ components:
         paidAmount: { type: number, minimum: 0 }
         status: { type: string, enum: [draft, submitted, approved, partially_paid, paid, disputed, void] }
         paymentReference: { type: string, maxLength: 180 }
+        waiverStatus: { type: string, enum: [not_required, pending, received, approved, rejected] }
+        waiverReference: { type: string, maxLength: 180 }
         objectPath: { type: string, pattern: "^/objects/" }
         notes: { type: string, maxLength: 5000 }
     SupplierOrderEvent:
@@ -8252,6 +8272,74 @@ components:
             invoices:
               type: array
               items: { $ref: "#/components/schemas/SupplierInvoice" }
+    SupplierAccountHistory:
+      type: object
+      required: [customerId, customerName, terms, summary, orders, paymentEvents]
+      properties:
+        customerId: { type: integer }
+        customerName: { type: string }
+        terms:
+          oneOf:
+            - $ref: "#/components/schemas/SupplierCustomerTerms"
+            - type: "null"
+        summary: { $ref: "#/components/schemas/SupplierAccountSummary" }
+        orders:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierAccountOrder" }
+        paymentEvents:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierOrderEvent" }
+    SupplierAccountSummary:
+      type: object
+      required: [orderCount, invoiceCount, invoicedAmount, paidAmount, outstandingAmount, retainageHeld, payableAmount, blockedAmount]
+      properties:
+        orderCount: { type: integer }
+        invoiceCount: { type: integer }
+        invoicedAmount: { type: number }
+        paidAmount: { type: number }
+        outstandingAmount: { type: number }
+        retainageHeld: { type: number }
+        payableAmount: { type: number }
+        blockedAmount: { type: number }
+    SupplierAccountInvoice:
+      allOf:
+        - $ref: "#/components/schemas/SupplierInvoice"
+        - type: object
+          required: [outstandingAmount, payableAmount, paymentGate, projectId, projectName, commitmentId, commitmentNumber]
+          properties:
+            outstandingAmount: { type: number }
+            payableAmount: { type: number }
+            paymentGate:
+              type: object
+              required: [status, retainageRequired, waiverRequired, waiverStatus, reasons]
+              properties:
+                status: { type: string, enum: [ready, blocked] }
+                retainageRequired: { type: number }
+                waiverRequired: { type: boolean }
+                waiverStatus: { type: string, enum: [not_required, pending, received, approved, rejected] }
+                reasons:
+                  type: array
+                  items: { type: string }
+            projectId: { type: ["integer", "null"] }
+            projectName: { type: ["string", "null"] }
+            commitmentId: { type: ["integer", "null"] }
+            commitmentNumber: { type: ["string", "null"] }
+    SupplierAccountOrder:
+      type: object
+      required: [orderId, orderNumber, orderStatus, paymentStatus, totalSell, projectId, projectName, commitmentId, commitmentNumber, invoices]
+      properties:
+        orderId: { type: integer }
+        orderNumber: { type: string }
+        orderStatus: { $ref: "#/components/schemas/SupplierOrderStatus" }
+        paymentStatus: { type: string }
+        totalSell: { type: number }
+        projectId: { type: ["integer", "null"] }
+        projectName: { type: ["string", "null"] }
+        commitmentId: { type: ["integer", "null"] }
+        commitmentNumber: { type: ["string", "null"] }
+        invoices:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierAccountInvoice" }
     SupplierOrderUpdate:
       type: object
       properties:

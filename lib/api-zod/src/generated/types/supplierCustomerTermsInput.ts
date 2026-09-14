@@ -23,5 +23,6 @@ export interface SupplierCustomerTermsInput {
      * @maximum 100
      */
   retainageRequired?: number;
+  waiverRequired?: boolean;
   status?: SupplierCustomerTermsInputStatus;
 }

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SupplierInvoiceInputStatus } from './supplierInvoiceInputStatus';
+import type { SupplierInvoiceInputWaiverStatus } from './supplierInvoiceInputWaiverStatus';
 
 export interface SupplierInvoiceInput {
   /**
@@ -26,6 +27,9 @@ export interface SupplierInvoiceInput {
   status?: SupplierInvoiceInputStatus;
   /** @maxLength 180 */
   paymentReference?: string;
+  waiverStatus?: SupplierInvoiceInputWaiverStatus;
+  /** @maxLength 180 */
+  waiverReference?: string;
   /** @pattern ^/objects/ */
   objectPath?: string;
   /** @maxLength 5000 */
