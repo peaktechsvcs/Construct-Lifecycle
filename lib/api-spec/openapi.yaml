@@ -1566,6 +1566,75 @@ paths:
         - $ref: "#/components/parameters/OpportunityId"
       responses:
         "204": { description: Opportunity deleted }
+  /opportunities/{opportunityId}/preconstruction:
+    get:
+      operationId: getOpportunityPreconstruction
+      tags: [opportunities]
+      summary: Get the linked preconstruction graph for an opportunity
+      parameters:
+        - $ref: "#/components/parameters/OpportunityId"
+      responses:
+        "200":
+          description: Opportunity, linked bids, estimates, proposals, and activity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OpportunityPreconstructionGraph" }
+        "404": { description: Opportunity not found }
+  /opportunities/{opportunityId}/activity:
+    get:
+      operationId: listOpportunityActivity
+      tags: [opportunities]
+      summary: List contact and CRM activity for an opportunity
+      parameters:
+        - $ref: "#/components/parameters/OpportunityId"
+      responses:
+        "200":
+          description: Opportunity activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OpportunityActivity" }
+        "404": { description: Opportunity not found }
+    post:
+      operationId: createOpportunityActivity
+      tags: [opportunities]
+      summary: Record a contact or next-action activity for an opportunity
+      parameters:
+        - $ref: "#/components/parameters/OpportunityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OpportunityActivityInput" }
+      responses:
+        "201":
+          description: Activity recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OpportunityActivity" }
+        "400": { description: Invalid activity }
+        "404": { description: Opportunity not found }
+  /opportunities/{opportunityId}/activity/{activityId}:
+    patch:
+      operationId: updateOpportunityActivity
+      tags: [opportunities]
+      summary: Complete or reopen an opportunity activity
+      parameters:
+        - $ref: "#/components/parameters/OpportunityId"
+        - $ref: "#/components/parameters/OpportunityActivityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OpportunityActivityUpdate" }
+      responses:
+        "200":
+          description: Updated activity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OpportunityActivity" }
+        "404": { description: Activity not found }
   /bids:
     get:
       operationId: listBids
@@ -3956,6 +4025,12 @@ components:
       required: true
       schema:
         type: integer
+    OpportunityActivityId:
+      in: path
+      name: activityId
+      required: true
+      schema:
+        type: integer
     BidId:
       in: path
       name: bidId
@@ -4455,6 +4530,81 @@ components:
         crmProviderKey: { type: ["string", "null"], maxLength: 80, pattern: "^[a-z][a-z0-9_]{1,63}$" }
         crmIntegrationStatus: { $ref: "#/components/schemas/ProposalIntegrationStatus" }
         crmExternalReference: { type: ["string", "null"], maxLength: 180 }
+    OpportunityActivity:
+      type: object
+      required: [id, environmentId, opportunityId, activityType, subject, body, occurredAt, nextActionDate, completed, createdByUserId, actor, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        environmentId: { type: integer }
+        opportunityId: { type: integer }
+        activityType: { type: string, enum: [note, call, email, meeting, task] }
+        subject: { type: string }
+        body: { type: ["string", "null"] }
+        occurredAt: { type: string, format: date-time }
+        nextActionDate: { type: ["string", "null"], format: date }
+        completed: { type: boolean }
+        createdByUserId: { type: ["integer", "null"] }
+        actor:
+          oneOf:
+            - type: object
+              required: [userId, email, displayName]
+              properties:
+                userId: { type: integer }
+                email: { type: ["string", "null"], format: email }
+                displayName: { type: ["string", "null"] }
+            - type: "null"
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    OpportunityActivityInput:
+      type: object
+      required: [subject]
+      properties:
+        activityType: { type: string, enum: [note, call, email, meeting, task] }
+        subject: { type: string, minLength: 1, maxLength: 240 }
+        body: { type: string, maxLength: 5000 }
+        occurredAt: { type: string, format: date-time }
+        nextActionDate: { type: string, format: date }
+    OpportunityActivityUpdate:
+      type: object
+      properties:
+        completed: { type: boolean }
+    OpportunityPreconstructionNode:
+      type: object
+      required: [recordType, id, recordNumber, name, stage, value, dueDate, linkedRecordType, linkedRecordId, scopeCount, coverageGapCount]
+      properties:
+        recordType: { type: string, enum: [bid, estimate, proposal] }
+        id: { type: integer }
+        recordNumber: { type: string }
+        name: { type: string }
+        stage: { type: string }
+        value: { type: number }
+        dueDate: { type: ["string", "null"], format: date }
+        linkedRecordType: { type: string, enum: [opportunity, bid, estimate] }
+        linkedRecordId: { type: ["integer", "null"] }
+        scopeCount: { type: ["integer", "null"] }
+        coverageGapCount: { type: ["integer", "null"] }
+    OpportunityPreconstructionSummary:
+      type: object
+      required: [bidCount, scopeCount, estimateCount, proposalCount, coverageGapCount, openNextActions]
+      properties:
+        bidCount: { type: integer }
+        scopeCount: { type: integer }
+        estimateCount: { type: integer }
+        proposalCount: { type: integer }
+        coverageGapCount: { type: integer }
+        openNextActions: { type: integer }
+    OpportunityPreconstructionGraph:
+      type: object
+      required: [opportunity, nodes, activities, summary]
+      properties:
+        opportunity: { $ref: "#/components/schemas/Opportunity" }
+        nodes:
+          type: array
+          items: { $ref: "#/components/schemas/OpportunityPreconstructionNode" }
+        activities:
+          type: array
+          items: { $ref: "#/components/schemas/OpportunityActivity" }
+        summary: { $ref: "#/components/schemas/OpportunityPreconstructionSummary" }
     OpportunityQualification:
       type: string
       enum: [unqualified, qualified, disqualified]

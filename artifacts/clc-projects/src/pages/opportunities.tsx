@@ -1,17 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { BriefcaseBusiness, CalendarDays, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, Mail, MessageSquareText, Pencil, Phone, Plus, Search, Trash2, UserRound } from 'lucide-react';
 import {
   Opportunity,
   OpportunityStage,
   OpportunityInput,
   OpportunityUpdate,
+  OpportunityActivityInputActivityType,
   useListOpportunities,
   getListOpportunitiesQueryKey,
   useCreateOpportunity,
   useGetOpportunity,
   getGetOpportunityQueryKey,
+  useGetOpportunityPreconstruction,
+  getGetOpportunityPreconstructionQueryKey,
+  useCreateOpportunityActivity,
+  useUpdateOpportunityActivity,
   useUpdateOpportunity,
   useDeleteOpportunity,
   useListBusinessCustomers,
@@ -270,12 +275,14 @@ function OpportunityDetail({ id }: { id: number }) {
   const { activeRole } = useTenant();
   const canEdit = activeRole === 'owner' || activeRole === 'admin' || activeRole === 'member';
   const query = useGetOpportunity(id, { query: { queryKey: getGetOpportunityQueryKey(id) } });
+  const graph = useGetOpportunityPreconstruction(id, { query: { queryKey: getGetOpportunityPreconstructionQueryKey(id) } });
   const [editing, setEditing] = useState(false);
   const remove = useDeleteOpportunity();
 
   if (query.isLoading) return <LoadingPanel lines={7} />;
   if (query.isError || !query.data) return <ErrorPanel onRetry={() => query.refetch()} />;
   const opportunity = query.data;
+  const graphData = graph.data;
   const stageName = stages.find((item) => item.value === opportunity.stage)?.label ?? opportunity.stage;
   const deleteRecord = () => {
     if (!window.confirm(`Delete ${opportunity.name}?`)) return;
@@ -311,9 +318,133 @@ function OpportunityDetail({ id }: { id: number }) {
           </div>
         </section>
       </div>
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1.35fr_1fr]">
+        <section className="rounded-xl border border-border bg-card p-5">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="mono text-[10px] uppercase tracking-[.13em] text-muted-foreground">Preconstruction graph</p>
+              <p className="mt-1 text-sm text-muted-foreground">One path from opportunity to scope coverage, estimate, and proposal.</p>
+            </div>
+            {graphData && <div className="flex flex-wrap gap-2">{[
+              ['Bids', graphData.summary.bidCount],
+              ['Scopes', graphData.summary.scopeCount],
+              ['Estimates', graphData.summary.estimateCount],
+              ['Proposals', graphData.summary.proposalCount],
+            ].map(([label, value]) => <span key={label} className="mono rounded-md bg-secondary px-2 py-1 text-[10px] text-muted-foreground">{label} {value}</span>)}</div>}
+          </div>
+          {graph.isLoading ? <LoadingPanel lines={4} /> : graph.isError ? <div className="rounded-lg border border-status-warning/30 bg-status-warning/10 p-3 text-xs text-muted-foreground">Linked pipeline records are temporarily unavailable. The opportunity itself is still available.</div> : (graphData?.nodes.length ?? 0) === 0 ? <EmptyState icon={ArrowRight} title="No linked preconstruction records" text="Create a bid from this opportunity to keep takeoff, estimating, and proposals connected." /> : (
+            <div className="space-y-2">
+              {graphData?.nodes.map((node) => {
+                const href = node.recordType === 'bid' ? `/bids/${node.id}` : node.recordType === 'estimate' ? `/estimates/${node.id}` : `/proposals/${node.id}`;
+                const tone = node.recordType === 'proposal' ? 'violet' : node.recordType === 'estimate' ? 'teal' : 'neutral';
+                return <Link key={`${node.recordType}-${node.id}`} href={href} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-secondary/40">
+                  <span className="mono w-20 text-[10px] uppercase tracking-[.12em] text-accent">{node.recordType}</span>
+                  <span className="min-w-0 flex-1"><span className="mono block text-[10px] text-muted-foreground">{node.recordNumber}</span><span className="block truncate text-sm font-semibold">{node.name}</span></span>
+                  <Badge tone={tone}>{node.stage.replaceAll('_', ' ')}</Badge>
+                  <span className="mono text-sm font-semibold">{currency.format(node.value)}</span>
+                  {node.coverageGapCount !== null && node.coverageGapCount > 0 && <Badge tone="orange">{node.coverageGapCount} coverage gap{node.coverageGapCount === 1 ? '' : 's'}</Badge>}
+                  <ArrowRight size={15} className="text-muted-foreground" />
+                </Link>;
+              })}
+            </div>
+          )}
+        </section>
+        <OpportunityActivityPanel
+          opportunityId={id}
+          activities={graphData?.activities ?? []}
+          canEdit={canEdit}
+          onChanged={() => {
+            queryClient.invalidateQueries({ queryKey: getGetOpportunityPreconstructionQueryKey(id) });
+            queryClient.invalidateQueries({ queryKey: getGetOpportunityQueryKey(id) });
+          }}
+        />
+      </div>
       {editing && <OpportunityForm opportunity={opportunity} onClose={() => setEditing(false)} onSaved={(saved) => { queryClient.setQueryData(getGetOpportunityQueryKey(id), saved); queryClient.invalidateQueries({ queryKey: getListOpportunitiesQueryKey() }); setEditing(false); }} />}
     </div>
   );
+}
+
+function OpportunityActivityPanel({
+  opportunityId,
+  activities,
+  canEdit,
+  onChanged,
+}: {
+  opportunityId: number;
+  activities: Array<{
+    id: number;
+    activityType: 'note' | 'call' | 'email' | 'meeting' | 'task';
+    subject: string;
+    body: string | null;
+    occurredAt: string;
+    nextActionDate: string | null;
+    completed: boolean;
+    actor: { displayName: string | null; email: string | null } | null;
+  }>;
+  canEdit: boolean;
+  onChanged: () => void;
+}) {
+  const [activityType, setActivityType] = useState<OpportunityActivityInputActivityType>('note');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [nextActionDate, setNextActionDate] = useState('');
+  const create = useCreateOpportunityActivity();
+  const update = useUpdateOpportunityActivity();
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!subject.trim()) return;
+    create.mutate({
+      opportunityId,
+      data: {
+        activityType,
+        subject: subject.trim(),
+        body: body.trim() || undefined,
+        nextActionDate: nextActionDate || undefined,
+      },
+    }, {
+      onSuccess: () => {
+        setSubject('');
+        setBody('');
+        setNextActionDate('');
+        onChanged();
+      },
+    });
+  };
+  const activityIcon = (type: string) => type === 'call' ? Phone : type === 'email' ? Mail : type === 'task' ? CheckCircle2 : type === 'meeting' ? CalendarDays : MessageSquareText;
+  return <section className="rounded-xl border border-border bg-card p-5">
+    <div className="mb-4 flex items-start justify-between gap-3">
+      <div><p className="mono text-[10px] uppercase tracking-[.13em] text-muted-foreground">Contact history</p><p className="mt-1 text-sm text-muted-foreground">Keep conversations, ownership, and next actions together.</p></div>
+      <Badge tone={activities.filter((activity) => !activity.completed && activity.nextActionDate).length ? 'orange' : 'neutral'}>{activities.filter((activity) => !activity.completed && activity.nextActionDate).length} open</Badge>
+    </div>
+    {canEdit && <form onSubmit={submit} className="mb-5 space-y-3 rounded-lg border border-border bg-secondary/25 p-3">
+      <div className="grid gap-3 sm:grid-cols-[130px_1fr]">
+        <Select value={activityType} onValueChange={(value) => setActivityType(value as OpportunityActivityInputActivityType)}>
+          <SelectTrigger aria-label="Activity type"><SelectValue /></SelectTrigger>
+          <SelectContent className="bg-popover"><SelectItem value="note">Note</SelectItem><SelectItem value="call">Call</SelectItem><SelectItem value="email">Email</SelectItem><SelectItem value="meeting">Meeting</SelectItem><SelectItem value="task">Task</SelectItem></SelectContent>
+        </Select>
+        <Input aria-label="Activity subject" required maxLength={240} value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="What happened or what needs to happen next?" />
+      </div>
+      <Textarea aria-label="Activity details" maxLength={5000} rows={2} value={body} onChange={(event) => setBody(event.target.value)} placeholder="Add context, decision notes, or a handoff detail." />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex items-center gap-2 text-xs text-muted-foreground"><Clock3 size={14} /><span>Next action date</span><Input aria-label="Next action date" className="h-8 w-auto" type="date" value={nextActionDate} onChange={(event) => setNextActionDate(event.target.value)} /></label>
+        <Button type="submit" className="h-8" disabled={create.isPending || !subject.trim()}><Plus size={14} />{create.isPending ? 'Recording…' : 'Record activity'}</Button>
+      </div>
+      {create.isError && <p role="alert" className="text-xs text-destructive">This activity could not be recorded.</p>}
+    </form>}
+    {activities.length === 0 ? <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">No contact history yet.</div> : <div className="space-y-3">
+      {activities.map((activity) => {
+        const Icon = activityIcon(activity.activityType);
+        return <div key={activity.id} className={`flex gap-3 rounded-lg border p-3 ${activity.completed ? 'border-border/70 bg-secondary/20' : 'border-border'}`}>
+          <Icon size={15} className="mt-0.5 shrink-0 text-accent" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-start justify-between gap-2"><div><p className={`text-sm font-semibold ${activity.completed ? 'line-through text-muted-foreground' : ''}`}>{activity.subject}</p><p className="text-[11px] text-muted-foreground">{activity.activityType} · {new Date(activity.occurredAt).toLocaleDateString()} · {activity.actor?.displayName || activity.actor?.email || 'You'}</p></div>{canEdit && <Button variant="ghost" className="h-7 px-2 text-xs" disabled={update.isPending} onClick={() => update.mutate({ opportunityId, activityId: activity.id, data: { completed: !activity.completed } }, { onSuccess: onChanged })}>{activity.completed ? 'Reopen' : 'Complete'}</Button>}</div>
+            {activity.body && <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{activity.body}</p>}
+            {activity.nextActionDate && <p className="mt-2 flex items-center gap-1.5 text-xs text-status-warning"><Clock3 size={13} />Next action {shortDate(activity.nextActionDate)}</p>}
+          </div>
+        </div>;
+      })}
+    </div>}
+  </section>;
 }
 
 export function Opportunities() {

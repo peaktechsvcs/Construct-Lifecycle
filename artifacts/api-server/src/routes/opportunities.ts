@@ -1,11 +1,16 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import {
+  bidScopesTable,
+  bidsTable,
   businessCustomersTable,
   db,
+  estimatesTable,
   membershipsTable,
+  opportunityActivitiesTable,
   opportunitiesTable,
   platformAuditEventsTable,
+  proposalsTable,
   usersTable,
 } from "@workspace/db";
 import {
@@ -112,6 +117,31 @@ const validateCustomer = async (req: TenantRequest, customerId: number) => {
 };
 
 const dateString = (value: Date | null | undefined) => value ? value.toISOString().slice(0, 10) : null;
+const activityTypes = ["note", "call", "email", "meeting", "task"] as const;
+
+const serializeOpportunityActivity = (row: {
+  activity: typeof opportunityActivitiesTable.$inferSelect;
+  actorEmail: string | null;
+  actorDisplayName: string | null;
+}) => ({
+  id: row.activity.id,
+  environmentId: row.activity.environmentId,
+  opportunityId: row.activity.opportunityId,
+  activityType: row.activity.activityType,
+  subject: row.activity.subject,
+  body: row.activity.body,
+  occurredAt: row.activity.occurredAt,
+  nextActionDate: row.activity.nextActionDate,
+  completed: row.activity.completed,
+  createdByUserId: row.activity.createdByUserId,
+  actor: row.activity.createdByUserId === null ? null : {
+    userId: row.activity.createdByUserId,
+    email: row.actorEmail,
+    displayName: row.actorDisplayName,
+  },
+  createdAt: row.activity.createdAt,
+  updatedAt: row.activity.updatedAt,
+});
 
 router.get("/opportunities", async (req: TenantRequest, res) => {
   const parsed = ListOpportunitiesQueryParams.safeParse({
@@ -227,6 +257,262 @@ router.get("/opportunities/:opportunityId", async (req: TenantRequest, res) => {
     return;
   }
   res.json(serializeOpportunity(row));
+});
+
+router.get("/opportunities/:opportunityId/preconstruction", async (req: TenantRequest, res) => {
+  const params = GetOpportunityParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid opportunity id" });
+    return;
+  }
+  const opportunity = await getOpportunityInContext(req, params.data.opportunityId);
+  if (!opportunity) {
+    res.status(404).json({ error: "Opportunity not found" });
+    return;
+  }
+
+  const [bids, activities] = await Promise.all([
+    db.select({
+      bid: bidsTable,
+      scopeCount: sql<number>`count(${bidScopesTable.id})::int`,
+      coverageGapCount: sql<number>`count(*) filter (where ${bidScopesTable.takeoffCoverage} in ('none', 'partial') or ${bidScopesTable.estimatingCoverage} in ('none', 'partial'))::int`,
+    })
+      .from(bidsTable)
+      .leftJoin(bidScopesTable, and(
+        eq(bidScopesTable.bidId, bidsTable.id),
+        eq(bidScopesTable.tenantId, req.tenantId!),
+        eq(bidScopesTable.environmentId, req.environmentId!),
+      ))
+      .where(and(
+        eq(bidsTable.opportunityId, params.data.opportunityId),
+        eq(bidsTable.tenantId, req.tenantId!),
+        eq(bidsTable.environmentId, req.environmentId!),
+      ))
+      .groupBy(bidsTable.id)
+      .orderBy(desc(bidsTable.updatedAt)),
+    db.select({
+      activity: opportunityActivitiesTable,
+      actorEmail: usersTable.email,
+      actorDisplayName: usersTable.displayName,
+    })
+      .from(opportunityActivitiesTable)
+      .leftJoin(usersTable, eq(opportunityActivitiesTable.createdByUserId, usersTable.id))
+      .where(and(
+        eq(opportunityActivitiesTable.opportunityId, params.data.opportunityId),
+        eq(opportunityActivitiesTable.tenantId, req.tenantId!),
+        eq(opportunityActivitiesTable.environmentId, req.environmentId!),
+      ))
+      .orderBy(desc(opportunityActivitiesTable.occurredAt))
+      .limit(100),
+  ]);
+
+  const bidIds = bids.map(({ bid }) => bid.id);
+  const estimates = bidIds.length === 0 ? [] : await db.select({ estimate: estimatesTable })
+    .from(estimatesTable)
+    .where(and(
+      eq(estimatesTable.tenantId, req.tenantId!),
+      eq(estimatesTable.environmentId, req.environmentId!),
+      inArray(estimatesTable.bidId, bidIds),
+    ))
+    .orderBy(desc(estimatesTable.updatedAt));
+  const estimateIds = estimates.map(({ estimate }) => estimate.id);
+  const proposalLink = bidIds.length && estimateIds.length
+    ? or(inArray(proposalsTable.bidId, bidIds), inArray(proposalsTable.estimateId, estimateIds))
+    : bidIds.length
+      ? inArray(proposalsTable.bidId, bidIds)
+      : estimateIds.length
+        ? inArray(proposalsTable.estimateId, estimateIds)
+        : undefined;
+  const proposals = await db.select({ proposal: proposalsTable })
+    .from(proposalsTable)
+    .where(and(
+      eq(proposalsTable.tenantId, req.tenantId!),
+      eq(proposalsTable.environmentId, req.environmentId!),
+      proposalLink,
+    ))
+    .orderBy(desc(proposalsTable.updatedAt));
+
+  const nodes = [
+    ...bids.map(({ bid, scopeCount, coverageGapCount }) => ({
+      recordType: "bid" as const,
+      id: bid.id,
+      recordNumber: bid.bidNumber,
+      name: bid.name,
+      stage: bid.stage,
+      value: Number(bid.estimatedValue),
+      dueDate: bid.dueDate,
+      linkedRecordType: "opportunity" as const,
+      linkedRecordId: params.data.opportunityId,
+      scopeCount,
+      coverageGapCount,
+    })),
+    ...estimates.map(({ estimate }) => ({
+      recordType: "estimate" as const,
+      id: estimate.id,
+      recordNumber: estimate.estimateNumber,
+      name: estimate.name,
+      stage: estimate.stage,
+      value: Number(estimate.totalValue),
+      dueDate: estimate.dueDate,
+      linkedRecordType: "bid" as const,
+      linkedRecordId: estimate.bidId,
+      scopeCount: null,
+      coverageGapCount: null,
+    })),
+    ...proposals.map(({ proposal }) => ({
+      recordType: "proposal" as const,
+      id: proposal.id,
+      recordNumber: proposal.proposalNumber,
+      name: proposal.name,
+      stage: proposal.stage,
+      value: Number(proposal.proposalValue),
+      dueDate: proposal.validUntil,
+      linkedRecordType: proposal.estimateId ? "estimate" as const : "bid" as const,
+      linkedRecordId: proposal.estimateId ?? proposal.bidId,
+      scopeCount: null,
+      coverageGapCount: null,
+    })),
+  ];
+
+  res.json({
+    opportunity: serializeOpportunity(opportunity),
+    nodes,
+    activities: activities.map(serializeOpportunityActivity),
+    summary: {
+      bidCount: bids.length,
+      scopeCount: bids.reduce((total, row) => total + Number(row.scopeCount), 0),
+      estimateCount: estimates.length,
+      proposalCount: proposals.length,
+      coverageGapCount: bids.reduce((total, row) => total + Number(row.coverageGapCount), 0),
+      openNextActions: activities.filter(({ activity }) => activity.nextActionDate && !activity.completed).length,
+    },
+  });
+});
+
+router.get("/opportunities/:opportunityId/activity", async (req: TenantRequest, res) => {
+  const params = GetOpportunityParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid opportunity id" });
+    return;
+  }
+  if (!(await getOpportunityInContext(req, params.data.opportunityId))) {
+    res.status(404).json({ error: "Opportunity not found" });
+    return;
+  }
+  const rows = await db.select({
+    activity: opportunityActivitiesTable,
+    actorEmail: usersTable.email,
+    actorDisplayName: usersTable.displayName,
+  })
+    .from(opportunityActivitiesTable)
+    .leftJoin(usersTable, eq(opportunityActivitiesTable.createdByUserId, usersTable.id))
+    .where(and(
+      eq(opportunityActivitiesTable.opportunityId, params.data.opportunityId),
+      eq(opportunityActivitiesTable.tenantId, req.tenantId!),
+      eq(opportunityActivitiesTable.environmentId, req.environmentId!),
+    ))
+    .orderBy(desc(opportunityActivitiesTable.occurredAt))
+    .limit(100);
+  res.json(rows.map(serializeOpportunityActivity));
+});
+
+router.post("/opportunities/:opportunityId/activity", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const params = GetOpportunityParams.safeParse(req.params);
+  const body = req.body as {
+    activityType?: string;
+    subject?: unknown;
+    body?: unknown;
+    occurredAt?: unknown;
+    nextActionDate?: unknown;
+  };
+  if (!params.success || typeof body.subject !== "string" || !body.subject.trim() || body.subject.length > 240) {
+    res.status(400).json({ error: "Activity subject is required and must be 240 characters or fewer" });
+    return;
+  }
+  if (body.activityType && !activityTypes.includes(body.activityType as typeof activityTypes[number])) {
+    res.status(400).json({ error: "Invalid activity type" });
+    return;
+  }
+  const opportunity = await getOpportunityInContext(req, params.data.opportunityId);
+  if (!opportunity) {
+    res.status(404).json({ error: "Opportunity not found" });
+    return;
+  }
+  const occurredAt = body.occurredAt ? new Date(String(body.occurredAt)) : new Date();
+  if (Number.isNaN(occurredAt.getTime())) {
+    res.status(400).json({ error: "Invalid activity date" });
+    return;
+  }
+  const nextActionDate = body.nextActionDate === undefined || body.nextActionDate === null || body.nextActionDate === ""
+    ? null
+    : String(body.nextActionDate);
+  if (nextActionDate && !/^\d{4}-\d{2}-\d{2}$/.test(nextActionDate)) {
+    res.status(400).json({ error: "Next action date must use YYYY-MM-DD" });
+    return;
+  }
+  const [created] = await db.insert(opportunityActivitiesTable).values({
+    opportunityId: params.data.opportunityId,
+    tenantId: req.tenantId!,
+    environmentId: req.environmentId!,
+    activityType: body.activityType ?? "note",
+    subject: body.subject.trim(),
+    body: typeof body.body === "string" && body.body.trim() ? body.body.trim() : null,
+    occurredAt,
+    nextActionDate,
+    completed: false,
+    createdByUserId: req.localUserId ?? null,
+  }).returning();
+  await db.update(opportunitiesTable).set({
+    ...(created.activityType !== "task" ? { lastContactedAt: occurredAt } : {}),
+    ...(nextActionDate ? { nextAction: created.subject, nextActionDate } : {}),
+    updatedAt: new Date(),
+  }).where(and(
+    eq(opportunitiesTable.id, params.data.opportunityId),
+    eq(opportunitiesTable.tenantId, req.tenantId!),
+    eq(opportunitiesTable.environmentId, req.environmentId!),
+  ));
+  res.status(201).json(serializeOpportunityActivity({
+    activity: created,
+    actorEmail: null,
+    actorDisplayName: "You",
+  }));
+});
+
+router.patch("/opportunities/:opportunityId/activity/:activityId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const params = GetOpportunityParams.safeParse({ opportunityId: req.params.opportunityId });
+  const activityId = Number(req.params.activityId);
+  if (!params.success || !Number.isInteger(activityId) || activityId < 1) {
+    res.status(400).json({ error: "Invalid activity id" });
+    return;
+  }
+  const [existing] = await db.select().from(opportunityActivitiesTable).where(and(
+    eq(opportunityActivitiesTable.id, activityId),
+    eq(opportunityActivitiesTable.opportunityId, params.data.opportunityId),
+    eq(opportunityActivitiesTable.tenantId, req.tenantId!),
+    eq(opportunityActivitiesTable.environmentId, req.environmentId!),
+  )).limit(1);
+  if (!existing) {
+    res.status(404).json({ error: "Opportunity activity not found" });
+    return;
+  }
+  const completed = req.body?.completed;
+  if (completed !== undefined && typeof completed !== "boolean") {
+    res.status(400).json({ error: "Completed must be a boolean" });
+    return;
+  }
+  const [updated] = await db.update(opportunityActivitiesTable).set({
+    ...(completed !== undefined ? { completed } : {}),
+    updatedAt: new Date(),
+  }).where(and(
+    eq(opportunityActivitiesTable.id, activityId),
+    eq(opportunityActivitiesTable.tenantId, req.tenantId!),
+    eq(opportunityActivitiesTable.environmentId, req.environmentId!),
+  )).returning();
+  res.json(serializeOpportunityActivity({
+    activity: updated,
+    actorEmail: null,
+    actorDisplayName: updated.createdByUserId ? null : "You",
+  }));
 });
 
 router.patch("/opportunities/:opportunityId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {

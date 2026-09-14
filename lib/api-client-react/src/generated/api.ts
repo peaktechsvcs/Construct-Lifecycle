@@ -122,7 +122,11 @@ import type {
   NotificationListResponse,
   NotificationReadInput,
   Opportunity,
+  OpportunityActivity,
+  OpportunityActivityInput,
+  OpportunityActivityUpdate,
   OpportunityInput,
+  OpportunityPreconstructionGraph,
   OpportunityUpdate,
   PlatformCustomer,
   PlatformCustomerDetails,
@@ -6914,6 +6918,306 @@ export const useDeleteOpportunity = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteOpportunityMutationOptions(options));
+    }
+
+export const getGetOpportunityPreconstructionUrl = (opportunityId: number,) => {
+
+
+
+
+  return `/api/opportunities/${opportunityId}/preconstruction`
+}
+
+/**
+ * @summary Get the linked preconstruction graph for an opportunity
+ */
+export const getOpportunityPreconstruction = async (opportunityId: number, options?: Parameters<typeof customFetch>[1]): Promise<OpportunityPreconstructionGraph> => {
+
+  return customFetch<OpportunityPreconstructionGraph>(getGetOpportunityPreconstructionUrl(opportunityId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOpportunityPreconstructionQueryKey = (opportunityId: number,) => {
+    return [
+    `/api/opportunities/${opportunityId}/preconstruction`
+    ] as const;
+    }
+
+
+export const getGetOpportunityPreconstructionQueryOptions = <TData = Awaited<ReturnType<typeof getOpportunityPreconstruction>>, TError = ErrorType<void>>(opportunityId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOpportunityPreconstruction>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOpportunityPreconstructionQueryKey(opportunityId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOpportunityPreconstruction>>> = ({ signal }) => getOpportunityPreconstruction(opportunityId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: opportunityId !== null && opportunityId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOpportunityPreconstruction>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOpportunityPreconstructionQueryResult = NonNullable<Awaited<ReturnType<typeof getOpportunityPreconstruction>>>
+export type GetOpportunityPreconstructionQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the linked preconstruction graph for an opportunity
+ */
+
+export function useGetOpportunityPreconstruction<TData = Awaited<ReturnType<typeof getOpportunityPreconstruction>>, TError = ErrorType<void>>(
+ opportunityId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOpportunityPreconstruction>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOpportunityPreconstructionQueryOptions(opportunityId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListOpportunityActivityUrl = (opportunityId: number,) => {
+
+
+
+
+  return `/api/opportunities/${opportunityId}/activity`
+}
+
+/**
+ * @summary List contact and CRM activity for an opportunity
+ */
+export const listOpportunityActivity = async (opportunityId: number, options?: Parameters<typeof customFetch>[1]): Promise<OpportunityActivity[]> => {
+
+  return customFetch<OpportunityActivity[]>(getListOpportunityActivityUrl(opportunityId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOpportunityActivityQueryKey = (opportunityId: number,) => {
+    return [
+    `/api/opportunities/${opportunityId}/activity`
+    ] as const;
+    }
+
+
+export const getListOpportunityActivityQueryOptions = <TData = Awaited<ReturnType<typeof listOpportunityActivity>>, TError = ErrorType<void>>(opportunityId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOpportunityActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOpportunityActivityQueryKey(opportunityId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOpportunityActivity>>> = ({ signal }) => listOpportunityActivity(opportunityId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: opportunityId !== null && opportunityId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOpportunityActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOpportunityActivityQueryResult = NonNullable<Awaited<ReturnType<typeof listOpportunityActivity>>>
+export type ListOpportunityActivityQueryError = ErrorType<void>
+
+
+/**
+ * @summary List contact and CRM activity for an opportunity
+ */
+
+export function useListOpportunityActivity<TData = Awaited<ReturnType<typeof listOpportunityActivity>>, TError = ErrorType<void>>(
+ opportunityId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOpportunityActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOpportunityActivityQueryOptions(opportunityId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateOpportunityActivityUrl = (opportunityId: number,) => {
+
+
+
+
+  return `/api/opportunities/${opportunityId}/activity`
+}
+
+/**
+ * @summary Record a contact or next-action activity for an opportunity
+ */
+export const createOpportunityActivity = async (opportunityId: number,
+    opportunityActivityInput: OpportunityActivityInput, options?: Parameters<typeof customFetch>[1]): Promise<OpportunityActivity> => {
+
+  return customFetch<OpportunityActivity>(getCreateOpportunityActivityUrl(opportunityId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(opportunityActivityInput)
+  }
+);}
+
+
+
+
+
+export const getCreateOpportunityActivityMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOpportunityActivity>>, TError,{opportunityId: number;data: BodyType<OpportunityActivityInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOpportunityActivity>>, TError,{opportunityId: number;data: BodyType<OpportunityActivityInput>}, TContext> => {
+
+const mutationKey = ['createOpportunityActivity'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOpportunityActivity>>, {opportunityId: number;data: BodyType<OpportunityActivityInput>}> = (props) => {
+          const {opportunityId,data} = props ?? {};
+
+          return  createOpportunityActivity(opportunityId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOpportunityActivityMutationResult = NonNullable<Awaited<ReturnType<typeof createOpportunityActivity>>>
+    export type CreateOpportunityActivityMutationBody = BodyType<OpportunityActivityInput>
+    export type CreateOpportunityActivityMutationError = ErrorType<void>
+
+    /**
+ * @summary Record a contact or next-action activity for an opportunity
+ */
+export const useCreateOpportunityActivity = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOpportunityActivity>>, TError,{opportunityId: number;data: BodyType<OpportunityActivityInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOpportunityActivity>>,
+        TError,
+        {opportunityId: number;data: BodyType<OpportunityActivityInput>},
+        TContext
+      > => {
+      return useMutation(getCreateOpportunityActivityMutationOptions(options));
+    }
+
+export const getUpdateOpportunityActivityUrl = (opportunityId: number,
+    activityId: number,) => {
+
+
+
+
+  return `/api/opportunities/${opportunityId}/activity/${activityId}`
+}
+
+/**
+ * @summary Complete or reopen an opportunity activity
+ */
+export const updateOpportunityActivity = async (opportunityId: number,
+    activityId: number,
+    opportunityActivityUpdate: OpportunityActivityUpdate, options?: Parameters<typeof customFetch>[1]): Promise<OpportunityActivity> => {
+
+  return customFetch<OpportunityActivity>(getUpdateOpportunityActivityUrl(opportunityId,activityId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(opportunityActivityUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateOpportunityActivityMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOpportunityActivity>>, TError,{opportunityId: number;activityId: number;data: BodyType<OpportunityActivityUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOpportunityActivity>>, TError,{opportunityId: number;activityId: number;data: BodyType<OpportunityActivityUpdate>}, TContext> => {
+
+const mutationKey = ['updateOpportunityActivity'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOpportunityActivity>>, {opportunityId: number;activityId: number;data: BodyType<OpportunityActivityUpdate>}> = (props) => {
+          const {opportunityId,activityId,data} = props ?? {};
+
+          return  updateOpportunityActivity(opportunityId,activityId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOpportunityActivityMutationResult = NonNullable<Awaited<ReturnType<typeof updateOpportunityActivity>>>
+    export type UpdateOpportunityActivityMutationBody = BodyType<OpportunityActivityUpdate>
+    export type UpdateOpportunityActivityMutationError = ErrorType<void>
+
+    /**
+ * @summary Complete or reopen an opportunity activity
+ */
+export const useUpdateOpportunityActivity = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOpportunityActivity>>, TError,{opportunityId: number;activityId: number;data: BodyType<OpportunityActivityUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOpportunityActivity>>,
+        TError,
+        {opportunityId: number;activityId: number;data: BodyType<OpportunityActivityUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateOpportunityActivityMutationOptions(options));
     }
 
 export const getListBidsUrl = (params?: ListBidsParams,) => {

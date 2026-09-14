@@ -5879,6 +5879,193 @@ export const DeleteOpportunityResponse = zod.void()
 
 
 /**
+ * @summary Get the linked preconstruction graph for an opportunity
+ */
+export const GetOpportunityPreconstructionParams = zod.object({
+  "opportunityId": zod.coerce.number().int()
+})
+
+export const GetOpportunityPreconstructionResponse = zod.object({
+  "opportunity": zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "opportunityNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stage": zod.enum(['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost']),
+  "estimatedValue": zod.number(),
+  "expectedCloseDate": zod.coerce.date().nullable(),
+  "ownerUserId": zod.number().int().nullable(),
+  "owner": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "leadSource": zod.string().nullable(),
+  "contactName": zod.string().nullable(),
+  "contactEmail": zod.string().email().nullable(),
+  "contactPhone": zod.string().nullable(),
+  "qualification": zod.enum(['unqualified', 'qualified', 'disqualified']),
+  "nextAction": zod.string().nullable(),
+  "nextActionDate": zod.coerce.date().nullable(),
+  "lastContactedAt": zod.coerce.date().nullable(),
+  "crmProviderKey": zod.string().nullable(),
+  "crmIntegrationStatus": zod.enum(['manual', 'pending', 'synced', 'error']),
+  "crmExternalReference": zod.string().nullable(),
+  "crmLastSyncedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "nodes": zod.array(zod.object({
+  "recordType": zod.enum(['bid', 'estimate', 'proposal']),
+  "id": zod.number().int(),
+  "recordNumber": zod.string(),
+  "name": zod.string(),
+  "stage": zod.string(),
+  "value": zod.number(),
+  "dueDate": zod.coerce.date().nullable(),
+  "linkedRecordType": zod.enum(['opportunity', 'bid', 'estimate']),
+  "linkedRecordId": zod.number().int().nullable(),
+  "scopeCount": zod.number().int().nullable(),
+  "coverageGapCount": zod.number().int().nullable()
+})),
+  "activities": zod.array(zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "opportunityId": zod.number().int(),
+  "activityType": zod.enum(['note', 'call', 'email', 'meeting', 'task']),
+  "subject": zod.string(),
+  "body": zod.string().nullable(),
+  "occurredAt": zod.coerce.date(),
+  "nextActionDate": zod.coerce.date().nullable(),
+  "completed": zod.boolean(),
+  "createdByUserId": zod.number().int().nullable(),
+  "actor": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "summary": zod.object({
+  "bidCount": zod.number().int(),
+  "scopeCount": zod.number().int(),
+  "estimateCount": zod.number().int(),
+  "proposalCount": zod.number().int(),
+  "coverageGapCount": zod.number().int(),
+  "openNextActions": zod.number().int()
+})
+})
+
+
+/**
+ * @summary List contact and CRM activity for an opportunity
+ */
+export const ListOpportunityActivityParams = zod.object({
+  "opportunityId": zod.coerce.number().int()
+})
+
+export const ListOpportunityActivityResponseItem = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "opportunityId": zod.number().int(),
+  "activityType": zod.enum(['note', 'call', 'email', 'meeting', 'task']),
+  "subject": zod.string(),
+  "body": zod.string().nullable(),
+  "occurredAt": zod.coerce.date(),
+  "nextActionDate": zod.coerce.date().nullable(),
+  "completed": zod.boolean(),
+  "createdByUserId": zod.number().int().nullable(),
+  "actor": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListOpportunityActivityResponse = zod.array(ListOpportunityActivityResponseItem)
+
+
+/**
+ * @summary Record a contact or next-action activity for an opportunity
+ */
+export const CreateOpportunityActivityParams = zod.object({
+  "opportunityId": zod.coerce.number().int()
+})
+
+export const createOpportunityActivityBodySubjectMax = 240;
+
+export const createOpportunityActivityBodyBodyMax = 5000;
+
+
+
+export const CreateOpportunityActivityBody = zod.object({
+  "activityType": zod.enum(['note', 'call', 'email', 'meeting', 'task']).optional(),
+  "subject": zod.string().min(1).max(createOpportunityActivityBodySubjectMax),
+  "body": zod.string().max(createOpportunityActivityBodyBodyMax).optional(),
+  "occurredAt": zod.coerce.date().optional(),
+  "nextActionDate": zod.coerce.date().optional()
+})
+
+export const CreateOpportunityActivityResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "opportunityId": zod.number().int(),
+  "activityType": zod.enum(['note', 'call', 'email', 'meeting', 'task']),
+  "subject": zod.string(),
+  "body": zod.string().nullable(),
+  "occurredAt": zod.coerce.date(),
+  "nextActionDate": zod.coerce.date().nullable(),
+  "completed": zod.boolean(),
+  "createdByUserId": zod.number().int().nullable(),
+  "actor": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Complete or reopen an opportunity activity
+ */
+export const UpdateOpportunityActivityParams = zod.object({
+  "opportunityId": zod.coerce.number().int(),
+  "activityId": zod.coerce.number().int()
+})
+
+export const UpdateOpportunityActivityBody = zod.object({
+  "completed": zod.boolean().optional()
+})
+
+export const UpdateOpportunityActivityResponse = zod.object({
+  "id": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "opportunityId": zod.number().int(),
+  "activityType": zod.enum(['note', 'call', 'email', 'meeting', 'task']),
+  "subject": zod.string(),
+  "body": zod.string().nullable(),
+  "occurredAt": zod.coerce.date(),
+  "nextActionDate": zod.coerce.date().nullable(),
+  "completed": zod.boolean(),
+  "createdByUserId": zod.number().int().nullable(),
+  "actor": zod.union([zod.object({
+  "userId": zod.number().int(),
+  "email": zod.string().email().nullable(),
+  "displayName": zod.string().nullable()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary List bids for the active customer environment
  */
 export const listBidsQuerySearchMax = 120;

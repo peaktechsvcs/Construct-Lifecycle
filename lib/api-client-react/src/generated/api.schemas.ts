@@ -657,6 +657,124 @@ export interface OpportunityUpdate {
   crmExternalReference?: string | null;
 }
 
+export type OpportunityActivityActivityType = typeof OpportunityActivityActivityType[keyof typeof OpportunityActivityActivityType];
+
+
+export const OpportunityActivityActivityType = {
+  note: 'note',
+  call: 'call',
+  email: 'email',
+  meeting: 'meeting',
+  task: 'task',
+} as const;
+
+export type OpportunityActivityActor = {
+  userId: number;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  displayName: string | null;
+} | null;
+
+export interface OpportunityActivity {
+  id: number;
+  environmentId: number;
+  opportunityId: number;
+  activityType: OpportunityActivityActivityType;
+  subject: string;
+  /** @nullable */
+  body: string | null;
+  occurredAt: string;
+  /** @nullable */
+  nextActionDate: string | null;
+  completed: boolean;
+  /** @nullable */
+  createdByUserId: number | null;
+  actor: OpportunityActivityActor;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type OpportunityActivityInputActivityType = typeof OpportunityActivityInputActivityType[keyof typeof OpportunityActivityInputActivityType];
+
+
+export const OpportunityActivityInputActivityType = {
+  note: 'note',
+  call: 'call',
+  email: 'email',
+  meeting: 'meeting',
+  task: 'task',
+} as const;
+
+export interface OpportunityActivityInput {
+  activityType?: OpportunityActivityInputActivityType;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  subject: string;
+  /** @maxLength 5000 */
+  body?: string;
+  occurredAt?: string;
+  nextActionDate?: string;
+}
+
+export interface OpportunityActivityUpdate {
+  completed?: boolean;
+}
+
+export type OpportunityPreconstructionNodeRecordType = typeof OpportunityPreconstructionNodeRecordType[keyof typeof OpportunityPreconstructionNodeRecordType];
+
+
+export const OpportunityPreconstructionNodeRecordType = {
+  bid: 'bid',
+  estimate: 'estimate',
+  proposal: 'proposal',
+} as const;
+
+export type OpportunityPreconstructionNodeLinkedRecordType = typeof OpportunityPreconstructionNodeLinkedRecordType[keyof typeof OpportunityPreconstructionNodeLinkedRecordType];
+
+
+export const OpportunityPreconstructionNodeLinkedRecordType = {
+  opportunity: 'opportunity',
+  bid: 'bid',
+  estimate: 'estimate',
+} as const;
+
+export interface OpportunityPreconstructionNode {
+  recordType: OpportunityPreconstructionNodeRecordType;
+  id: number;
+  recordNumber: string;
+  name: string;
+  stage: string;
+  value: number;
+  /** @nullable */
+  dueDate: string | null;
+  linkedRecordType: OpportunityPreconstructionNodeLinkedRecordType;
+  /** @nullable */
+  linkedRecordId: number | null;
+  /** @nullable */
+  scopeCount: number | null;
+  /** @nullable */
+  coverageGapCount: number | null;
+}
+
+export interface OpportunityPreconstructionSummary {
+  bidCount: number;
+  scopeCount: number;
+  estimateCount: number;
+  proposalCount: number;
+  coverageGapCount: number;
+  openNextActions: number;
+}
+
+export interface OpportunityPreconstructionGraph {
+  opportunity: Opportunity;
+  nodes: OpportunityPreconstructionNode[];
+  activities: OpportunityActivity[];
+  summary: OpportunityPreconstructionSummary;
+}
+
 export type BidStage = typeof BidStage[keyof typeof BidStage];
 
 

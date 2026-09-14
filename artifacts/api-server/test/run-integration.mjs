@@ -23,6 +23,7 @@ try {
       path.join(testDir, "project-controls-numbering.integration.test.ts"),
       path.join(testDir, "compliance-upload.integration.test.ts"),
       path.join(testDir, "itb-evidence-mapping.integration.test.ts"),
+      path.join(testDir, "opportunity-preconstruction.integration.test.ts"),
     ],
     platform: "node",
     bundle: true,
@@ -55,6 +56,7 @@ globalThis.__dirname = __path.dirname(globalThis.__filename);`,
     path.join(outdir, "project-controls-numbering.integration.test.mjs"),
     path.join(outdir, "compliance-upload.integration.test.mjs"),
     path.join(outdir, "itb-evidence-mapping.integration.test.mjs"),
+      path.join(outdir, "opportunity-preconstruction.integration.test.mjs"),
   ];
   const exitCode = await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--test", ...testFiles], {
