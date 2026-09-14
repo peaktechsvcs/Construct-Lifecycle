@@ -50,6 +50,13 @@ import {
   type DocumentFinding,
 } from "../lib/itb-document-parsing";
 import { createItbMailboxClient, type MailboxProvider } from "../lib/itb-mailbox";
+import {
+  getAvailableIntegration,
+  markIntegrationJobFailed,
+  markIntegrationJobSucceeded,
+  startIntegrationJob,
+  type IntegrationJobScope,
+} from "../lib/integrations/job-lifecycle";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
@@ -57,6 +64,8 @@ const connectors = new ReplitConnectors();
 const mailboxClient = createItbMailboxClient(connectors);
 const MAX_SOURCE_CHARS = 200_000;
 const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
+const mailboxIntegrationProvider = (provider: MailboxProvider) =>
+  provider === "google-mail" ? "google_workspace" : "microsoft_365";
 const extractionKeys = ["issuer", "contactName", "contactEmail", "contactPhone", "projectName", "location", "dueDate", "scope", "requirements", "alternates", "estimatedValue"] as const;
 type ExtractedField = { value: string | null; confidence: number; evidence: string };
 type Extraction = {
@@ -241,6 +250,26 @@ const parseMailboxProvider = (value: unknown): MailboxProvider | null => {
   return null;
 };
 
+const startMailboxJob = async (req: TenantRequest, provider: MailboxProvider, jobType: string) => {
+  const providerKey = mailboxIntegrationProvider(provider);
+  const integration = await getAvailableIntegration({
+    tenantId: req.tenantId!,
+    environmentId: req.environmentId!,
+    providerKey,
+  });
+  if (!integration) return null;
+  const scope: IntegrationJobScope = {
+    tenantId: req.tenantId!,
+    environmentId: req.environmentId!,
+    integrationId: integration.id,
+    providerKey,
+  };
+  return {
+    scope,
+    job: await startIntegrationJob(scope, jobType),
+  };
+};
+
 router.get("/itb-intakes", async (req: TenantRequest, res) => {
   const parsed = ListItbIntakesQueryParams.safeParse(req.query);
   if (!parsed.success) {
@@ -367,6 +396,11 @@ router.get("/itb-intakes/mailbox/preview", requireRole("owner", "admin"), async 
     res.status(400).json({ error: "Unsupported mailbox provider" });
     return;
   }
+  const mailboxJob = await startMailboxJob(req, provider, "mailbox_preview");
+  if (!mailboxJob) {
+    res.status(409).json({ error: "Mailbox integration is not connected for this environment" });
+    return;
+  }
   try {
     const [cursor] = await db.select().from(itbMailboxCursorsTable).where(and(
       eq(itbMailboxCursorsTable.tenantId, req.tenantId!),
@@ -410,8 +444,10 @@ router.get("/itb-intakes/mailbox/preview", requireRole("owner", "admin"), async 
       const importedIds = new Set(imported.map((row) => row.sourceMessageId));
       for (const preview of previews) preview.imported = importedIds.has(preview.messageId);
     }
+    await markIntegrationJobSucceeded(mailboxJob.scope, mailboxJob.job);
     res.json(previews);
   } catch (error) {
+    await markIntegrationJobFailed(mailboxJob.scope, mailboxJob.job, error);
     const status = (error as { status?: number }).status;
     req.log.warn({ err: error, connectorStatus: status }, "ITB mailbox preview unavailable");
     res.status(424).json({ error: `${provider === "outlook" ? "Microsoft 365" : "Google Workspace"} mailbox is not connected or could not be read` });
@@ -425,6 +461,11 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
     return;
   }
   const provider = parsed.data.provider ?? "google-mail";
+  const mailboxJob = await startMailboxJob(req, provider, "mailbox_import");
+  if (!mailboxJob) {
+    res.status(409).json({ error: "Mailbox integration is not connected for this environment" });
+    return;
+  }
   try {
     const message = await mailboxClient.importMessage(provider, parsed.data.threadId, parsed.data.messageId);
     const attachments: Array<{ originalName: string; contentType: string; size: number; objectPath: string; sourceAttachmentId: string }> = [];
@@ -449,6 +490,7 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
       eq(itbIntakesTable.sourceMessageId, message.sourceMessageId),
     )).limit(1);
     if (existing.length) {
+      await markIntegrationJobSucceeded(mailboxJob.scope, mailboxJob.job);
       res.status(409).json({ error: "This mailbox message was already imported", intakeId: existing[0].id });
       return;
     }
@@ -479,8 +521,10 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
       action: "itb_mailbox_message_imported",
       details: JSON.stringify({ intakeId: created.id, messageId: message.sourceMessageId, provider: message.sourceProvider, environmentId: req.environmentId }),
     });
+    await markIntegrationJobSucceeded(mailboxJob.scope, mailboxJob.job);
     res.status(201).json(serialize(created, await getAttachments(created.id)));
   } catch (error) {
+    await markIntegrationJobFailed(mailboxJob.scope, mailboxJob.job, error);
     const status = (error as { status?: number }).status;
     req.log.warn({ err: error, connectorStatus: status }, "ITB mailbox import unavailable");
     res.status(status === 404 ? 404 : 424).json({ error: `${provider === "outlook" ? "Microsoft 365" : "Google Workspace"} message could not be imported` });

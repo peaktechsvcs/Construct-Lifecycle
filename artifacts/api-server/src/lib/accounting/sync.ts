@@ -4,7 +4,6 @@ import {
   db,
   integrationAuditEventsTable,
   integrationEntitlementsTable,
-  integrationJobsTable,
   integrationsTable,
   projectAccountingSyncsTable,
   projectCommitmentsTable,
@@ -15,6 +14,11 @@ import {
 } from "@workspace/db";
 import type { TenantRequest } from "../../middlewares/tenantContext";
 import { getConnectorDefinition } from "../integrations/catalog";
+import {
+  markIntegrationJobFailed,
+  markIntegrationJobSucceeded,
+  startIntegrationJob,
+} from "../integrations/job-lifecycle";
 import { registerQuickBooksAccountingProvider } from "./quickbooks";
 import { getAccountingProvider, registerAccountingProvider, type AccountingProviderContext } from "./provider";
 
@@ -181,16 +185,12 @@ export async function syncProjectAccounting(req: TenantRequest, projectId: numbe
   const committedCost = commitments.reduce((sum, row) => sum + money(row.committedValue), 0);
   const asOfDate = financials?.asOfDate ?? new Date().toISOString().slice(0, 10);
   const jobStartedAt = new Date();
-  const [job] = await db.insert(integrationJobsTable).values({
+  const job = await startIntegrationJob({
     tenantId: req.tenantId!,
     environmentId: req.environmentId!,
     integrationId: selected.integration.id,
     providerKey,
-    jobType: "project_accounting_sync",
-    status: "running",
-    attempts: 1,
-    maxAttempts: 3,
-  }).returning();
+  }, "project_accounting_sync");
 
   const context = selected.context;
   const successful: Array<{ resourceType: string; resourceKey: string; externalId: string }> = [];
@@ -277,31 +277,21 @@ export async function syncProjectAccounting(req: TenantRequest, projectId: numbe
     }));
   }
 
-  const completedAt = new Date();
   const overallStatus = failed.length === 0 ? "success" : successful.length > 0 ? "partial" : "failed";
-  await db.update(integrationJobsTable).set({
-    status: failed.length === 0 ? "completed" : "failed",
-    completedAt: failed.length === 0 ? completedAt : null,
-    lastError: failed.length === 0 ? null : "One or more accounting resources could not be synchronized",
-    updatedAt: completedAt,
-  }).where(and(
-    eq(integrationJobsTable.id, job.id),
-    eq(integrationJobsTable.tenantId, req.tenantId!),
-    eq(integrationJobsTable.environmentId, req.environmentId!),
-  ));
-  await db.update(integrationsTable).set({
-    lastSyncAt: completedAt,
-    lastSuccessfulSyncAt: failed.length === 0 ? completedAt : selected.integration.lastSuccessfulSyncAt,
-    lastSyncStatus: overallStatus,
-    lastFailureAt: failed.length > 0 ? completedAt : null,
-    lastError: failed.length > 0 ? "One or more accounting resources could not be synchronized" : null,
-    status: failed.length > 0 ? "warning" : "connected",
-    updatedAt: completedAt,
-  }).where(and(
-    eq(integrationsTable.id, selected.integration.id),
-    eq(integrationsTable.tenantId, req.tenantId!),
-    eq(integrationsTable.environmentId, req.environmentId!),
-  ));
+  const finishedJob = failed.length === 0
+    ? await markIntegrationJobSucceeded({
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+      integrationId: selected.integration.id,
+      providerKey,
+    }, job)
+    : await markIntegrationJobFailed({
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+      integrationId: selected.integration.id,
+      providerKey,
+    }, job, "One or more accounting resources could not be synchronized", { retryable: false });
+  const completedAt = finishedJob.completedAt ?? new Date();
   await db.insert(integrationAuditEventsTable).values({
     tenantId: req.tenantId!,
     environmentId: req.environmentId!,
