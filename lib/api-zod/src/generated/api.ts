@@ -1574,6 +1574,9 @@ export const GetTradePartnerResponse = zod.object({
   "expiresOn": zod.coerce.date().nullable(),
   "status": zod.enum(['requested', 'submitted', 'approved', 'rejected', 'expired']),
   "objectPath": zod.string().nullable(),
+  "originalName": zod.string().nullable(),
+  "contentType": zod.string().nullable(),
+  "fileSize": zod.number().int().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
   "reviewNotes": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
@@ -1700,7 +1703,6 @@ export const createTradePartnerComplianceDocumentBodyDocumentNumberMax = 120;
 
 export const createTradePartnerComplianceDocumentBodyIssuerMax = 180;
 
-export const createTradePartnerComplianceDocumentBodyObjectPathRegExp = new RegExp('^/objects');
 
 
 export const CreateTradePartnerComplianceDocumentBody = zod.object({
@@ -1710,8 +1712,7 @@ export const CreateTradePartnerComplianceDocumentBody = zod.object({
   "documentNumber": zod.string().max(createTradePartnerComplianceDocumentBodyDocumentNumberMax).optional(),
   "issuer": zod.string().max(createTradePartnerComplianceDocumentBodyIssuerMax).optional(),
   "expiresOn": zod.coerce.date().optional(),
-  "status": zod.enum(['requested', 'submitted']).optional(),
-  "objectPath": zod.string().regex(createTradePartnerComplianceDocumentBodyObjectPathRegExp).optional()
+  "status": zod.enum(['requested', 'submitted']).optional()
 })
 
 export const CreateTradePartnerComplianceDocumentResponse = zod.object({
@@ -1725,11 +1726,74 @@ export const CreateTradePartnerComplianceDocumentResponse = zod.object({
   "expiresOn": zod.coerce.date().nullable(),
   "status": zod.enum(['requested', 'submitted', 'approved', 'rejected', 'expired']),
   "objectPath": zod.string().nullable(),
+  "originalName": zod.string().nullable(),
+  "contentType": zod.string().nullable(),
+  "fileSize": zod.number().int().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
   "reviewNotes": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary Request a protected compliance document upload URL
+ */
+export const RequestTradePartnerComplianceDocumentUploadParams = zod.object({
+  "tradePartnerId": zod.coerce.number().int()
+})
+
+export const requestTradePartnerComplianceDocumentUploadBodyOneOriginalNameMax = 255;
+
+export const requestTradePartnerComplianceDocumentUploadBodyOneContentTypeMax = 160;
+
+export const requestTradePartnerComplianceDocumentUploadBodyOneSizeMax = 104857600;
+
+
+export const requestTradePartnerComplianceDocumentUploadBodyTwoDocumentTypeMax = 80;
+
+export const requestTradePartnerComplianceDocumentUploadBodyTwoTitleMax = 240;
+
+export const requestTradePartnerComplianceDocumentUploadBodyTwoDocumentNumberMax = 120;
+
+export const requestTradePartnerComplianceDocumentUploadBodyTwoIssuerMax = 180;
+
+
+
+export const RequestTradePartnerComplianceDocumentUploadBody = zod.object({
+  "originalName": zod.string().min(1).max(requestTradePartnerComplianceDocumentUploadBodyOneOriginalNameMax),
+  "contentType": zod.string().min(1).max(requestTradePartnerComplianceDocumentUploadBodyOneContentTypeMax),
+  "size": zod.number().int().min(1).max(requestTradePartnerComplianceDocumentUploadBodyOneSizeMax)
+}).and(zod.object({
+  "projectId": zod.number().int().min(1).optional(),
+  "documentType": zod.string().min(1).max(requestTradePartnerComplianceDocumentUploadBodyTwoDocumentTypeMax),
+  "title": zod.string().min(1).max(requestTradePartnerComplianceDocumentUploadBodyTwoTitleMax),
+  "documentNumber": zod.string().max(requestTradePartnerComplianceDocumentUploadBodyTwoDocumentNumberMax).optional(),
+  "issuer": zod.string().max(requestTradePartnerComplianceDocumentUploadBodyTwoIssuerMax).optional(),
+  "expiresOn": zod.coerce.date().optional()
+}))
+
+export const RequestTradePartnerComplianceDocumentUploadResponse = zod.object({
+  "id": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "projectId": zod.number().int().nullable(),
+  "documentType": zod.string(),
+  "title": zod.string(),
+  "documentNumber": zod.string().nullable(),
+  "issuer": zod.string().nullable(),
+  "expiresOn": zod.coerce.date().nullable(),
+  "status": zod.enum(['requested', 'submitted', 'approved', 'rejected', 'expired']),
+  "objectPath": zod.string().nullable(),
+  "originalName": zod.string().nullable(),
+  "contentType": zod.string().nullable(),
+  "fileSize": zod.number().int().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewNotes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "uploadURL": zod.string().url()
+}))
 
 
 /**
@@ -1769,11 +1833,99 @@ export const UpdateTradePartnerComplianceDocumentResponse = zod.object({
   "expiresOn": zod.coerce.date().nullable(),
   "status": zod.enum(['requested', 'submitted', 'approved', 'rejected', 'expired']),
   "objectPath": zod.string().nullable(),
+  "originalName": zod.string().nullable(),
+  "contentType": zod.string().nullable(),
+  "fileSize": zod.number().int().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
   "reviewNotes": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary Request a replacement compliance document upload URL
+ */
+export const RequestTradePartnerComplianceDocumentReplacementParams = zod.object({
+  "tradePartnerId": zod.coerce.number().int(),
+  "documentId": zod.coerce.number().int()
+})
+
+export const requestTradePartnerComplianceDocumentReplacementBodyOriginalNameMax = 255;
+
+export const requestTradePartnerComplianceDocumentReplacementBodyContentTypeMax = 160;
+
+export const requestTradePartnerComplianceDocumentReplacementBodySizeMax = 104857600;
+
+
+
+export const RequestTradePartnerComplianceDocumentReplacementBody = zod.object({
+  "originalName": zod.string().min(1).max(requestTradePartnerComplianceDocumentReplacementBodyOriginalNameMax),
+  "contentType": zod.string().min(1).max(requestTradePartnerComplianceDocumentReplacementBodyContentTypeMax),
+  "size": zod.number().int().min(1).max(requestTradePartnerComplianceDocumentReplacementBodySizeMax)
+})
+
+export const RequestTradePartnerComplianceDocumentReplacementResponse = zod.object({
+  "id": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "projectId": zod.number().int().nullable(),
+  "documentType": zod.string(),
+  "title": zod.string(),
+  "documentNumber": zod.string().nullable(),
+  "issuer": zod.string().nullable(),
+  "expiresOn": zod.coerce.date().nullable(),
+  "status": zod.enum(['requested', 'submitted', 'approved', 'rejected', 'expired']),
+  "objectPath": zod.string().nullable(),
+  "originalName": zod.string().nullable(),
+  "contentType": zod.string().nullable(),
+  "fileSize": zod.number().int().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewNotes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "uploadURL": zod.string().url()
+}))
+
+
+/**
+ * @summary Complete and screen a compliance document upload
+ */
+export const CompleteTradePartnerComplianceDocumentUploadParams = zod.object({
+  "tradePartnerId": zod.coerce.number().int(),
+  "documentId": zod.coerce.number().int()
+})
+
+export const CompleteTradePartnerComplianceDocumentUploadResponse = zod.object({
+  "id": zod.number().int(),
+  "tradePartnerId": zod.number().int(),
+  "projectId": zod.number().int().nullable(),
+  "documentType": zod.string(),
+  "title": zod.string(),
+  "documentNumber": zod.string().nullable(),
+  "issuer": zod.string().nullable(),
+  "expiresOn": zod.coerce.date().nullable(),
+  "status": zod.enum(['requested', 'submitted', 'approved', 'rejected', 'expired']),
+  "objectPath": zod.string().nullable(),
+  "originalName": zod.string().nullable(),
+  "contentType": zod.string().nullable(),
+  "fileSize": zod.number().int().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewNotes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Stream a protected compliance document
+ */
+export const GetTradePartnerComplianceDocumentFileParams = zod.object({
+  "tradePartnerId": zod.coerce.number().int(),
+  "documentId": zod.coerce.number().int()
+})
+
+export const GetTradePartnerComplianceDocumentFileResponse = zod.unknown()
 
 
 /**

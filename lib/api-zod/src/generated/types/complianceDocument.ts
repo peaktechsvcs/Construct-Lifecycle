@@ -24,6 +24,12 @@ export interface ComplianceDocument {
   /** @nullable */
   objectPath: string | null;
   /** @nullable */
+  originalName: string | null;
+  /** @nullable */
+  contentType: string | null;
+  /** @nullable */
+  fileSize: number | null;
+  /** @nullable */
   reviewedAt: Date | null;
   /** @nullable */
   reviewNotes: string | null;

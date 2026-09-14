@@ -4856,6 +4856,12 @@ export interface ComplianceDocument {
   /** @nullable */
   objectPath: string | null;
   /** @nullable */
+  originalName: string | null;
+  /** @nullable */
+  contentType: string | null;
+  /** @nullable */
+  fileSize: number | null;
+  /** @nullable */
   reviewedAt: string | null;
   /** @nullable */
   reviewNotes: string | null;
@@ -5069,9 +5075,49 @@ export interface ComplianceDocumentInput {
   issuer?: string;
   expiresOn?: string;
   status?: ComplianceDocumentInputStatus;
-  /** @pattern ^/objects/ */
-  objectPath?: string;
 }
+
+export interface ComplianceDocumentFileInput {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  originalName: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  contentType: string;
+  /**
+     * @minimum 1
+     * @maximum 104857600
+     */
+  size: number;
+}
+
+export type ComplianceDocumentUploadInput = ComplianceDocumentFileInput & {
+  /** @minimum 1 */
+  projectId?: number;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  documentType: string;
+  /**
+     * @minLength 1
+     * @maxLength 240
+     */
+  title: string;
+  /** @maxLength 120 */
+  documentNumber?: string;
+  /** @maxLength 180 */
+  issuer?: string;
+  expiresOn?: string;
+};
+
+export type ComplianceDocumentUpload = ComplianceDocument & {
+  uploadURL: string;
+};
 
 export type ComplianceDocumentUpdateStatus = typeof ComplianceDocumentUpdateStatus[keyof typeof ComplianceDocumentUpdateStatus];
 

@@ -1,5 +1,6 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Response } from "express";
 import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
+import { z } from "zod";
 import {
   db,
   projectsTable,
@@ -51,8 +52,39 @@ import {
   evaluateComplianceGate,
   isComplianceDocumentExpired,
 } from "../lib/subcontractor-compliance-policy";
+import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
+import { screenStoredDocument } from "../lib/documentScreening";
 
 const router: IRouter = Router();
+const objectStorage = new ObjectStorageService();
+const maxComplianceDocumentSize = 100 * 1024 * 1024;
+const complianceUploadRateWindowMs = 60_000;
+const complianceUploadRateLimit = 20;
+const complianceUploadAttempts = new Map<string, { count: number; resetAt: number }>();
+const allowedComplianceContentTypes = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "application/zip",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+]);
+const complianceUploadBody = z.object({
+  originalName: z.string().trim().min(1).max(255),
+  contentType: z.string().trim().min(1).max(160),
+  size: z.number().int().min(1).max(maxComplianceDocumentSize),
+});
+const complianceUploadMetadata = z.object({
+  projectId: z.number().int().positive().optional(),
+  documentType: z.string().trim().min(1).max(80),
+  title: z.string().trim().min(1).max(240),
+  documentNumber: z.string().trim().max(120).optional(),
+  issuer: z.string().trim().max(180).optional(),
+  expiresOn: z.string().date().optional(),
+});
+const complianceUploadRequestBody = complianceUploadMetadata.merge(complianceUploadBody);
 
 const money = (value: string | number | null | undefined) => Number(value ?? 0);
 const dateString = (value: Date | string | null | undefined) =>
@@ -62,6 +94,38 @@ const scope = (req: TenantRequest, table: { tenantId: any; environmentId: any })
 
 function normalizeName(value: string) {
   return value.trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim();
+}
+
+function sanitizeFileName(value: string) {
+  return value.trim().replace(/[/\\\r\n"]/g, "_").replace(/\s+/g, " ").slice(0, 255) || "compliance-document";
+}
+
+function rejectComplianceUploadRate(req: TenantRequest, res: Response) {
+  const key = `${req.tenantId}:${req.environmentId}:${req.localUserId}`;
+  const now = Date.now();
+  const current = complianceUploadAttempts.get(key);
+  if (!current || current.resetAt <= now) {
+    complianceUploadAttempts.set(key, { count: 1, resetAt: now + complianceUploadRateWindowMs });
+    return false;
+  }
+  current.count += 1;
+  if (current.count <= complianceUploadRateLimit) return false;
+  res.setHeader("Retry-After", String(Math.max(1, Math.ceil((current.resetAt - now) / 1000))));
+  res.status(429).json({ error: "Too many compliance upload attempts. Try again shortly." });
+  return true;
+}
+
+async function getComplianceDocument(req: TenantRequest, tradePartnerId: number, documentId: number) {
+  const [document] = await db.select().from(tradePartnerComplianceDocumentsTable).where(and(
+    scope(req, tradePartnerComplianceDocumentsTable),
+    eq(tradePartnerComplianceDocumentsTable.tradePartnerId, tradePartnerId),
+    eq(tradePartnerComplianceDocumentsTable.id, documentId),
+  ));
+  return document;
+}
+
+function validateComplianceUpload(contentType: string) {
+  return allowedComplianceContentTypes.has(contentType);
 }
 
 async function audit(req: TenantRequest, entityType: string, entityId: number, action: string, fromStatus?: string | null, toStatus?: string | null, details?: string) {
@@ -164,6 +228,9 @@ function serializeDocument(document: typeof tradePartnerComplianceDocumentsTable
     expiresOn: document.expiresOn,
     status: isComplianceDocumentExpired(document) && document.status === "approved" ? "expired" : document.status,
     objectPath: document.objectPath,
+    originalName: document.originalName,
+    contentType: document.contentType,
+    fileSize: document.fileSize,
     reviewedAt: document.reviewedAt,
     reviewNotes: document.reviewNotes,
     createdAt: document.createdAt,
@@ -308,13 +375,198 @@ router.post("/trade-partners/:tradePartnerId/compliance-documents", requireRole(
     issuer: parsed.data.issuer?.trim() || null,
     expiresOn: dateString(parsed.data.expiresOn),
     status: parsed.data.status ?? "requested",
-    objectPath: parsed.data.objectPath ?? null,
-    uploadedByUserId: parsed.data.objectPath ? req.localUserId : null,
+    uploadedByUserId: null,
     tenantId: req.tenantId!,
     environmentId: req.environmentId!,
   }).returning();
   await audit(req, "compliance_document", document.id, "compliance_document_created", null, document.status);
   res.status(201).json(serializeDocument(document));
+});
+
+router.post("/trade-partners/:tradePartnerId/compliance-documents/request-upload", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  if (rejectComplianceUploadRate(req, res)) return;
+  const path = CreateTradePartnerComplianceDocumentParams.safeParse(req.params);
+  const parsed = complianceUploadRequestBody.safeParse(req.body);
+  if (!path.success || !parsed.success || !validateComplianceUpload(parsed.data.contentType)) {
+    res.status(400).json({ error: "Invalid compliance document name, size, or content type" });
+    return;
+  }
+  if (!await getPartner(req, path.data.tradePartnerId)) {
+    res.status(404).json({ error: "Trade partner not found" });
+    return;
+  }
+  if (parsed.data.projectId && !await getProject(req, parsed.data.projectId)) {
+    res.status(400).json({ error: "Project is not in the active environment" });
+    return;
+  }
+  let objectPath: string | undefined;
+  try {
+    const upload = await objectStorage.requestUpload("compliance");
+    objectPath = upload.objectPath;
+    const [document] = await db.insert(tradePartnerComplianceDocumentsTable).values({
+      tradePartnerId: path.data.tradePartnerId,
+      projectId: parsed.data.projectId ?? null,
+      documentType: parsed.data.documentType,
+      title: parsed.data.title,
+      documentNumber: parsed.data.documentNumber || null,
+      issuer: parsed.data.issuer || null,
+      expiresOn: parsed.data.expiresOn || null,
+      status: "requested",
+      objectPath,
+      originalName: sanitizeFileName(parsed.data.originalName),
+      contentType: parsed.data.contentType,
+      fileSize: parsed.data.size,
+      uploadedByUserId: null,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    }).returning();
+    await audit(req, "compliance_document", document.id, "compliance_document_upload_reserved", null, document.status);
+    res.status(201).json({ ...serializeDocument(document), uploadURL: upload.uploadURL });
+  } catch (error) {
+    if (objectPath) await objectStorage.deleteObject(objectPath).catch((cleanupError) => req.log.warn({ err: cleanupError }, "Unable to clean up compliance upload reservation"));
+    req.log.error({ err: error, tradePartnerId: path.data.tradePartnerId }, "Failed to create compliance document upload");
+    res.status(503).json({ error: "Document storage is temporarily unavailable" });
+  }
+});
+
+router.post("/trade-partners/:tradePartnerId/compliance-documents/:documentId/request-replacement", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  if (rejectComplianceUploadRate(req, res)) return;
+  const path = UpdateTradePartnerComplianceDocumentParams.safeParse(req.params);
+  const parsed = complianceUploadBody.safeParse(req.body);
+  if (!path.success || !parsed.success || !validateComplianceUpload(parsed.data.contentType)) {
+    res.status(400).json({ error: "Invalid compliance document name, size, or content type" });
+    return;
+  }
+  const previous = await getComplianceDocument(req, path.data.tradePartnerId, path.data.documentId);
+  if (!previous) {
+    res.status(404).json({ error: "Compliance document not found" });
+    return;
+  }
+  let objectPath: string | undefined;
+  try {
+    const upload = await objectStorage.requestUpload("compliance");
+    objectPath = upload.objectPath;
+    const [updated] = await db.update(tradePartnerComplianceDocumentsTable).set({
+      pendingObjectPath: objectPath,
+      pendingOriginalName: sanitizeFileName(parsed.data.originalName),
+      pendingContentType: parsed.data.contentType,
+      pendingFileSize: parsed.data.size,
+      updatedAt: new Date(),
+    }).where(and(
+      scope(req, tradePartnerComplianceDocumentsTable),
+      eq(tradePartnerComplianceDocumentsTable.id, previous.id),
+    )).returning();
+    await audit(req, "compliance_document", updated.id, "compliance_document_replacement_reserved", previous.status, previous.status);
+    res.status(201).json({ ...serializeDocument(updated), uploadURL: upload.uploadURL });
+  } catch (error) {
+    if (objectPath) await objectStorage.deleteObject(objectPath).catch((cleanupError) => req.log.warn({ err: cleanupError }, "Unable to clean up compliance replacement reservation"));
+    req.log.error({ err: error, documentId: path.data.documentId }, "Failed to create compliance document replacement upload");
+    res.status(503).json({ error: "Document storage is temporarily unavailable" });
+  }
+});
+
+router.post("/trade-partners/:tradePartnerId/compliance-documents/:documentId/complete", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  if (rejectComplianceUploadRate(req, res)) return;
+  const path = UpdateTradePartnerComplianceDocumentParams.safeParse(req.params);
+  if (!path.success) {
+    res.status(400).json({ error: "Invalid compliance document id" });
+    return;
+  }
+  const document = await getComplianceDocument(req, path.data.tradePartnerId, path.data.documentId);
+  if (!document) {
+    res.status(404).json({ error: "Compliance document not found" });
+    return;
+  }
+  const objectPath = document.pendingObjectPath ?? document.objectPath;
+  const originalName = document.pendingOriginalName ?? document.originalName;
+  const contentType = document.pendingContentType ?? document.contentType;
+  const fileSize = document.pendingFileSize ?? document.fileSize;
+  if (!objectPath || !originalName || !contentType || !fileSize) {
+    res.status(409).json({ error: "Compliance upload metadata is incomplete" });
+    return;
+  }
+  try {
+    const file = await objectStorage.getObjectFile(objectPath);
+    const [metadata] = await file.getMetadata();
+    const storedSize = Number(metadata.size ?? 0);
+    const storedContentType = typeof metadata.contentType === "string" ? metadata.contentType : null;
+    if (storedSize <= 0 || storedSize > fileSize) {
+      await objectStorage.deleteObject(objectPath).catch(() => undefined);
+      res.status(413).json({ error: "Uploaded document exceeds the declared size" });
+      return;
+    }
+    if (storedContentType && storedContentType !== contentType) {
+      await objectStorage.deleteObject(objectPath).catch(() => undefined);
+      res.status(415).json({ error: "Uploaded document content type does not match its declared type" });
+      return;
+    }
+    const screening = await screenStoredDocument(file, contentType, storedSize);
+    if (screening.status === "rejected") {
+      await objectStorage.deleteObject(objectPath).catch(() => undefined);
+      res.status(screening.reason === "content_mismatch" ? 415 : 422).json({ error: "Document failed upload safety screening" });
+      return;
+    }
+    const previousObjectPath = document.objectPath;
+    const [updated] = await db.update(tradePartnerComplianceDocumentsTable).set({
+      objectPath,
+      originalName,
+      contentType,
+      fileSize: storedSize,
+      pendingObjectPath: null,
+      pendingOriginalName: null,
+      pendingContentType: null,
+      pendingFileSize: null,
+      status: "submitted",
+      uploadedByUserId: req.localUserId!,
+      updatedAt: new Date(),
+    }).where(and(
+      scope(req, tradePartnerComplianceDocumentsTable),
+      eq(tradePartnerComplianceDocumentsTable.id, document.id),
+    )).returning();
+    if (previousObjectPath && previousObjectPath !== objectPath) await objectStorage.deleteObject(previousObjectPath).catch((error) => req.log.warn({ err: error, documentId: document.id }, "Unable to remove replaced compliance object"));
+    await audit(req, "compliance_document", updated.id, "compliance_document_uploaded", document.status, updated.status);
+    res.json(serializeDocument(updated));
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(409).json({ error: "Upload has not completed yet" });
+      return;
+    }
+    req.log.error({ err: error, documentId: document.id }, "Failed to complete compliance document upload");
+    res.status(503).json({ error: "Document storage is temporarily unavailable" });
+  }
+});
+
+router.get("/trade-partners/:tradePartnerId/compliance-documents/:documentId/file", async (req: TenantRequest, res) => {
+  const path = UpdateTradePartnerComplianceDocumentParams.safeParse(req.params);
+  if (!path.success) {
+    res.status(400).json({ error: "Invalid compliance document id" });
+    return;
+  }
+  const document = await getComplianceDocument(req, path.data.tradePartnerId, path.data.documentId);
+  if (!document?.objectPath || !document.originalName || !document.contentType) {
+    res.status(404).json({ error: "Compliance document file not found" });
+    return;
+  }
+  try {
+    const file = await objectStorage.getObjectFile(document.objectPath);
+    const [metadata] = await file.getMetadata();
+    res.setHeader("Content-Type", metadata.contentType || document.contentType);
+    res.setHeader("Content-Length", String(metadata.size ?? document.fileSize ?? 0));
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Disposition", `attachment; filename="${document.originalName.replace(/["\r\n]/g, "_")}"`);
+    file.createReadStream().on("error", (error) => {
+      req.log.error({ err: error, documentId: document.id }, "Failed to stream compliance document");
+      if (!res.headersSent) res.status(500).json({ error: "Failed to read document" });
+    }).pipe(res);
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: "Stored compliance document not found" });
+      return;
+    }
+    req.log.error({ err: error, documentId: document.id }, "Failed to open compliance document");
+    res.status(503).json({ error: "Document storage is temporarily unavailable" });
+  }
 });
 
 router.patch("/trade-partners/:tradePartnerId/compliance-documents/:documentId", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
@@ -332,7 +584,6 @@ router.patch("/trade-partners/:tradePartnerId/compliance-documents/:documentId",
     documentNumber: parsed.data.documentNumber === undefined ? undefined : parsed.data.documentNumber,
     issuer: parsed.data.issuer === undefined ? undefined : parsed.data.issuer,
     expiresOn: parsed.data.expiresOn === undefined ? undefined : dateString(parsed.data.expiresOn),
-    objectPath: parsed.data.objectPath === undefined ? undefined : parsed.data.objectPath,
     reviewNotes: parsed.data.reviewNotes === undefined ? undefined : parsed.data.reviewNotes,
     reviewedAt: parsed.data.status ? new Date() : undefined,
     reviewedByUserId: parsed.data.status ? req.localUserId : undefined,

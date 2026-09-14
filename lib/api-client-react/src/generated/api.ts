@@ -48,8 +48,11 @@ import type {
   BusinessCustomerSummary,
   BusinessCustomerUpdate,
   ComplianceDocument,
+  ComplianceDocumentFileInput,
   ComplianceDocumentInput,
   ComplianceDocumentUpdate,
+  ComplianceDocumentUpload,
+  ComplianceDocumentUploadInput,
   CreateBillingPlanInput,
   CreateBillingPlanResponse,
   CreatePlatformCustomerInput,
@@ -2424,6 +2427,78 @@ export const useCreateTradePartnerComplianceDocument = <TError = ErrorType<unkno
       return useMutation(getCreateTradePartnerComplianceDocumentMutationOptions(options));
     }
 
+export const getRequestTradePartnerComplianceDocumentUploadUrl = (tradePartnerId: number,) => {
+
+
+
+
+  return `/api/trade-partners/${tradePartnerId}/compliance-documents/request-upload`
+}
+
+/**
+ * @summary Request a protected compliance document upload URL
+ */
+export const requestTradePartnerComplianceDocumentUpload = async (tradePartnerId: number,
+    complianceDocumentUploadInput: ComplianceDocumentUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<ComplianceDocumentUpload> => {
+
+  return customFetch<ComplianceDocumentUpload>(getRequestTradePartnerComplianceDocumentUploadUrl(tradePartnerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(complianceDocumentUploadInput)
+  }
+);}
+
+
+
+
+
+export const getRequestTradePartnerComplianceDocumentUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestTradePartnerComplianceDocumentUpload>>, TError,{tradePartnerId: number;data: BodyType<ComplianceDocumentUploadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestTradePartnerComplianceDocumentUpload>>, TError,{tradePartnerId: number;data: BodyType<ComplianceDocumentUploadInput>}, TContext> => {
+
+const mutationKey = ['requestTradePartnerComplianceDocumentUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestTradePartnerComplianceDocumentUpload>>, {tradePartnerId: number;data: BodyType<ComplianceDocumentUploadInput>}> = (props) => {
+          const {tradePartnerId,data} = props ?? {};
+
+          return  requestTradePartnerComplianceDocumentUpload(tradePartnerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestTradePartnerComplianceDocumentUploadMutationResult = NonNullable<Awaited<ReturnType<typeof requestTradePartnerComplianceDocumentUpload>>>
+    export type RequestTradePartnerComplianceDocumentUploadMutationBody = BodyType<ComplianceDocumentUploadInput>
+    export type RequestTradePartnerComplianceDocumentUploadMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Request a protected compliance document upload URL
+ */
+export const useRequestTradePartnerComplianceDocumentUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestTradePartnerComplianceDocumentUpload>>, TError,{tradePartnerId: number;data: BodyType<ComplianceDocumentUploadInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestTradePartnerComplianceDocumentUpload>>,
+        TError,
+        {tradePartnerId: number;data: BodyType<ComplianceDocumentUploadInput>},
+        TContext
+      > => {
+      return useMutation(getRequestTradePartnerComplianceDocumentUploadMutationOptions(options));
+    }
+
 export const getUpdateTradePartnerComplianceDocumentUrl = (tradePartnerId: number,
     documentId: number,) => {
 
@@ -2497,6 +2572,235 @@ export const useUpdateTradePartnerComplianceDocument = <TError = ErrorType<unkno
       > => {
       return useMutation(getUpdateTradePartnerComplianceDocumentMutationOptions(options));
     }
+
+export const getRequestTradePartnerComplianceDocumentReplacementUrl = (tradePartnerId: number,
+    documentId: number,) => {
+
+
+
+
+  return `/api/trade-partners/${tradePartnerId}/compliance-documents/${documentId}/request-replacement`
+}
+
+/**
+ * @summary Request a replacement compliance document upload URL
+ */
+export const requestTradePartnerComplianceDocumentReplacement = async (tradePartnerId: number,
+    documentId: number,
+    complianceDocumentFileInput: ComplianceDocumentFileInput, options?: Parameters<typeof customFetch>[1]): Promise<ComplianceDocumentUpload> => {
+
+  return customFetch<ComplianceDocumentUpload>(getRequestTradePartnerComplianceDocumentReplacementUrl(tradePartnerId,documentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(complianceDocumentFileInput)
+  }
+);}
+
+
+
+
+
+export const getRequestTradePartnerComplianceDocumentReplacementMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestTradePartnerComplianceDocumentReplacement>>, TError,{tradePartnerId: number;documentId: number;data: BodyType<ComplianceDocumentFileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestTradePartnerComplianceDocumentReplacement>>, TError,{tradePartnerId: number;documentId: number;data: BodyType<ComplianceDocumentFileInput>}, TContext> => {
+
+const mutationKey = ['requestTradePartnerComplianceDocumentReplacement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestTradePartnerComplianceDocumentReplacement>>, {tradePartnerId: number;documentId: number;data: BodyType<ComplianceDocumentFileInput>}> = (props) => {
+          const {tradePartnerId,documentId,data} = props ?? {};
+
+          return  requestTradePartnerComplianceDocumentReplacement(tradePartnerId,documentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestTradePartnerComplianceDocumentReplacementMutationResult = NonNullable<Awaited<ReturnType<typeof requestTradePartnerComplianceDocumentReplacement>>>
+    export type RequestTradePartnerComplianceDocumentReplacementMutationBody = BodyType<ComplianceDocumentFileInput>
+    export type RequestTradePartnerComplianceDocumentReplacementMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Request a replacement compliance document upload URL
+ */
+export const useRequestTradePartnerComplianceDocumentReplacement = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestTradePartnerComplianceDocumentReplacement>>, TError,{tradePartnerId: number;documentId: number;data: BodyType<ComplianceDocumentFileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestTradePartnerComplianceDocumentReplacement>>,
+        TError,
+        {tradePartnerId: number;documentId: number;data: BodyType<ComplianceDocumentFileInput>},
+        TContext
+      > => {
+      return useMutation(getRequestTradePartnerComplianceDocumentReplacementMutationOptions(options));
+    }
+
+export const getCompleteTradePartnerComplianceDocumentUploadUrl = (tradePartnerId: number,
+    documentId: number,) => {
+
+
+
+
+  return `/api/trade-partners/${tradePartnerId}/compliance-documents/${documentId}/complete`
+}
+
+/**
+ * @summary Complete and screen a compliance document upload
+ */
+export const completeTradePartnerComplianceDocumentUpload = async (tradePartnerId: number,
+    documentId: number, options?: Parameters<typeof customFetch>[1]): Promise<ComplianceDocument> => {
+
+  return customFetch<ComplianceDocument>(getCompleteTradePartnerComplianceDocumentUploadUrl(tradePartnerId,documentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCompleteTradePartnerComplianceDocumentUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeTradePartnerComplianceDocumentUpload>>, TError,{tradePartnerId: number;documentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeTradePartnerComplianceDocumentUpload>>, TError,{tradePartnerId: number;documentId: number}, TContext> => {
+
+const mutationKey = ['completeTradePartnerComplianceDocumentUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeTradePartnerComplianceDocumentUpload>>, {tradePartnerId: number;documentId: number}> = (props) => {
+          const {tradePartnerId,documentId} = props ?? {};
+
+          return  completeTradePartnerComplianceDocumentUpload(tradePartnerId,documentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteTradePartnerComplianceDocumentUploadMutationResult = NonNullable<Awaited<ReturnType<typeof completeTradePartnerComplianceDocumentUpload>>>
+
+    export type CompleteTradePartnerComplianceDocumentUploadMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Complete and screen a compliance document upload
+ */
+export const useCompleteTradePartnerComplianceDocumentUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeTradePartnerComplianceDocumentUpload>>, TError,{tradePartnerId: number;documentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeTradePartnerComplianceDocumentUpload>>,
+        TError,
+        {tradePartnerId: number;documentId: number},
+        TContext
+      > => {
+      return useMutation(getCompleteTradePartnerComplianceDocumentUploadMutationOptions(options));
+    }
+
+export const getGetTradePartnerComplianceDocumentFileUrl = (tradePartnerId: number,
+    documentId: number,) => {
+
+
+
+
+  return `/api/trade-partners/${tradePartnerId}/compliance-documents/${documentId}/file`
+}
+
+/**
+ * @summary Stream a protected compliance document
+ */
+export const getTradePartnerComplianceDocumentFile = async (tradePartnerId: number,
+    documentId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getGetTradePartnerComplianceDocumentFileUrl(tradePartnerId,documentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTradePartnerComplianceDocumentFileQueryKey = (tradePartnerId: number,
+    documentId: number,) => {
+    return [
+    `/api/trade-partners/${tradePartnerId}/compliance-documents/${documentId}/file`
+    ] as const;
+    }
+
+
+export const getGetTradePartnerComplianceDocumentFileQueryOptions = <TData = Awaited<ReturnType<typeof getTradePartnerComplianceDocumentFile>>, TError = ErrorType<unknown>>(tradePartnerId: number,
+    documentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTradePartnerComplianceDocumentFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTradePartnerComplianceDocumentFileQueryKey(tradePartnerId,documentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTradePartnerComplianceDocumentFile>>> = ({ signal }) => getTradePartnerComplianceDocumentFile(tradePartnerId,documentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: tradePartnerId !== null && tradePartnerId !== undefined && documentId !== null && documentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTradePartnerComplianceDocumentFile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTradePartnerComplianceDocumentFileQueryResult = NonNullable<Awaited<ReturnType<typeof getTradePartnerComplianceDocumentFile>>>
+export type GetTradePartnerComplianceDocumentFileQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Stream a protected compliance document
+ */
+
+export function useGetTradePartnerComplianceDocumentFile<TData = Awaited<ReturnType<typeof getTradePartnerComplianceDocumentFile>>, TError = ErrorType<unknown>>(
+ tradePartnerId: number,
+    documentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTradePartnerComplianceDocumentFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTradePartnerComplianceDocumentFileQueryOptions(tradePartnerId,documentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListProjectComplianceRequirementsUrl = (projectId: number,) => {
 

@@ -5,9 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { ComplianceDocumentInputStatus } from './complianceDocumentInputStatus';
+import type { ComplianceDocumentFileInput } from './complianceDocumentFileInput';
 
-export interface ComplianceDocumentInput {
+export type ComplianceDocumentUploadInput = ComplianceDocumentFileInput & {
+  /** @minimum 1 */
   projectId?: number;
   /**
      * @minLength 1
@@ -24,5 +25,4 @@ export interface ComplianceDocumentInput {
   /** @maxLength 180 */
   issuer?: string;
   expiresOn?: Date;
-  status?: ComplianceDocumentInputStatus;
-}
+};

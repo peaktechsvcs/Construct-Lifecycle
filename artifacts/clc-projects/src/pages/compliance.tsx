@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Building2, CheckCircle2, ClipboardCheck, Clock3, HandCoins, Plus, Search, ShieldCheck, XCircle, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, ClipboardCheck, Clock3, Download, HandCoins, Plus, Search, ShieldCheck, Upload, XCircle, type LucideIcon } from 'lucide-react';
 import {
+  getGetTradePartnerComplianceDocumentFileUrl,
   getGetSubcontractAgreementQueryKey,
   getGetTradePartnerQueryKey,
   getListProjectComplianceRequirementsQueryKey,
@@ -15,12 +16,15 @@ import {
   useCreateSubcontractWaiver,
   useCreateTradePartner,
   useCreateTradePartnerComplianceDocument,
+  useCompleteTradePartnerComplianceDocumentUpload,
   useGetSubcontractAgreement,
   useGetTradePartner,
   useListProjectComplianceRequirements,
   useListProjects,
   useListSubcontractAgreements,
   useListTradePartners,
+  useRequestTradePartnerComplianceDocumentReplacement,
+  useRequestTradePartnerComplianceDocumentUpload,
   useUpdateTradePartnerComplianceDocument,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -66,7 +70,10 @@ export function Compliance() {
   const [showChangeForm, setShowChangeForm] = useState(false);
   const [showCloseoutForm, setShowCloseoutForm] = useState(false);
   const [partnerForm, setPartnerForm] = useState({ companyName: '', tradeCapabilities: '', serviceAreas: '', primaryContact: '', email: '', phone: '' });
-  const [documentForm, setDocumentForm] = useState({ documentType: 'insurance_certificate', title: '', projectId: '', expiresOn: '', objectPath: '' });
+  const [documentForm, setDocumentForm] = useState({ documentType: 'insurance_certificate', title: '', projectId: '', expiresOn: '' });
+  const [documentFile, setDocumentFile] = useState<File>();
+  const [documentUploadError, setDocumentUploadError] = useState('');
+  const [uploadingDocumentId, setUploadingDocumentId] = useState<number>();
   const [requirementForm, setRequirementForm] = useState({ tradePartnerId: '', requirementType: 'insurance', title: '', dueDate: '', blocksAward: true, blocksMobilization: false, blocksBilling: false, blocksCloseout: false });
   const [agreementForm, setAgreementForm] = useState({ projectId: '', tradePartnerId: '', agreementNumber: '', scope: '', originalValue: '', retainagePercent: '10', paymentTerms: 'Net 30' });
   const [payForm, setPayForm] = useState({ applicationNumber: '', grossAmount: '', retainageAmount: '', storedMaterialsAmount: '', periodStart: '', periodEnd: '' });
@@ -82,6 +89,9 @@ export function Compliance() {
 
   const createPartner = useCreateTradePartner();
   const createDocument = useCreateTradePartnerComplianceDocument();
+  const requestDocumentUpload = useRequestTradePartnerComplianceDocumentUpload();
+  const requestDocumentReplacement = useRequestTradePartnerComplianceDocumentReplacement();
+  const completeDocumentUpload = useCompleteTradePartnerComplianceDocumentUpload();
   const updateDocument = useUpdateTradePartnerComplianceDocument();
   const createRequirement = useCreateProjectComplianceRequirement();
   const createAgreement = useCreateSubcontractAgreement();
@@ -145,20 +155,73 @@ export function Compliance() {
     });
   }
 
-  function submitDocument(event: React.FormEvent) {
+  async function uploadToProtectedStorage(uploadURL: string, file: File) {
+    const result = await fetch(uploadURL, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+    if (!result.ok) throw new Error('Upload failed');
+  }
+
+  async function submitDocument(event: React.FormEvent) {
     event.preventDefault();
     if (!selectedPartnerId) return;
-    createDocument.mutate({
-      tradePartnerId: selectedPartnerId,
-      data: {
-        documentType: documentForm.documentType,
-        title: documentForm.title,
-        projectId: documentForm.projectId ? Number(documentForm.projectId) : undefined,
-        expiresOn: documentForm.expiresOn || undefined,
-        objectPath: documentForm.objectPath || undefined,
-        status: documentForm.objectPath ? 'submitted' : 'requested',
-      },
-    }, { onSuccess: () => { setShowDocumentForm(false); setDocumentForm({ documentType: 'insurance_certificate', title: '', projectId: '', expiresOn: '', objectPath: '' }); refresh(); } });
+    setDocumentUploadError('');
+    try {
+      if (!documentFile) {
+        await createDocument.mutateAsync({
+          tradePartnerId: selectedPartnerId,
+          data: {
+            documentType: documentForm.documentType,
+            title: documentForm.title,
+            projectId: documentForm.projectId ? Number(documentForm.projectId) : undefined,
+            expiresOn: documentForm.expiresOn || undefined,
+          },
+        });
+      } else {
+        const pending = await requestDocumentUpload.mutateAsync({
+          tradePartnerId: selectedPartnerId,
+          data: {
+            documentType: documentForm.documentType,
+            title: documentForm.title,
+            projectId: documentForm.projectId ? Number(documentForm.projectId) : undefined,
+            expiresOn: documentForm.expiresOn || undefined,
+            originalName: documentFile.name,
+            contentType: documentFile.type || 'application/octet-stream',
+            size: documentFile.size,
+          },
+        });
+        await uploadToProtectedStorage(pending.uploadURL, documentFile);
+        await completeDocumentUpload.mutateAsync({ tradePartnerId: selectedPartnerId, documentId: pending.id });
+      }
+      setShowDocumentForm(false);
+      setDocumentForm({ documentType: 'insurance_certificate', title: '', projectId: '', expiresOn: '' });
+      setDocumentFile(undefined);
+      refresh();
+    } catch {
+      setDocumentUploadError('The document could not be uploaded. Check the file type and size, then try again.');
+    }
+  }
+
+  async function replaceDocument(documentId: number, file: File) {
+    if (!selectedPartnerId) return;
+    setUploadingDocumentId(documentId);
+    setDocumentUploadError('');
+    try {
+      const pending = await requestDocumentReplacement.mutateAsync({
+        tradePartnerId: selectedPartnerId,
+        documentId,
+        data: { originalName: file.name, contentType: file.type || 'application/octet-stream', size: file.size },
+      });
+      await uploadToProtectedStorage(pending.uploadURL, file);
+      await completeDocumentUpload.mutateAsync({ tradePartnerId: selectedPartnerId, documentId });
+      refresh();
+    } catch {
+      setDocumentUploadError('The replacement could not be uploaded. The existing file was kept.');
+    } finally {
+      setUploadingDocumentId(undefined);
+    }
   }
 
   function submitRequirement(event: React.FormEvent) {
@@ -281,11 +344,11 @@ export function Compliance() {
               <div>
                 <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-bold">Compliance documents</h3><span className="mono text-[9px] uppercase tracking-[.1em] text-muted-foreground">{detailQuery.data?.complianceDocuments.length ?? 0} tracked</span></div>
                 <div className="space-y-2">
-                  {(detailQuery.data?.complianceDocuments ?? []).map((document) => <div key={document.id} className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"><span><span className="block text-xs font-bold">{document.title}</span><span className="mono mt-1 block text-[9px] uppercase tracking-[.08em] text-muted-foreground">{document.documentType.replace(/_/g, ' ')}{document.expiresOn ? ` · expires ${document.expiresOn}` : ''}</span></span><span className="flex items-center gap-2"><Badge tone={statusTone(document.status)}>{document.status}</Badge>{['submitted', 'approved', 'rejected'].includes(document.status) && <button type="button" className="text-[10px] font-bold text-primary hover:underline" onClick={() => updateDocument.mutate({ tradePartnerId: selectedPartner.id, documentId: document.id, data: { status: document.status === 'approved' ? 'rejected' : 'approved' } }, { onSuccess: refresh })}>{document.status === 'approved' ? 'Reject' : 'Approve'}</button>}</span></div>)}
+                  {(detailQuery.data?.complianceDocuments ?? []).map((document) => <div key={document.id} className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"><span className="min-w-0"><span className="block truncate text-xs font-bold">{document.title}</span><span className="mono mt-1 block truncate text-[9px] uppercase tracking-[.08em] text-muted-foreground">{document.documentType.replace(/_/g, ' ')}{document.originalName ? ` · ${document.originalName}` : ''}{document.expiresOn ? ` · expires ${document.expiresOn}` : ''}</span></span><span className="flex flex-wrap items-center justify-end gap-2"><Badge tone={statusTone(document.status)}>{document.status}</Badge>{document.objectPath && <button type="button" className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline" onClick={() => window.open(getGetTradePartnerComplianceDocumentFileUrl(selectedPartner.id, document.id), '_blank', 'noopener,noreferrer')}><Download size={12} /> View</button>}<label className={`inline-flex cursor-pointer items-center gap-1 text-[10px] font-bold text-primary hover:underline ${uploadingDocumentId === document.id ? 'pointer-events-none opacity-50' : ''}`}><Upload size={12} /> {uploadingDocumentId === document.id ? 'Uploading…' : 'Replace'}<input type="file" className="sr-only" accept=".pdf,.jpg,.jpeg,.png,.gif,.zip,.docx,.xlsx,.pptx" disabled={uploadingDocumentId === document.id} onChange={(event) => { const file = event.target.files?.[0]; if (file) void replaceDocument(document.id, file); event.currentTarget.value = ''; }} /></label>{['submitted', 'approved', 'rejected'].includes(document.status) && <button type="button" className="text-[10px] font-bold text-primary hover:underline" onClick={() => updateDocument.mutate({ tradePartnerId: selectedPartner.id, documentId: document.id, data: { status: document.status === 'approved' ? 'rejected' : 'approved' } }, { onSuccess: refresh })}>{document.status === 'approved' ? 'Reject' : 'Approve'}</button>}</span></div>)}
                   {!detailQuery.data?.complianceDocuments.length && <p className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">No licenses, insurance, bonds, safety files, or prequalification documents have been requested.</p>}
                 </div>
               </div>
-              {showDocumentForm && <form onSubmit={submitDocument} className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3"><p className="text-xs font-bold">Request or submit a document</p><div className="grid gap-3 sm:grid-cols-2"><Input placeholder="Document title *" value={documentForm.title} onChange={(event) => setDocumentForm({ ...documentForm, title: event.target.value })} className={inputClass} /><select value={documentForm.documentType} onChange={(event) => setDocumentForm({ ...documentForm, documentType: event.target.value })} className={inputClass}><option value="insurance_certificate">Insurance certificate</option><option value="license">License</option><option value="bond">Bond</option><option value="safety_information">Safety information</option><option value="financial_prequalification">Financial / prequalification</option><option value="reference">Reference</option></select><Input type="date" aria-label="Expiration date" value={documentForm.expiresOn} onChange={(event) => setDocumentForm({ ...documentForm, expiresOn: event.target.value })} className={inputClass} /><Input placeholder="Protected object path (optional)" value={documentForm.objectPath} onChange={(event) => setDocumentForm({ ...documentForm, objectPath: event.target.value })} className={inputClass} /></div>{renderError(createDocument)}<div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setShowDocumentForm(false)}>Cancel</Button><Button type="submit" disabled={!documentForm.title.trim() || createDocument.isPending}>Save request</Button></div></form>}
+              {showDocumentForm && <form onSubmit={submitDocument} className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3"><p className="text-xs font-bold">Request or upload a document</p><div className="grid gap-3 sm:grid-cols-2"><Input placeholder="Document title *" value={documentForm.title} onChange={(event) => setDocumentForm({ ...documentForm, title: event.target.value })} className={inputClass} /><select value={documentForm.documentType} onChange={(event) => setDocumentForm({ ...documentForm, documentType: event.target.value })} className={inputClass}><option value="insurance_certificate">Insurance certificate</option><option value="license">License</option><option value="bond">Bond</option><option value="safety_information">Safety information</option><option value="financial_prequalification">Financial / prequalification</option><option value="reference">Reference</option></select><Input type="date" aria-label="Expiration date" value={documentForm.expiresOn} onChange={(event) => setDocumentForm({ ...documentForm, expiresOn: event.target.value })} className={inputClass} /><label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border px-3 py-2.5 text-xs text-muted-foreground"><Upload size={14} className="shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate">{documentFile ? documentFile.name : 'Choose a protected file (optional)'}</span><input type="file" className="sr-only" accept=".pdf,.jpg,.jpeg,.png,.gif,.zip,.docx,.xlsx,.pptx" onChange={(event) => setDocumentFile(event.target.files?.[0])} /></label></div>{(documentUploadError || createDocument.isError || requestDocumentUpload.isError || completeDocumentUpload.isError) && <p role="alert" className="text-xs text-destructive">{documentUploadError || 'The document could not be saved. Check the required fields and try again.'}</p>}<div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => { setShowDocumentForm(false); setDocumentFile(undefined); }}>Cancel</Button><Button type="submit" disabled={!documentForm.title.trim() || createDocument.isPending || requestDocumentUpload.isPending || completeDocumentUpload.isPending}>{createDocument.isPending || requestDocumentUpload.isPending || completeDocumentUpload.isPending ? 'Uploading…' : documentFile ? 'Upload document' : 'Save request'}</Button></div></form>}
             </div>
           )}
         </div>

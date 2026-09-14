@@ -83,7 +83,7 @@ export class ObjectStorageService {
   }
 
   async getObjectFile(objectPath: string): Promise<File> {
-    if (!/^\/objects\/[A-Za-z0-9/_-]+$/.test(objectPath)) {
+    if (!/^\/objects\/[A-Za-z0-9._/-]+$/.test(objectPath)) {
       throw new Error("Invalid object path");
     }
     const { bucketName } = parseStoragePath(this.privateObjectDir());

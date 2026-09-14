@@ -549,6 +549,24 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ComplianceDocument" }
+  /trade-partners/{tradePartnerId}/compliance-documents/request-upload:
+    post:
+      operationId: requestTradePartnerComplianceDocumentUpload
+      tags: [subcontractor-compliance]
+      summary: Request a protected compliance document upload URL
+      parameters:
+        - $ref: "#/components/parameters/TradePartnerId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComplianceDocumentUploadInput" }
+      responses:
+        "201":
+          description: Upload URL and pending compliance document metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComplianceDocumentUpload" }
   /trade-partners/{tradePartnerId}/compliance-documents/{documentId}:
     patch:
       operationId: updateTradePartnerComplianceDocument
@@ -568,6 +586,49 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ComplianceDocument" }
+  /trade-partners/{tradePartnerId}/compliance-documents/{documentId}/request-replacement:
+    post:
+      operationId: requestTradePartnerComplianceDocumentReplacement
+      tags: [subcontractor-compliance]
+      summary: Request a replacement compliance document upload URL
+      parameters:
+        - $ref: "#/components/parameters/TradePartnerId"
+        - $ref: "#/components/parameters/ComplianceDocumentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComplianceDocumentFileInput" }
+      responses:
+        "201":
+          description: Replacement upload URL and pending compliance document metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComplianceDocumentUpload" }
+  /trade-partners/{tradePartnerId}/compliance-documents/{documentId}/complete:
+    post:
+      operationId: completeTradePartnerComplianceDocumentUpload
+      tags: [subcontractor-compliance]
+      summary: Complete and screen a compliance document upload
+      parameters:
+        - $ref: "#/components/parameters/TradePartnerId"
+        - $ref: "#/components/parameters/ComplianceDocumentId"
+      responses:
+        "200":
+          description: Submitted compliance document
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComplianceDocument" }
+  /trade-partners/{tradePartnerId}/compliance-documents/{documentId}/file:
+    get:
+      operationId: getTradePartnerComplianceDocumentFile
+      tags: [subcontractor-compliance]
+      summary: Stream a protected compliance document
+      parameters:
+        - $ref: "#/components/parameters/TradePartnerId"
+        - $ref: "#/components/parameters/ComplianceDocumentId"
+      responses:
+        "200": { description: Protected compliance document bytes }
   /projects/{projectId}/compliance-requirements:
     get:
       operationId: listProjectComplianceRequirements
@@ -6815,7 +6876,7 @@ components:
         status: { type: string, enum: [active, archived] }
     ComplianceDocument:
       type: object
-      required: [id, tradePartnerId, projectId, documentType, title, documentNumber, issuer, expiresOn, status, objectPath, reviewedAt, reviewNotes, createdAt, updatedAt]
+      required: [id, tradePartnerId, projectId, documentType, title, documentNumber, issuer, expiresOn, status, objectPath, originalName, contentType, fileSize, reviewedAt, reviewNotes, createdAt, updatedAt]
       properties:
         id: { type: integer }
         tradePartnerId: { type: integer }
@@ -6827,6 +6888,9 @@ components:
         expiresOn: { type: ["string", "null"], format: date }
         status: { type: string, enum: [requested, submitted, approved, rejected, expired] }
         objectPath: { type: ["string", "null"] }
+        originalName: { type: ["string", "null"] }
+        contentType: { type: ["string", "null"] }
+        fileSize: { type: ["integer", "null"] }
         reviewedAt: { type: ["string", "null"], format: date-time }
         reviewNotes: { type: ["string", "null"] }
         createdAt: { type: string, format: date-time }
@@ -6842,7 +6906,32 @@ components:
         issuer: { type: string, maxLength: 180 }
         expiresOn: { type: string, format: date }
         status: { type: string, enum: [requested, submitted] }
-        objectPath: { type: string, pattern: "^/objects/" }
+    ComplianceDocumentFileInput:
+      type: object
+      required: [originalName, contentType, size]
+      properties:
+        originalName: { type: string, minLength: 1, maxLength: 255 }
+        contentType: { type: string, minLength: 1, maxLength: 160 }
+        size: { type: integer, minimum: 1, maximum: 104857600 }
+    ComplianceDocumentUploadInput:
+      allOf:
+        - $ref: "#/components/schemas/ComplianceDocumentFileInput"
+        - type: object
+          required: [documentType, title]
+          properties:
+            projectId: { type: integer, minimum: 1 }
+            documentType: { type: string, minLength: 1, maxLength: 80 }
+            title: { type: string, minLength: 1, maxLength: 240 }
+            documentNumber: { type: string, maxLength: 120 }
+            issuer: { type: string, maxLength: 180 }
+            expiresOn: { type: string, format: date }
+    ComplianceDocumentUpload:
+      allOf:
+        - $ref: "#/components/schemas/ComplianceDocument"
+        - type: object
+          required: [uploadURL]
+          properties:
+            uploadURL: { type: string, format: uri }
     ComplianceDocumentUpdate:
       type: object
       properties:
