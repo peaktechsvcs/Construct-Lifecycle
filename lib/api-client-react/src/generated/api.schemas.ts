@@ -1872,12 +1872,19 @@ export interface SubmittalTransmittal {
   createdAt: string;
 }
 
+export interface SubmittalSignatureProvider {
+  providerKey: string;
+  name: string;
+  capabilities: string[];
+}
+
 export type SubmittalSignatureRequestStatus = typeof SubmittalSignatureRequestStatus[keyof typeof SubmittalSignatureRequestStatus];
 
 
 export const SubmittalSignatureRequestStatus = {
   draft: 'draft',
   ready: 'ready',
+  sending: 'sending',
   sent: 'sent',
   partially_signed: 'partially_signed',
   completed: 'completed',
@@ -1936,6 +1943,7 @@ export interface SubmittalSignatureRequest {
   providerRequestId: string | null;
   externalMetadata: SubmittalSignatureRequestExternalMetadata;
   providerAvailable: boolean;
+  signedDocumentAvailable: boolean;
   signers: SubmittalSignatureSigner[];
   events: SubmittalSignatureEvent[];
   createdAt: string;
@@ -1980,6 +1988,7 @@ export interface SubmittalPackage {
   transmittals: SubmittalTransmittal[];
   assemblies: SubmittalAssembly[];
   signatureProviderAvailable: boolean;
+  signatureProviders: SubmittalSignatureProvider[];
   signatureRequests: SubmittalSignatureRequest[];
   createdAt: string;
   updatedAt: string;
@@ -2219,6 +2228,14 @@ export interface SubmittalSignatureRequestInput {
      * @maxItems 20
      */
   signers: SubmittalSignatureSignerInput[];
+}
+
+export interface SubmittalSignatureRequestSendInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  providerKey: string;
 }
 
 export interface SubmittalRevisionInput {

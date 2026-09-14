@@ -10,10 +10,32 @@ export type SignatureProviderContext = {
   integrationId: number;
 };
 
+export type SignatureProviderSigner = {
+  name: string;
+  email: string;
+  role: string | null;
+  signingOrder: number;
+};
+
+export type SignatureProviderRequestInput = {
+  title: string;
+  fileName: string;
+  contentType: string;
+  documentBytes: Buffer;
+  signers: SignatureProviderSigner[];
+};
+
+export type SignatureProviderDocument = {
+  fileName: string;
+  contentType: string;
+  bytes?: Buffer;
+  objectPath?: string;
+};
+
 export type SignatureProvider = {
   providerKey: string;
   capabilities: ReadonlySet<SignatureProviderCapability>;
-  send: (context: SignatureProviderContext, requestId: number) => Promise<{
+  send: (context: SignatureProviderContext, input: SignatureProviderRequestInput) => Promise<{
     providerRequestId: string;
     metadata?: Record<string, unknown>;
   }>;
@@ -25,7 +47,7 @@ export type SignatureProvider = {
   downloadSignedDocument: (
     context: SignatureProviderContext,
     providerRequestId: string,
-  ) => Promise<{ objectPath: string; fileName: string }>;
+  ) => Promise<SignatureProviderDocument>;
 };
 
 const providers = new Map<string, SignatureProvider>();

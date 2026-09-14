@@ -2430,6 +2430,67 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SubmittalSignatureRequest" }
         "409": { description: Package assembly is not signature-ready or already has an active request }
+  /submittal-signature-requests/{requestId}/send:
+    post:
+      operationId: sendSubmittalSignatureRequest
+      tags: [submittals]
+      summary: Send a prepared submittal signature request through an entitled provider
+      parameters:
+        - $ref: "#/components/parameters/SubmittalSignatureRequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmittalSignatureRequestSendInput" }
+      responses:
+        "200":
+          description: Sent signature request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalSignatureRequest" }
+        "409": { description: Provider is unavailable or request cannot be sent }
+  /submittal-signature-requests/{requestId}/status:
+    post:
+      operationId: syncSubmittalSignatureRequestStatus
+      tags: [submittals]
+      summary: Poll a sent submittal signature request for provider status
+      parameters:
+        - $ref: "#/components/parameters/SubmittalSignatureRequestId"
+      responses:
+        "200":
+          description: Updated signature request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalSignatureRequest" }
+        "409": { description: Provider status cannot be applied }
+  /submittal-signature-requests/{requestId}/cancel:
+    post:
+      operationId: cancelSubmittalSignatureRequest
+      tags: [submittals]
+      summary: Cancel a prepared or sent submittal signature request
+      parameters:
+        - $ref: "#/components/parameters/SubmittalSignatureRequestId"
+      responses:
+        "200":
+          description: Canceled signature request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmittalSignatureRequest" }
+        "409": { description: Request cannot be canceled }
+  /submittal-signature-requests/{requestId}/signed-document:
+    get:
+      operationId: downloadSubmittalSignedDocument
+      tags: [submittals]
+      summary: Download the protected signed document for a completed request
+      parameters:
+        - $ref: "#/components/parameters/SubmittalSignatureRequestId"
+      responses:
+        "200":
+          description: Protected signed document bytes
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "409": { description: Signed document is not ready }
   /submittals/{submittalId}/revisions:
     post:
       operationId: createSubmittalRevision
@@ -4114,6 +4175,12 @@ components:
       required: true
       schema:
         type: integer
+    SubmittalSignatureRequestId:
+      in: path
+      name: requestId
+      required: true
+      schema:
+        type: integer
     SubmittalCoordinationId:
       in: path
       name: coordinationId
@@ -5165,7 +5232,7 @@ components:
         downloadUrl: { type: string }
     SubmittalPackage:
       type: object
-      required: [id, environmentId, packageNumber, projectId, projectNumber, projectName, customerName, sourceBidId, sourceBidNumber, originType, name, description, specificationSection, responsibleParty, status, dueDate, revision, reviewerName, reviewComments, submittedAt, reviewedAt, itemCount, items, revisions, transmittals, assemblies, signatureProviderAvailable, signatureRequests, createdAt, updatedAt]
+      required: [id, environmentId, packageNumber, projectId, projectNumber, projectName, customerName, sourceBidId, sourceBidNumber, originType, name, description, specificationSection, responsibleParty, status, dueDate, revision, reviewerName, reviewComments, submittedAt, reviewedAt, itemCount, items, revisions, transmittals, assemblies, signatureProviderAvailable, signatureProviders, signatureRequests, createdAt, updatedAt]
       properties:
         id: { type: integer }
         environmentId: { type: integer }
@@ -5202,6 +5269,9 @@ components:
           type: array
           items: { $ref: "#/components/schemas/SubmittalAssembly" }
         signatureProviderAvailable: { type: boolean }
+        signatureProviders:
+          type: array
+          items: { $ref: "#/components/schemas/SubmittalSignatureProvider" }
         signatureRequests:
           type: array
           items: { $ref: "#/components/schemas/SubmittalSignatureRequest" }
@@ -5336,7 +5406,7 @@ components:
                 items: { type: integer, minimum: 1 }
     SubmittalSignatureRequestStatus:
       type: string
-      enum: [draft, ready, sent, partially_signed, completed, declined, expired, canceled]
+      enum: [draft, ready, sending, sent, partially_signed, completed, declined, expired, canceled]
     SubmittalSignatureSignerStatus:
       type: string
       enum: [pending, sent, signed, declined]
@@ -5366,7 +5436,7 @@ components:
         updatedAt: { type: string, format: date-time }
     SubmittalSignatureRequest:
       type: object
-      required: [id, packageId, assemblyId, title, status, providerKey, providerRequestId, externalMetadata, providerAvailable, signers, events, createdAt, updatedAt]
+      required: [id, packageId, assemblyId, title, status, providerKey, providerRequestId, externalMetadata, providerAvailable, signedDocumentAvailable, signers, events, createdAt, updatedAt]
       properties:
         id: { type: integer }
         packageId: { type: integer }
@@ -5379,6 +5449,7 @@ components:
           type: object
           additionalProperties: true
         providerAvailable: { type: boolean }
+        signedDocumentAvailable: { type: boolean }
         signers:
           type: array
           items: { $ref: "#/components/schemas/SubmittalSignatureSigner" }
@@ -5406,6 +5477,20 @@ components:
           minItems: 1
           maxItems: 20
           items: { $ref: "#/components/schemas/SubmittalSignatureSignerInput" }
+    SubmittalSignatureProvider:
+      type: object
+      required: [providerKey, name, capabilities]
+      properties:
+        providerKey: { type: string }
+        name: { type: string }
+        capabilities:
+          type: array
+          items: { type: string }
+    SubmittalSignatureRequestSendInput:
+      type: object
+      required: [providerKey]
+      properties:
+        providerKey: { type: string, minLength: 1, maxLength: 80 }
     SubmittalRevisionInput:
       type: object
       required: [status]

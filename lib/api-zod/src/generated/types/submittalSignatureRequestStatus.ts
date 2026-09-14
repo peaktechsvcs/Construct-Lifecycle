@@ -12,6 +12,7 @@ export type SubmittalSignatureRequestStatus = typeof SubmittalSignatureRequestSt
 export const SubmittalSignatureRequestStatus = {
   draft: 'draft',
   ready: 'ready',
+  sending: 'sending',
   sent: 'sent',
   partially_signed: 'partially_signed',
   completed: 'completed',

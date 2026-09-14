@@ -2,6 +2,7 @@ export type IntegrationCategory =
   | "productivity_collaboration"
   | "erp_financial"
   | "accounting"
+  | "e_signature"
   | "takeoff_estimating"
   | "ecommerce"
   | "product_information";
@@ -41,6 +42,17 @@ export const connectorCatalog: ConnectorDefinition[] = [
     capabilities: ["Outlook Mailbox", "Calendar", "Contacts", "OneDrive References"],
     entitlementKey: "microsoft_365",
     connectorStatus: "cataloged",
+  },
+  {
+    providerKey: "docusign",
+    name: "DocuSign",
+    category: "e_signature",
+    categoryLabel: "E-Signature",
+    description: "Send prepared submittal packages for legally binding signatures and retrieve completed documents.",
+    capabilities: ["Send Signature Requests", "Track Signature Status", "Cancel Requests", "Retrieve Signed Documents"],
+    entitlementKey: "docusign",
+    connectorStatus: "cataloged",
+    managedConnectorName: "docusign",
   },
   {
     providerKey: "business_central",

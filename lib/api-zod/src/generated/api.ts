@@ -7532,16 +7532,22 @@ export const ListSubmittalPackagesResponseItem = zod.object({
   "downloadUrl": zod.string()
 })),
   "signatureProviderAvailable": zod.boolean(),
+  "signatureProviders": zod.array(zod.object({
+  "providerKey": zod.string(),
+  "name": zod.string(),
+  "capabilities": zod.array(zod.string())
+})),
   "signatureRequests": zod.array(zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
   "assemblyId": zod.number().int(),
   "title": zod.string(),
-  "status": zod.enum(['draft', 'ready', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
+  "status": zod.enum(['draft', 'ready', 'sending', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
   "providerKey": zod.string().nullable(),
   "providerRequestId": zod.string().nullable(),
   "externalMetadata": zod.record(zod.string(), zod.unknown()),
   "providerAvailable": zod.boolean(),
+  "signedDocumentAvailable": zod.boolean(),
   "signers": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -7715,16 +7721,22 @@ export const CreateSubmittalPackageResponse = zod.object({
   "downloadUrl": zod.string()
 })),
   "signatureProviderAvailable": zod.boolean(),
+  "signatureProviders": zod.array(zod.object({
+  "providerKey": zod.string(),
+  "name": zod.string(),
+  "capabilities": zod.array(zod.string())
+})),
   "signatureRequests": zod.array(zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
   "assemblyId": zod.number().int(),
   "title": zod.string(),
-  "status": zod.enum(['draft', 'ready', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
+  "status": zod.enum(['draft', 'ready', 'sending', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
   "providerKey": zod.string().nullable(),
   "providerRequestId": zod.string().nullable(),
   "externalMetadata": zod.record(zod.string(), zod.unknown()),
   "providerAvailable": zod.boolean(),
+  "signedDocumentAvailable": zod.boolean(),
   "signers": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -7900,16 +7912,22 @@ export const SeedSubmittalRegisterFromBidResponse = zod.object({
   "downloadUrl": zod.string()
 })),
   "signatureProviderAvailable": zod.boolean(),
+  "signatureProviders": zod.array(zod.object({
+  "providerKey": zod.string(),
+  "name": zod.string(),
+  "capabilities": zod.array(zod.string())
+})),
   "signatureRequests": zod.array(zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
   "assemblyId": zod.number().int(),
   "title": zod.string(),
-  "status": zod.enum(['draft', 'ready', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
+  "status": zod.enum(['draft', 'ready', 'sending', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
   "providerKey": zod.string().nullable(),
   "providerRequestId": zod.string().nullable(),
   "externalMetadata": zod.record(zod.string(), zod.unknown()),
   "providerAvailable": zod.boolean(),
+  "signedDocumentAvailable": zod.boolean(),
   "signers": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -8062,16 +8080,22 @@ export const GetSubmittalPackageResponse = zod.object({
   "downloadUrl": zod.string()
 })),
   "signatureProviderAvailable": zod.boolean(),
+  "signatureProviders": zod.array(zod.object({
+  "providerKey": zod.string(),
+  "name": zod.string(),
+  "capabilities": zod.array(zod.string())
+})),
   "signatureRequests": zod.array(zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
   "assemblyId": zod.number().int(),
   "title": zod.string(),
-  "status": zod.enum(['draft', 'ready', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
+  "status": zod.enum(['draft', 'ready', 'sending', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
   "providerKey": zod.string().nullable(),
   "providerRequestId": zod.string().nullable(),
   "externalMetadata": zod.record(zod.string(), zod.unknown()),
   "providerAvailable": zod.boolean(),
+  "signedDocumentAvailable": zod.boolean(),
   "signers": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -8252,16 +8276,22 @@ export const UpdateSubmittalPackageResponse = zod.object({
   "downloadUrl": zod.string()
 })),
   "signatureProviderAvailable": zod.boolean(),
+  "signatureProviders": zod.array(zod.object({
+  "providerKey": zod.string(),
+  "name": zod.string(),
+  "capabilities": zod.array(zod.string())
+})),
   "signatureRequests": zod.array(zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
   "assemblyId": zod.number().int(),
   "title": zod.string(),
-  "status": zod.enum(['draft', 'ready', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
+  "status": zod.enum(['draft', 'ready', 'sending', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
   "providerKey": zod.string().nullable(),
   "providerRequestId": zod.string().nullable(),
   "externalMetadata": zod.record(zod.string(), zod.unknown()),
   "providerAvailable": zod.boolean(),
+  "signedDocumentAvailable": zod.boolean(),
   "signers": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -8581,16 +8611,22 @@ export const ReorderSubmittalItemsResponse = zod.object({
   "downloadUrl": zod.string()
 })),
   "signatureProviderAvailable": zod.boolean(),
+  "signatureProviders": zod.array(zod.object({
+  "providerKey": zod.string(),
+  "name": zod.string(),
+  "capabilities": zod.array(zod.string())
+})),
   "signatureRequests": zod.array(zod.object({
   "id": zod.number().int(),
   "packageId": zod.number().int(),
   "assemblyId": zod.number().int(),
   "title": zod.string(),
-  "status": zod.enum(['draft', 'ready', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
+  "status": zod.enum(['draft', 'ready', 'sending', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
   "providerKey": zod.string().nullable(),
   "providerRequestId": zod.string().nullable(),
   "externalMetadata": zod.record(zod.string(), zod.unknown()),
   "providerAvailable": zod.boolean(),
+  "signedDocumentAvailable": zod.boolean(),
   "signers": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -9049,11 +9085,12 @@ export const ListSubmittalSignatureRequestsResponseItem = zod.object({
   "packageId": zod.number().int(),
   "assemblyId": zod.number().int(),
   "title": zod.string(),
-  "status": zod.enum(['draft', 'ready', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
+  "status": zod.enum(['draft', 'ready', 'sending', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
   "providerKey": zod.string().nullable(),
   "providerRequestId": zod.string().nullable(),
   "externalMetadata": zod.record(zod.string(), zod.unknown()),
   "providerAvailable": zod.boolean(),
+  "signedDocumentAvailable": zod.boolean(),
   "signers": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -9119,11 +9156,12 @@ export const CreateSubmittalSignatureRequestResponse = zod.object({
   "packageId": zod.number().int(),
   "assemblyId": zod.number().int(),
   "title": zod.string(),
-  "status": zod.enum(['draft', 'ready', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
+  "status": zod.enum(['draft', 'ready', 'sending', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
   "providerKey": zod.string().nullable(),
   "providerRequestId": zod.string().nullable(),
   "externalMetadata": zod.record(zod.string(), zod.unknown()),
   "providerAvailable": zod.boolean(),
+  "signedDocumentAvailable": zod.boolean(),
   "signers": zod.array(zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
@@ -9145,6 +9183,156 @@ export const CreateSubmittalSignatureRequestResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary Send a prepared submittal signature request through an entitled provider
+ */
+export const SendSubmittalSignatureRequestParams = zod.object({
+  "requestId": zod.coerce.number().int()
+})
+
+export const sendSubmittalSignatureRequestBodyProviderKeyMax = 80;
+
+
+
+export const SendSubmittalSignatureRequestBody = zod.object({
+  "providerKey": zod.string().min(1).max(sendSubmittalSignatureRequestBodyProviderKeyMax)
+})
+
+
+
+
+export const SendSubmittalSignatureRequestResponse = zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "assemblyId": zod.number().int(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'ready', 'sending', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
+  "providerKey": zod.string().nullable(),
+  "providerRequestId": zod.string().nullable(),
+  "externalMetadata": zod.record(zod.string(), zod.unknown()),
+  "providerAvailable": zod.boolean(),
+  "signedDocumentAvailable": zod.boolean(),
+  "signers": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "role": zod.string().nullable(),
+  "signingOrder": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'sent', 'signed', 'declined']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "eventType": zod.string(),
+  "fromStatus": zod.string().nullable(),
+  "toStatus": zod.string().nullable(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Poll a sent submittal signature request for provider status
+ */
+export const SyncSubmittalSignatureRequestStatusParams = zod.object({
+  "requestId": zod.coerce.number().int()
+})
+
+
+
+
+export const SyncSubmittalSignatureRequestStatusResponse = zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "assemblyId": zod.number().int(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'ready', 'sending', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
+  "providerKey": zod.string().nullable(),
+  "providerRequestId": zod.string().nullable(),
+  "externalMetadata": zod.record(zod.string(), zod.unknown()),
+  "providerAvailable": zod.boolean(),
+  "signedDocumentAvailable": zod.boolean(),
+  "signers": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "role": zod.string().nullable(),
+  "signingOrder": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'sent', 'signed', 'declined']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "eventType": zod.string(),
+  "fromStatus": zod.string().nullable(),
+  "toStatus": zod.string().nullable(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Cancel a prepared or sent submittal signature request
+ */
+export const CancelSubmittalSignatureRequestParams = zod.object({
+  "requestId": zod.coerce.number().int()
+})
+
+
+
+
+export const CancelSubmittalSignatureRequestResponse = zod.object({
+  "id": zod.number().int(),
+  "packageId": zod.number().int(),
+  "assemblyId": zod.number().int(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'ready', 'sending', 'sent', 'partially_signed', 'completed', 'declined', 'expired', 'canceled']),
+  "providerKey": zod.string().nullable(),
+  "providerRequestId": zod.string().nullable(),
+  "externalMetadata": zod.record(zod.string(), zod.unknown()),
+  "providerAvailable": zod.boolean(),
+  "signedDocumentAvailable": zod.boolean(),
+  "signers": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "role": zod.string().nullable(),
+  "signingOrder": zod.number().int().min(1),
+  "status": zod.enum(['pending', 'sent', 'signed', 'declined']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "events": zod.array(zod.object({
+  "id": zod.number().int(),
+  "eventType": zod.string(),
+  "fromStatus": zod.string().nullable(),
+  "toStatus": zod.string().nullable(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Download the protected signed document for a completed request
+ */
+export const DownloadSubmittalSignedDocumentParams = zod.object({
+  "requestId": zod.coerce.number().int()
+})
+
+export const DownloadSubmittalSignedDocumentResponse = zod.unknown()
 
 
 /**

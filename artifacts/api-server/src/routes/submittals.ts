@@ -46,9 +46,19 @@ import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
 import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 import { screenStoredDocument } from "../lib/documentScreening";
-import { getSignatureProvider, getSignatureProviderAvailability } from "../lib/signatures/provider";
-import { activeSignatureRequestStatuses } from "../lib/signatures/state";
+import {
+  getSignatureProvider,
+  registerSignatureProvider,
+} from "../lib/signatures/provider";
+import { registerDocuSignSignatureProvider } from "../lib/signatures/docusign";
+import {
+  activeSignatureRequestStatuses,
+  canTransitionSignatureRequestStatus,
+  signatureRequestStatuses,
+  type SignatureRequestStatus,
+} from "../lib/signatures/state";
 import { validateAndNormalizeSignatureSigners } from "../lib/signatures/validation";
+import { getConnectorDefinition } from "../lib/integrations/catalog";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { createSubmittalDocumentProvider, DocumentProviderError, type DocumentProviderKey } from "../lib/submittal-document-provider";
 
@@ -77,10 +87,14 @@ const pageOrderInput = z.object({
 const objectStorage = new ObjectStorageService();
 const connectors = new ReplitConnectors();
 const documentProvider = createSubmittalDocumentProvider(connectors);
+registerDocuSignSignatureProvider(connectors, registerSignatureProvider);
 const maxDocumentSize = 100 * 1024 * 1024;
 const uploadRateWindowMs = 60_000;
 const uploadRateLimit = 20;
 const uploadAttempts = new Map<string, { count: number; resetAt: number }>();
+const signatureSendRateWindowMs = 60_000;
+const signatureSendRateLimit = 10;
+const signatureSendAttempts = new Map<string, { count: number; resetAt: number }>();
 const documentRequestBody = z.object({
   originalName: z.string().trim().min(1).max(255),
   size: z.number().int().min(1).max(maxDocumentSize),
@@ -123,6 +137,12 @@ const transmittalInput = z.object({
   fromParty: z.string().trim().max(180).optional(),
   toParty: z.string().trim().max(180).optional(),
   notes: z.string().trim().max(5000).optional(),
+});
+const signatureRequestParams = z.object({
+  requestId: z.coerce.number().int().positive(),
+});
+const sendSignatureRequestInput = z.object({
+  providerKey: z.string().trim().min(1).max(80),
 });
 const sanitizeFileName = (value: string) =>
   value.replace(/[\u0000-\u001f\u007f]/g, "").split(/[\\/]/).pop()?.trim().slice(0, 255) || "submittal-document";
@@ -309,8 +329,13 @@ const parseObject = (value: string | null | undefined): Record<string, unknown> 
   }
 };
 
-const getConnectedSignatureProviderKeys = async (req: TenantRequest) => {
-  const rows = await db.select({ providerKey: integrationsTable.providerKey })
+const requiredSignatureCapabilities = ["send", "status", "cancel", "download_signed_document"] as const;
+
+const getConnectedSignatureProviders = async (req: TenantRequest) => {
+  const rows = await db.select({
+    integrationId: integrationsTable.id,
+    providerKey: integrationsTable.providerKey,
+  })
     .from(integrationsTable)
     .innerJoin(integrationEntitlementsTable, and(
       eq(integrationEntitlementsTable.tenantId, integrationsTable.tenantId),
@@ -323,7 +348,19 @@ const getConnectedSignatureProviderKeys = async (req: TenantRequest) => {
       eq(integrationsTable.providerCategory, "e_signature"),
       eq(integrationsTable.status, "connected"),
     ));
-  return rows.map((row) => row.providerKey);
+  return rows.map((row) => {
+    const provider = getSignatureProvider(row.providerKey);
+    const definition = getConnectorDefinition(row.providerKey);
+    if (!provider || !requiredSignatureCapabilities.every((capability) => provider.capabilities.has(capability))) {
+      return null;
+    }
+    return {
+      integrationId: row.integrationId,
+      providerKey: row.providerKey,
+      name: definition?.name ?? row.providerKey,
+      capabilities: [...provider.capabilities],
+    };
+  }).filter((provider): provider is NonNullable<typeof provider> => Boolean(provider));
 };
 
 const serializeSignatureEvent = (event: typeof submittalSignatureEventsTable.$inferSelect) => ({
@@ -336,7 +373,8 @@ const serializeSignatureEvent = (event: typeof submittalSignatureEventsTable.$in
 });
 
 const loadSignatureRequests = async (req: TenantRequest, packageId: number) => {
-  const connectedProviderKeys = await getConnectedSignatureProviderKeys(req);
+  const connectedProviders = await getConnectedSignatureProviders(req);
+  const connectedProviderKeys = connectedProviders.map((provider) => provider.providerKey);
   const requests = await db.select().from(submittalSignatureRequestsTable)
     .where(and(
       eq(submittalSignatureRequestsTable.packageId, packageId),
@@ -375,7 +413,10 @@ const loadSignatureRequests = async (req: TenantRequest, packageId: number) => {
     current.push(event);
     eventsByRequest.set(event.requestId, current);
   }
-  return requests.map((request) => ({
+  return requests.map((request) => {
+    const externalMetadata = parseObject(request.externalMetadata);
+    const signedDocument = externalMetadata.signedDocument;
+    return {
     id: request.id,
     packageId: request.packageId,
     assemblyId: request.assemblyId,
@@ -383,8 +424,14 @@ const loadSignatureRequests = async (req: TenantRequest, packageId: number) => {
     status: request.status,
     providerKey: request.providerKey,
     providerRequestId: request.providerRequestId,
-    externalMetadata: parseObject(request.externalMetadata),
+    externalMetadata,
     providerAvailable: Boolean(request.providerKey && connectedProviderKeys.includes(request.providerKey) && getSignatureProvider(request.providerKey)),
+    signedDocumentAvailable: Boolean(
+      signedDocument
+      && typeof signedDocument === "object"
+      && !Array.isArray(signedDocument)
+      && typeof (signedDocument as { objectPath?: unknown }).objectPath === "string",
+    ),
     signers: (signersByRequest.get(request.id) ?? []).map((signer) => ({
       id: signer.id,
       name: signer.name,
@@ -398,7 +445,8 @@ const loadSignatureRequests = async (req: TenantRequest, packageId: number) => {
     events: (eventsByRequest.get(request.id) ?? []).map(serializeSignatureEvent),
     createdAt: request.createdAt,
     updatedAt: request.updatedAt,
-  }));
+    };
+  });
 };
 
 const serializeRevision = (revision: typeof submittalRevisionsTable.$inferSelect) => ({
@@ -444,7 +492,7 @@ const serializeTransmittal = (record: typeof submittalTransmittalsTable.$inferSe
 
 const serializePackage = async (req: TenantRequest, row: Awaited<ReturnType<typeof getPackageBase>>) => {
   if (!row) return null;
-  const [items, revisions, transmittals, signatureRequests] = await Promise.all([
+  const [items, revisions, transmittals, signatureRequests, signatureProviders] = await Promise.all([
     db.select().from(submittalItemsTable)
       .where(and(
         eq(submittalItemsTable.packageId, row.package.id),
@@ -467,6 +515,7 @@ const serializePackage = async (req: TenantRequest, row: Awaited<ReturnType<type
       ))
       .orderBy(desc(submittalTransmittalsTable.sentAt), desc(submittalTransmittalsTable.id)),
     loadSignatureRequests(req, row.package.id),
+    getConnectedSignatureProviders(req),
   ]);
   const assemblies = await db.select().from(submittalPackageAssembliesTable)
     .where(and(
@@ -517,7 +566,12 @@ const serializePackage = async (req: TenantRequest, row: Awaited<ReturnType<type
     revisions: revisions.map(serializeRevision),
     transmittals: transmittals.map(serializeTransmittal),
     assemblies: assemblies.map(serializeAssembly),
-    signatureProviderAvailable: getSignatureProviderAvailability(await getConnectedSignatureProviderKeys(req)).available,
+     signatureProviderAvailable: signatureProviders.length > 0,
+     signatureProviders: signatureProviders.map((provider) => ({
+       providerKey: provider.providerKey,
+       name: provider.name,
+       capabilities: provider.capabilities,
+     })),
     signatureRequests,
     createdAt: row.package.createdAt,
     updatedAt: row.package.updatedAt,
@@ -1632,6 +1686,394 @@ router.post("/submittals/:submittalId/signature-requests", requireRole("owner", 
     return;
   }
   res.status(201).json(response);
+});
+
+router.post("/submittal-signature-requests/:requestId/send", requireRole("owner", "admin", "member"), async (req: TenantRequest, res): Promise<void> => {
+  const params = signatureRequestParams.safeParse(req.params);
+  const parsed = sendSignatureRequestInput.safeParse(req.body);
+  if (!params.success || !parsed.success) {
+    res.status(400).json({ error: "Invalid signature send details" });
+    return;
+  }
+  const rateKey = `${req.tenantId}:${req.environmentId}:${req.localUserId}`;
+  const now = Date.now();
+  const previous = signatureSendAttempts.get(rateKey);
+  if (!previous || previous.resetAt <= now) {
+    signatureSendAttempts.set(rateKey, { count: 1, resetAt: now + signatureSendRateWindowMs });
+  } else if (previous.count >= signatureSendRateLimit) {
+    res.setHeader("Retry-After", String(Math.ceil((previous.resetAt - now) / 1000)));
+    res.status(429).json({ error: "Too many signature send attempts. Try again shortly." });
+    return;
+  } else {
+    previous.count += 1;
+  }
+  const connectedProviders = await getConnectedSignatureProviders(req);
+  const selectedProvider = connectedProviders.find((provider) => provider.providerKey === parsed.data.providerKey);
+  const provider = selectedProvider ? getSignatureProvider(selectedProvider.providerKey) : undefined;
+  if (!selectedProvider || !provider) {
+    res.status(409).json({ error: "The selected e-signature provider is not connected, entitled, or available" });
+    return;
+  }
+  const [request] = await db.select().from(submittalSignatureRequestsTable).where(and(
+    eq(submittalSignatureRequestsTable.id, params.data.requestId),
+    eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+    eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+  ));
+  if (!request) {
+    res.status(404).json({ error: "Signature request not found" });
+    return;
+  }
+  if (!["draft", "ready"].includes(request.status) || request.providerRequestId) {
+    res.status(409).json({ error: "This signature request cannot be sent in its current state" });
+    return;
+  }
+  const [assembly] = await db.select().from(submittalPackageAssembliesTable).where(and(
+    eq(submittalPackageAssembliesTable.id, request.assemblyId),
+    eq(submittalPackageAssembliesTable.packageId, request.packageId),
+    eq(submittalPackageAssembliesTable.tenantId, req.tenantId!),
+    eq(submittalPackageAssembliesTable.environmentId, req.environmentId!),
+  ));
+  const signers = await db.select().from(submittalSignatureSignersTable)
+    .where(and(
+      eq(submittalSignatureSignersTable.requestId, request.id),
+      eq(submittalSignatureSignersTable.tenantId, req.tenantId!),
+      eq(submittalSignatureSignersTable.environmentId, req.environmentId!),
+    ))
+    .orderBy(submittalSignatureSignersTable.signingOrder, submittalSignatureSignersTable.id);
+  if (!assembly || assembly.status !== "ready" || !assembly.signatureReady || signers.length === 0) {
+    res.status(409).json({ error: "The signature-ready package version or signer list is unavailable" });
+    return;
+  }
+  const [claimed] = await db.transaction(async (tx) => {
+    const [locked] = await tx.select().from(submittalSignatureRequestsTable).where(and(
+      eq(submittalSignatureRequestsTable.id, request.id),
+      eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+      eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+    )).for("update").limit(1);
+    if (!locked || !["draft", "ready"].includes(locked.status) || locked.providerRequestId) return [];
+    const [updated] = await tx.update(submittalSignatureRequestsTable).set({
+      status: "sending",
+      providerKey: selectedProvider.providerKey,
+    }).where(and(
+      eq(submittalSignatureRequestsTable.id, locked.id),
+      eq(submittalSignatureRequestsTable.status, locked.status),
+      eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+      eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+    )).returning();
+    if (!updated) return [];
+    await tx.insert(submittalSignatureEventsTable).values({
+      requestId: updated.id,
+      eventType: "send_started",
+      fromStatus: locked.status,
+      toStatus: "sending",
+      details: JSON.stringify({ providerKey: selectedProvider.providerKey }),
+      actorUserId: req.localUserId!,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    });
+    return [updated];
+  });
+  if (!claimed) {
+    res.status(409).json({ error: "This signature request is already being sent or has already been sent" });
+    return;
+  }
+
+  let sent: Awaited<ReturnType<typeof provider.send>>;
+  try {
+    const file = await objectStorage.getObjectFile(assembly.objectPath);
+    const [documentBytes] = await file.download();
+    sent = await provider.send({
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+      integrationId: selectedProvider.integrationId,
+    }, {
+      title: request.title,
+      fileName: assembly.originalFileName,
+      contentType: assembly.contentType,
+      documentBytes,
+      signers: signers.map((signer) => ({
+        name: signer.name,
+        email: signer.email,
+        role: signer.role,
+        signingOrder: signer.signingOrder,
+      })),
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message.slice(0, 240) : "Signature provider send failed";
+    await db.transaction(async (tx) => {
+      await tx.update(submittalSignatureRequestsTable).set({
+        status: "ready",
+      }).where(and(
+        eq(submittalSignatureRequestsTable.id, request.id),
+        eq(submittalSignatureRequestsTable.status, "sending"),
+        eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+        eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+      ));
+      await tx.insert(submittalSignatureEventsTable).values({
+        requestId: request.id,
+        eventType: "send_failed",
+        fromStatus: "sending",
+        toStatus: "ready",
+        details: JSON.stringify({ reason }),
+        actorUserId: req.localUserId!,
+        tenantId: req.tenantId!,
+        environmentId: req.environmentId!,
+      });
+    });
+    req.log.warn({ signatureRequestId: request.id, providerKey: selectedProvider.providerKey }, "Signature provider send failed");
+    res.status(502).json({ error: "The e-signature provider could not accept this request" });
+    return;
+  }
+
+  const metadata = { ...parseObject(request.externalMetadata), ...(sent.metadata ?? {}) };
+  await db.transaction(async (tx) => {
+    await tx.update(submittalSignatureRequestsTable).set({
+      status: "sent",
+      providerKey: selectedProvider.providerKey,
+      providerRequestId: sent.providerRequestId,
+      externalMetadata: JSON.stringify(metadata),
+    }).where(and(
+      eq(submittalSignatureRequestsTable.id, request.id),
+      eq(submittalSignatureRequestsTable.status, "sending"),
+      eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+      eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+    ));
+    await tx.insert(submittalSignatureEventsTable).values({
+      requestId: request.id,
+      eventType: "request_sent",
+      fromStatus: "sending",
+      toStatus: "sent",
+      details: JSON.stringify({ providerKey: selectedProvider.providerKey }),
+      actorUserId: req.localUserId!,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    });
+  });
+  const response = (await loadSignatureRequests(req, request.packageId)).find((candidate) => candidate.id === request.id);
+  res.json(response);
+});
+
+router.post("/submittal-signature-requests/:requestId/status", requireRole("owner", "admin", "member"), async (req: TenantRequest, res): Promise<void> => {
+  const params = signatureRequestParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid signature request id" });
+    return;
+  }
+  const [request] = await db.select().from(submittalSignatureRequestsTable).where(and(
+    eq(submittalSignatureRequestsTable.id, params.data.requestId),
+    eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+    eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+  ));
+  if (!request) {
+    res.status(404).json({ error: "Signature request not found" });
+    return;
+  }
+  const connectedProvider = (await getConnectedSignatureProviders(req)).find((provider) => provider.providerKey === request.providerKey);
+  const provider = connectedProvider ? getSignatureProvider(connectedProvider.providerKey) : undefined;
+  if (!connectedProvider || !provider || !request.providerRequestId || !request.providerKey || !canTransitionSignatureRequestStatus(request.status as SignatureRequestStatus, request.status as SignatureRequestStatus)) {
+    res.status(409).json({ error: "This signature request cannot be polled until its provider is connected and it has been sent" });
+    return;
+  }
+  let result: Awaited<ReturnType<typeof provider.getStatus>>;
+  try {
+    result = await provider.getStatus({
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+      integrationId: connectedProvider.integrationId,
+    }, request.providerRequestId);
+  } catch (error) {
+    req.log.warn({ signatureRequestId: request.id, providerKey: request.providerKey }, "Signature provider status poll failed");
+    res.status(502).json({ error: "The e-signature provider status could not be retrieved" });
+    return;
+  }
+  if (!signatureRequestStatuses.includes(result.status as SignatureRequestStatus)) {
+    res.status(502).json({ error: "The e-signature provider returned an unsupported status" });
+    return;
+  }
+  const nextStatus = result.status as SignatureRequestStatus;
+  if (!canTransitionSignatureRequestStatus(request.status as SignatureRequestStatus, nextStatus)) {
+    res.status(409).json({ error: "The provider status cannot be applied to this request" });
+    return;
+  }
+  await db.transaction(async (tx) => {
+    await tx.update(submittalSignatureRequestsTable).set({
+      status: nextStatus,
+      externalMetadata: JSON.stringify({ ...parseObject(request.externalMetadata), ...(result.metadata ?? {}) }),
+    }).where(and(
+      eq(submittalSignatureRequestsTable.id, request.id),
+      eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+      eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+    ));
+    await tx.insert(submittalSignatureEventsTable).values({
+      requestId: request.id,
+      eventType: "status_polled",
+      fromStatus: request.status,
+      toStatus: nextStatus,
+      details: JSON.stringify(result.metadata ?? {}),
+      actorUserId: req.localUserId!,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    });
+  });
+  res.json((await loadSignatureRequests(req, request.packageId)).find((candidate) => candidate.id === request.id));
+});
+
+router.post("/submittal-signature-requests/:requestId/cancel", requireRole("owner", "admin", "member"), async (req: TenantRequest, res): Promise<void> => {
+  const params = signatureRequestParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid signature request id" });
+    return;
+  }
+  const [request] = await db.select().from(submittalSignatureRequestsTable).where(and(
+    eq(submittalSignatureRequestsTable.id, params.data.requestId),
+    eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+    eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+  ));
+  if (!request) {
+    res.status(404).json({ error: "Signature request not found" });
+    return;
+  }
+  if (!["draft", "ready", "sent", "partially_signed"].includes(request.status)) {
+    res.status(409).json({ error: "This signature request cannot be canceled in its current state" });
+    return;
+  }
+  if (request.providerKey && request.providerRequestId) {
+    const connectedProvider = (await getConnectedSignatureProviders(req)).find((provider) => provider.providerKey === request.providerKey);
+    const provider = connectedProvider ? getSignatureProvider(connectedProvider.providerKey) : undefined;
+    if (!connectedProvider || !provider) {
+      res.status(409).json({ error: "The signature provider is no longer connected or available" });
+      return;
+    }
+    try {
+      await provider.cancel({
+        tenantId: req.tenantId!,
+        environmentId: req.environmentId!,
+        integrationId: connectedProvider.integrationId,
+      }, request.providerRequestId);
+    } catch {
+      res.status(502).json({ error: "The e-signature provider could not cancel this request" });
+      return;
+    }
+  }
+  if (!canTransitionSignatureRequestStatus(request.status as SignatureRequestStatus, "canceled")) {
+    res.status(409).json({ error: "This signature request cannot be canceled in its current state" });
+    return;
+  }
+  await db.transaction(async (tx) => {
+    await tx.update(submittalSignatureRequestsTable).set({ status: "canceled" }).where(and(
+      eq(submittalSignatureRequestsTable.id, request.id),
+      eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+      eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+    ));
+    await tx.insert(submittalSignatureEventsTable).values({
+      requestId: request.id,
+      eventType: "request_canceled",
+      fromStatus: request.status,
+      toStatus: "canceled",
+      details: JSON.stringify({ providerKey: request.providerKey }),
+      actorUserId: req.localUserId!,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    });
+  });
+  res.json((await loadSignatureRequests(req, request.packageId)).find((candidate) => candidate.id === request.id));
+});
+
+router.get("/submittal-signature-requests/:requestId/signed-document", async (req: TenantRequest, res): Promise<void> => {
+  const params = signatureRequestParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid signature request id" });
+    return;
+  }
+  const [request] = await db.select().from(submittalSignatureRequestsTable).where(and(
+    eq(submittalSignatureRequestsTable.id, params.data.requestId),
+    eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+    eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+  ));
+  if (!request) {
+    res.status(404).json({ error: "Signature request not found" });
+    return;
+  }
+  if (request.status !== "completed") {
+    res.status(409).json({ error: "The signed document is available after all signers complete the request" });
+    return;
+  }
+  const metadata = parseObject(request.externalMetadata);
+  const storedDocument = metadata.signedDocument;
+  let objectPath = storedDocument && typeof storedDocument === "object" && !Array.isArray(storedDocument)
+    ? (storedDocument as { objectPath?: unknown }).objectPath
+    : undefined;
+  let fileName = storedDocument && typeof storedDocument === "object" && !Array.isArray(storedDocument)
+    ? (storedDocument as { fileName?: unknown }).fileName
+    : undefined;
+  let contentType = storedDocument && typeof storedDocument === "object" && !Array.isArray(storedDocument)
+    ? (storedDocument as { contentType?: unknown }).contentType
+    : undefined;
+  try {
+    if (typeof objectPath !== "string") {
+      const connectedProvider = (await getConnectedSignatureProviders(req)).find((provider) => provider.providerKey === request.providerKey);
+      const provider = connectedProvider ? getSignatureProvider(connectedProvider.providerKey) : undefined;
+      if (!connectedProvider || !provider || !request.providerKey || !request.providerRequestId) {
+        res.status(409).json({ error: "The signature provider is no longer connected or available" });
+        return;
+      }
+      const downloaded = await provider.downloadSignedDocument({
+        tenantId: req.tenantId!,
+        environmentId: req.environmentId!,
+        integrationId: connectedProvider.integrationId,
+      }, request.providerRequestId);
+      fileName = downloaded.fileName;
+      contentType = downloaded.contentType;
+      if (downloaded.bytes) {
+        objectPath = (await objectStorage.storeBytes("submittal-signatures", downloaded.bytes, downloaded.contentType)).objectPath;
+      } else {
+        objectPath = downloaded.objectPath;
+      }
+      if (typeof objectPath !== "string") throw new Error("Signature provider returned no document");
+      const updatedMetadata = {
+        ...metadata,
+        signedDocument: {
+          objectPath,
+          fileName: typeof fileName === "string" ? fileName : "signed-document.pdf",
+          contentType: typeof contentType === "string" ? contentType : "application/pdf",
+          retrievedAt: new Date().toISOString(),
+        },
+      };
+      await db.transaction(async (tx) => {
+        await tx.update(submittalSignatureRequestsTable).set({
+          externalMetadata: JSON.stringify(updatedMetadata),
+        }).where(and(
+          eq(submittalSignatureRequestsTable.id, request.id),
+          eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+          eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+        ));
+        await tx.insert(submittalSignatureEventsTable).values({
+          requestId: request.id,
+          eventType: "signed_document_retrieved",
+          fromStatus: request.status,
+          toStatus: request.status,
+          details: JSON.stringify({ providerKey: request.providerKey }),
+          actorUserId: req.localUserId!,
+          tenantId: req.tenantId!,
+          environmentId: req.environmentId!,
+        });
+      });
+    }
+    if (typeof objectPath !== "string") throw new Error("Signed document path is unavailable");
+    const file = await objectStorage.getObjectFile(objectPath);
+    res.setHeader("Content-Type", typeof contentType === "string" ? contentType : "application/pdf");
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Disposition", `attachment; filename="${sanitizeFileName(typeof fileName === "string" ? fileName : "signed-document.pdf")}"`);
+    file.createReadStream().pipe(res);
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: "Signed document is no longer available" });
+      return;
+    }
+    req.log.error({ err: error, signatureRequestId: request.id }, "Failed to retrieve signed document");
+    res.status(503).json({ error: "Signed document retrieval is temporarily unavailable" });
+  }
 });
 
 router.post("/submittals/:submittalId/revisions", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {

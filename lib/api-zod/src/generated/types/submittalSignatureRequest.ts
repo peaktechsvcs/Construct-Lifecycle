@@ -22,6 +22,7 @@ export interface SubmittalSignatureRequest {
   providerRequestId: string | null;
   externalMetadata: SubmittalSignatureRequestExternalMetadata;
   providerAvailable: boolean;
+  signedDocumentAvailable: boolean;
   signers: SubmittalSignatureSigner[];
   events: SubmittalSignatureEvent[];
   createdAt: Date;

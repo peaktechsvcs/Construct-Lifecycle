@@ -212,6 +212,7 @@ import type {
   SubmittalRevisionInput,
   SubmittalSignatureRequest,
   SubmittalSignatureRequestInput,
+  SubmittalSignatureRequestSendInput,
   SubmittalTransmittal,
   SubmittalTransmittalInput,
   SupplierCustomerTerms,
@@ -10856,6 +10857,297 @@ export const useCreateSubmittalSignatureRequest = <TError = ErrorType<void>,
       > => {
       return useMutation(getCreateSubmittalSignatureRequestMutationOptions(options));
     }
+
+export const getSendSubmittalSignatureRequestUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/submittal-signature-requests/${requestId}/send`
+}
+
+/**
+ * @summary Send a prepared submittal signature request through an entitled provider
+ */
+export const sendSubmittalSignatureRequest = async (requestId: number,
+    submittalSignatureRequestSendInput: SubmittalSignatureRequestSendInput, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalSignatureRequest> => {
+
+  return customFetch<SubmittalSignatureRequest>(getSendSubmittalSignatureRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submittalSignatureRequestSendInput)
+  }
+);}
+
+
+
+
+
+export const getSendSubmittalSignatureRequestMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendSubmittalSignatureRequest>>, TError,{requestId: number;data: BodyType<SubmittalSignatureRequestSendInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendSubmittalSignatureRequest>>, TError,{requestId: number;data: BodyType<SubmittalSignatureRequestSendInput>}, TContext> => {
+
+const mutationKey = ['sendSubmittalSignatureRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendSubmittalSignatureRequest>>, {requestId: number;data: BodyType<SubmittalSignatureRequestSendInput>}> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  sendSubmittalSignatureRequest(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendSubmittalSignatureRequestMutationResult = NonNullable<Awaited<ReturnType<typeof sendSubmittalSignatureRequest>>>
+    export type SendSubmittalSignatureRequestMutationBody = BodyType<SubmittalSignatureRequestSendInput>
+    export type SendSubmittalSignatureRequestMutationError = ErrorType<void>
+
+    /**
+ * @summary Send a prepared submittal signature request through an entitled provider
+ */
+export const useSendSubmittalSignatureRequest = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendSubmittalSignatureRequest>>, TError,{requestId: number;data: BodyType<SubmittalSignatureRequestSendInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendSubmittalSignatureRequest>>,
+        TError,
+        {requestId: number;data: BodyType<SubmittalSignatureRequestSendInput>},
+        TContext
+      > => {
+      return useMutation(getSendSubmittalSignatureRequestMutationOptions(options));
+    }
+
+export const getSyncSubmittalSignatureRequestStatusUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/submittal-signature-requests/${requestId}/status`
+}
+
+/**
+ * @summary Poll a sent submittal signature request for provider status
+ */
+export const syncSubmittalSignatureRequestStatus = async (requestId: number, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalSignatureRequest> => {
+
+  return customFetch<SubmittalSignatureRequest>(getSyncSubmittalSignatureRequestStatusUrl(requestId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSyncSubmittalSignatureRequestStatusMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncSubmittalSignatureRequestStatus>>, TError,{requestId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncSubmittalSignatureRequestStatus>>, TError,{requestId: number}, TContext> => {
+
+const mutationKey = ['syncSubmittalSignatureRequestStatus'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncSubmittalSignatureRequestStatus>>, {requestId: number}> = (props) => {
+          const {requestId} = props ?? {};
+
+          return  syncSubmittalSignatureRequestStatus(requestId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncSubmittalSignatureRequestStatusMutationResult = NonNullable<Awaited<ReturnType<typeof syncSubmittalSignatureRequestStatus>>>
+
+    export type SyncSubmittalSignatureRequestStatusMutationError = ErrorType<void>
+
+    /**
+ * @summary Poll a sent submittal signature request for provider status
+ */
+export const useSyncSubmittalSignatureRequestStatus = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncSubmittalSignatureRequestStatus>>, TError,{requestId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncSubmittalSignatureRequestStatus>>,
+        TError,
+        {requestId: number},
+        TContext
+      > => {
+      return useMutation(getSyncSubmittalSignatureRequestStatusMutationOptions(options));
+    }
+
+export const getCancelSubmittalSignatureRequestUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/submittal-signature-requests/${requestId}/cancel`
+}
+
+/**
+ * @summary Cancel a prepared or sent submittal signature request
+ */
+export const cancelSubmittalSignatureRequest = async (requestId: number, options?: Parameters<typeof customFetch>[1]): Promise<SubmittalSignatureRequest> => {
+
+  return customFetch<SubmittalSignatureRequest>(getCancelSubmittalSignatureRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelSubmittalSignatureRequestMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelSubmittalSignatureRequest>>, TError,{requestId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelSubmittalSignatureRequest>>, TError,{requestId: number}, TContext> => {
+
+const mutationKey = ['cancelSubmittalSignatureRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelSubmittalSignatureRequest>>, {requestId: number}> = (props) => {
+          const {requestId} = props ?? {};
+
+          return  cancelSubmittalSignatureRequest(requestId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelSubmittalSignatureRequestMutationResult = NonNullable<Awaited<ReturnType<typeof cancelSubmittalSignatureRequest>>>
+
+    export type CancelSubmittalSignatureRequestMutationError = ErrorType<void>
+
+    /**
+ * @summary Cancel a prepared or sent submittal signature request
+ */
+export const useCancelSubmittalSignatureRequest = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelSubmittalSignatureRequest>>, TError,{requestId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelSubmittalSignatureRequest>>,
+        TError,
+        {requestId: number},
+        TContext
+      > => {
+      return useMutation(getCancelSubmittalSignatureRequestMutationOptions(options));
+    }
+
+export const getDownloadSubmittalSignedDocumentUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/submittal-signature-requests/${requestId}/signed-document`
+}
+
+/**
+ * @summary Download the protected signed document for a completed request
+ */
+export const downloadSubmittalSignedDocument = async (requestId: number, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadSubmittalSignedDocumentUrl(requestId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadSubmittalSignedDocumentQueryKey = (requestId: number,) => {
+    return [
+    `/api/submittal-signature-requests/${requestId}/signed-document`
+    ] as const;
+    }
+
+
+export const getDownloadSubmittalSignedDocumentQueryOptions = <TData = Awaited<ReturnType<typeof downloadSubmittalSignedDocument>>, TError = ErrorType<void>>(requestId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadSubmittalSignedDocument>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadSubmittalSignedDocumentQueryKey(requestId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadSubmittalSignedDocument>>> = ({ signal }) => downloadSubmittalSignedDocument(requestId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: requestId !== null && requestId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadSubmittalSignedDocument>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadSubmittalSignedDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof downloadSubmittalSignedDocument>>>
+export type DownloadSubmittalSignedDocumentQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download the protected signed document for a completed request
+ */
+
+export function useDownloadSubmittalSignedDocument<TData = Awaited<ReturnType<typeof downloadSubmittalSignedDocument>>, TError = ErrorType<void>>(
+ requestId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadSubmittalSignedDocument>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadSubmittalSignedDocumentQueryOptions(requestId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getCreateSubmittalRevisionUrl = (submittalId: number,) => {
 

@@ -20,6 +20,9 @@ import {
   SubmittalPackageStatus,
   SubmittalSignatureRequest,
   useCreateSubmittalSignatureRequest,
+  useSendSubmittalSignatureRequest,
+  useSyncSubmittalSignatureRequestStatus,
+  useCancelSubmittalSignatureRequest,
   useCreateSubmittalItem,
   useUpdateSubmittalItem,
   useCreateSubmittalTransmittal,
@@ -628,6 +631,7 @@ function SignaturePreparationForm({ pkg, assemblies, onClose, onSaved }: {
 const signatureStatusLabel = (status: string) => ({
   draft: 'Prepared',
   ready: 'Ready to send',
+  sending: 'Sending',
   sent: 'Sent',
   partially_signed: 'Partially signed',
   completed: 'Completed',
@@ -638,10 +642,22 @@ const signatureStatusLabel = (status: string) => ({
 
 function SignaturePanel({ pkg, canEdit, onChanged }: { pkg: SubmittalPackage; canEdit: boolean; onChanged: () => void }) {
   const markReady = useMarkSubmittalAssemblySignatureReady();
+  const send = useSendSubmittalSignatureRequest();
+  const syncStatus = useSyncSubmittalSignatureRequestStatus();
+  const cancel = useCancelSubmittalSignatureRequest();
   const [showForm, setShowForm] = useState(false);
+  const [providerByRequest, setProviderByRequest] = useState<Record<number, string>>({});
+  const [actionError, setActionError] = useState('');
   const readyAssemblies = pkg.assemblies.filter((assembly) => assembly.status === 'ready' && assembly.signatureReady);
   const markableAssemblies = pkg.assemblies.filter((assembly) => assembly.status === 'ready' && !assembly.signatureReady);
   const requests = pkg.signatureRequests ?? [];
+  const providers = pkg.signatureProviders ?? [];
+  const activeRequestStatuses = ['draft', 'ready', 'sent', 'partially_signed'];
+  const selectProvider = (request: SubmittalSignatureRequest) => providerByRequest[request.id] ?? request.providerKey ?? providers[0]?.providerKey ?? '';
+  const runAction = (action: () => void) => {
+    setActionError('');
+    action();
+  };
   return <section className="rounded-xl border border-border bg-card p-5">
     <div className="flex items-start justify-between gap-3">
       <div><div className="flex items-center gap-2"><ShieldCheck size={15} className="text-primary" /><h2 className="text-base font-bold">Signature preparation</h2></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Lock signer preparation to an immutable assembled package version before a provider is connected.</p></div>
@@ -655,10 +671,29 @@ function SignaturePanel({ pkg, canEdit, onChanged }: { pkg: SubmittalPackage; ca
     </div>
     {markableAssemblies.length > 0 && <p className="mt-3 text-xs text-muted-foreground">Mark a completed version ready before adding signer details.</p>}
     <div className="mt-4 rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
-      <p className="font-semibold">{pkg.signatureProviderAvailable ? 'A signature provider is available.' : 'No e-signature provider is connected yet.'}</p>
-      <p className="mt-1">{pkg.signatureProviderAvailable ? 'Sending will be enabled when a provider adapter is configured for this environment.' : 'You can prepare signer details now. Sending remains disabled until an entitled provider is connected.'}</p>
+      <p className="font-semibold">{pkg.signatureProviderAvailable ? 'An entitled e-signature provider is available.' : 'No entitled e-signature provider is connected yet.'}</p>
+      <p className="mt-1">{pkg.signatureProviderAvailable ? 'Choose a provider when you send a prepared request. Provider credentials stay managed by Replit Connectors.' : 'You can prepare signer details now. Sending remains disabled until an entitled provider is connected.'}</p>
     </div>
-    {requests.length > 0 && <div className="mt-5 border-t border-border pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prepared requests</p><div className="mt-3 space-y-3">{requests.map((request: SubmittalSignatureRequest) => <div key={request.id} className="rounded-lg border border-border bg-secondary/20 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{request.title}</p><Badge tone={request.status === 'completed' ? 'green' : request.status === 'declined' || request.status === 'expired' || request.status === 'canceled' ? 'red' : 'neutral'}>{signatureStatusLabel(request.status)}</Badge></div><p className="mt-1 text-xs text-muted-foreground">Version {pkg.assemblies.find((assembly) => assembly.id === request.assemblyId)?.version ?? '—'} · {request.signers.length} signer{request.signers.length === 1 ? '' : 's'}</p><div className="mt-2 space-y-1">{request.signers.map((signer) => <p key={signer.id} className="text-xs">{signer.name} · {signer.email}{signer.role ? ` · ${signer.role}` : ''}</p>)}</div></div>)}</div></div>}
+    {actionError && <p className="mt-3 text-sm text-destructive" role="alert">{actionError}</p>}
+    {requests.length > 0 && <div className="mt-5 border-t border-border pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prepared requests</p><div className="mt-3 space-y-3">{requests.map((request: SubmittalSignatureRequest) => {
+      const selectedProvider = selectProvider(request);
+      const canSend = canEdit && providers.length > 0 && ['draft', 'ready'].includes(request.status);
+      const canCancel = canEdit && activeRequestStatuses.includes(request.status);
+      const canSync = canEdit && ['sent', 'partially_signed'].includes(request.status);
+      return <div key={request.id} className="rounded-lg border border-border bg-secondary/20 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{request.title}</p><Badge tone={request.status === 'completed' ? 'green' : request.status === 'declined' || request.status === 'expired' || request.status === 'canceled' ? 'red' : 'neutral'}>{signatureStatusLabel(request.status)}</Badge></div>
+        <p className="mt-1 text-xs text-muted-foreground">Version {pkg.assemblies.find((assembly) => assembly.id === request.assemblyId)?.version ?? '—'} · {request.signers.length} signer{request.signers.length === 1 ? '' : 's'}</p>
+        <div className="mt-2 space-y-1">{request.signers.map((signer) => <p key={signer.id} className="text-xs">{signer.name} · {signer.email}{signer.role ? ` · ${signer.role}` : ''}</p>)}</div>
+        {canSend && <label className="mt-3 block max-w-sm"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Signature provider</span><Select value={selectedProvider} onValueChange={(value) => setProviderByRequest((current) => ({ ...current, [request.id]: value }))}><SelectTrigger aria-label={`Signature provider for ${request.title}`}><SelectValue placeholder="Choose provider" /></SelectTrigger><SelectContent className="bg-popover">{providers.map((provider) => <SelectItem key={provider.providerKey} value={provider.providerKey}>{provider.name}</SelectItem>)}</SelectContent></Select></label>}
+        {request.status === 'sending' && <p className="mt-3 text-xs text-muted-foreground">Sending to the selected provider…</p>}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {canSend && <Button type="button" disabled={!selectedProvider || send.isPending} onClick={() => runAction(() => send.mutate({ requestId: request.id, data: { providerKey: selectedProvider } }, { onSuccess: onChanged, onError: () => setActionError('The e-signature provider could not accept this request.') }))}>{send.isPending ? 'Sending…' : 'Send for signature'}</Button>}
+          {canSync && <Button type="button" variant="outline" disabled={syncStatus.isPending} onClick={() => runAction(() => syncStatus.mutate({ requestId: request.id }, { onSuccess: onChanged, onError: () => setActionError('Unable to refresh the provider status.') }))}>{syncStatus.isPending ? 'Refreshing…' : 'Refresh status'}</Button>}
+          {canCancel && <Button type="button" variant="outline" disabled={cancel.isPending} onClick={() => runAction(() => cancel.mutate({ requestId: request.id }, { onSuccess: onChanged, onError: () => setActionError('The e-signature provider could not cancel this request.') }))}>{cancel.isPending ? 'Canceling…' : 'Cancel request'}</Button>}
+          {request.status === 'completed' && <a className="inline-flex min-h-9 items-center rounded-md border border-border px-3 text-sm font-semibold hover:bg-secondary" href={`/api/submittal-signature-requests/${request.id}/signed-document`}>Download signed document</a>}
+        </div>
+      </div>;
+    })}</div></div>}
     {showForm && <SignaturePreparationForm pkg={pkg} assemblies={readyAssemblies} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); onChanged(); }} />}
   </section>;
 }

@@ -1,6 +1,7 @@
 export const signatureRequestStatuses = [
   "draft",
   "ready",
+  "sending",
   "sent",
   "partially_signed",
   "completed",
@@ -14,13 +15,15 @@ export type SignatureRequestStatus = typeof signatureRequestStatuses[number];
 export const activeSignatureRequestStatuses: readonly SignatureRequestStatus[] = [
   "draft",
   "ready",
+  "sending",
   "sent",
   "partially_signed",
 ];
 
 const allowedTransitions: Record<SignatureRequestStatus, readonly SignatureRequestStatus[]> = {
-  draft: ["draft", "ready", "canceled"],
-  ready: ["ready", "sent", "canceled"],
+  draft: ["draft", "ready", "sending", "canceled"],
+  ready: ["ready", "sending", "canceled"],
+  sending: ["sending", "ready", "sent", "canceled"],
   sent: ["sent", "partially_signed", "completed", "declined", "expired", "canceled"],
   partially_signed: ["partially_signed", "completed", "declined", "expired", "canceled"],
   completed: ["completed"],

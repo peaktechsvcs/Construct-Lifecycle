@@ -10,6 +10,7 @@ import type { SubmittalItem } from './submittalItem';
 import type { SubmittalOriginType } from './submittalOriginType';
 import type { SubmittalPackageStatus } from './submittalPackageStatus';
 import type { SubmittalRevision } from './submittalRevision';
+import type { SubmittalSignatureProvider } from './submittalSignatureProvider';
 import type { SubmittalSignatureRequest } from './submittalSignatureRequest';
 import type { SubmittalTransmittal } from './submittalTransmittal';
 
@@ -51,6 +52,7 @@ export interface SubmittalPackage {
   transmittals: SubmittalTransmittal[];
   assemblies: SubmittalAssembly[];
   signatureProviderAvailable: boolean;
+  signatureProviders: SubmittalSignatureProvider[];
   signatureRequests: SubmittalSignatureRequest[];
   createdAt: Date;
   updatedAt: Date;
