@@ -25,3 +25,4 @@
 - [OpenAPI codegen contract](openapi-codegen-contract.md) — complete source schemas before regeneration; codegen cleans outputs and can remove stale generated types.
 - [Development schema push](development-schema-push.md) — a focused migration may be safer than full Drizzle push when unrelated orphaned foreign keys block schema reconciliation.
 - [Object storage path validation](object-storage-path-validation.md) — generated private object directories may contain dots; validate traversal separately.
+- [ITB OCR runtime](itb-ocr-runtime.md) — scanned-document OCR uses system Tesseract/Poppler tools and must cancel child work at the request deadline.

@@ -5681,6 +5681,9 @@ export const listItbDocumentsResponseFindingsItemConfidenceMax = 1;
 export const listItbDocumentsResponseFindingsItemEvidenceMax = 700;
 
 
+export const listItbDocumentsResponseFindingsItemOcrConfidenceMin = 0;
+export const listItbDocumentsResponseFindingsItemOcrConfidenceMax = 1;
+
 export const listItbDocumentsResponseFindingsItemCorrectedValueMax = 500;
 
 export const listItbDocumentsResponseAttemptCountMin = 0;
@@ -5710,6 +5713,7 @@ export const ListItbDocumentsResponseItem = zod.object({
   "confidence": zod.number().min(listItbDocumentsResponseFindingsItemConfidenceMin).max(listItbDocumentsResponseFindingsItemConfidenceMax),
   "evidence": zod.string().max(listItbDocumentsResponseFindingsItemEvidenceMax),
   "page": zod.number().int().min(1).nullish(),
+  "ocrConfidence": zod.number().min(listItbDocumentsResponseFindingsItemOcrConfidenceMin).max(listItbDocumentsResponseFindingsItemOcrConfidenceMax).nullish(),
   "status": zod.enum(['proposed', 'accepted', 'rejected', 'corrected']),
   "correctedValue": zod.string().max(listItbDocumentsResponseFindingsItemCorrectedValueMax).nullish()
 })),
@@ -5755,6 +5759,9 @@ export const processItbDocumentResponseFindingsItemConfidenceMax = 1;
 export const processItbDocumentResponseFindingsItemEvidenceMax = 700;
 
 
+export const processItbDocumentResponseFindingsItemOcrConfidenceMin = 0;
+export const processItbDocumentResponseFindingsItemOcrConfidenceMax = 1;
+
 export const processItbDocumentResponseFindingsItemCorrectedValueMax = 500;
 
 export const processItbDocumentResponseAttemptCountMin = 0;
@@ -5784,6 +5791,7 @@ export const ProcessItbDocumentResponse = zod.object({
   "confidence": zod.number().min(processItbDocumentResponseFindingsItemConfidenceMin).max(processItbDocumentResponseFindingsItemConfidenceMax),
   "evidence": zod.string().max(processItbDocumentResponseFindingsItemEvidenceMax),
   "page": zod.number().int().min(1).nullish(),
+  "ocrConfidence": zod.number().min(processItbDocumentResponseFindingsItemOcrConfidenceMin).max(processItbDocumentResponseFindingsItemOcrConfidenceMax).nullish(),
   "status": zod.enum(['proposed', 'accepted', 'rejected', 'corrected']),
   "correctedValue": zod.string().max(processItbDocumentResponseFindingsItemCorrectedValueMax).nullish()
 })),
@@ -5822,6 +5830,9 @@ export const retryItbDocumentResponseFindingsItemConfidenceMax = 1;
 export const retryItbDocumentResponseFindingsItemEvidenceMax = 700;
 
 
+export const retryItbDocumentResponseFindingsItemOcrConfidenceMin = 0;
+export const retryItbDocumentResponseFindingsItemOcrConfidenceMax = 1;
+
 export const retryItbDocumentResponseFindingsItemCorrectedValueMax = 500;
 
 export const retryItbDocumentResponseAttemptCountMin = 0;
@@ -5851,6 +5862,7 @@ export const RetryItbDocumentResponse = zod.object({
   "confidence": zod.number().min(retryItbDocumentResponseFindingsItemConfidenceMin).max(retryItbDocumentResponseFindingsItemConfidenceMax),
   "evidence": zod.string().max(retryItbDocumentResponseFindingsItemEvidenceMax),
   "page": zod.number().int().min(1).nullish(),
+  "ocrConfidence": zod.number().min(retryItbDocumentResponseFindingsItemOcrConfidenceMin).max(retryItbDocumentResponseFindingsItemOcrConfidenceMax).nullish(),
   "status": zod.enum(['proposed', 'accepted', 'rejected', 'corrected']),
   "correctedValue": zod.string().max(retryItbDocumentResponseFindingsItemCorrectedValueMax).nullish()
 })),
@@ -5901,6 +5913,9 @@ export const reviewItbDocumentFindingsResponseFindingsItemConfidenceMax = 1;
 export const reviewItbDocumentFindingsResponseFindingsItemEvidenceMax = 700;
 
 
+export const reviewItbDocumentFindingsResponseFindingsItemOcrConfidenceMin = 0;
+export const reviewItbDocumentFindingsResponseFindingsItemOcrConfidenceMax = 1;
+
 export const reviewItbDocumentFindingsResponseFindingsItemCorrectedValueMax = 500;
 
 export const reviewItbDocumentFindingsResponseAttemptCountMin = 0;
@@ -5930,6 +5945,7 @@ export const ReviewItbDocumentFindingsResponse = zod.object({
   "confidence": zod.number().min(reviewItbDocumentFindingsResponseFindingsItemConfidenceMin).max(reviewItbDocumentFindingsResponseFindingsItemConfidenceMax),
   "evidence": zod.string().max(reviewItbDocumentFindingsResponseFindingsItemEvidenceMax),
   "page": zod.number().int().min(1).nullish(),
+  "ocrConfidence": zod.number().min(reviewItbDocumentFindingsResponseFindingsItemOcrConfidenceMin).max(reviewItbDocumentFindingsResponseFindingsItemOcrConfidenceMax).nullish(),
   "status": zod.enum(['proposed', 'accepted', 'rejected', 'corrected']),
   "correctedValue": zod.string().max(reviewItbDocumentFindingsResponseFindingsItemCorrectedValueMax).nullish()
 })),

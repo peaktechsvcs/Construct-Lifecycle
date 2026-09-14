@@ -41,6 +41,8 @@ import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage"
 import { extractItb as extractItbFromSource } from "../lib/itb-extraction";
 import {
   DOCUMENT_MAX_BYTES,
+  DOCUMENT_MAX_ATTEMPTS,
+  DOCUMENT_PARSE_TIMEOUT_MS,
   DOCUMENT_PARSER_VERSION,
   documentSha256,
   inferDocumentRole,
@@ -806,8 +808,13 @@ const listEvidenceMappings = async (req: TenantRequest, intakeId: number, docume
   )).orderBy(desc(itbDocumentEvidenceMappingsTable.updatedAt));
 
 const parseWithTimeout = async (name: string, contentType: string, bytes: Buffer) => {
-  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Document parsing timed out")), 30_000));
-  return Promise.race([parseConstructionDocument(name, contentType, bytes), timeout]);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DOCUMENT_PARSE_TIMEOUT_MS);
+  try {
+    return await parseConstructionDocument(name, contentType, bytes, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
 };
 
 const processDocument = async (req: TenantRequest, intakeId: number, attachmentId: number, role?: string, existingId?: number) => {
@@ -943,7 +950,7 @@ router.post("/itb-intakes/:intakeId/documents/:documentId/retry", requireRole("o
     res.status(404).json({ error: "Document not found" });
     return;
   }
-  if (!["failed", "needs_review"].includes(current.document.status) || current.document.attemptCount >= 3) {
+  if (!["failed", "needs_review"].includes(current.document.status) || current.document.attemptCount >= DOCUMENT_MAX_ATTEMPTS) {
     res.status(409).json({ error: "This document cannot be retried" });
     return;
   }

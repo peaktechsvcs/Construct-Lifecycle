@@ -4570,6 +4570,7 @@ components:
         confidence: { type: number, minimum: 0, maximum: 1 }
         evidence: { type: string, maxLength: 700 }
         page: { type: ["integer", "null"], minimum: 1 }
+        ocrConfidence: { type: ["number", "null"], minimum: 0, maximum: 1 }
         status: { $ref: "#/components/schemas/ItbDocumentFindingStatus" }
         correctedValue: { type: ["string", "null"], maxLength: 500 }
     ItbDocument:

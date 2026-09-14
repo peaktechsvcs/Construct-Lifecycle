@@ -208,6 +208,12 @@ export interface ItbDocumentFinding {
      * @nullable
      */
   page?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1
+     * @nullable
+     */
+  ocrConfidence?: number | null;
   status: ItbDocumentFindingStatus;
   /**
      * @maxLength 500
