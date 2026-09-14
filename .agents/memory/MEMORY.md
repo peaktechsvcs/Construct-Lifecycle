@@ -23,3 +23,4 @@
 - [Local users in migrations](local-users-migrations.md) — additive foreign keys must target the physical `local_users` table, not the Drizzle model name.
 - [Integration schema drift](integration-schema-drift.md) — local control databases can lag source schemas; isolate focused route tests at the signed runtime boundary until migrations catch up.
 - [OpenAPI codegen contract](openapi-codegen-contract.md) — complete source schemas before regeneration; codegen cleans outputs and can remove stale generated types.
+- [Development schema push](development-schema-push.md) — a focused migration may be safer than full Drizzle push when unrelated orphaned foreign keys block schema reconciliation.

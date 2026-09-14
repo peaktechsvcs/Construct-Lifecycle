@@ -9,6 +9,7 @@ import {
   projectControlEventsTable,
   projectFinancialsTable,
   projectIssuesTable,
+  projectIssueNumberSequencesTable,
   projectPayApplicationsTable,
   projectCloseoutRequirementsTable,
   projectScheduleItemsTable,
@@ -65,6 +66,29 @@ const scope = (req: TenantRequest, table: { tenantId: any; environmentId: any })
 const money = (value: string | number | null | undefined) => Number(value ?? 0);
 const nullableDate = (value: Date | string | null | undefined) =>
   value == null ? null : value instanceof Date ? value.toISOString().slice(0, 10) : value;
+
+async function allocateIssueNumber(req: TenantRequest, projectId: number, issueType: string) {
+  const [sequence] = await db.insert(projectIssueNumberSequencesTable).values({
+    projectId,
+    issueType,
+    lastNumber: 1,
+    tenantId: req.tenantId!,
+    environmentId: req.environmentId!,
+  }).onConflictDoUpdate({
+    target: [
+      projectIssueNumberSequencesTable.tenantId,
+      projectIssueNumberSequencesTable.environmentId,
+      projectIssueNumberSequencesTable.projectId,
+      projectIssueNumberSequencesTable.issueType,
+    ],
+    set: {
+      lastNumber: sql`${projectIssueNumberSequencesTable.lastNumber} + 1`,
+      updatedAt: new Date(),
+    },
+  }).returning({ lastNumber: projectIssueNumberSequencesTable.lastNumber });
+  if (!sequence) throw new Error("Unable to allocate a project issue number");
+  return `${issueType === "rfi" ? "RFI" : "ISS"}-${String(sequence.lastNumber).padStart(3, "0")}`;
+}
 
 function toScheduleItem(row: typeof projectScheduleItemsTable.$inferSelect) {
   return { ...row };
@@ -474,11 +498,11 @@ router.post("/projects/:projectId/controls/issues", requireRole("owner", "admin"
   if (!await getProject(req, params.data.projectId)) { res.status(404).json({ error: "Project not found" }); return; }
   const linkError = await validateLinkedRecords(req, params.data.projectId, null, parsed.data.linkedSubmittalPackageId);
   if (linkError) { res.status(422).json({ error: linkError }); return; }
-  const [count] = await db.select({ count: sql<number>`count(*)::int` }).from(projectIssuesTable).where(and(scope(req, projectIssuesTable), eq(projectIssuesTable.projectId, params.data.projectId)));
+  const issueNumber = await allocateIssueNumber(req, params.data.projectId, parsed.data.issueType);
   const [row] = await db.insert(projectIssuesTable).values({
     ...parsed.data,
     projectId: params.data.projectId,
-    issueNumber: `${parsed.data.issueType === "rfi" ? "RFI" : "ISS"}-${String(Number(count.count) + 1).padStart(3, "0")}`,
+    issueNumber,
     ownerUserId: parsed.data.ownerUserId ?? null,
     responsibleParty: parsed.data.responsibleParty ?? null,
     status: parsed.data.status ?? "open",

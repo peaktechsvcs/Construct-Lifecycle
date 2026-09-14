@@ -126,6 +126,18 @@ export const projectCommitmentsTable = pgTable("project_commitments", {
   index("project_commitments_scope_idx").on(table.tenantId, table.environmentId, table.projectId),
 ]);
 
+export const projectIssueNumberSequencesTable = pgTable("project_issue_number_sequences", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projectsTable.id, { onDelete: "cascade" }),
+  issueType: text("issue_type").notNull(),
+  lastNumber: integer("last_number").notNull().default(0),
+  ...scopeColumns,
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("project_issue_number_sequences_scope_type_idx").on(table.tenantId, table.environmentId, table.projectId, table.issueType),
+]);
+
 export const projectIssuesTable = pgTable("project_issues", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").notNull().references(() => projectsTable.id, { onDelete: "cascade" }),
