@@ -24,6 +24,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@workspace/construct-lifecycle-design-system/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@workspace/construct-lifecycle-design-system/components/ui/tooltip';
 import { NotificationPreview } from '@/components/notification-preview';
+import { filterFeatureNavigationGroups } from '@/lib/feature-visibility';
 
 function OpenFollowUpDot() {
   const { data } = useListFollowUps({ query: { queryKey: getListFollowUpsQueryKey(), staleTime: 60000 } });
@@ -338,18 +339,11 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const breadcrumbLabel = getBreadcrumbLabel(location);
   const canManageSettings = activeRole === 'owner' || activeRole === 'admin';
-  const enabledFeatureKeys = new Set((featureFlagsQuery.data ?? []).map((feature) => feature.key));
-  const visibleNavigationGroups = NAVIGATION_GROUPS
-    .map((group) => ({
-      ...group,
-      items: group.items.filter(({ href }) => {
-        const featureKey = href.startsWith('/coming-soon/')
-          ? href.slice('/coming-soon/'.length)
-          : undefined;
-        return !featureKey || isPlatformAdmin || enabledFeatureKeys.has(featureKey);
-      }),
-    }))
-    .filter((group) => group.items.length > 0);
+  const visibleNavigationGroups = filterFeatureNavigationGroups(
+    NAVIGATION_GROUPS,
+    featureFlagsQuery.data,
+    isPlatformAdmin,
+  );
 
   return (
     <div className="min-h-[100dvh] bg-background">

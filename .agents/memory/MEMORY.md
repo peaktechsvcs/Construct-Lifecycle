@@ -21,3 +21,4 @@
 - [API integration test loading](api-integration-test-loading.md) — bundle DB-backed API tests before Node runs them because native stripping cannot resolve workspace TS imports.
 - [Environment access revocation](environment-access-revocation.md) — track explicit access configuration separately so empty grants are not restored by legacy backfill.
 - [Local users in migrations](local-users-migrations.md) — additive foreign keys must target the physical `local_users` table, not the Drizzle model name.
+- [Integration schema drift](integration-schema-drift.md) — local control databases can lag source schemas; isolate focused route tests at the signed runtime boundary until migrations catch up.

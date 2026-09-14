@@ -7,6 +7,7 @@
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "validate:routes": "node ../../scripts/validate-clc-routes.mjs",
     "validate:design-system": "node ../../scripts/validate-clc-design-system.mjs && pnpm run typecheck && PORT=4173 BASE_PATH=/ pnpm run build"

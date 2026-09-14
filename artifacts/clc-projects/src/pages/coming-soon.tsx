@@ -3,6 +3,7 @@ import { Link, Redirect, useParams } from 'wouter';
 import { Button, LoadingPanel } from '@/components/app-ui';
 import { useTenant } from '@/providers/tenant-provider';
 import { getListFeatureFlagsQueryKey, useListFeatureFlags } from '@workspace/api-client-react';
+import { canAccessComingSoonFeature } from '@/lib/feature-visibility';
 
 const destinations: Record<string, { section: string; description: string }> = {
   notifications: { section: 'Home', description: 'See alerts, mentions, approvals, and changes that need your attention.' },
@@ -49,7 +50,7 @@ export function ComingSoonPage() {
       retry: false,
     },
   });
-  const isVisible = isPlatformAdmin || featureFlagsQuery.data?.some((feature) => feature.key === item);
+  const isVisible = canAccessComingSoonFeature(item, featureFlagsQuery.data, isPlatformAdmin);
 
   if (featureFlagsQuery.isLoading) return <LoadingPanel lines={5} />;
   if (!isVisible) return <Redirect to="/overview" />;
