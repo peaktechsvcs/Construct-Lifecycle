@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import {
   db,
   integrationAuditEventsTable,
@@ -18,6 +18,8 @@ import {
   RevokeIntegrationResponse,
   ListIntegrationJobsQueryParams,
   ListIntegrationJobsResponse,
+  RetryIntegrationJobParams,
+  ReviewIntegrationJobParams,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
@@ -30,6 +32,11 @@ import {
 
 const router: IRouter = Router();
 const connectors = new ReplitConnectors();
+type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+const manualJobActionLimits = {
+  retry: { action: "job_retry_requested", limit: 3, windowMs: 10 * 60 * 1000 },
+  review: { action: "job_reviewed", limit: 30, windowMs: 10 * 60 * 1000 },
+} as const;
 
 const serializeConnection = (
   connection: typeof integrationsTable.$inferSelect,
@@ -91,6 +98,112 @@ const parseJson = (value: string | null | undefined): Record<string, unknown> =>
     return {};
   }
 };
+
+const serializeJob = (job: typeof integrationJobsTable.$inferSelect) => ({
+  id: job.id,
+  providerKey: job.providerKey,
+  jobType: job.jobType,
+  status: job.status,
+  attempts: job.attempts,
+  maxAttempts: job.maxAttempts,
+  nextRetryAt: job.nextRetryAt,
+  lastError: job.lastError,
+  deadLetteredAt: job.deadLetteredAt,
+  completedAt: job.completedAt,
+  createdAt: job.createdAt,
+  updatedAt: job.updatedAt,
+});
+
+const getScopedJob = async (req: TenantRequest, jobId: number) => {
+  const [job] = await db.select().from(integrationJobsTable).where(and(
+    eq(integrationJobsTable.id, jobId),
+    eq(integrationJobsTable.tenantId, req.tenantId!),
+    eq(integrationJobsTable.environmentId, req.environmentId!),
+  )).limit(1);
+  if (!job) return null;
+  const definition = await entitledConnector(req.tenantId!, job.providerKey);
+  return definition ? job : null;
+};
+
+const manualActionRateLimit = async (
+  tx: DatabaseTransaction,
+  req: TenantRequest,
+  action: keyof typeof manualJobActionLimits,
+) => {
+  const policy = manualJobActionLimits[action];
+  const windowStartedAt = new Date(Date.now() - policy.windowMs);
+  const [{ actionCount }] = await tx.select({ actionCount: count() })
+    .from(integrationAuditEventsTable)
+    .where(and(
+      eq(integrationAuditEventsTable.tenantId, req.tenantId!),
+      eq(integrationAuditEventsTable.environmentId, req.environmentId!),
+      eq(integrationAuditEventsTable.actorUserId, req.localUserId!),
+      eq(integrationAuditEventsTable.action, policy.action),
+      gte(integrationAuditEventsTable.createdAt, windowStartedAt),
+    ));
+  const currentCount = Number(actionCount);
+  if (currentCount < policy.limit) return null;
+  return Math.max(1, Math.ceil((windowStartedAt.getTime() + policy.windowMs - Date.now()) / 1000));
+};
+
+const actionLockKey = (req: TenantRequest, action: keyof typeof manualJobActionLimits) =>
+  `integration-job:${action}:${req.tenantId}:${req.environmentId}:${req.localUserId}`;
+
+async function mutateJob(
+  req: TenantRequest,
+  jobId: number,
+  action: keyof typeof manualJobActionLimits,
+) {
+  const job = await getScopedJob(req, jobId);
+  if (!job) return { kind: "missing" as const };
+
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${actionLockKey(req, action)}))`);
+    const retryAfterSeconds = await manualActionRateLimit(tx, req, action);
+    if (retryAfterSeconds) return { kind: "rate_limited" as const, retryAfterSeconds };
+
+    const eligibleStatuses = action === "retry" ? ["retry", "dead_letter"] : ["dead_letter"];
+    const [updated] = await tx.update(integrationJobsTable).set(
+      action === "retry"
+        ? {
+            status: "queued",
+            attempts: 0,
+            nextRetryAt: new Date(),
+            deadLetteredAt: null,
+            completedAt: null,
+            updatedAt: new Date(),
+          }
+        : {
+            status: "reviewed",
+            nextRetryAt: null,
+            updatedAt: new Date(),
+          },
+    ).where(and(
+      eq(integrationJobsTable.id, jobId),
+      eq(integrationJobsTable.tenantId, req.tenantId!),
+      eq(integrationJobsTable.environmentId, req.environmentId!),
+      inArray(integrationJobsTable.status, eligibleStatuses),
+    )).returning();
+
+    if (!updated) return { kind: "ineligible" as const };
+    await tx.insert(integrationAuditEventsTable).values({
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+      integrationId: updated.integrationId,
+      providerKey: updated.providerKey,
+      action: manualJobActionLimits[action].action,
+      details: JSON.stringify({
+        jobId: updated.id,
+        jobType: updated.jobType,
+        previousStatus: job.status,
+        previousAttempts: job.attempts,
+        maxAttempts: job.maxAttempts,
+      }),
+      actorUserId: req.localUserId!,
+    });
+    return { kind: "updated" as const, job: updated };
+  });
+}
 
 router.get("/integrations", requireRole("owner", "admin"), async (req: TenantRequest, res): Promise<void> => {
   const [entitlements, connections, latestActivity, jobs] = await Promise.all([
@@ -397,20 +510,53 @@ router.get("/integrations/jobs", requireRole("owner", "admin"), async (req: Tena
     .orderBy(desc(integrationJobsTable.updatedAt))
     .limit(query.data.limit);
 
-  res.json(ListIntegrationJobsResponse.parse(jobs.map((job) => ({
-    id: job.id,
-    providerKey: job.providerKey,
-    jobType: job.jobType,
-    status: job.status,
-    attempts: job.attempts,
-    maxAttempts: job.maxAttempts,
-    nextRetryAt: job.nextRetryAt,
-    lastError: job.lastError,
-    deadLetteredAt: job.deadLetteredAt,
-    completedAt: job.completedAt,
-    createdAt: job.createdAt,
-    updatedAt: job.updatedAt,
-  }))));
+  res.json(ListIntegrationJobsResponse.parse(jobs.map(serializeJob)));
+});
+
+router.post("/integrations/jobs/:jobId/retry", requireRole("owner", "admin"), async (req: TenantRequest, res): Promise<void> => {
+  const params = RetryIntegrationJobParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid integration job" });
+    return;
+  }
+  const result = await mutateJob(req, params.data.jobId, "retry");
+  if (result.kind === "missing") {
+    res.status(404).json({ error: "Integration job not available" });
+    return;
+  }
+  if (result.kind === "rate_limited") {
+    res.setHeader("Retry-After", String(result.retryAfterSeconds));
+    res.status(429).json({ error: "Retry requests are limited. Try again shortly." });
+    return;
+  }
+  if (result.kind === "ineligible") {
+    res.status(409).json({ error: "Only retrying or dead-letter connector jobs can be queued again." });
+    return;
+  }
+  res.json(serializeJob(result.job));
+});
+
+router.post("/integrations/jobs/:jobId/review", requireRole("owner", "admin"), async (req: TenantRequest, res): Promise<void> => {
+  const params = ReviewIntegrationJobParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid integration job" });
+    return;
+  }
+  const result = await mutateJob(req, params.data.jobId, "review");
+  if (result.kind === "missing") {
+    res.status(404).json({ error: "Integration job not available" });
+    return;
+  }
+  if (result.kind === "rate_limited") {
+    res.setHeader("Retry-After", String(result.retryAfterSeconds));
+    res.status(429).json({ error: "Review requests are limited. Try again shortly." });
+    return;
+  }
+  if (result.kind === "ineligible") {
+    res.status(409).json({ error: "Only dead-letter connector jobs can be marked reviewed." });
+    return;
+  }
+  res.json(serializeJob(result.job));
 });
 
 export default router;

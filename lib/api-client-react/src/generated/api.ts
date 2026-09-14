@@ -17966,6 +17966,148 @@ export function useListIntegrationJobs<TData = Awaited<ReturnType<typeof listInt
 
 
 
+export const getRetryIntegrationJobUrl = (jobId: number,) => {
+
+
+
+
+  return `/api/integrations/jobs/${jobId}/retry`
+}
+
+/**
+ * @summary Request one bounded retry for an eligible connector job
+ */
+export const retryIntegrationJob = async (jobId: number, options?: Parameters<typeof customFetch>[1]): Promise<IntegrationJob> => {
+
+  return customFetch<IntegrationJob>(getRetryIntegrationJobUrl(jobId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryIntegrationJobMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryIntegrationJob>>, TError,{jobId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryIntegrationJob>>, TError,{jobId: number}, TContext> => {
+
+const mutationKey = ['retryIntegrationJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryIntegrationJob>>, {jobId: number}> = (props) => {
+          const {jobId} = props ?? {};
+
+          return  retryIntegrationJob(jobId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryIntegrationJobMutationResult = NonNullable<Awaited<ReturnType<typeof retryIntegrationJob>>>
+
+    export type RetryIntegrationJobMutationError = ErrorType<void>
+
+    /**
+ * @summary Request one bounded retry for an eligible connector job
+ */
+export const useRetryIntegrationJob = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryIntegrationJob>>, TError,{jobId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryIntegrationJob>>,
+        TError,
+        {jobId: number},
+        TContext
+      > => {
+      return useMutation(getRetryIntegrationJobMutationOptions(options));
+    }
+
+export const getReviewIntegrationJobUrl = (jobId: number,) => {
+
+
+
+
+  return `/api/integrations/jobs/${jobId}/review`
+}
+
+/**
+ * @summary Mark a dead-letter connector job as reviewed
+ */
+export const reviewIntegrationJob = async (jobId: number, options?: Parameters<typeof customFetch>[1]): Promise<IntegrationJob> => {
+
+  return customFetch<IntegrationJob>(getReviewIntegrationJobUrl(jobId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReviewIntegrationJobMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewIntegrationJob>>, TError,{jobId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewIntegrationJob>>, TError,{jobId: number}, TContext> => {
+
+const mutationKey = ['reviewIntegrationJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewIntegrationJob>>, {jobId: number}> = (props) => {
+          const {jobId} = props ?? {};
+
+          return  reviewIntegrationJob(jobId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewIntegrationJobMutationResult = NonNullable<Awaited<ReturnType<typeof reviewIntegrationJob>>>
+
+    export type ReviewIntegrationJobMutationError = ErrorType<void>
+
+    /**
+ * @summary Mark a dead-letter connector job as reviewed
+ */
+export const useReviewIntegrationJob = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewIntegrationJob>>, TError,{jobId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewIntegrationJob>>,
+        TError,
+        {jobId: number},
+        TContext
+      > => {
+      return useMutation(getReviewIntegrationJobMutationOptions(options));
+    }
+
 export const getGetEnvironmentResourcesUrl = (environmentId: number,) => {
 
 

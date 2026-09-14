@@ -4025,6 +4025,46 @@ paths:
                 items: { $ref: "#/components/schemas/IntegrationJob" }
         "403": { description: Customer administrator permission required }
         "404": { description: Integration provider not available }
+  /integrations/jobs/{jobId}/retry:
+    post:
+      operationId: retryIntegrationJob
+      tags: [integrations]
+      summary: Request one bounded retry for an eligible connector job
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Connector job queued for retry
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationJob" }
+        "403": { description: Customer administrator permission required }
+        "404": { description: Integration job not available }
+        "409": { description: Integration job is not eligible for retry }
+        "429": { description: Retry action rate limit exceeded }
+  /integrations/jobs/{jobId}/review:
+    post:
+      operationId: reviewIntegrationJob
+      tags: [integrations]
+      summary: Mark a dead-letter connector job as reviewed
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Dead-letter connector job marked reviewed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationJob" }
+        "403": { description: Customer administrator permission required }
+        "404": { description: Integration job not available }
+        "409": { description: Integration job is not eligible for review }
+        "429": { description: Review action rate limit exceeded }
   /platform/environments/{environmentId}/resources:
     get:
       operationId: getEnvironmentResources
@@ -7271,7 +7311,7 @@ components:
         updatedAt: { type: string, format: date-time }
     IntegrationJobStatus:
       type: string
-      enum: [queued, processing, succeeded, retry, dead_letter, failed]
+      enum: [queued, processing, succeeded, retry, dead_letter, failed, reviewed]
     WorkflowTemplate:
       type: object
       required: [id, tenantId, environmentId, name, activeProjectStatusKeys, status, isDefault, version, createdAt, updatedAt]

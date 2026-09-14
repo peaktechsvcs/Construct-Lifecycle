@@ -12969,7 +12969,7 @@ export const ListIntegrationJobsResponseItem = zod.object({
   "id": zod.number().int(),
   "providerKey": zod.string(),
   "jobType": zod.string(),
-  "status": zod.enum(['queued', 'processing', 'succeeded', 'retry', 'dead_letter', 'failed']),
+  "status": zod.enum(['queued', 'processing', 'succeeded', 'retry', 'dead_letter', 'failed', 'reviewed']),
   "attempts": zod.number().int().min(listIntegrationJobsResponseAttemptsMin),
   "maxAttempts": zod.number().int().min(1),
   "nextRetryAt": zod.coerce.date().nullable(),
@@ -12980,6 +12980,68 @@ export const ListIntegrationJobsResponseItem = zod.object({
   "updatedAt": zod.coerce.date()
 })
 export const ListIntegrationJobsResponse = zod.array(ListIntegrationJobsResponseItem)
+
+
+/**
+ * @summary Request one bounded retry for an eligible connector job
+ */
+
+
+
+export const RetryIntegrationJobParams = zod.object({
+  "jobId": zod.coerce.number().int().min(1)
+})
+
+export const retryIntegrationJobResponseAttemptsMin = 0;
+
+
+
+
+export const RetryIntegrationJobResponse = zod.object({
+  "id": zod.number().int(),
+  "providerKey": zod.string(),
+  "jobType": zod.string(),
+  "status": zod.enum(['queued', 'processing', 'succeeded', 'retry', 'dead_letter', 'failed', 'reviewed']),
+  "attempts": zod.number().int().min(retryIntegrationJobResponseAttemptsMin),
+  "maxAttempts": zod.number().int().min(1),
+  "nextRetryAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "deadLetteredAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Mark a dead-letter connector job as reviewed
+ */
+
+
+
+export const ReviewIntegrationJobParams = zod.object({
+  "jobId": zod.coerce.number().int().min(1)
+})
+
+export const reviewIntegrationJobResponseAttemptsMin = 0;
+
+
+
+
+export const ReviewIntegrationJobResponse = zod.object({
+  "id": zod.number().int(),
+  "providerKey": zod.string(),
+  "jobType": zod.string(),
+  "status": zod.enum(['queued', 'processing', 'succeeded', 'retry', 'dead_letter', 'failed', 'reviewed']),
+  "attempts": zod.number().int().min(reviewIntegrationJobResponseAttemptsMin),
+  "maxAttempts": zod.number().int().min(1),
+  "nextRetryAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "deadLetteredAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
 
 
 /**

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Activity, Cable, CheckCircle2, CircleAlert, Clock3, Database, History, LockKeyhole, X } from 'lucide-react';
+import { Activity, Cable, CheckCircle2, CircleAlert, Clock3, Database, History, LockKeyhole, RotateCcw, ClipboardCheck, X } from 'lucide-react';
 import {
   getListIntegrationActivityQueryKey,
   getListIntegrationJobsQueryKey,
@@ -9,6 +9,8 @@ import {
   useListIntegrationActivity,
   useListIntegrationJobs,
   useListIntegrations,
+  useRetryIntegrationJob,
+  useReviewIntegrationJob,
   useRevokeIntegration,
 } from '@workspace/api-client-react';
 import { useTenant } from '@/providers/tenant-provider';
@@ -64,6 +66,8 @@ export function IntegrationsAdmin() {
   });
   const connectIntegration = useConnectIntegration();
   const revokeIntegration = useRevokeIntegration();
+  const retryIntegrationJob = useRetryIntegrationJob();
+  const reviewIntegrationJob = useReviewIntegrationJob();
   const activityParams = useMemo(
     () => ({ providerKey: selectedProvider || 'unselected', limit: 20 }),
     [selectedProvider],
@@ -113,6 +117,27 @@ export function IntegrationsAdmin() {
     revokeIntegration.mutate({ providerKey: selectedProvider }, {
       onSuccess: refreshIntegration,
       onError: (error) => setActionError(error instanceof Error ? error.message : 'The integration could not be disconnected.'),
+    });
+  };
+
+  const refreshJobHistory = () => {
+    refreshIntegration();
+    void jobsQuery.refetch();
+  };
+
+  const handleRetryJob = (jobId: number) => {
+    setActionError(null);
+    retryIntegrationJob.mutate({ jobId }, {
+      onSuccess: refreshJobHistory,
+      onError: (error) => setActionError(error instanceof Error ? error.message : 'The connector job could not be queued for retry.'),
+    });
+  };
+
+  const handleReviewJob = (jobId: number) => {
+    setActionError(null);
+    reviewIntegrationJob.mutate({ jobId }, {
+      onSuccess: refreshJobHistory,
+      onError: (error) => setActionError(error instanceof Error ? error.message : 'The connector job could not be marked reviewed.'),
     });
   };
 
@@ -236,7 +261,6 @@ export function IntegrationsAdmin() {
                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
                          Replit manages provider authorization. This action attaches or removes that authorization for the active environment only; no provider credentials are stored here.
                        </p>
-                       {actionError && <p className="mt-3 rounded-md bg-status-danger/10 px-3 py-2 text-xs text-status-danger">{actionError}</p>}
                        <div className="mt-4 flex flex-wrap gap-2">
                          {selectedIsConnected ? (
                            <Button variant="ghost" onClick={handleRevoke} disabled={revokeIntegration.isPending}>
@@ -250,8 +274,26 @@ export function IntegrationsAdmin() {
                        </div>
                      </div>
                    )}
+                   {actionError && <p className="rounded-md bg-status-danger/10 px-3 py-2 text-xs text-status-danger" role="alert">{actionError}</p>}
                   <div><div className="mb-3 flex items-center gap-2"><Activity size={15} className="text-primary" /><h3 className="text-xs font-bold">Recent activity</h3></div>{activityQuery.isLoading ? <LoadingPanel lines={3} /> : activityQuery.isError ? <ErrorPanel onRetry={() => activityQuery.refetch()} /> : activityQuery.data?.length ? <div className="space-y-3">{activityQuery.data.map((entry) => <div key={entry.id} className="border-l-2 border-primary/25 pl-3"><p className="text-xs font-semibold">{entry.action}</p><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{formatDetail(entry.details)}</p><p className="mono mt-1 flex items-center gap-1 text-[9px] uppercase tracking-wider text-muted-foreground"><Clock3 size={10} />{shortDate(entry.createdAt)}</p></div>)}</div> : <p className="text-xs text-muted-foreground">No activity has been recorded for this integration.</p>}</div>
-                   <div><div className="mb-3 flex items-center gap-2"><History size={15} className="text-primary" /><h3 className="text-xs font-bold">Job history</h3></div>{jobsQuery.isLoading ? <LoadingPanel lines={3} /> : jobsQuery.isError ? <ErrorPanel onRetry={() => jobsQuery.refetch()} /> : jobsQuery.data?.length ? <div className="space-y-3">{jobsQuery.data.map((job) => <div key={job.id} className="rounded-md border border-border bg-background p-3"><div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold">{job.jobType}</p><Badge tone={job.status === 'dead_letter' || job.status === 'failed' ? 'red' : job.status === 'retry' ? 'orange' : job.status === 'succeeded' ? 'green' : 'neutral'}>{job.status.replaceAll('_', ' ')}</Badge></div><p className="mt-1 text-[10px] text-muted-foreground">Attempt {job.attempts} of {job.maxAttempts} · Updated {shortDate(job.updatedAt)}</p>{job.lastError && <p className="mt-2 text-[10px] leading-4 text-status-danger">{job.lastError}</p>}</div>)}</div> : <p className="text-xs text-muted-foreground">No connector jobs have been recorded for this provider.</p>}</div>
+                   <div>
+                     <div className="mb-3 flex items-center gap-2"><History size={15} className="text-primary" /><h3 className="text-xs font-bold">Job history</h3></div>
+                     {jobsQuery.isLoading ? <LoadingPanel lines={3} /> : jobsQuery.isError ? <ErrorPanel onRetry={() => jobsQuery.refetch()} /> : jobsQuery.data?.length ? <div className="space-y-3">{jobsQuery.data.map((job) => {
+                       const canRetry = job.status === 'retry' || job.status === 'dead_letter';
+                       const canReview = job.status === 'dead_letter';
+                       const actionPending = (retryIntegrationJob.isPending && retryIntegrationJob.variables?.jobId === job.id)
+                         || (reviewIntegrationJob.isPending && reviewIntegrationJob.variables?.jobId === job.id);
+                       return <div key={job.id} className="rounded-md border border-border bg-background p-3">
+                         <div className="flex items-start justify-between gap-3"><p className="text-xs font-semibold">{job.jobType}</p><Badge tone={job.status === 'dead_letter' || job.status === 'failed' ? 'red' : job.status === 'retry' ? 'orange' : job.status === 'reviewed' ? 'teal' : job.status === 'succeeded' ? 'green' : 'neutral'}>{job.status.replaceAll('_', ' ')}</Badge></div>
+                         <p className="mt-1 text-[10px] text-muted-foreground">Attempt {job.attempts} of {job.maxAttempts} · Updated {shortDate(job.updatedAt)}</p>
+                         {job.lastError && <p className="mt-2 text-[10px] leading-4 text-status-danger">{job.lastError}</p>}
+                         {(canRetry || canReview) && <div className="mt-3 flex flex-wrap gap-2">
+                           {canRetry && <Button variant="outline" onClick={() => handleRetryJob(job.id)} disabled={actionPending} aria-label={`Retry ${job.jobType}`}><RotateCcw size={13} />{actionPending ? 'Working…' : 'Retry now'}</Button>}
+                           {canReview && <Button variant="ghost" onClick={() => handleReviewJob(job.id)} disabled={actionPending} aria-label={`Mark ${job.jobType} reviewed`}><ClipboardCheck size={13} />Mark reviewed</Button>}
+                         </div>}
+                       </div>;
+                     })}</div> : <p className="text-xs text-muted-foreground">No connector jobs have been recorded for this provider.</p>}
+                   </div>
                 </div>
               </>
             )}

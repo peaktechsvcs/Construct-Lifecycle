@@ -16,4 +16,5 @@ export const IntegrationJobStatus = {
   retry: 'retry',
   dead_letter: 'dead_letter',
   failed: 'failed',
+  reviewed: 'reviewed',
 } as const;
