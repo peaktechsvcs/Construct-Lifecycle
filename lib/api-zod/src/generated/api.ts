@@ -12828,7 +12828,7 @@ export const listIntegrationsResponseConnectionOneDeadLetterCountMin = 0;
 export const ListIntegrationsResponseItem = zod.object({
   "providerKey": zod.string(),
   "name": zod.string(),
-  "category": zod.enum(['productivity_collaboration', 'erp_financial', 'accounting', 'takeoff_estimating', 'ecommerce', 'product_information']),
+  "category": zod.enum(['productivity_collaboration', 'erp_financial', 'accounting', 'e_signature', 'takeoff_estimating', 'ecommerce', 'product_information']),
   "categoryLabel": zod.string(),
   "description": zod.string(),
   "capabilities": zod.array(zod.string()),

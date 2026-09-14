@@ -7241,7 +7241,7 @@ components:
       properties:
         providerKey: { type: string }
         name: { type: string }
-        category: { type: string, enum: [productivity_collaboration, erp_financial, accounting, takeoff_estimating, ecommerce, product_information] }
+        category: { type: string, enum: [productivity_collaboration, erp_financial, accounting, e_signature, takeoff_estimating, ecommerce, product_information] }
         categoryLabel: { type: string }
         description: { type: string }
         capabilities:

@@ -4764,6 +4764,7 @@ export const IntegrationCatalogItemCategory = {
   productivity_collaboration: 'productivity_collaboration',
   erp_financial: 'erp_financial',
   accounting: 'accounting',
+  e_signature: 'e_signature',
   takeoff_estimating: 'takeoff_estimating',
   ecommerce: 'ecommerce',
   product_information: 'product_information',
