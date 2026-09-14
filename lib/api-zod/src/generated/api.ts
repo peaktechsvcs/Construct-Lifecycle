@@ -2250,6 +2250,7 @@ export const CreateSubcontractAgreementResponse = zod.object({
   "approvedValue": zod.number(),
   "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
   "scheduleImpactDays": zod.number().int(),
+  "rejectionReason": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })),
@@ -2272,6 +2273,19 @@ export const CreateSubcontractAgreementResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })),
+  "waivers": zod.array(zod.object({
+  "id": zod.number().int(),
+  "payApplicationId": zod.number().int(),
+  "waiverType": zod.enum(['conditional', 'unconditional', 'final']),
+  "status": zod.enum(['missing', 'submitted', 'approved', 'rejected']),
+  "objectPath": zod.string().nullable(),
+  "receivedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewedByUserId": zod.number().int().nullish(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
   "closeoutItems": zod.array(zod.object({
   "id": zod.number().int(),
   "agreementId": zod.number().int(),
@@ -2282,6 +2296,7 @@ export const CreateSubcontractAgreementResponse = zod.object({
   "objectPath": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "completedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }))
@@ -2338,6 +2353,7 @@ export const GetSubcontractAgreementResponse = zod.object({
   "approvedValue": zod.number(),
   "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
   "scheduleImpactDays": zod.number().int(),
+  "rejectionReason": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })),
@@ -2360,6 +2376,19 @@ export const GetSubcontractAgreementResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })),
+  "waivers": zod.array(zod.object({
+  "id": zod.number().int(),
+  "payApplicationId": zod.number().int(),
+  "waiverType": zod.enum(['conditional', 'unconditional', 'final']),
+  "status": zod.enum(['missing', 'submitted', 'approved', 'rejected']),
+  "objectPath": zod.string().nullable(),
+  "receivedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewedByUserId": zod.number().int().nullish(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
   "closeoutItems": zod.array(zod.object({
   "id": zod.number().int(),
   "agreementId": zod.number().int(),
@@ -2370,6 +2399,7 @@ export const GetSubcontractAgreementResponse = zod.object({
   "objectPath": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "completedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }))
@@ -2463,6 +2493,7 @@ export const CreateSubcontractChangeOrderResponse = zod.object({
   "approvedValue": zod.number(),
   "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
   "scheduleImpactDays": zod.number().int(),
+  "rejectionReason": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -2549,6 +2580,110 @@ export const CreateSubcontractWaiverResponse = zod.object({
   "objectPath": zod.string().nullable(),
   "receivedAt": zod.coerce.date().nullable(),
   "reviewedAt": zod.coerce.date().nullable(),
+  "reviewedByUserId": zod.number().int().nullish(),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Approve or reject a subcontract pay application
+ */
+export const ReviewSubcontractPayApplicationParams = zod.object({
+  "applicationId": zod.coerce.number().int()
+})
+
+export const reviewSubcontractPayApplicationBodyReasonMax = 2000;
+
+
+
+export const ReviewSubcontractPayApplicationBody = zod.object({
+  "decision": zod.enum(['approved', 'rejected']),
+  "reason": zod.string().min(1).max(reviewSubcontractPayApplicationBodyReasonMax).optional()
+})
+
+export const reviewSubcontractPayApplicationResponseSupportingDocumentPathsItemRegExp = new RegExp('^/objects');
+
+
+export const ReviewSubcontractPayApplicationResponse = zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "applicationNumber": zod.string(),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "grossAmount": zod.number(),
+  "retainageAmount": zod.number(),
+  "netAmount": zod.number(),
+  "storedMaterialsAmount": zod.number(),
+  "status": zod.enum(['draft', 'submitted', 'approved', 'rejected', 'paid']),
+  "waiverStatus": zod.enum(['missing', 'conditional', 'unconditional', 'final']),
+  "rejectionReason": zod.string().nullable(),
+  "supportingDocumentPaths": zod.array(zod.string().regex(reviewSubcontractPayApplicationResponseSupportingDocumentPathsItemRegExp)),
+  "submittedAt": zod.coerce.date().nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Approve or reject a subcontract change order
+ */
+export const ReviewSubcontractChangeOrderParams = zod.object({
+  "changeOrderId": zod.coerce.number().int()
+})
+
+export const reviewSubcontractChangeOrderBodyReasonMax = 2000;
+
+
+
+export const ReviewSubcontractChangeOrderBody = zod.object({
+  "decision": zod.enum(['approved', 'rejected']),
+  "reason": zod.string().min(1).max(reviewSubcontractChangeOrderBodyReasonMax).optional()
+})
+
+export const ReviewSubcontractChangeOrderResponse = zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "changeNumber": zod.string(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "proposedValue": zod.number(),
+  "approvedValue": zod.number(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "scheduleImpactDays": zod.number().int(),
+  "rejectionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Approve or reject a subcontract waiver
+ */
+export const ReviewSubcontractWaiverParams = zod.object({
+  "waiverId": zod.coerce.number().int()
+})
+
+export const reviewSubcontractWaiverBodyReasonMax = 2000;
+
+
+
+export const ReviewSubcontractWaiverBody = zod.object({
+  "decision": zod.enum(['approved', 'rejected']),
+  "reason": zod.string().min(1).max(reviewSubcontractWaiverBodyReasonMax).optional()
+})
+
+export const ReviewSubcontractWaiverResponse = zod.object({
+  "id": zod.number().int(),
+  "payApplicationId": zod.number().int(),
+  "waiverType": zod.enum(['conditional', 'unconditional', 'final']),
+  "status": zod.enum(['missing', 'submitted', 'approved', 'rejected']),
+  "objectPath": zod.string().nullable(),
+  "receivedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewedByUserId": zod.number().int().nullish(),
   "notes": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -2587,6 +2722,39 @@ export const CreateSubcontractCloseoutItemResponse = zod.object({
   "objectPath": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "completedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Approve or reject subcontract closeout evidence
+ */
+export const ReviewSubcontractCloseoutItemParams = zod.object({
+  "closeoutItemId": zod.coerce.number().int()
+})
+
+export const reviewSubcontractCloseoutItemBodyReasonMax = 2000;
+
+
+
+export const ReviewSubcontractCloseoutItemBody = zod.object({
+  "decision": zod.enum(['approved', 'rejected']),
+  "reason": zod.string().min(1).max(reviewSubcontractCloseoutItemBodyReasonMax).optional()
+})
+
+export const ReviewSubcontractCloseoutItemResponse = zod.object({
+  "id": zod.number().int(),
+  "agreementId": zod.number().int(),
+  "itemType": zod.enum(['warranty', 'as_built', 'operations_manual', 'final_release', 'other']),
+  "title": zod.string(),
+  "status": zod.enum(['open', 'submitted', 'approved', 'rejected', 'waived']),
+  "dueDate": zod.coerce.date().nullable(),
+  "objectPath": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

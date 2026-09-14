@@ -43,6 +43,14 @@ import {
   UpdateTradePartnerBody,
   UpdateTradePartnerComplianceDocumentBody,
   UpdateTradePartnerComplianceDocumentParams,
+  ReviewSubcontractChangeOrderBody,
+  ReviewSubcontractChangeOrderParams,
+  ReviewSubcontractCloseoutItemBody,
+  ReviewSubcontractCloseoutItemParams,
+  ReviewSubcontractPayApplicationBody,
+  ReviewSubcontractPayApplicationParams,
+  ReviewSubcontractWaiverBody,
+  ReviewSubcontractWaiverParams,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { getCurrentTenantRole, requireRole } from "../middlewares/rbac";
@@ -269,6 +277,10 @@ function serializeChangeOrder(row: typeof subcontractChangeOrdersTable.$inferSel
 
 function serializePayApplication(row: typeof subcontractPayApplicationsTable.$inferSelect) {
   return { ...row, grossAmount: money(row.grossAmount), retainageAmount: money(row.retainageAmount), netAmount: money(row.netAmount), storedMaterialsAmount: money(row.storedMaterialsAmount) };
+}
+
+function serializeWaiver(row: typeof subcontractWaiversTable.$inferSelect) {
+  return row;
 }
 
 router.get("/trade-partners", async (req: TenantRequest, res) => {
@@ -678,6 +690,19 @@ async function getAgreement(req: TenantRequest, agreementId: number) {
   return row;
 }
 
+async function recalculateAgreementCurrentValue(req: TenantRequest, agreementId: number) {
+  const row = await getAgreement(req, agreementId);
+  if (!row) return;
+  const changes = await db.select({ approvedValue: subcontractChangeOrdersTable.approvedValue })
+    .from(subcontractChangeOrdersTable)
+    .where(and(scope(req, subcontractChangeOrdersTable), eq(subcontractChangeOrdersTable.agreementId, agreementId), eq(subcontractChangeOrdersTable.approvalStatus, "approved")));
+  const approvedChanges = changes.reduce((total, change) => total + money(change.approvedValue), 0);
+  await db.update(subcontractAgreementsTable).set({
+    currentValue: String(money(row.agreement.originalValue) + approvedChanges),
+    updatedAt: new Date(),
+  }).where(and(scope(req, subcontractAgreementsTable), eq(subcontractAgreementsTable.id, agreementId)));
+}
+
 async function getAgreementWithGate(req: TenantRequest, agreementId: number, gate: "award" | "mobilization" | "billing" | "closeout") {
   const row = await getAgreement(req, agreementId);
   if (!row) return { row: null, error: "Subcontract agreement not found" };
@@ -713,7 +738,7 @@ router.post("/projects/:projectId/subcontract-agreements", requireRole("owner", 
     environmentId: req.environmentId!,
   }).returning();
   await audit(req, "subcontract_agreement", row.id, "subcontract_agreement_created", null, row.approvalStatus);
-  res.status(201).json({ ...serializeAgreement(row, partner.companyName), scheduleOfValues: [], changeOrders: [], payApplications: [], closeoutItems: [] });
+  res.status(201).json({ ...serializeAgreement(row, partner.companyName), scheduleOfValues: [], changeOrders: [], payApplications: [], waivers: [], closeoutItems: [] });
 });
 
 router.get("/subcontract-agreements/:agreementId", async (req: TenantRequest, res) => {
@@ -721,10 +746,11 @@ router.get("/subcontract-agreements/:agreementId", async (req: TenantRequest, re
   if (!path.success) { res.status(400).json({ error: "Invalid subcontract agreement id" }); return; }
   const row = await getAgreement(req, path.data.agreementId);
   if (!row) { res.status(404).json({ error: "Subcontract agreement not found" }); return; }
-  const [scheduleOfValues, changeOrders, payApplications, closeoutItems] = await Promise.all([
+  const [scheduleOfValues, changeOrders, payApplications, waivers, closeoutItems] = await Promise.all([
     db.select().from(subcontractScheduleOfValuesTable).where(and(scope(req, subcontractScheduleOfValuesTable), eq(subcontractScheduleOfValuesTable.agreementId, row.agreement.id))).orderBy(asc(subcontractScheduleOfValuesTable.lineNumber)),
     db.select().from(subcontractChangeOrdersTable).where(and(scope(req, subcontractChangeOrdersTable), eq(subcontractChangeOrdersTable.agreementId, row.agreement.id))).orderBy(desc(subcontractChangeOrdersTable.updatedAt)),
     db.select().from(subcontractPayApplicationsTable).where(and(scope(req, subcontractPayApplicationsTable), eq(subcontractPayApplicationsTable.agreementId, row.agreement.id))).orderBy(desc(subcontractPayApplicationsTable.updatedAt)),
+    db.select({ waiver: subcontractWaiversTable }).from(subcontractWaiversTable).innerJoin(subcontractPayApplicationsTable, and(eq(subcontractWaiversTable.payApplicationId, subcontractPayApplicationsTable.id), scope(req, subcontractPayApplicationsTable))).where(and(scope(req, subcontractWaiversTable), eq(subcontractPayApplicationsTable.agreementId, row.agreement.id))).orderBy(desc(subcontractWaiversTable.updatedAt)),
     db.select().from(subcontractCloseoutItemsTable).where(and(scope(req, subcontractCloseoutItemsTable), eq(subcontractCloseoutItemsTable.agreementId, row.agreement.id))).orderBy(asc(subcontractCloseoutItemsTable.dueDate)),
   ]);
   res.json({
@@ -732,6 +758,7 @@ router.get("/subcontract-agreements/:agreementId", async (req: TenantRequest, re
     scheduleOfValues: scheduleOfValues.map(serializeScheduleValue),
     changeOrders: changeOrders.map(serializeChangeOrder),
     payApplications: payApplications.map(serializePayApplication),
+    waivers: waivers.map((item) => serializeWaiver(item.waiver)),
     closeoutItems,
   });
 });
@@ -831,6 +858,93 @@ router.post("/subcontract-pay-applications/:applicationId/waivers", requireRole(
   res.status(201).json(waiver);
 });
 
+router.post("/subcontract-pay-applications/:applicationId/review", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+  const path = ReviewSubcontractPayApplicationParams.safeParse(req.params);
+  const parsed = ReviewSubcontractPayApplicationBody.safeParse(req.body);
+  if (!path.success || !parsed.success) { res.status(400).json({ error: "Invalid pay application review" }); return; }
+  if (parsed.data.decision === "rejected" && !parsed.data.reason?.trim()) { res.status(400).json({ error: "A rejection reason is required" }); return; }
+  const [application] = await db.select().from(subcontractPayApplicationsTable).where(and(
+    scope(req, subcontractPayApplicationsTable),
+    eq(subcontractPayApplicationsTable.id, path.data.applicationId),
+  ));
+  if (!application) { res.status(404).json({ error: "Pay application not found" }); return; }
+  if (application.status !== "submitted") { res.status(409).json({ error: "Only submitted pay applications can be reviewed" }); return; }
+  const [updated] = await db.update(subcontractPayApplicationsTable).set({
+    status: parsed.data.decision,
+    approvedByUserId: parsed.data.decision === "approved" ? req.localUserId : null,
+    approvedAt: parsed.data.decision === "approved" ? new Date() : null,
+    rejectionReason: parsed.data.decision === "rejected" ? parsed.data.reason!.trim() : null,
+    updatedAt: new Date(),
+  }).where(and(
+    scope(req, subcontractPayApplicationsTable),
+    eq(subcontractPayApplicationsTable.id, application.id),
+    eq(subcontractPayApplicationsTable.status, "submitted"),
+  )).returning();
+  if (!updated) { res.status(409).json({ error: "Pay application was already reviewed" }); return; }
+  await audit(req, "subcontract_pay_application", updated.id, `subcontract_pay_application_${parsed.data.decision}`, application.status, updated.status, parsed.data.reason?.trim());
+  res.json(serializePayApplication(updated));
+});
+
+router.post("/subcontract-change-orders/:changeOrderId/review", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+  const path = ReviewSubcontractChangeOrderParams.safeParse(req.params);
+  const parsed = ReviewSubcontractChangeOrderBody.safeParse(req.body);
+  if (!path.success || !parsed.success) { res.status(400).json({ error: "Invalid change order review" }); return; }
+  if (parsed.data.decision === "rejected" && !parsed.data.reason?.trim()) { res.status(400).json({ error: "A rejection reason is required" }); return; }
+  const [changeOrder] = await db.select().from(subcontractChangeOrdersTable).where(and(
+    scope(req, subcontractChangeOrdersTable),
+    eq(subcontractChangeOrdersTable.id, path.data.changeOrderId),
+  ));
+  if (!changeOrder) { res.status(404).json({ error: "Change order not found" }); return; }
+  if (changeOrder.approvalStatus !== "pending") { res.status(409).json({ error: "Only pending change orders can be reviewed" }); return; }
+  const [updated] = await db.update(subcontractChangeOrdersTable).set({
+    approvalStatus: parsed.data.decision,
+    approvedValue: parsed.data.decision === "approved" ? changeOrder.proposedValue : "0",
+    approvedByUserId: parsed.data.decision === "approved" ? req.localUserId : null,
+    approvedAt: parsed.data.decision === "approved" ? new Date() : null,
+    rejectionReason: parsed.data.decision === "rejected" ? parsed.data.reason!.trim() : null,
+    updatedAt: new Date(),
+  }).where(and(
+    scope(req, subcontractChangeOrdersTable),
+    eq(subcontractChangeOrdersTable.id, changeOrder.id),
+    eq(subcontractChangeOrdersTable.approvalStatus, "pending"),
+  )).returning();
+  if (!updated) { res.status(409).json({ error: "Change order was already reviewed" }); return; }
+  await recalculateAgreementCurrentValue(req, updated.agreementId);
+  await audit(req, "subcontract_change_order", updated.id, `subcontract_change_order_${parsed.data.decision}`, changeOrder.approvalStatus, updated.approvalStatus, parsed.data.reason?.trim());
+  res.json(serializeChangeOrder(updated));
+});
+
+router.post("/subcontract-waivers/:waiverId/review", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+  const path = ReviewSubcontractWaiverParams.safeParse(req.params);
+  const parsed = ReviewSubcontractWaiverBody.safeParse(req.body);
+  if (!path.success || !parsed.success) { res.status(400).json({ error: "Invalid waiver review" }); return; }
+  if (parsed.data.decision === "rejected" && !parsed.data.reason?.trim()) { res.status(400).json({ error: "A rejection reason is required" }); return; }
+  const [waiver] = await db.select().from(subcontractWaiversTable).where(and(
+    scope(req, subcontractWaiversTable),
+    eq(subcontractWaiversTable.id, path.data.waiverId),
+  ));
+  if (!waiver) { res.status(404).json({ error: "Waiver not found" }); return; }
+  if (waiver.status !== "submitted") { res.status(409).json({ error: "Only submitted waivers can be reviewed" }); return; }
+  const [updated] = await db.update(subcontractWaiversTable).set({
+    status: parsed.data.decision,
+    reviewedByUserId: req.localUserId,
+    reviewedAt: new Date(),
+    notes: parsed.data.decision === "rejected" ? parsed.data.reason!.trim() : waiver.notes,
+    updatedAt: new Date(),
+  }).where(and(
+    scope(req, subcontractWaiversTable),
+    eq(subcontractWaiversTable.id, waiver.id),
+    eq(subcontractWaiversTable.status, "submitted"),
+  )).returning();
+  if (!updated) { res.status(409).json({ error: "Waiver was already reviewed" }); return; }
+  await db.update(subcontractPayApplicationsTable).set({
+    waiverStatus: parsed.data.decision === "approved" ? waiver.waiverType : "missing",
+    updatedAt: new Date(),
+  }).where(and(scope(req, subcontractPayApplicationsTable), eq(subcontractPayApplicationsTable.id, waiver.payApplicationId)));
+  await audit(req, "subcontract_waiver", updated.id, `subcontract_waiver_${parsed.data.decision}`, waiver.status, updated.status, parsed.data.reason?.trim());
+  res.json(serializeWaiver(updated));
+});
+
 router.post("/subcontract-agreements/:agreementId/closeout-items", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
   const path = CreateSubcontractCloseoutItemParams.safeParse(req.params);
   const parsed = CreateSubcontractCloseoutItemBody.safeParse(req.body);
@@ -849,6 +963,31 @@ router.post("/subcontract-agreements/:agreementId/closeout-items", requireRole("
   }).returning();
   await audit(req, "subcontract_closeout_item", created.id, "subcontract_closeout_item_created", null, created.status);
   res.status(201).json(created);
+});
+
+router.post("/subcontract-closeout-items/:closeoutItemId/review", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
+  const path = ReviewSubcontractCloseoutItemParams.safeParse(req.params);
+  const parsed = ReviewSubcontractCloseoutItemBody.safeParse(req.body);
+  if (!path.success || !parsed.success) { res.status(400).json({ error: "Invalid closeout review" }); return; }
+  if (parsed.data.decision === "rejected" && !parsed.data.reason?.trim()) { res.status(400).json({ error: "A rejection reason is required" }); return; }
+  const [item] = await db.select().from(subcontractCloseoutItemsTable).where(and(
+    scope(req, subcontractCloseoutItemsTable),
+    eq(subcontractCloseoutItemsTable.id, path.data.closeoutItemId),
+  ));
+  if (!item) { res.status(404).json({ error: "Closeout item not found" }); return; }
+  if (!["open", "submitted"].includes(item.status)) { res.status(409).json({ error: "Only open or submitted closeout items can be reviewed" }); return; }
+  const [updated] = await db.update(subcontractCloseoutItemsTable).set({
+    status: parsed.data.decision,
+    completedAt: parsed.data.decision === "approved" ? new Date() : null,
+    rejectionReason: parsed.data.decision === "rejected" ? parsed.data.reason!.trim() : null,
+    updatedAt: new Date(),
+  }).where(and(
+    scope(req, subcontractCloseoutItemsTable),
+    eq(subcontractCloseoutItemsTable.id, item.id),
+  )).returning();
+  if (!updated) { res.status(409).json({ error: "Closeout item was already reviewed" }); return; }
+  await audit(req, "subcontract_closeout_item", updated.id, `subcontract_closeout_item_${parsed.data.decision}`, item.status, updated.status, parsed.data.reason?.trim());
+  res.json(updated);
 });
 
 export default router;

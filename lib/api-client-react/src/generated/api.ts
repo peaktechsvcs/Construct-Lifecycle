@@ -188,6 +188,7 @@ import type {
   SubcontractCloseoutItemInput,
   SubcontractPayApplication,
   SubcontractPayApplicationInput,
+  SubcontractReviewInput,
   SubcontractScheduleOfValue,
   SubcontractScheduleOfValueInput,
   SubcontractWaiver,
@@ -3627,6 +3628,222 @@ export const useCreateSubcontractWaiver = <TError = ErrorType<unknown>,
       return useMutation(getCreateSubcontractWaiverMutationOptions(options));
     }
 
+export const getReviewSubcontractPayApplicationUrl = (applicationId: number,) => {
+
+
+
+
+  return `/api/subcontract-pay-applications/${applicationId}/review`
+}
+
+/**
+ * @summary Approve or reject a subcontract pay application
+ */
+export const reviewSubcontractPayApplication = async (applicationId: number,
+    subcontractReviewInput: SubcontractReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractPayApplication> => {
+
+  return customFetch<SubcontractPayApplication>(getReviewSubcontractPayApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(subcontractReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewSubcontractPayApplicationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewSubcontractPayApplication>>, TError,{applicationId: number;data: BodyType<SubcontractReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewSubcontractPayApplication>>, TError,{applicationId: number;data: BodyType<SubcontractReviewInput>}, TContext> => {
+
+const mutationKey = ['reviewSubcontractPayApplication'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewSubcontractPayApplication>>, {applicationId: number;data: BodyType<SubcontractReviewInput>}> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  reviewSubcontractPayApplication(applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewSubcontractPayApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof reviewSubcontractPayApplication>>>
+    export type ReviewSubcontractPayApplicationMutationBody = BodyType<SubcontractReviewInput>
+    export type ReviewSubcontractPayApplicationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Approve or reject a subcontract pay application
+ */
+export const useReviewSubcontractPayApplication = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewSubcontractPayApplication>>, TError,{applicationId: number;data: BodyType<SubcontractReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewSubcontractPayApplication>>,
+        TError,
+        {applicationId: number;data: BodyType<SubcontractReviewInput>},
+        TContext
+      > => {
+      return useMutation(getReviewSubcontractPayApplicationMutationOptions(options));
+    }
+
+export const getReviewSubcontractChangeOrderUrl = (changeOrderId: number,) => {
+
+
+
+
+  return `/api/subcontract-change-orders/${changeOrderId}/review`
+}
+
+/**
+ * @summary Approve or reject a subcontract change order
+ */
+export const reviewSubcontractChangeOrder = async (changeOrderId: number,
+    subcontractReviewInput: SubcontractReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractChangeOrder> => {
+
+  return customFetch<SubcontractChangeOrder>(getReviewSubcontractChangeOrderUrl(changeOrderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(subcontractReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewSubcontractChangeOrderMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewSubcontractChangeOrder>>, TError,{changeOrderId: number;data: BodyType<SubcontractReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewSubcontractChangeOrder>>, TError,{changeOrderId: number;data: BodyType<SubcontractReviewInput>}, TContext> => {
+
+const mutationKey = ['reviewSubcontractChangeOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewSubcontractChangeOrder>>, {changeOrderId: number;data: BodyType<SubcontractReviewInput>}> = (props) => {
+          const {changeOrderId,data} = props ?? {};
+
+          return  reviewSubcontractChangeOrder(changeOrderId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewSubcontractChangeOrderMutationResult = NonNullable<Awaited<ReturnType<typeof reviewSubcontractChangeOrder>>>
+    export type ReviewSubcontractChangeOrderMutationBody = BodyType<SubcontractReviewInput>
+    export type ReviewSubcontractChangeOrderMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Approve or reject a subcontract change order
+ */
+export const useReviewSubcontractChangeOrder = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewSubcontractChangeOrder>>, TError,{changeOrderId: number;data: BodyType<SubcontractReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewSubcontractChangeOrder>>,
+        TError,
+        {changeOrderId: number;data: BodyType<SubcontractReviewInput>},
+        TContext
+      > => {
+      return useMutation(getReviewSubcontractChangeOrderMutationOptions(options));
+    }
+
+export const getReviewSubcontractWaiverUrl = (waiverId: number,) => {
+
+
+
+
+  return `/api/subcontract-waivers/${waiverId}/review`
+}
+
+/**
+ * @summary Approve or reject a subcontract waiver
+ */
+export const reviewSubcontractWaiver = async (waiverId: number,
+    subcontractReviewInput: SubcontractReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractWaiver> => {
+
+  return customFetch<SubcontractWaiver>(getReviewSubcontractWaiverUrl(waiverId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(subcontractReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewSubcontractWaiverMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewSubcontractWaiver>>, TError,{waiverId: number;data: BodyType<SubcontractReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewSubcontractWaiver>>, TError,{waiverId: number;data: BodyType<SubcontractReviewInput>}, TContext> => {
+
+const mutationKey = ['reviewSubcontractWaiver'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewSubcontractWaiver>>, {waiverId: number;data: BodyType<SubcontractReviewInput>}> = (props) => {
+          const {waiverId,data} = props ?? {};
+
+          return  reviewSubcontractWaiver(waiverId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewSubcontractWaiverMutationResult = NonNullable<Awaited<ReturnType<typeof reviewSubcontractWaiver>>>
+    export type ReviewSubcontractWaiverMutationBody = BodyType<SubcontractReviewInput>
+    export type ReviewSubcontractWaiverMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Approve or reject a subcontract waiver
+ */
+export const useReviewSubcontractWaiver = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewSubcontractWaiver>>, TError,{waiverId: number;data: BodyType<SubcontractReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewSubcontractWaiver>>,
+        TError,
+        {waiverId: number;data: BodyType<SubcontractReviewInput>},
+        TContext
+      > => {
+      return useMutation(getReviewSubcontractWaiverMutationOptions(options));
+    }
+
 export const getCreateSubcontractCloseoutItemUrl = (agreementId: number,) => {
 
 
@@ -3697,6 +3914,78 @@ export const useCreateSubcontractCloseoutItem = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateSubcontractCloseoutItemMutationOptions(options));
+    }
+
+export const getReviewSubcontractCloseoutItemUrl = (closeoutItemId: number,) => {
+
+
+
+
+  return `/api/subcontract-closeout-items/${closeoutItemId}/review`
+}
+
+/**
+ * @summary Approve or reject subcontract closeout evidence
+ */
+export const reviewSubcontractCloseoutItem = async (closeoutItemId: number,
+    subcontractReviewInput: SubcontractReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<SubcontractCloseoutItem> => {
+
+  return customFetch<SubcontractCloseoutItem>(getReviewSubcontractCloseoutItemUrl(closeoutItemId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(subcontractReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewSubcontractCloseoutItemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewSubcontractCloseoutItem>>, TError,{closeoutItemId: number;data: BodyType<SubcontractReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewSubcontractCloseoutItem>>, TError,{closeoutItemId: number;data: BodyType<SubcontractReviewInput>}, TContext> => {
+
+const mutationKey = ['reviewSubcontractCloseoutItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewSubcontractCloseoutItem>>, {closeoutItemId: number;data: BodyType<SubcontractReviewInput>}> = (props) => {
+          const {closeoutItemId,data} = props ?? {};
+
+          return  reviewSubcontractCloseoutItem(closeoutItemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewSubcontractCloseoutItemMutationResult = NonNullable<Awaited<ReturnType<typeof reviewSubcontractCloseoutItem>>>
+    export type ReviewSubcontractCloseoutItemMutationBody = BodyType<SubcontractReviewInput>
+    export type ReviewSubcontractCloseoutItemMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Approve or reject subcontract closeout evidence
+ */
+export const useReviewSubcontractCloseoutItem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewSubcontractCloseoutItem>>, TError,{closeoutItemId: number;data: BodyType<SubcontractReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewSubcontractCloseoutItem>>,
+        TError,
+        {closeoutItemId: number;data: BodyType<SubcontractReviewInput>},
+        TContext
+      > => {
+      return useMutation(getReviewSubcontractCloseoutItemMutationOptions(options));
     }
 
 export const getListSupplierProductsUrl = (params?: ListSupplierProductsParams,) => {

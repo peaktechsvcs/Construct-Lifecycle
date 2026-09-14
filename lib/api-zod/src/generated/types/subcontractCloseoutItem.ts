@@ -22,6 +22,8 @@ export interface SubcontractCloseoutItem {
   notes: string | null;
   /** @nullable */
   completedAt: Date | null;
+  /** @nullable */
+  rejectionReason: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

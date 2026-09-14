@@ -10,10 +10,12 @@ import type { SubcontractChangeOrder } from './subcontractChangeOrder';
 import type { SubcontractCloseoutItem } from './subcontractCloseoutItem';
 import type { SubcontractPayApplication } from './subcontractPayApplication';
 import type { SubcontractScheduleOfValue } from './subcontractScheduleOfValue';
+import type { SubcontractWaiver } from './subcontractWaiver';
 
 export type SubcontractAgreementDetail = SubcontractAgreement & {
   scheduleOfValues: SubcontractScheduleOfValue[];
   changeOrders: SubcontractChangeOrder[];
   payApplications: SubcontractPayApplication[];
+  waivers: SubcontractWaiver[];
   closeoutItems: SubcontractCloseoutItem[];
 };

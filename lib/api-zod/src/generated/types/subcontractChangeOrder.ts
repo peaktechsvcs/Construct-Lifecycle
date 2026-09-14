@@ -18,6 +18,8 @@ export interface SubcontractChangeOrder {
   approvedValue: number;
   approvalStatus: SubcontractChangeOrderApprovalStatus;
   scheduleImpactDays: number;
+  /** @nullable */
+  rejectionReason: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

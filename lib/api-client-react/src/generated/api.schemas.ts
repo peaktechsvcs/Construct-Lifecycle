@@ -5581,6 +5581,8 @@ export interface SubcontractChangeOrder {
   approvedValue: number;
   approvalStatus: SubcontractChangeOrderApprovalStatus;
   scheduleImpactDays: number;
+  /** @nullable */
+  rejectionReason: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -5632,6 +5634,44 @@ export interface SubcontractPayApplication {
   updatedAt: string;
 }
 
+export type SubcontractWaiverWaiverType = typeof SubcontractWaiverWaiverType[keyof typeof SubcontractWaiverWaiverType];
+
+
+export const SubcontractWaiverWaiverType = {
+  conditional: 'conditional',
+  unconditional: 'unconditional',
+  final: 'final',
+} as const;
+
+export type SubcontractWaiverStatus = typeof SubcontractWaiverStatus[keyof typeof SubcontractWaiverStatus];
+
+
+export const SubcontractWaiverStatus = {
+  missing: 'missing',
+  submitted: 'submitted',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface SubcontractWaiver {
+  id: number;
+  payApplicationId: number;
+  waiverType: SubcontractWaiverWaiverType;
+  status: SubcontractWaiverStatus;
+  /** @nullable */
+  objectPath: string | null;
+  /** @nullable */
+  receivedAt: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  /** @nullable */
+  reviewedByUserId?: number | null;
+  /** @nullable */
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type SubcontractCloseoutItemItemType = typeof SubcontractCloseoutItemItemType[keyof typeof SubcontractCloseoutItemItemType];
 
 
@@ -5668,6 +5708,8 @@ export interface SubcontractCloseoutItem {
   notes: string | null;
   /** @nullable */
   completedAt: string | null;
+  /** @nullable */
+  rejectionReason: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -5676,6 +5718,7 @@ export type SubcontractAgreementDetail = SubcontractAgreement & {
   scheduleOfValues: SubcontractScheduleOfValue[];
   changeOrders: SubcontractChangeOrder[];
   payApplications: SubcontractPayApplication[];
+  waivers: SubcontractWaiver[];
   closeoutItems: SubcontractCloseoutItem[];
 };
 
@@ -5758,42 +5801,6 @@ export interface SubcontractPayApplicationInput {
   supportingDocumentPaths?: string[];
 }
 
-export type SubcontractWaiverWaiverType = typeof SubcontractWaiverWaiverType[keyof typeof SubcontractWaiverWaiverType];
-
-
-export const SubcontractWaiverWaiverType = {
-  conditional: 'conditional',
-  unconditional: 'unconditional',
-  final: 'final',
-} as const;
-
-export type SubcontractWaiverStatus = typeof SubcontractWaiverStatus[keyof typeof SubcontractWaiverStatus];
-
-
-export const SubcontractWaiverStatus = {
-  missing: 'missing',
-  submitted: 'submitted',
-  approved: 'approved',
-  rejected: 'rejected',
-} as const;
-
-export interface SubcontractWaiver {
-  id: number;
-  payApplicationId: number;
-  waiverType: SubcontractWaiverWaiverType;
-  status: SubcontractWaiverStatus;
-  /** @nullable */
-  objectPath: string | null;
-  /** @nullable */
-  receivedAt: string | null;
-  /** @nullable */
-  reviewedAt: string | null;
-  /** @nullable */
-  notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export type SubcontractWaiverInputWaiverType = typeof SubcontractWaiverInputWaiverType[keyof typeof SubcontractWaiverInputWaiverType];
 
 
@@ -5845,6 +5852,23 @@ export interface SubcontractCloseoutItemInput {
   objectPath?: string;
   /** @maxLength 5000 */
   notes?: string;
+}
+
+export type SubcontractReviewInputDecision = typeof SubcontractReviewInputDecision[keyof typeof SubcontractReviewInputDecision];
+
+
+export const SubcontractReviewInputDecision = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface SubcontractReviewInput {
+  decision: SubcontractReviewInputDecision;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  reason?: string;
 }
 
 export type SupplierVendorStatus = typeof SupplierVendorStatus[keyof typeof SupplierVendorStatus];

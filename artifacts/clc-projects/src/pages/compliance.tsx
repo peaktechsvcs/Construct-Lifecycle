@@ -25,13 +25,24 @@ import {
   useListTradePartners,
   useRequestTradePartnerComplianceDocumentReplacement,
   useRequestTradePartnerComplianceDocumentUpload,
+  useReviewSubcontractChangeOrder,
+  useReviewSubcontractCloseoutItem,
+  useReviewSubcontractPayApplication,
+  useReviewSubcontractWaiver,
   useUpdateTradePartnerComplianceDocument,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, EmptyState, ErrorPanel, LoadingPanel, PageTitle } from '@/components/app-ui';
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
+import { useTenant } from '@/providers/tenant-provider';
 
 const inputClass = 'w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
+
+type ReviewTarget = {
+  kind: 'payApplication' | 'changeOrder' | 'waiver' | 'closeoutItem';
+  id: number;
+  decision: 'approved' | 'rejected';
+};
 
 function money(value: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
@@ -56,8 +67,14 @@ function SectionHeading({ icon: Icon, eyebrow, title, action }: { icon: typeof S
   );
 }
 
+function ReviewActions({ onReview }: { onReview: (decision: 'approved' | 'rejected') => void }) {
+  return <span className="flex flex-wrap gap-1.5"><Button type="button" className="px-2 py-1 text-[10px]" onClick={() => onReview('approved')}>Approve</Button><Button type="button" variant="outline" className="px-2 py-1 text-[10px]" onClick={() => onReview('rejected')}>Reject</Button></span>;
+}
+
 export function Compliance() {
   const qc = useQueryClient();
+  const { activeRole } = useTenant();
+  const canReview = activeRole === 'owner' || activeRole === 'admin';
   const [search, setSearch] = useState('');
   const [selectedPartnerId, setSelectedPartnerId] = useState<number>();
   const [selectedProjectId, setSelectedProjectId] = useState<number>();
@@ -79,6 +96,8 @@ export function Compliance() {
   const [payForm, setPayForm] = useState({ applicationNumber: '', grossAmount: '', retainageAmount: '', storedMaterialsAmount: '', periodStart: '', periodEnd: '' });
   const [changeForm, setChangeForm] = useState({ changeNumber: '', title: '', proposedValue: '', description: '', scheduleImpactDays: '0' });
   const [closeoutForm, setCloseoutForm] = useState({ itemType: 'warranty', title: '', dueDate: '', notes: '' });
+  const [reviewTarget, setReviewTarget] = useState<ReviewTarget>();
+  const [reviewReason, setReviewReason] = useState('');
 
   const partnerQuery = useListTradePartners({ search: search || undefined }, { query: { queryKey: getListTradePartnersQueryKey({ search: search || undefined }) } });
   const projectsQuery = useListProjects(undefined, { query: { queryKey: getListProjectsQueryKey(), staleTime: 60000 } });
@@ -99,6 +118,10 @@ export function Compliance() {
   const createWaiver = useCreateSubcontractWaiver();
   const createChangeOrder = useCreateSubcontractChangeOrder();
   const createCloseout = useCreateSubcontractCloseoutItem();
+  const reviewPayApplication = useReviewSubcontractPayApplication();
+  const reviewChangeOrder = useReviewSubcontractChangeOrder();
+  const reviewWaiver = useReviewSubcontractWaiver();
+  const reviewCloseout = useReviewSubcontractCloseoutItem();
 
   useEffect(() => {
     if (!selectedPartnerId && partnerQuery.data?.[0]) setSelectedPartnerId(partnerQuery.data[0].id);
@@ -133,6 +156,7 @@ export function Compliance() {
     { label: 'Expired documents', value: summary.expiring, detail: 'Needs review', Icon: Clock3, accent: 'red' },
     { label: 'Subcontracts', value: summary.agreements, detail: 'In this environment', Icon: HandCoins, accent: 'green' },
   ];
+  const reviewPending = reviewPayApplication.isPending || reviewChangeOrder.isPending || reviewWaiver.isPending || reviewCloseout.isPending;
 
   function submitPartner(event: React.FormEvent) {
     event.preventDefault();
@@ -275,12 +299,43 @@ export function Compliance() {
     }, { onSuccess: () => { setShowPayForm(false); refresh(); } });
   }
 
+  function beginReview(kind: ReviewTarget['kind'], id: number, decision: ReviewTarget['decision']) {
+    if (decision === 'rejected') {
+      setReviewReason('');
+      setReviewTarget({ kind, id, decision });
+      return;
+    }
+    submitReview({ kind, id, decision });
+  }
+
+  function submitReview(target = reviewTarget) {
+    if (!target || (target.decision === 'rejected' && !reviewReason.trim())) return;
+    const data = { decision: target.decision, ...(reviewReason.trim() ? { reason: reviewReason.trim() } : {}) } as const;
+    const onSuccess = () => {
+      setReviewTarget(undefined);
+      setReviewReason('');
+      refresh();
+    };
+    if (target.kind === 'payApplication') reviewPayApplication.mutate({ applicationId: target.id, data }, { onSuccess });
+    if (target.kind === 'changeOrder') reviewChangeOrder.mutate({ changeOrderId: target.id, data }, { onSuccess });
+    if (target.kind === 'waiver') reviewWaiver.mutate({ waiverId: target.id, data }, { onSuccess });
+    if (target.kind === 'closeoutItem') reviewCloseout.mutate({ closeoutItemId: target.id, data }, { onSuccess });
+  }
+
   function renderError(mutation: { isError: boolean }) {
     return mutation.isError ? <p role="alert" className="text-xs text-destructive">The record could not be saved. Check the required fields and compliance gates.</p> : null;
   }
 
   return (
     <div className="animate-rise space-y-8">
+      {reviewTarget && (
+        <div className="rounded-xl border border-status-warning/30 bg-status-warning/10 p-4" role="dialog" aria-label="Review compliance item">
+          <p className="text-xs font-bold">{reviewTarget.decision === 'rejected' ? 'Reject this item' : 'Approve this item'}</p>
+          {reviewTarget.decision === 'rejected' && <Input autoFocus aria-label="Rejection reason" placeholder="Rejection reason *" value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} className={`mt-3 ${inputClass}`} />}
+          <div className="mt-3 flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => { setReviewTarget(undefined); setReviewReason(''); }}>Cancel</Button><Button type="button" disabled={reviewPending || (reviewTarget.decision === 'rejected' && !reviewReason.trim())} onClick={() => submitReview()}>{reviewPending ? 'Saving…' : reviewTarget.decision === 'rejected' ? 'Reject item' : 'Approve item'}</Button></div>
+          {(reviewPayApplication.isError || reviewChangeOrder.isError || reviewWaiver.isError || reviewCloseout.isError) && <p role="alert" className="mt-2 text-xs text-destructive">The review could not be saved. The item may already have been reviewed.</p>}
+        </div>
+      )}
       <PageTitle
         eyebrow="Risk, readiness, and cash flow"
         title="Trade partner compliance"
@@ -370,7 +425,19 @@ export function Compliance() {
           {showChangeForm && <form onSubmit={(event) => { event.preventDefault(); createChangeOrder.mutate({ agreementId: agreementQuery.data.id, data: { changeNumber: changeForm.changeNumber, title: changeForm.title, proposedValue: Number(changeForm.proposedValue), description: changeForm.description || undefined, scheduleImpactDays: Number(changeForm.scheduleImpactDays || 0) } }, { onSuccess: () => { setShowChangeForm(false); refresh(); } }); }} className="mt-4 grid gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 md:grid-cols-2"><Input placeholder="Change # *" value={changeForm.changeNumber} onChange={(event) => setChangeForm({ ...changeForm, changeNumber: event.target.value })} className={inputClass} /><Input placeholder="Title *" value={changeForm.title} onChange={(event) => setChangeForm({ ...changeForm, title: event.target.value })} className={inputClass} /><Input type="number" min="0" placeholder="Proposed value *" value={changeForm.proposedValue} onChange={(event) => setChangeForm({ ...changeForm, proposedValue: event.target.value })} className={inputClass} /><Input type="number" min="0" placeholder="Schedule impact days" value={changeForm.scheduleImpactDays} onChange={(event) => setChangeForm({ ...changeForm, scheduleImpactDays: event.target.value })} className={inputClass} /><Input placeholder="Description" value={changeForm.description} onChange={(event) => setChangeForm({ ...changeForm, description: event.target.value })} className={`${inputClass} md:col-span-2`} /><div className="flex justify-end gap-2 md:col-span-2"><Button type="button" variant="ghost" onClick={() => setShowChangeForm(false)}>Cancel</Button><Button type="submit" disabled={!changeForm.changeNumber || !changeForm.title || !changeForm.proposedValue}>Submit change order</Button></div>{renderError(createChangeOrder)}</form>}
           {showCloseoutForm && <form onSubmit={(event) => { event.preventDefault(); createCloseout.mutate({ agreementId: agreementQuery.data.id, data: { itemType: closeoutForm.itemType as 'warranty' | 'as_built' | 'operations_manual' | 'final_release' | 'other', title: closeoutForm.title, dueDate: closeoutForm.dueDate || undefined, notes: closeoutForm.notes || undefined } }, { onSuccess: () => { setShowCloseoutForm(false); refresh(); } }); }} className="mt-4 grid gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 md:grid-cols-2"><select aria-label="Closeout item type" value={closeoutForm.itemType} onChange={(event) => setCloseoutForm({ ...closeoutForm, itemType: event.target.value })} className={inputClass}><option value="warranty">Warranty</option><option value="as_built">As-built</option><option value="operations_manual">O&M manual</option><option value="final_release">Final release</option><option value="other">Other</option></select><Input placeholder="Item title *" value={closeoutForm.title} onChange={(event) => setCloseoutForm({ ...closeoutForm, title: event.target.value })} className={inputClass} /><Input type="date" aria-label="Due date" value={closeoutForm.dueDate} onChange={(event) => setCloseoutForm({ ...closeoutForm, dueDate: event.target.value })} className={inputClass} /><Input placeholder="Notes" value={closeoutForm.notes} onChange={(event) => setCloseoutForm({ ...closeoutForm, notes: event.target.value })} className={inputClass} /><div className="flex justify-end gap-2 md:col-span-2"><Button type="button" variant="ghost" onClick={() => setShowCloseoutForm(false)}>Cancel</Button><Button type="submit" disabled={!closeoutForm.title}>Add closeout item</Button></div>{renderError(createCloseout)}</form>}
           <div className="mt-5 grid gap-4 lg:grid-cols-3"><div><h4 className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-muted-foreground">Pay applications</h4>{agreementQuery.data.payApplications.length ? <div className="space-y-2">{agreementQuery.data.payApplications.map((application) => <div key={application.id} className="rounded-lg border border-border p-3"><div className="flex items-center justify-between"><span className="text-xs font-bold">Application {application.applicationNumber}</span><Badge tone={statusTone(application.status)}>{application.status}</Badge></div><p className="mt-2 text-sm font-bold">{money(application.netAmount)} net</p><p className="mt-1 text-[10px] text-muted-foreground">{application.waiverStatus === 'missing' ? 'Waiver missing' : `${application.waiverStatus} waiver`}</p><button type="button" className="mt-2 text-[10px] font-bold text-primary hover:underline" onClick={() => createWaiver.mutate({ applicationId: application.id, data: { waiverType: 'conditional', status: 'submitted' } }, { onSuccess: refresh })}>Record conditional waiver</button></div>)}</div> : <p className="text-xs text-muted-foreground">No applications submitted.</p>}</div><div><h4 className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-muted-foreground">Change orders</h4>{agreementQuery.data.changeOrders.length ? <div className="space-y-2">{agreementQuery.data.changeOrders.map((change) => <div key={change.id} className="flex items-center justify-between rounded-lg border border-border p-3"><span><span className="block text-xs font-bold">{change.changeNumber} · {change.title}</span><span className="text-[10px] text-muted-foreground">{money(change.proposedValue)}</span></span><Badge tone={statusTone(change.approvalStatus)}>{change.approvalStatus}</Badge></div>)}</div> : <p className="text-xs text-muted-foreground">No change orders submitted.</p>}</div><div><h4 className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-muted-foreground">Closeout accountability</h4>{agreementQuery.data.closeoutItems.length ? <div className="space-y-2">{agreementQuery.data.closeoutItems.map((item) => <div key={item.id} className="flex items-center justify-between rounded-lg border border-border p-3"><span><span className="block text-xs font-bold">{item.title}</span><span className="mono text-[9px] uppercase text-muted-foreground">{item.itemType.replace(/_/g, ' ')}{item.dueDate ? ` · due ${item.dueDate}` : ''}</span></span><Badge tone={statusTone(item.status)}>{item.status}</Badge></div>)}</div> : <p className="text-xs text-muted-foreground">No closeout requirements yet.</p>}</div></div>
-        </div>}
+         </div>}
+         {canReview && agreementQuery.data && (
+           <div className="mt-5 border-t border-border pt-5">
+             <div className="mb-3 flex items-center justify-between"><div><p className="mono text-[9px] font-bold uppercase tracking-[.13em] text-primary">GC review queue</p><h4 className="mt-1 text-sm font-bold">Approve subcontract evidence</h4></div><span className="text-[10px] text-muted-foreground">Rejections require a reason</span></div>
+             <div className="grid gap-3 md:grid-cols-2">
+               {agreementQuery.data.payApplications.filter((application) => application.status === 'submitted').map((application) => <div key={`pay-${application.id}`} className="rounded-lg border border-border p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold">Pay application {application.applicationNumber}</p><p className="mt-1 text-[10px] text-muted-foreground">{money(application.netAmount)} net · {money(application.retainageAmount)} retainage</p></div><Badge tone="orange">submitted</Badge></div><div className="mt-3 flex justify-end"><ReviewActions onReview={(decision) => beginReview('payApplication', application.id, decision)} /></div></div>)}
+               {agreementQuery.data.changeOrders.filter((change) => change.approvalStatus === 'pending').map((change) => <div key={`change-${change.id}`} className="rounded-lg border border-border p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold">Change {change.changeNumber} · {change.title}</p><p className="mt-1 text-[10px] text-muted-foreground">{money(change.proposedValue)} proposed · {change.scheduleImpactDays} schedule days</p></div><Badge tone="orange">pending</Badge></div><div className="mt-3 flex justify-end"><ReviewActions onReview={(decision) => beginReview('changeOrder', change.id, decision)} /></div></div>)}
+               {agreementQuery.data.waivers.filter((waiver) => waiver.status === 'submitted').map((waiver) => <div key={`waiver-${waiver.id}`} className="rounded-lg border border-border p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold">{waiver.waiverType.replace(/_/g, ' ')} waiver</p><p className="mt-1 text-[10px] text-muted-foreground">Pay application #{agreementQuery.data.payApplications.find((application) => application.id === waiver.payApplicationId)?.applicationNumber ?? '—'}</p></div><Badge tone="orange">submitted</Badge></div><div className="mt-3 flex justify-end"><ReviewActions onReview={(decision) => beginReview('waiver', waiver.id, decision)} /></div></div>)}
+               {agreementQuery.data.closeoutItems.filter((item) => ['open', 'submitted'].includes(item.status)).map((item) => <div key={`closeout-${item.id}`} className="rounded-lg border border-border p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold">{item.title}</p><p className="mt-1 text-[10px] text-muted-foreground">{item.itemType.replace(/_/g, ' ')}{item.dueDate ? ` · due ${item.dueDate}` : ''}</p></div><Badge tone={statusTone(item.status)}>{item.status}</Badge></div><div className="mt-3 flex justify-end"><ReviewActions onReview={(decision) => beginReview('closeoutItem', item.id, decision)} /></div></div>)}
+             </div>
+             {!agreementQuery.data.payApplications.some((application) => application.status === 'submitted') && !agreementQuery.data.changeOrders.some((change) => change.approvalStatus === 'pending') && !agreementQuery.data.waivers.some((waiver) => waiver.status === 'submitted') && !agreementQuery.data.closeoutItems.some((item) => ['open', 'submitted'].includes(item.status)) && <p className="text-xs text-muted-foreground">Nothing is waiting for GC review.</p>}
+           </div>
+         )}
       </section>
     </div>
   );

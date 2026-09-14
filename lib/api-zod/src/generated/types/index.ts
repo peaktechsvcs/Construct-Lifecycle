@@ -354,6 +354,8 @@ export * from './subcontractPayApplication';
 export * from './subcontractPayApplicationInput';
 export * from './subcontractPayApplicationStatus';
 export * from './subcontractPayApplicationWaiverStatus';
+export * from './subcontractReviewInput';
+export * from './subcontractReviewInputDecision';
 export * from './subcontractScheduleOfValue';
 export * from './subcontractScheduleOfValueInput';
 export * from './subcontractScheduleOfValueInputStatus';

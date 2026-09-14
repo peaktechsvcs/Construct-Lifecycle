@@ -20,6 +20,8 @@ export interface SubcontractWaiver {
   /** @nullable */
   reviewedAt: Date | null;
   /** @nullable */
+  reviewedByUserId?: number | null;
+  /** @nullable */
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
