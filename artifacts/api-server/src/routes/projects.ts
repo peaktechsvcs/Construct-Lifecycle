@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import {
   businessCustomersTable,
   activityTable,
@@ -7,6 +7,8 @@ import {
   followUpsTable,
   platformAuditEventsTable,
   projectsTable,
+  membershipsTable,
+  usersTable,
 } from "@workspace/db";
 import {
   CreateFollowUpBody,
@@ -26,12 +28,41 @@ import { ensurePublishedWorkflow, validateProjectTransition } from "../lib/workf
 
 const router: IRouter = Router();
 
-const toProject = (row: typeof projectsTable.$inferSelect) => ({
+type AssignedUser = { id: number; displayName: string | null; email: string | null };
+
+const toProject = (row: typeof projectsTable.$inferSelect, assignedUser: AssignedUser | null = null) => ({
   ...row,
+  assignedUser,
   contractValue: Number(row.contractValue),
   invoicedAmount: Number(row.invoicedAmount),
   receivedAmount: Number(row.receivedAmount),
 });
+
+const assignedUserSelection = {
+  id: usersTable.id,
+  displayName: usersTable.displayName,
+  email: usersTable.email,
+};
+
+const getAssignedUser = async (ownerUserId: number | null | undefined) => {
+  if (!ownerUserId) return null;
+  const [user] = await db.select(assignedUserSelection).from(usersTable)
+    .where(eq(usersTable.id, ownerUserId)).limit(1);
+  return user ?? null;
+};
+
+const validateAssignee = async (tenantId: number, ownerUserId: number | null | undefined) => {
+  if (ownerUserId == null) return true;
+  const [member] = await db.select({ userId: membershipsTable.userId })
+    .from(membershipsTable)
+    .where(and(eq(membershipsTable.tenantId, tenantId), eq(membershipsTable.userId, ownerUserId)))
+    .limit(1);
+  return Boolean(member);
+};
+
+type ProjectWithAssignment = typeof projectsTable.$inferSelect & {
+  assignedUser: AssignedUser | null;
+};
 
 const toDateString = (value: Date | undefined) =>
   value ? value.toISOString().slice(0, 10) : undefined;
@@ -40,9 +71,13 @@ const ACTIVE_STAGES = ["award", "contract", "procure", "deliver", "financial", "
 const PIPELINE_STAGES = ["opportunity", "bid"] as const;
 const dateToday = () => new Date().toISOString().slice(0, 10);
 const daysSince = (date: Date) => Math.max(0, Math.floor((Date.now() - date.getTime()) / 86400000));
-const projectContribution = (project: typeof projectsTable.$inferSelect) => ({
+const projectContribution = (project: ProjectWithAssignment) => ({
   id: project.id, projectNumber: project.projectNumber, customerName: project.customerName,
-  projectName: project.projectName, owner: project.owner, stage: project.stage,
+  projectName: project.projectName,
+  owner: project.assignedUser?.displayName || project.assignedUser?.email || project.owner,
+  ownerUserId: project.ownerUserId,
+  assignedUser: project.assignedUser,
+  stage: project.stage,
   contractValue: Number(project.contractValue), receivedAmount: Number(project.receivedAmount),
   deliveryPercent: project.deliveryPercent, contractStart: project.contractStart,
   contractEnd: project.contractEnd, nextFollowUp: project.nextFollowUp,
@@ -78,8 +113,14 @@ router.get("/projects", async (req: TenantRequest, res) => {
   const parsed = ListProjectsQueryParams.safeParse({
     search: req.query.search,
     stage: req.query.stage,
+    scope: req.query.scope,
+    ownerUserId: req.query.ownerUserId,
   });
-  const filters = parsed.success ? parsed.data : {};
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid project filters", details: parsed.error.issues });
+    return;
+  }
+  const filters = parsed.data;
   const conditions = [eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)];
 
   if (filters.search) {
@@ -93,13 +134,27 @@ router.get("/projects", async (req: TenantRequest, res) => {
   if (filters.stage) {
     conditions.push(eq(projectsTable.stage, filters.stage));
   }
+  if (filters.scope === "mine") {
+    conditions.push(eq(projectsTable.ownerUserId, req.localUserId!));
+  }
+  if (filters.ownerUserId === "unassigned") {
+    conditions.push(isNull(projectsTable.ownerUserId));
+  } else if (filters.ownerUserId) {
+    const ownerUserId = Number(filters.ownerUserId);
+    if (!(await validateAssignee(req.tenantId!, ownerUserId))) {
+      res.status(400).json({ error: "Assigned user is not a member of the active tenant" });
+      return;
+    }
+    conditions.push(eq(projectsTable.ownerUserId, ownerUserId));
+  }
 
   const rows = await db
-    .select()
+    .select({ project: projectsTable, assignedUser: assignedUserSelection })
     .from(projectsTable)
+    .leftJoin(usersTable, eq(projectsTable.ownerUserId, usersTable.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(projectsTable.updatedAt));
-  res.json(rows.map(toProject));
+  res.json(rows.map(({ project, assignedUser }) => toProject(project, assignedUser?.id ? assignedUser : null)));
 });
 
 router.post("/projects", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
@@ -185,6 +240,16 @@ router.post("/projects", requireRole("owner", "admin", "member"), async (req: Te
     }
 
     if (!customerId) throw new Error("CUSTOMER_REQUIRED");
+    if (parsed.data.ownerUserId != null) {
+      const [member] = await tx.select({ userId: membershipsTable.userId })
+        .from(membershipsTable)
+        .where(and(
+          eq(membershipsTable.tenantId, req.tenantId!),
+          eq(membershipsTable.userId, parsed.data.ownerUserId),
+        ))
+        .limit(1);
+      if (!member) throw new Error("ASSIGNEE_NOT_MEMBER");
+    }
 
     const [{ count }] = await tx.select({ count: sql<number>`count(*)::int` }).from(projectsTable);
     const projectNumber = `CP-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
@@ -200,6 +265,7 @@ router.post("/projects", requireRole("owner", "admin", "member"), async (req: Te
       environmentId: req.environmentId!,
       businessCustomerId: customerId,
       customerName,
+      owner: parsed.data.ownerUserId !== undefined ? null : parsed.data.owner,
       projectNumber,
       stage: initialState.stableKey,
       projectStatus: initialStatus,
@@ -234,23 +300,28 @@ router.post("/projects", requireRole("owner", "admin", "member"), async (req: Te
       res.status(400).json({ error: "Select a customer or create a new customer before saving the project" });
       return [];
     }
+    if (error instanceof Error && error.message === "ASSIGNEE_NOT_MEMBER") {
+      res.status(400).json({ error: "Assigned user is not a member of the active tenant" });
+      return [];
+    }
     throw error;
   });
   if (!row) return;
-  res.status(201).json(toProject(row));
+  res.status(201).json(toProject(row, await getAssignedUser(row.ownerUserId)));
 });
 
 router.get("/projects/:projectId", async (req: TenantRequest, res) => {
   const projectId = Number(req.params.projectId);
   const [row] = await db
-    .select()
+    .select({ project: projectsTable, assignedUser: assignedUserSelection })
     .from(projectsTable)
+    .leftJoin(usersTable, eq(projectsTable.ownerUserId, usersTable.id))
     .where(and(eq(projectsTable.id, projectId), eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!)));
   if (!row) {
     res.status(404).json({ error: "Project not found" });
     return;
   }
-  res.json(toProject(row));
+  res.json(toProject(row.project, row.assignedUser?.id ? row.assignedUser : null));
 });
 
 router.patch("/projects/:projectId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
@@ -281,6 +352,13 @@ router.patch("/projects/:projectId", requireRole("owner", "admin", "member"), as
   if (!existingProject) {
     res.status(404).json({ error: "Project not found" });
     return;
+  }
+  if (parsed.data.ownerUserId !== undefined && !(await validateAssignee(req.tenantId!, parsed.data.ownerUserId))) {
+    res.status(400).json({ error: "Assigned user is not a member of the active tenant" });
+    return;
+  }
+  if (parsed.data.ownerUserId !== undefined) {
+    updateData.owner = null;
   }
   const workflow = await ensurePublishedWorkflow(req.tenantId!, req.environmentId!, req.localUserId);
   if (!workflow) {
@@ -347,7 +425,7 @@ router.patch("/projects/:projectId", requireRole("owner", "admin", "member"), as
       details: JSON.stringify({ projectId: row.id, customerId: businessCustomerId, environmentId: req.environmentId }),
     });
   }
-  res.json(toProject(row));
+  res.json(toProject(row, await getAssignedUser(row.ownerUserId)));
 });
 
 router.delete("/projects/:projectId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
@@ -482,7 +560,14 @@ router.get("/dashboard/drilldown", async (req: TenantRequest, res) => {
     ilike(projectsTable.projectName, `%${search}%`),
     ilike(projectsTable.projectNumber, `%${search}%`),
   )!);
-  const projects = await db.select().from(projectsTable).where(and(...conditions));
+  const projectRows = await db.select({ project: projectsTable, assignedUser: assignedUserSelection })
+    .from(projectsTable)
+    .leftJoin(usersTable, eq(projectsTable.ownerUserId, usersTable.id))
+    .where(and(...conditions));
+  const projects: ProjectWithAssignment[] = projectRows.map(({ project, assignedUser }) => ({
+    ...project,
+    assignedUser: assignedUser?.id ? assignedUser : null,
+  }));
   const today = dateToday();
   const matches = type === "active-projects"
     ? filterActiveProjects(projects, workflow?.states ?? [], activeProjectStatusKeys(workflow))
@@ -494,17 +579,24 @@ router.get("/dashboard/drilldown", async (req: TenantRequest, res) => {
   if (type === "open-follow-ups") {
     const rows = await db.select({
       id: followUpsTable.id, projectId: followUpsTable.projectId, customerName: projectsTable.customerName,
-      projectName: projectsTable.projectName, owner: projectsTable.owner, dueDate: followUpsTable.dueDate,
+      projectName: projectsTable.projectName, owner: projectsTable.owner, ownerUserId: projectsTable.ownerUserId,
+      assignedUser: assignedUserSelection, dueDate: followUpsTable.dueDate,
       status: followUpsTable.status, note: followUpsTable.note,
     }).from(followUpsTable).innerJoin(projectsTable, and(
       eq(followUpsTable.projectId, projectsTable.id),
       eq(followUpsTable.tenantId, req.tenantId!), eq(followUpsTable.environmentId, req.environmentId!),
       eq(projectsTable.tenantId, req.tenantId!), eq(projectsTable.environmentId, req.environmentId!),
-    )).where(and(eq(followUpsTable.tenantId, req.tenantId!), eq(followUpsTable.environmentId, req.environmentId!), eq(followUpsTable.status, "open")))
+    )).leftJoin(usersTable, eq(projectsTable.ownerUserId, usersTable.id))
+      .where(and(eq(followUpsTable.tenantId, req.tenantId!), eq(followUpsTable.environmentId, req.environmentId!), eq(followUpsTable.status, "open")))
       .orderBy(followUpsTable.dueDate);
     const followups = rows.filter((r) => !search || `${r.customerName} ${r.projectName} ${r.note}`.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => (a.dueDate < today ? 0 : a.dueDate === today ? 1 : 2) - (b.dueDate < today ? 0 : b.dueDate === today ? 1 : 2) || a.dueDate.localeCompare(b.dueDate))
-      .map((r) => ({ ...r, priority: r.dueDate < today ? "overdue" : r.dueDate === today ? "due_today" : "upcoming" }));
+      .map((r) => ({
+        ...r,
+        owner: r.assignedUser?.displayName || r.assignedUser?.email || r.owner,
+        assignedUser: r.assignedUser?.id ? r.assignedUser : null,
+        priority: r.dueDate < today ? "overdue" : r.dueDate === today ? "due_today" : "upcoming",
+      }));
     res.json({ title: "Open Follow-ups", type, count: followups.length, total: followups.length, followups });
     return;
   }

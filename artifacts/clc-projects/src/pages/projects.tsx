@@ -7,6 +7,7 @@ import {
   useListProjects, getListProjectsQueryKey,
   useDeleteProject, getGetDashboardSummaryQueryKey,
   useListBusinessCustomers, getListBusinessCustomersQueryKey,
+  useListTenantMembers, getListTenantMembersQueryKey,
 } from '@workspace/api-client-react';
 import {
   PageTitle, Button, LoadingPanel, ErrorPanel, EmptyState,
@@ -14,6 +15,7 @@ import {
 } from '@/components/app-ui';
 import { stageLabels } from '@/lib/stage-config';
 import { ProjectFormModal } from '@/components/project-form-modal';
+import { useTenant } from '@/providers/tenant-provider';
 import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
 import { getAllProjectsTableRows } from '@/lib/project-views';
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
@@ -31,11 +33,13 @@ function ProjectTable({
   workflow,
   onEdit,
   onDelete,
+  canManage,
 }: {
   projects: Project[];
   workflow: ReturnType<typeof useWorkflow>;
   onEdit: (project: Project) => void;
   onDelete: (project: Project) => void;
+  canManage: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -64,7 +68,9 @@ function ProjectTable({
                 </div>
               </div>
             </Link>
-            <p className="hidden truncate text-xs text-muted-foreground md:block">{project.owner || 'Unassigned'}</p>
+            <p className="hidden truncate text-xs text-muted-foreground md:block">
+              {project.assignedUser?.displayName || project.assignedUser?.email || project.owner || 'Unassigned'}
+            </p>
             <div>
               <Badge tone={stageBadgeTone(workflow.stateByKey.get(project.stage)?.normalizedCategory ?? project.stage)}>
                 {workflow.labels[project.stage] ?? stageLabels[project.stage] ?? project.stage}
@@ -73,22 +79,22 @@ function ProjectTable({
             <p className="mono text-sm font-medium">{currency.format(project.contractValue)}</p>
             <p className="hidden text-xs text-muted-foreground md:block">{shortDate(project.updatedAt)}</p>
             <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-              <button
+              {canManage && <button
                 data-testid={`button-edit-project-${project.id}`}
                 aria-label={`Edit ${project.projectName}`}
                 className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => onEdit(project)}
               >
                 <Pencil size={15} />
-              </button>
-              <button
+              </button>}
+              {canManage && <button
                 data-testid={`button-delete-project-${project.id}`}
                 aria-label={`Delete ${project.projectName}`}
                 className="rounded-md p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => onDelete(project)}
               >
                 <Trash2 size={15} />
-              </button>
+              </button>}
             </div>
           </div>
         ))}
@@ -106,10 +112,12 @@ export function Projects() {
   const urlParams = new URLSearchParams(location.includes('?') ? location.split('?')[1] : '');
   const urlSearch = urlParams.get('search') ?? '';
   const urlStage = urlParams.get('stage') ?? '';
+  const urlOwnerUserId = urlParams.get('ownerUserId') ?? '';
   const urlCustomerId = Number(urlParams.get('customerId'));
 
   const [search, setSearch] = useState(urlSearch);
   const [stage, setStage] = useState(urlStage);
+  const [ownerUserId, setOwnerUserId] = useState(urlOwnerUserId);
 
   // Sync to URL
   useEffect(() => {
@@ -117,6 +125,7 @@ export function Projects() {
     const next = new URLSearchParams();
     if (search) next.set('search', search);
     if (stage) next.set('stage', stage);
+    if (ownerUserId) next.set('ownerUserId', ownerUserId);
     if (urlParams.get('customerId')) next.set('customerId', urlParams.get('customerId')!);
     const qs = next.toString();
     const newPath = qs ? `${base}?${qs}` : base;
@@ -126,17 +135,24 @@ export function Projects() {
       setLocation(newPath, { replace: true });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, stage]);
+  }, [search, stage, ownerUserId]);
 
   const params = useMemo(
-    () => ({ search: search || undefined, stage: stage ? (stage as ProjectStage) : undefined }),
-    [search, stage],
+    () => ({
+      search: search || undefined,
+      stage: stage ? (stage as ProjectStage) : undefined,
+      ownerUserId: ownerUserId || undefined,
+    }),
+    [search, stage, ownerUserId],
   );
   const query = useListProjects(params, { query: { queryKey: getListProjectsQueryKey(params) } });
   const workflow = useWorkflow();
   const customerQuery = useListBusinessCustomers(undefined, { query: { queryKey: getListBusinessCustomersQueryKey() } });
   const deleteProject = useDeleteProject();
   const qc = useQueryClient();
+  const { activeRole } = useTenant();
+  const canManage = activeRole === 'owner' || activeRole === 'admin' || activeRole === 'member';
+  const members = useListTenantMembers({ query: { queryKey: getListTenantMembersQueryKey() } });
   const projects = query.data ?? [];
   const initialCustomer = customerQuery.data?.find((customer) => customer.id === urlCustomerId);
 
@@ -147,6 +163,7 @@ export function Projects() {
   const clear = () => {
     setSearch('');
     setStage('');
+    setOwnerUserId('');
   };
 
   // Stage filter options in canonical lifecycle order
@@ -173,7 +190,7 @@ export function Projects() {
         eyebrow="Project book"
         title="Projects"
         description="Every opportunity, handoff, and dollar in one working view."
-        action={
+        action={canManage ? (
           <Button
             data-testid="button-new-project"
             onClick={() => {
@@ -182,8 +199,8 @@ export function Projects() {
             }}
           >
             <Plus size={16} /> New project
-          </Button>
-        }
+           </Button>
+        ) : undefined}
       />
 
       <div className="mb-5 flex flex-col gap-3 rounded-xl border border-border bg-card p-3 md:flex-row">
@@ -210,7 +227,23 @@ export function Projects() {
             </SelectContent>
           </Select>
         </div>
-        {(search || stage) && (
+        <div className="relative md:w-60">
+          <Select value={ownerUserId || 'all'} onValueChange={(value) => setOwnerUserId(value === 'all' ? '' : value)}>
+            <SelectTrigger data-testid="select-filter-owner" className="h-10 border-transparent bg-secondary/65 focus:border-primary/30 focus:bg-background">
+              <SelectValue placeholder="All assignees" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All assignees</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {(members.data ?? []).map((member) => (
+                <SelectItem key={member.userId} value={String(member.userId)}>
+                  {member.displayName || member.email || `User ${member.userId}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {(search || stage || ownerUserId) && (
           <Button data-testid="button-clear-filters" variant="ghost" onClick={clear}>
             Clear
           </Button>
@@ -228,15 +261,15 @@ export function Projects() {
           icon={BriefcaseBusiness}
           title="No projects match that view"
           text={
-            search || stage
+            search || stage || ownerUserId
               ? 'Try a different search or clear your filters.'
               : 'Start your project book with the first live opportunity.'
           }
-          action={
+            action={canManage ? (
             <Button data-testid="button-empty-new-project" onClick={() => setShowForm(true)}>
               <Plus size={15} /> Add project
             </Button>
-          }
+            ) : undefined}
         />
       ) : (
         <ProjectTable
@@ -244,6 +277,7 @@ export function Projects() {
           workflow={workflow}
           onEdit={(project) => { setEditing(project); setShowForm(true); }}
           onDelete={handleDelete}
+          canManage={canManage}
         />
       )}
 

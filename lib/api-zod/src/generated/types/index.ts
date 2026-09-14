@@ -9,6 +9,7 @@
 export * from './acceptedTenantInvitation';
 export * from './activity';
 export * from './applicationArtifactMetadata';
+export * from './assignedUser';
 export * from './bid';
 export * from './bidInput';
 export * from './bidIntegrationCoverage';
@@ -181,6 +182,7 @@ export * from './listNotificationsParams';
 export * from './listNotificationsStatus';
 export * from './listOpportunitiesParams';
 export * from './listProjectsParams';
+export * from './listProjectsScope';
 export * from './listProposalsParams';
 export * from './listProvisioningEvents200Item';
 export * from './listSubcontractAgreementsParams';

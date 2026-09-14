@@ -5,9 +5,16 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ListProjectsScope } from './listProjectsScope';
 import type { ProjectStage } from './projectStage';
 
 export type ListProjectsParams = {
 search?: string;
 stage?: ProjectStage;
+scope?: ListProjectsScope;
+/**
+ * Tenant member id, or unassigned, for owner filtering.
+ * @pattern ^(unassigned|[1-9][0-9]*)$
+ */
+ownerUserId?: string;
 };

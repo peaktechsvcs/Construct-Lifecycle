@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AssignedUser } from './assignedUser';
 import type { DashboardDrilldownFollowUpPriority } from './dashboardDrilldownFollowUpPriority';
 import type { DashboardDrilldownFollowUpStatus } from './dashboardDrilldownFollowUpStatus';
 
@@ -15,6 +16,9 @@ export interface DashboardDrilldownFollowUp {
   projectName: string;
   /** @nullable */
   owner?: string | null;
+  /** @nullable */
+  ownerUserId?: number | null;
+  assignedUser?: AssignedUser | null;
   dueDate: Date;
   status: DashboardDrilldownFollowUpStatus;
   note: string;

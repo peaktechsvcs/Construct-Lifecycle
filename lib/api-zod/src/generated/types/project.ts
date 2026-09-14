@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AssignedUser } from './assignedUser';
 import type { BidOutcome } from './bidOutcome';
 import type { BillingStatus } from './billingStatus';
 import type { BusinessCustomerSummary } from './businessCustomerSummary';
@@ -28,6 +29,9 @@ export interface Project {
   productCategories?: string[];
   /** @nullable */
   owner?: string | null;
+  /** @nullable */
+  ownerUserId?: number | null;
+  assignedUser?: AssignedUser | null;
   stage: ProjectStage;
   /** @nullable */
   workflowTemplateId?: number | null;

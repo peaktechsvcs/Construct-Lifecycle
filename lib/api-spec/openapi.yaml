@@ -78,6 +78,17 @@ paths:
           name: stage
           schema:
             $ref: "#/components/schemas/ProjectStage"
+        - in: query
+          name: scope
+          schema:
+            type: string
+            enum: [all, mine]
+        - in: query
+          name: ownerUserId
+          description: Tenant member id, or unassigned, for owner filtering.
+          schema:
+            type: string
+            pattern: "^(unassigned|[1-9][0-9]*)$"
       responses:
         "200":
           description: Projects
@@ -5430,6 +5441,11 @@ components:
           type: array
           items: { type: string }
         owner: { type: ["string", "null"] }
+        ownerUserId: { type: ["integer", "null"] }
+        assignedUser:
+          oneOf:
+            - $ref: "#/components/schemas/AssignedUser"
+            - type: "null"
         stage: { $ref: "#/components/schemas/ProjectStage" }
         workflowTemplateId: { type: ["integer", "null"] }
         projectStatus: { type: ["string", "null"] }
@@ -5945,6 +5961,7 @@ components:
           type: array
           items: { type: string }
         owner: { type: string }
+        ownerUserId: { type: ["integer", "null"] }
         stage: { $ref: "#/components/schemas/ProjectStage" }
         projectStatus: { type: string, pattern: "^[a-z][a-z0-9_]{1,62}$" }
         proposalStatus: { $ref: "#/components/schemas/ProposalStatus" }
@@ -5976,6 +5993,13 @@ components:
         customerType: { type: string }
         status: { $ref: "#/components/schemas/BusinessCustomerStatus" }
         projectCount: { type: integer }
+    AssignedUser:
+      type: object
+      required: [id, displayName, email]
+      properties:
+        id: { type: integer }
+        displayName: { type: ["string", "null"] }
+        email: { type: ["string", "null"], format: email }
     BusinessCustomerProject:
       type: object
       required: [id, projectNumber, projectName, stage, contractValue, updatedAt]
@@ -6105,6 +6129,11 @@ components:
         customerName: { type: string }
         projectName: { type: string }
         owner: { type: ["string", "null"] }
+        ownerUserId: { type: ["integer", "null"] }
+        assignedUser:
+          oneOf:
+            - $ref: "#/components/schemas/AssignedUser"
+            - type: "null"
         stage: { $ref: "#/components/schemas/ProjectStage" }
         projectStatus: { type: ["string", "null"] }
         contractValue: { type: number }
@@ -6124,6 +6153,11 @@ components:
         customerName: { type: string }
         projectName: { type: string }
         owner: { type: ["string", "null"] }
+        ownerUserId: { type: ["integer", "null"] }
+        assignedUser:
+          oneOf:
+            - $ref: "#/components/schemas/AssignedUser"
+            - type: "null"
         dueDate: { type: string, format: date }
         status: { type: string, enum: [open, completed] }
         note: { type: string }

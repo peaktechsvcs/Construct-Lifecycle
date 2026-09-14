@@ -33,6 +33,8 @@ export interface ProjectInput {
   category: string;
   productCategories?: string[];
   owner?: string;
+  /** @nullable */
+  ownerUserId?: number | null;
   stage?: ProjectStage;
   /** @pattern ^[a-z][a-z0-9_]{1,62}$ */
   projectStatus?: string;

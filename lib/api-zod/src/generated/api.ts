@@ -21,11 +21,14 @@ export const HealthCheckResponse = zod.object({
  * @summary List projects
  */
 export const listProjectsQueryStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
+export const listProjectsQueryOwnerUserIdRegExp = new RegExp('^(unassigned|[1-9][0-9]*)$');
 
 
 export const ListProjectsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
-  "stage": zod.coerce.string().regex(listProjectsQueryStageRegExp).optional()
+  "stage": zod.coerce.string().regex(listProjectsQueryStageRegExp).optional(),
+  "scope": zod.enum(['all', 'mine']).optional(),
+  "ownerUserId": zod.coerce.string().regex(listProjectsQueryOwnerUserIdRegExp).optional().describe('Tenant member id, or unassigned, for owner filtering.')
 })
 
 export const listProjectsResponseStageRegExp = new RegExp('^[a-z][a-z0-9_]{1,62}$');
@@ -52,6 +55,12 @@ export const ListProjectsResponseItem = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().nullish(),
+  "ownerUserId": zod.number().int().nullish(),
+  "assignedUser": zod.union([zod.object({
+  "id": zod.number().int(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().email().nullable()
+}),zod.null()]).optional(),
   "stage": zod.string().regex(listProjectsResponseStageRegExp),
   "workflowTemplateId": zod.number().int().nullish(),
   "projectStatus": zod.string().nullish(),
@@ -116,6 +125,7 @@ export const CreateProjectBody = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().optional(),
+  "ownerUserId": zod.number().int().nullish(),
   "stage": zod.string().regex(createProjectBodyStageRegExp).optional(),
   "projectStatus": zod.string().regex(createProjectBodyProjectStatusRegExp).optional(),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']).optional(),
@@ -161,6 +171,12 @@ export const CreateProjectResponse = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().nullish(),
+  "ownerUserId": zod.number().int().nullish(),
+  "assignedUser": zod.union([zod.object({
+  "id": zod.number().int(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().email().nullable()
+}),zod.null()]).optional(),
   "stage": zod.string().regex(createProjectResponseStageRegExp),
   "workflowTemplateId": zod.number().int().nullish(),
   "projectStatus": zod.string().nullish(),
@@ -217,6 +233,12 @@ export const GetProjectResponse = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().nullish(),
+  "ownerUserId": zod.number().int().nullish(),
+  "assignedUser": zod.union([zod.object({
+  "id": zod.number().int(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().email().nullable()
+}),zod.null()]).optional(),
   "stage": zod.string().regex(getProjectResponseStageRegExp),
   "workflowTemplateId": zod.number().int().nullish(),
   "projectStatus": zod.string().nullish(),
@@ -284,6 +306,7 @@ export const UpdateProjectBody = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().optional(),
+  "ownerUserId": zod.number().int().nullish(),
   "stage": zod.string().regex(updateProjectBodyOneStageRegExp).optional(),
   "projectStatus": zod.string().regex(updateProjectBodyOneProjectStatusRegExp).optional(),
   "proposalStatus": zod.enum(['not_started', 'drafting', 'submitted', 'revised', 'accepted']).optional(),
@@ -329,6 +352,12 @@ export const UpdateProjectResponse = zod.object({
   "category": zod.string(),
   "productCategories": zod.array(zod.string()).optional(),
   "owner": zod.string().nullish(),
+  "ownerUserId": zod.number().int().nullish(),
+  "assignedUser": zod.union([zod.object({
+  "id": zod.number().int(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().email().nullable()
+}),zod.null()]).optional(),
   "stage": zod.string().regex(updateProjectResponseStageRegExp),
   "workflowTemplateId": zod.number().int().nullish(),
   "projectStatus": zod.string().nullish(),
@@ -10171,6 +10200,12 @@ export const GetDashboardDrilldownResponse = zod.object({
   "customerName": zod.string(),
   "projectName": zod.string(),
   "owner": zod.string().nullish(),
+  "ownerUserId": zod.number().int().nullish(),
+  "assignedUser": zod.union([zod.object({
+  "id": zod.number().int(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().email().nullable()
+}),zod.null()]).optional(),
   "stage": zod.string().regex(getDashboardDrilldownResponseProjectsItemStageRegExp),
   "projectStatus": zod.string().nullable(),
   "contractValue": zod.number(),
@@ -10188,6 +10223,12 @@ export const GetDashboardDrilldownResponse = zod.object({
   "customerName": zod.string(),
   "projectName": zod.string(),
   "owner": zod.string().nullish(),
+  "ownerUserId": zod.number().int().nullish(),
+  "assignedUser": zod.union([zod.object({
+  "id": zod.number().int(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().email().nullable()
+}),zod.null()]).optional(),
   "dueDate": zod.coerce.date(),
   "status": zod.enum(['open', 'completed']),
   "note": zod.string(),
@@ -10200,6 +10241,12 @@ export const GetDashboardDrilldownResponse = zod.object({
   "customerName": zod.string(),
   "projectName": zod.string(),
   "owner": zod.string().nullish(),
+  "ownerUserId": zod.number().int().nullish(),
+  "assignedUser": zod.union([zod.object({
+  "id": zod.number().int(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().email().nullable()
+}),zod.null()]).optional(),
   "stage": zod.string().regex(getDashboardDrilldownResponseAttentionItemProjectStageRegExp),
   "projectStatus": zod.string().nullable(),
   "contractValue": zod.number(),

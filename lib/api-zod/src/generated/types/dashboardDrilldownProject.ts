@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AssignedUser } from './assignedUser';
 import type { ProjectStage } from './projectStage';
 
 export interface DashboardDrilldownProject {
@@ -14,6 +15,9 @@ export interface DashboardDrilldownProject {
   projectName: string;
   /** @nullable */
   owner?: string | null;
+  /** @nullable */
+  ownerUserId?: number | null;
+  assignedUser?: AssignedUser | null;
   stage: ProjectStage;
   /** @nullable */
   projectStatus: string | null;

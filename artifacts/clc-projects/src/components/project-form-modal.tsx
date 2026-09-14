@@ -6,6 +6,7 @@ import {
   ContractStatus, BillingStatus, CloseoutStatus,
   useCreateProject, useUpdateProject,
   useListBusinessCustomers, getListBusinessCustomersQueryKey,
+  useListTenantMembers, getListTenantMembersQueryKey,
   getListProjectsQueryKey, getGetProjectQueryKey, getGetDashboardSummaryQueryKey,
 } from '@workspace/api-client-react';
 import { Modal, Button } from '@/components/app-ui';
@@ -14,7 +15,7 @@ import { useWorkflow } from '@/hooks/use-workflow';
 
 type ProjectForm = {
   customerName: string; businessCustomerId?: number; newCustomer?: BusinessCustomerInput; projectName: string; address: string; category: string;
-  productCategories: string; owner: string; stage: string; proposalStatus: string;
+  productCategories: string; ownerUserId: string; stage: string; proposalStatus: string;
   proposalDetails: string; bidOutcome: string; contractStatus: string; contractValue: string;
   contractDetails: string; contractStart: string; contractEnd: string; deliveryPercent: string;
   requirementsSummary: string; billingStatus: string; invoicedAmount: string;
@@ -24,7 +25,7 @@ type ProjectForm = {
 
 const emptyProjectForm: ProjectForm = {
   customerName: '', projectName: '', address: '', category: 'Residential',
-  productCategories: '', owner: '', stage: 'opportunity', proposalStatus: 'not_started',
+  productCategories: '', ownerUserId: '', stage: 'opportunity', proposalStatus: 'not_started',
   proposalDetails: '', bidOutcome: 'pending', contractStatus: 'none', contractValue: '0',
   contractDetails: '', contractStart: '', contractEnd: '', deliveryPercent: '0',
   requirementsSummary: '', billingStatus: 'not_started', invoicedAmount: '0',
@@ -39,7 +40,7 @@ const formFromProject = (project: Project): ProjectForm => ({
   address: project.address || '',
   category: project.category,
   productCategories: project.productCategories?.join(', ') || '',
-  owner: project.owner || '',
+  ownerUserId: project.ownerUserId ? String(project.ownerUserId) : '',
   stage: project.stage,
   proposalStatus: project.proposalStatus,
   proposalDetails: project.proposalDetails || '',
@@ -68,7 +69,7 @@ const projectPayload = (form: ProjectForm): ProjectInput => ({
   address: form.address || undefined,
   category: form.category,
   productCategories: form.productCategories.split(',').map((s) => s.trim()).filter(Boolean),
-  owner: form.owner || undefined,
+  ownerUserId: form.ownerUserId ? Number(form.ownerUserId) : null,
   stage: form.stage as ProjectStage,
   proposalStatus: form.proposalStatus as ProposalStatus,
   proposalDetails: form.proposalDetails || undefined,
@@ -193,6 +194,13 @@ export function ProjectFormModal({ project, initialCustomer, onClose }: { projec
   const update = useUpdateProject();
   const qc = useQueryClient();
   const workflow = useWorkflow();
+  const tenant = useTenant();
+  const members = useListTenantMembers({
+    query: {
+      queryKey: getListTenantMembersQueryKey(),
+      enabled: tenant.activeRole === 'owner' || tenant.activeRole === 'admin' || tenant.activeRole === 'member',
+    },
+  });
   const stageOptions = workflow.states.map((state) => ({ value: state.stableKey, label: state.displayName }));
 
   const set = (key: keyof ProjectForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
@@ -290,7 +298,14 @@ export function ProjectFormModal({ project, initialCustomer, onClose }: { projec
           />
           {input('projectName', 'Project name', 'text', 'e.g. Pacific Heights kitchen')}
           {input('address', 'Jobsite address', 'text', 'Street, city, state')}
-          {input('owner', 'Project owner', 'text', 'Assign a teammate')}
+           {select(
+             'ownerUserId',
+             'Assigned to',
+             [{ value: '', label: 'Unassigned' }, ...(members.data ?? []).map((member) => ({
+               value: String(member.userId),
+               label: member.displayName || member.email || `User ${member.userId}`,
+             }))],
+           )}
         </div>
         {mutationError && <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-xs text-destructive">This project could not be saved. Check the required fields and try again.</p>}
         <div className="grid gap-4 md:grid-cols-2">

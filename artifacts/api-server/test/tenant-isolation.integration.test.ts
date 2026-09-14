@@ -47,6 +47,8 @@ let projectBId: number;
 let followUpBId: number;
 let bidAId: number;
 let bidBId: number;
+let memberAUserId: number;
+let ownerBUserId: number;
 
 async function request(
   clerkUserId: string,
@@ -115,6 +117,8 @@ before(async () => {
     })),
   ).returning();
   const userId = Object.fromEntries(users.map((user) => [user.clerkUserId, user.id]));
+  memberAUserId = userId[clerkIds.memberA];
+  ownerBUserId = userId[clerkIds.ownerB];
 
   await db.insert(membershipsTable).values([
     { tenantId: tenantAId, userId: userId[clerkIds.ownerA], role: "owner" },
@@ -141,13 +145,13 @@ before(async () => {
       tenantId: tenantAId, environmentId: environmentAId,
       projectNumber: `A-${runId}`, customerName: "Customer A",
       projectName: `Visible A ${runId}`, category: "commercial",
-      stage: "opportunity", contractValue: "111.00",
+      stage: "opportunity", contractValue: "111.00", ownerUserId: memberAUserId,
     },
     {
       tenantId: tenantBId, environmentId: environmentBId,
       projectNumber: `B-${runId}`, customerName: "Customer B",
       projectName: `Secret B ${runId}`, category: "commercial",
-      stage: "opportunity", contractValue: "999999.00",
+      stage: "opportunity", contractValue: "999999.00", ownerUserId: ownerBUserId,
     },
   ]).returning();
   projectAId = projectA.id;
@@ -284,6 +288,39 @@ describe("tenant isolation integration", () => {
       const result = await request(clerkIds.viewerA, path, init);
       assert.equal(result.status, 403, `${init.method} ${path}`);
     }
+  });
+
+  test("project assignment scope is server-derived and tenant-scoped", async () => {
+    const memberMine = await request(clerkIds.memberA, "/projects?scope=mine");
+    assert.equal(memberMine.status, 200);
+    assert.match(serialized(memberMine.body), new RegExp(`Visible A ${runId}`));
+    assert.doesNotMatch(serialized(memberMine.body), new RegExp(`Secret B ${runId}`));
+
+    const ownerMine = await request(clerkIds.ownerA, "/projects?scope=mine");
+    assert.equal(ownerMine.status, 200);
+    assert.doesNotMatch(serialized(ownerMine.body), new RegExp(`Visible A ${runId}`));
+
+    const tamperedScope = await request(
+      clerkIds.memberA,
+      `/projects?scope=mine&ownerUserId=${ownerBUserId}`,
+    );
+    assert.equal(tamperedScope.status, 400);
+
+    const unassigned = await request(clerkIds.viewerA, "/projects?ownerUserId=unassigned");
+    assert.equal(unassigned.status, 200);
+    assert.equal((unassigned.body as unknown[]).length, 0);
+
+    const crossTenantAssignment = await request(clerkIds.ownerA, `/projects/${projectAId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ ownerUserId: ownerBUserId }),
+    });
+    assert.equal(crossTenantAssignment.status, 400);
+    const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, projectAId));
+    assert.equal(project.ownerUserId, memberAUserId);
+
+    const filtered = await request(clerkIds.viewerA, `/projects?ownerUserId=${memberAUserId}`);
+    assert.equal(filtered.status, 200);
+    assert.match(serialized(filtered.body), new RegExp(`Visible A ${runId}`));
   });
 
   test("only owners and admins can change branding", async () => {

@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 import { businessCustomersTable } from "./business-customers";
-import { environmentsTable, tenantsTable } from "./tenants";
+import { environmentsTable, tenantsTable, usersTable } from "./tenants";
 
 export const projectsTable = pgTable("projects", {
   id: serial("id").primaryKey(),
@@ -25,6 +25,7 @@ export const projectsTable = pgTable("projects", {
   category: text("category").notNull(),
   productCategories: text("product_categories").array().notNull().default([]),
   owner: text("owner"),
+  ownerUserId: integer("owner_user_id").references(() => usersTable.id, { onDelete: "set null" }),
   stage: text("stage").notNull().default("opportunity"),
   proposalStatus: text("proposal_status").notNull().default("not_started"),
   proposalDetails: text("proposal_details"),
@@ -61,6 +62,7 @@ export const projectsTable = pgTable("projects", {
     .defaultNow(),
 }, (table) => [
    index("projects_tenant_environment_idx").on(table.tenantId, table.environmentId),
+   index("projects_tenant_environment_owner_idx").on(table.tenantId, table.environmentId, table.ownerUserId),
    uniqueIndex("projects_tenant_environment_project_number_idx").on(table.tenantId, table.environmentId, table.projectNumber),
 ]);
 

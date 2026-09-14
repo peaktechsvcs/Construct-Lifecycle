@@ -2297,6 +2297,14 @@ export interface BusinessCustomerSummary {
   projectCount: number;
 }
 
+export interface AssignedUser {
+  id: number;
+  /** @nullable */
+  displayName: string | null;
+  /** @nullable */
+  email: string | null;
+}
+
 export interface Project {
   id: number;
   environmentId?: number;
@@ -2312,6 +2320,9 @@ export interface Project {
   productCategories?: string[];
   /** @nullable */
   owner?: string | null;
+  /** @nullable */
+  ownerUserId?: number | null;
+  assignedUser?: AssignedUser | null;
   stage: ProjectStage;
   /** @nullable */
   workflowTemplateId?: number | null;
@@ -3476,6 +3487,8 @@ export interface ProjectInput {
   category: string;
   productCategories?: string[];
   owner?: string;
+  /** @nullable */
+  ownerUserId?: number | null;
   stage?: ProjectStage;
   /** @pattern ^[a-z][a-z0-9_]{1,62}$ */
   projectStatus?: string;
@@ -3645,6 +3658,9 @@ export interface DashboardDrilldownProject {
   projectName: string;
   /** @nullable */
   owner?: string | null;
+  /** @nullable */
+  ownerUserId?: number | null;
+  assignedUser?: AssignedUser | null;
   stage: ProjectStage;
   /** @nullable */
   projectStatus: string | null;
@@ -3686,6 +3702,9 @@ export interface DashboardDrilldownFollowUp {
   projectName: string;
   /** @nullable */
   owner?: string | null;
+  /** @nullable */
+  ownerUserId?: number | null;
+  assignedUser?: AssignedUser | null;
   dueDate: string;
   status: DashboardDrilldownFollowUpStatus;
   note: string;
@@ -6570,7 +6589,21 @@ export interface EnvironmentResourceInventory {
 export type ListProjectsParams = {
 search?: string;
 stage?: ProjectStage;
+scope?: ListProjectsScope;
+/**
+ * Tenant member id, or unassigned, for owner filtering.
+ * @pattern ^(unassigned|[1-9][0-9]*)$
+ */
+ownerUserId?: string;
 };
+
+export type ListProjectsScope = typeof ListProjectsScope[keyof typeof ListProjectsScope];
+
+
+export const ListProjectsScope = {
+  all: 'all',
+  mine: 'mine',
+} as const;
 
 export type ListTradePartnersParams = {
 /**

@@ -71,7 +71,7 @@ export async function createTenantInvitation(
 
 router.get(
   "/tenant/members",
-  requireRole("owner", "admin", "member"),
+  requireRole("owner", "admin", "member", "viewer"),
   async (req: TenantRequest, res) => {
     const members = await db
       .select({
