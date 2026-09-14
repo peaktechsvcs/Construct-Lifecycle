@@ -34,6 +34,7 @@ const clerkIds = {
   platformAdmin: `feature-platform-admin-${runId}`,
   memberA: `feature-member-a-${runId}`,
   viewerA: `feature-viewer-a-${runId}`,
+  concurrentA: `feature-concurrent-a-${runId}`,
   memberB: `feature-member-b-${runId}`,
 };
 
@@ -127,6 +128,11 @@ before(async () => {
       displayName: "Tenant A second voter",
     },
     {
+      clerkUserId: clerkIds.concurrentA,
+      email: `${clerkIds.concurrentA}@integration.test`,
+      displayName: "Tenant A concurrent voter",
+    },
+    {
       clerkUserId: clerkIds.memberB,
       email: `${clerkIds.memberB}@integration.test`,
       displayName: "Tenant B member",
@@ -152,6 +158,7 @@ before(async () => {
   assert(address && typeof address !== "string");
   baseUrl = `http://127.0.0.1:${address.port}`;
 });
+
 
 after(async () => {
   if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -251,5 +258,52 @@ describe("feature visibility and roadmap feedback integration", { concurrency: f
       ));
     assert.equal(activeVotes.length, 3);
     assert.equal(new Set(activeVotes.map((vote) => `${vote.tenantId}:${vote.userId}`)).size, 3);
+  });
+
+  test("concurrent replacement votes leave one winning row and correct aggregate counts", async () => {
+    const [contractsVote, milestonesVote] = await Promise.all([
+      request(clerkIds.concurrentA, "/feedback/vote", {
+        method: "POST",
+        body: JSON.stringify({ featureKey: "contracts" }),
+      }),
+      request(clerkIds.concurrentA, "/feedback/vote", {
+        method: "POST",
+        body: JSON.stringify({ featureKey: "milestones" }),
+      }),
+    ]);
+
+    assert.equal(contractsVote.status, 200, JSON.stringify(contractsVote.body));
+    assert.equal(milestonesVote.status, 200, JSON.stringify(milestonesVote.body));
+
+    const concurrentUserId = userIdByClerkId.get(clerkIds.concurrentA)!;
+    const [winningVote] = await db
+      .select()
+      .from(featureFeedbackVotesTable)
+      .where(and(
+        eq(featureFeedbackVotesTable.tenantId, tenantAId),
+        eq(featureFeedbackVotesTable.userId, concurrentUserId),
+      ));
+    assert.ok(winningVote);
+    assert.ok(featureKeys.includes(winningVote.featureKey as typeof featureKeys[number]));
+
+    const activeVotes = await db
+      .select()
+      .from(featureFeedbackVotesTable)
+      .where(inArray(featureFeedbackVotesTable.tenantId, [tenantAId, tenantBId]));
+    assert.equal(
+      activeVotes.filter((vote) => vote.tenantId === tenantAId && vote.userId === concurrentUserId).length,
+      1,
+    );
+
+    const counts = new Map<string, number>();
+    for (const vote of activeVotes) {
+      counts.set(vote.featureKey, (counts.get(vote.featureKey) ?? 0) + 1);
+    }
+    const feedback = await request(clerkIds.concurrentA, "/feedback/features");
+    assert.equal(feedback.status, 200, JSON.stringify(feedback.body));
+    for (const featureKey of featureKeys) {
+      assert.equal(feature(feedback.body, featureKey)?.voteCount, counts.get(featureKey) ?? 0);
+    }
+    assert.equal(feature(feedback.body, winningVote.featureKey)?.votedByCurrentUser, true);
   });
 });

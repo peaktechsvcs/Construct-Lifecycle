@@ -130,16 +130,16 @@ router.post("/feedback/vote", async (req: TenantRequest, res): Promise<void> => 
     return;
   }
 
-  await db.transaction(async (tx) => {
-    await tx.delete(featureFeedbackVotesTable).where(and(
-      eq(featureFeedbackVotesTable.tenantId, req.tenantId!),
-      eq(featureFeedbackVotesTable.userId, req.localUserId!),
-    ));
-    await tx.insert(featureFeedbackVotesTable).values({
+  await db.insert(featureFeedbackVotesTable).values({
+    featureKey: feature.key,
+    tenantId: req.tenantId!,
+    userId: req.localUserId!,
+  }).onConflictDoUpdate({
+    target: [featureFeedbackVotesTable.tenantId, featureFeedbackVotesTable.userId],
+    set: {
       featureKey: feature.key,
-      tenantId: req.tenantId!,
-      userId: req.localUserId!,
-    });
+      createdAt: new Date(),
+    },
   });
 
   res.json(VoteForFeatureResponse.parse(await listFeedback(req)));
