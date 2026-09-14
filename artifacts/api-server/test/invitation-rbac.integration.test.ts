@@ -187,13 +187,13 @@ describe("invitation and role authorization regressions", () => {
     });
     assert.deepEqual(accessEvent.actor, {
       id: userId.platformAdmin,
-      email: `platform-admin-${runId}@integration.test`,
-      displayName: "Platform Admin",
+      email: `${clerkIds.platformAdmin}@integration.test`,
+      displayName: clerkIds.platformAdmin,
     });
     assert.deepEqual(accessEvent.affectedUser, {
       id: userId.memberA,
-      email: `member-a-${runId}@integration.test`,
-      displayName: "Member A",
+      email: `${clerkIds.memberA}@integration.test`,
+      displayName: clerkIds.memberA,
     });
     assert.equal(events.some((event) => event.tenantId === tenantBId), false);
   });
