@@ -4578,6 +4578,7 @@ export interface ReleaseAssignmentEvent {
   assignmentId?: number | null;
   /** @nullable */
   actorUserId?: number | null;
+  actorDisplayName: string;
   action: string;
   /** @nullable */
   fromStatus?: string | null;

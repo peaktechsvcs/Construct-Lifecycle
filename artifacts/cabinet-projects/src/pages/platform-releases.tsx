@@ -132,7 +132,7 @@ function ReleaseEventTimeline({ events }: { events: ReleaseAssignmentEvent[] }) 
               <p className="mono text-[10px] text-muted-foreground">{eventTimestamp(event.occurredAt)}</p>
             </div>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Actor {actor(event.actorUserId)}
+              Actor {event.actorDisplayName} · ID {actor(event.actorUserId)}
               {event.fromStatus || event.toStatus
                 ? ` · ${event.fromStatus || '—'} → ${event.toStatus || '—'}`
                 : ''}

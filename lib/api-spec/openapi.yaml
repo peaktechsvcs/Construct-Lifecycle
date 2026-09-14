@@ -7148,12 +7148,13 @@ components:
         buildId: { type: string, maxLength: 160 }
     ReleaseAssignmentEvent:
       type: object
-      required: [id, releaseId, action, details, occurredAt]
+      required: [id, releaseId, action, actorDisplayName, details, occurredAt]
       properties:
         id: { type: integer }
         releaseId: { type: integer }
         assignmentId: { type: ["integer", "null"] }
         actorUserId: { type: ["integer", "null"] }
+        actorDisplayName: { type: string }
         action: { type: string }
         fromStatus: { type: ["string", "null"] }
         toStatus: { type: ["string", "null"] }

@@ -90,8 +90,29 @@ const parseStoredPayload = (value: string) => {
   }
 };
 
-const serializeEvent = (event: typeof releaseAssignmentEventsTable.$inferSelect) => ({
+type ReleaseActorNames = ReadonlyMap<number, string>;
+
+const releaseActorNames = async (events: (typeof releaseAssignmentEventsTable.$inferSelect)[]) => {
+  const actorIds = [...new Set(events.flatMap((event) => event.actorUserId === null ? [] : [event.actorUserId]))];
+  if (actorIds.length === 0) return new Map<number, string>();
+  const users = await db
+    .select({ id: usersTable.id, displayName: usersTable.displayName })
+    .from(usersTable)
+    .where(inArray(usersTable.id, actorIds));
+  return new Map(users.map((user) => [
+    user.id,
+    user.displayName?.trim() || "Unavailable user",
+  ]));
+};
+
+const serializeEvent = (
+  event: typeof releaseAssignmentEventsTable.$inferSelect,
+  actors: ReleaseActorNames = new Map(),
+) => ({
   ...event,
+  actorDisplayName: event.actorUserId === null
+    ? "Legacy actor"
+    : actors.get(event.actorUserId) ?? "Unavailable user",
   details: (() => { try { return JSON.parse(event.details) as Record<string, unknown>; } catch { return {}; } })(),
 });
 
@@ -99,15 +120,16 @@ const serializeRelease = (
   release: typeof platformReleasesTable.$inferSelect,
   assignments: (typeof environmentReleaseAssignmentsTable.$inferSelect)[],
   events: (typeof releaseAssignmentEventsTable.$inferSelect)[],
+  actors: ReleaseActorNames = new Map(),
 ) => ({
   ...release,
   appPayload: parseStoredPayload(release.appPayload),
   configPayload: parseStoredPayload(release.configPayload),
   assignments: assignments.map((assignment) => ({
     ...assignment,
-    events: events.filter((event) => event.assignmentId === assignment.id).map(serializeEvent),
+    events: events.filter((event) => event.assignmentId === assignment.id).map((event) => serializeEvent(event, actors)),
   })),
-  events: events.filter((event) => event.assignmentId === null).map(serializeEvent),
+  events: events.filter((event) => event.assignmentId === null).map((event) => serializeEvent(event, actors)),
 });
 
 async function writeAuditIn(tx: any, req: TenantRequest, action: string, tenantId: number | null, details: Record<string, unknown>) {
@@ -295,10 +317,12 @@ router.get("/platform/releases", async (_req: TenantRequest, res) => {
   const releases = await db.select().from(platformReleasesTable).orderBy(sql`${platformReleasesTable.createdAt} desc`);
   const assignments = await db.select().from(environmentReleaseAssignmentsTable);
   const events = await db.select().from(releaseAssignmentEventsTable).orderBy(releaseAssignmentEventsTable.occurredAt);
+  const actors = await releaseActorNames(events);
   res.json(releases.map((release) => serializeRelease(
     release,
     assignments.filter((assignment) => assignment.releaseId === release.id),
     events.filter((event) => event.releaseId === release.id),
+    actors,
   )));
 });
 
@@ -350,7 +374,8 @@ router.post("/platform/releases", async (req: TenantRequest, res) => {
     return;
   }
   const events = await db.select().from(releaseAssignmentEventsTable).where(eq(releaseAssignmentEventsTable.releaseId, release.id));
-  res.status(201).json(serializeRelease(release, [], events));
+  const actors = await releaseActorNames(events);
+  res.status(201).json(serializeRelease(release, [], events, actors));
 });
 
 router.post("/platform/releases/:releaseId/assign", async (req: TenantRequest, res) => {
@@ -435,7 +460,11 @@ router.post("/platform/releases/:releaseId/assign", async (req: TenantRequest, r
     return { assignment: created, created: true };
   });
   const events = await db.select().from(releaseAssignmentEventsTable).where(eq(releaseAssignmentEventsTable.assignmentId, result.assignment!.id));
-  res.status(result.created ? 201 : 200).json({ ...result.assignment, events: events.map(serializeEvent) });
+  const actors = await releaseActorNames(events);
+  res.status(result.created ? 201 : 200).json({
+    ...result.assignment,
+    events: events.map((event) => serializeEvent(event, actors)),
+  });
 });
 
 router.post("/platform/releases/:releaseId/deploy", async (req: TenantRequest, res) => {
@@ -575,7 +604,11 @@ router.post("/platform/releases/:releaseId/deploy", async (req: TenantRequest, r
     return;
   }
   const events = await db.select().from(releaseAssignmentEventsTable).where(eq(releaseAssignmentEventsTable.assignmentId, result.assignment!.id));
-  res.json({ ...result.assignment, events: events.map(serializeEvent) });
+  const actors = await releaseActorNames(events);
+  res.json({
+    ...result.assignment,
+    events: events.map((event) => serializeEvent(event, actors)),
+  });
 });
 
 router.get("/platform/customers", async (_req: TenantRequest, res) => {

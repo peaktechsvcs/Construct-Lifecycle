@@ -9,6 +9,7 @@ import {
   platformAuditEventsTable,
   platformReleasesTable,
   releaseAssignmentEventsTable,
+  usersTable,
   tenantBrandingDraftsTable,
   tenantBrandingVersionsTable,
   tenantsTable,
@@ -62,16 +63,41 @@ const releaseAssignment = async (assignmentId: number, tenantId: number, userId:
   return row;
 };
 
-const serializeReleaseEvent = (event: typeof releaseAssignmentEventsTable.$inferSelect) => ({
+type ReleaseActorNames = ReadonlyMap<number, string>;
+
+const releaseActorNames = async (events: (typeof releaseAssignmentEventsTable.$inferSelect)[]) => {
+  const actorIds = [...new Set(events.flatMap((event) => event.actorUserId === null ? [] : [event.actorUserId]))];
+  if (actorIds.length === 0) return new Map<number, string>();
+  const users = await db
+    .select({ id: usersTable.id, displayName: usersTable.displayName })
+    .from(usersTable)
+    .where(inArray(usersTable.id, actorIds));
+  return new Map(users.map((user) => [
+    user.id,
+    user.displayName?.trim() || "Unavailable user",
+  ]));
+};
+
+const serializeReleaseEvent = (
+  event: typeof releaseAssignmentEventsTable.$inferSelect,
+  actors: ReleaseActorNames = new Map(),
+) => ({
   ...event,
+  actorDisplayName: event.actorUserId === null
+    ? "Legacy actor"
+    : actors.get(event.actorUserId) ?? "Unavailable user",
   details: parse(event.details),
 });
-const assignmentWithEvents = async (assignment: typeof environmentReleaseAssignmentsTable.$inferSelect) => ({
-  ...assignment,
-  events: (await db.select().from(releaseAssignmentEventsTable)
+const assignmentWithEvents = async (assignment: typeof environmentReleaseAssignmentsTable.$inferSelect) => {
+  const events = await db.select().from(releaseAssignmentEventsTable)
     .where(eq(releaseAssignmentEventsTable.assignmentId, assignment.id))
-    .orderBy(releaseAssignmentEventsTable.occurredAt)).map(serializeReleaseEvent),
-});
+    .orderBy(releaseAssignmentEventsTable.occurredAt);
+  const actors = await releaseActorNames(events);
+  return {
+    ...assignment,
+    events: events.map((event) => serializeReleaseEvent(event, actors)),
+  };
+};
 
 const writeReleaseTransition = async (
   tx: any,
@@ -462,9 +488,12 @@ router.get("/tenant/releases", releaseAdmin, async (req: TenantRequest, res) => 
       .where(inArray(releaseAssignmentEventsTable.assignmentId, assignments.map(({ assignment }) => assignment.id)))
       .orderBy(releaseAssignmentEventsTable.occurredAt)
     : [];
+  const actors = await releaseActorNames(events);
   res.json(assignments.map(({ assignment, release, environment }) => ({
     ...assignment,
-    events: events.filter((event) => event.assignmentId === assignment.id).map(serializeReleaseEvent),
+    events: events
+      .filter((event) => event.assignmentId === assignment.id)
+      .map((event) => serializeReleaseEvent(event, actors)),
     release: {
       ...release,
       appPayload: parse(release.appPayload),

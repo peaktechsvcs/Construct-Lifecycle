@@ -10,6 +10,7 @@ const {
   environmentHealthChecksTable,
   environmentReleaseAssignmentsTable,
   environmentReleaseControlsTable,
+  releaseAssignmentEventsTable,
   environmentResourcesTable,
   environmentSnapshotsTable,
   environmentsTable,
@@ -272,12 +273,43 @@ test("requires DTD deployment, validation, and customer approval before feature 
   );
   assert.equal(productionDeployment.status, 200, JSON.stringify(productionDeployment.body));
   assert.equal((productionDeployment.body as { deploymentStatus: string }).deploymentStatus, "deployed");
+  const productionEvents = (productionDeployment.body as {
+    events: Array<{ action: string; actorUserId: number | null; actorDisplayName: string }>;
+  }).events;
+  assert.equal(productionEvents.some((event) =>
+    event.action === "deployed"
+      && event.actorUserId !== null
+      && event.actorDisplayName === clerkIds.platformAdmin,
+  ), true);
 
   const [control] = await db.select().from(environmentReleaseControlsTable).where(eq(
     environmentReleaseControlsTable.assignmentId,
     featureProductionAssignmentId,
   ));
   assert.equal(control?.rollbackStatus, "available");
+
+  await db.insert(releaseAssignmentEventsTable).values({
+    releaseId: featureReleaseId,
+    assignmentId: featureProductionAssignmentId,
+    actorUserId: null,
+    action: "legacy_transition",
+    fromStatus: null,
+    toStatus: null,
+    details: JSON.stringify({ source: "legacy-audit-row" }),
+  });
+  const platformReleases = await request(clerkIds.platformAdmin, "/platform/releases");
+  assert.equal(platformReleases.status, 200);
+  const listedRelease = (platformReleases.body as Array<{
+    id: number;
+    assignments: Array<{ id: number; events: Array<{ action: string; actorDisplayName: string; actorUserId: number | null }> }>;
+  }>).find((release) => release.id === featureReleaseId);
+  const legacyEvent = listedRelease?.assignments
+    .flatMap((assignment) => assignment.events)
+    .find((event) => event.action === "legacy_transition");
+  assert.deepEqual(
+    { actorUserId: legacyEvent?.actorUserId, actorDisplayName: legacyEvent?.actorDisplayName },
+    { actorUserId: null, actorDisplayName: "Legacy actor" },
+  );
 });
 
 test("allows customer rejection only after DTD validation and records the rejection", async () => {
@@ -378,10 +410,17 @@ test("enforces direct-release, legacy-payload, tenant, and environment boundarie
 
   const memberView = await request(clerkIds.memberA, "/tenant/releases");
   assert.equal(memberView.status, 200, JSON.stringify(memberView.body));
-  const memberAssignments = memberView.body as Array<{ environmentId: number; id: number }>;
+  const memberAssignments = memberView.body as Array<{
+    environmentId: number;
+    id: number;
+    events: Array<{ actorDisplayName: string; actorUserId: number | null }>;
+  }>;
   assert.equal(memberAssignments.some((assignment) => assignment.id === featureDtdAssignmentId), true);
   assert.equal(memberAssignments.some((assignment) => assignment.environmentId === productionAId), false);
   assert.equal(memberAssignments.some((assignment) => assignment.environmentId === dtdBId), false);
+  assert.equal(memberAssignments
+    .find((assignment) => assignment.id === featureDtdAssignmentId)
+    ?.events.some((event) => event.actorDisplayName === clerkIds.platformAdmin && event.actorUserId !== null), true);
 
   const unauthorizedEnvironmentChange = await request(
     clerkIds.memberA,
