@@ -26,3 +26,21 @@ test("active project filtering requires a lifecycle-active stage and Active or W
     "PRJ-002",
   ]);
 });
+
+test("active project filtering follows published custom status keys without leaking pipeline or completed work", () => {
+  const projects = [
+    { id: 10, projectNumber: "PRJ-010", stage: "deliver", projectStatus: "field_active" },
+    { id: 11, projectNumber: "PRJ-011", stage: "financial", projectStatus: "REVIEW_PENDING" },
+    { id: 12, projectNumber: "PRJ-012", stage: "deliver", projectStatus: "active" },
+    { id: 13, projectNumber: "PRJ-013", stage: "bid", projectStatus: "field_active" },
+    { id: 14, projectNumber: "PRJ-014", stage: "closeout", projectStatus: "review_pending" },
+  ];
+
+  const matches = filterActiveProjects(
+    projects,
+    states,
+    new Set(["field_active", "review_pending"]),
+  );
+
+  assert.deepEqual(matches.map((project) => project.id), [10, 11]);
+});

@@ -15,6 +15,8 @@ const {
   tenantsTable,
   userTenantContextTable,
   usersTable,
+  workflowStatusesTable,
+  workflowTemplatesTable,
 } = await import("@workspace/db");
 const { ensurePublishedWorkflow } = await import("../src/lib/workflow.ts");
 const { default: app } = await import("../src/app.ts");
@@ -138,6 +140,99 @@ test("rejects exact normalized duplicate customer names within a tenant and envi
 
   assert.equal(duplicate.status, 409);
   assert.equal(asObject(duplicate.body).error, "A customer with this name already exists");
+});
+
+test("dashboard Active Projects follows a published custom status selection", async () => {
+  const published = await ensurePublishedWorkflow(tenantId, environmentId);
+  assert(published);
+  assert.equal(published.template.status, "published");
+
+  await db
+    .update(workflowTemplatesTable)
+    .set({ activeProjectStatusKeys: ["field_active", "review_pending"] })
+    .where(eq(workflowTemplatesTable.id, published.template.id));
+  await db.insert(workflowStatusesTable).values([
+    {
+      workflowTemplateId: published.template.id,
+      stableKey: "field_active",
+      displayName: "Field active",
+      displayOrder: 10,
+    },
+    {
+      workflowTemplateId: published.template.id,
+      stableKey: "review_pending",
+      displayName: "Review pending",
+      displayOrder: 11,
+    },
+  ]);
+  await db.insert(projectsTable).values([
+    {
+      tenantId,
+      environmentId,
+      projectNumber: `ACTIVE-${runId}`,
+      customerName: "Active customer",
+      projectName: "Included field project",
+      category: "commercial",
+      stage: "deliver",
+      projectStatus: "field_active",
+      contractValue: "100.00",
+    },
+    {
+      tenantId,
+      environmentId,
+      projectNumber: `REVIEW-${runId}`,
+      customerName: "Review customer",
+      projectName: "Included review project",
+      category: "commercial",
+      stage: "financial",
+      projectStatus: "REVIEW_PENDING",
+      contractValue: "200.00",
+    },
+    {
+      tenantId,
+      environmentId,
+      projectNumber: `DEFAULT-${runId}`,
+      customerName: "Default status customer",
+      projectName: "Excluded default status project",
+      category: "commercial",
+      stage: "deliver",
+      projectStatus: "active",
+      contractValue: "300.00",
+    },
+    {
+      tenantId,
+      environmentId,
+      projectNumber: `PIPELINE-${runId}`,
+      customerName: "Pipeline customer",
+      projectName: "Excluded pipeline project",
+      category: "commercial",
+      stage: "bid",
+      projectStatus: "field_active",
+      contractValue: "400.00",
+    },
+    {
+      tenantId,
+      environmentId,
+      projectNumber: `COMPLETED-${runId}`,
+      customerName: "Completed customer",
+      projectName: "Excluded completed project",
+      category: "commercial",
+      stage: "closeout",
+      projectStatus: "review_pending",
+      contractValue: "500.00",
+    },
+  ]);
+
+  const response = await request("/dashboard/drilldown?type=active-projects");
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  const body = asObject(response.body);
+  const projects = body.projects as Array<JsonObject>;
+  assert.equal(body.count, 2);
+  assert.equal(body.total, 300);
+  assert.deepEqual(projects.map((project) => project.projectName), [
+    "Included review project",
+    "Included field project",
+  ]);
 });
 
 test("excludes archived customers from selection and blocks project assignment until restored", async () => {
