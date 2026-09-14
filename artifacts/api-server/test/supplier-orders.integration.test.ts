@@ -15,6 +15,7 @@ import {
   supplierOrderEventsTable,
   supplierOrderLinesTable,
   supplierOrdersTable,
+  supplierProductsTable,
   tenantsTable,
   userTenantContextTable,
   usersTable,
@@ -34,7 +35,10 @@ let tenantId: number;
 let environmentId: number;
 let otherEnvironmentId: number;
 let otherCustomerId: number;
+let otherTenantId: number;
+let otherTenantOrderId: number;
 let orderId: number;
+let otherOrderId: number;
 let orderLineId: number;
 let deliveryId: number;
 let otherDeliveryId: number;
@@ -67,6 +71,31 @@ before(async () => {
     status: "active",
   }).returning();
   environmentId = environment.id;
+  const [otherTenant] = await db.insert(tenantsTable).values({
+    name: "Other Supplier Tenant",
+    slug: `other-supplier-tenant-${runId}`,
+  }).returning();
+  otherTenantId = otherTenant.id;
+  const [otherTenantEnvironment] = await db.insert(environmentsTable).values({
+    tenantId: otherTenantId,
+    name: "Other Tenant Environment",
+    slug: "dtd",
+    kind: "dtd",
+    status: "active",
+  }).returning();
+  const [otherTenantCustomer] = await db.insert(businessCustomersTable).values({
+    tenantId: otherTenantId,
+    environmentId: otherTenantEnvironment.id,
+    companyName: "Other Tenant Customer",
+    normalizedName: `other-tenant-customer-${runId}`,
+  }).returning();
+  const [otherTenantOrder] = await db.insert(supplierOrdersTable).values({
+    tenantId: otherTenantId,
+    environmentId: otherTenantEnvironment.id,
+    orderNumber: `PO-OTHER-TENANT-${runId}`,
+    businessCustomerId: otherTenantCustomer.id,
+  }).returning();
+  otherTenantOrderId = otherTenantOrder.id;
   const [otherEnvironment] = await db.insert(environmentsTable).values({
     tenantId,
     name: "Other Environment",
@@ -141,6 +170,7 @@ before(async () => {
     orderNumber: `PO-OTHER-${runId}`,
     businessCustomerId: otherCustomer.id,
   }).returning();
+  otherOrderId = otherOrder.id;
   const [otherLine] = await db.insert(supplierOrderLinesTable).values({
     tenantId,
     environmentId: otherEnvironmentId,
@@ -163,6 +193,34 @@ before(async () => {
     orderLineId: otherLine.id,
     quantityDelivered: "1",
   });
+  await db.insert(supplierProductsTable).values({
+    sku: `OTHER-${runId}`,
+    name: "Other environment product",
+    tenantId,
+    environmentId: otherEnvironmentId,
+  });
+  await db.insert(supplierInvoicesTable).values({
+    orderId: otherOrder.id,
+    invoiceNumber: `INV-OTHER-${runId}`,
+    totalAmount: "99",
+    paidAmount: "99",
+    status: "paid",
+    paymentReference: "OTHER-ENV-PAYMENT",
+    paidAt: new Date(),
+    tenantId,
+    environmentId: otherEnvironmentId,
+  });
+  await db.insert(supplierOrderEventsTable).values({
+    orderId: otherOrder.id,
+    entityType: "invoice",
+    entityId: otherOrder.id,
+    action: "payment_recorded",
+    toStatus: "paid",
+    details: "Other environment payment",
+    visibleToCustomer: "true",
+    tenantId,
+    environmentId: otherEnvironmentId,
+  });
 
   server = app.listen(0, "127.0.0.1");
   await new Promise<void>((resolve, reject) => {
@@ -178,6 +236,7 @@ after(async () => {
   if (uploadedObjectPath) await objectStorage.deleteObject(uploadedObjectPath).catch(() => undefined);
   if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   if (tenantId) await db.delete(tenantsTable).where(eq(tenantsTable.id, tenantId));
+  if (otherTenantId) await db.delete(tenantsTable).where(eq(tenantsTable.id, otherTenantId));
   await pool.end();
 });
 
@@ -319,6 +378,10 @@ test("account history applies retainage and waiver gates without crossing enviro
     }),
   });
   assert.equal(paid.response.status, 201, JSON.stringify(paid.body));
+  assert.equal((paid.body as { status: string }).status, "paid");
+  const paidOrder = await request(`/supplier-orders/${orderId}`);
+  assert.equal(paidOrder.response.status, 200);
+  assert.equal((paidOrder.body as { paymentStatus: string }).paymentStatus, "paid");
 
   const customerId = (await db.select({ id: businessCustomersTable.id }).from(businessCustomersTable).where(and(
     eq(businessCustomersTable.tenantId, tenantId),
@@ -347,4 +410,182 @@ test("account history applies retainage and waiver gates without crossing enviro
   assert.equal(storedInvoices.length, 2);
   const storedTerms = await db.select().from(supplierCustomerTermsTable).where(eq(supplierCustomerTermsTable.businessCustomerId, customerId));
   assert.equal(storedTerms[0].waiverRequired, true);
+});
+
+test("only accepted quotes convert once and fulfillment transitions stay consistent", async () => {
+  const customerId = (await db.select({ id: businessCustomersTable.id }).from(businessCustomersTable).where(and(
+    eq(businessCustomersTable.tenantId, tenantId),
+    eq(businessCustomersTable.environmentId, environmentId),
+  )))[0].id;
+  const draft = await request("/supplier-quotes", {
+    method: "POST",
+    body: JSON.stringify({
+      businessCustomerId: customerId,
+      status: "draft",
+      lines: [{ description: "Draft-only material", quantity: 1, unitCost: 4, unitPrice: 6 }],
+    }),
+  });
+  assert.equal(draft.response.status, 201, JSON.stringify(draft.body));
+  const draftConversion = await request(`/supplier-quotes/${(draft.body as { id: number }).id}/convert`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  assert.equal(draftConversion.response.status, 400);
+
+  const accepted = await request("/supplier-quotes", {
+    method: "POST",
+    body: JSON.stringify({
+      businessCustomerId: customerId,
+      status: "accepted",
+      lines: [{ description: "Fulfillment material", quantity: 10, unitCost: 8, unitPrice: 12 }],
+    }),
+  });
+  assert.equal(accepted.response.status, 201, JSON.stringify(accepted.body));
+  const acceptedQuoteId = (accepted.body as { id: number }).id;
+  const converted = await request(`/supplier-quotes/${acceptedQuoteId}/convert`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  assert.equal(converted.response.status, 201, JSON.stringify(converted.body));
+  const convertedBody = converted.body as { id: number; lines: Array<{ id: number; quantity: number }> };
+  assert(Array.isArray(convertedBody.lines) && convertedBody.lines.length > 0, JSON.stringify(converted.body));
+  const convertedOrderId = convertedBody.id;
+  const convertedOrderLineId = convertedBody.lines[0].id;
+
+  const duplicateConversion = await request(`/supplier-quotes/${acceptedQuoteId}/convert`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  assert.equal(duplicateConversion.response.status, 400);
+  const quoteDetail = await request(`/supplier-quotes/${acceptedQuoteId}`);
+  assert.equal(quoteDetail.response.status, 200);
+  assert.equal((quoteDetail.body as { status: string }).status, "converted");
+  const conversionEvents = await request(`/supplier-orders/${convertedOrderId}/events`);
+  assert.equal(conversionEvents.response.status, 200);
+  assert((conversionEvents.body as Array<{ action: string }>).some((event) => event.action === "converted_to_order"));
+
+  const firstDelivery = await request(`/supplier-orders/${convertedOrderId}/deliveries`, {
+    method: "POST",
+    body: JSON.stringify({
+      status: "delivered",
+      lines: [{ orderLineId: convertedOrderLineId, quantityDelivered: 4 }],
+    }),
+  });
+  assert.equal(firstDelivery.response.status, 201, JSON.stringify(firstDelivery.body));
+  const partialOrder = await request(`/supplier-orders/${convertedOrderId}`);
+  assert.equal(partialOrder.response.status, 200);
+  const partialOrderBody = partialOrder.body as {
+    orderStatus: string;
+    lines: Array<{ deliveredQuantity: number; backorderedQuantity: number }>;
+    deliveries: Array<{ id: number; lines: Array<{ id: number }> }>;
+  };
+  assert.equal(partialOrderBody.orderStatus, "partially_fulfilled");
+  assert.equal(partialOrderBody.lines[0].deliveredQuantity, 4);
+  assert.equal(partialOrderBody.lines[0].backorderedQuantity, 6);
+  const firstDeliveryId = firstDelivery.body as { id: number };
+  const firstDeliveryLineId = partialOrderBody.deliveries.find((delivery) => delivery.id === firstDeliveryId.id)?.lines[0].id;
+  assert(firstDeliveryLineId);
+
+  const overReceive = await request(`/supplier-deliveries/${firstDeliveryId.id}/receiving`, {
+    method: "POST",
+    body: JSON.stringify({
+      lines: [{ deliveryLineId: firstDeliveryLineId, quantityReceived: 5 }],
+    }),
+  });
+  assert.equal(overReceive.response.status, 400);
+
+  const partialReceive = await request(`/supplier-deliveries/${firstDeliveryId.id}/receiving`, {
+    method: "POST",
+    body: JSON.stringify({
+      lines: [{ deliveryLineId: firstDeliveryLineId, quantityReceived: 3, accepted: true }],
+    }),
+  });
+  assert.equal(partialReceive.response.status, 200, JSON.stringify(partialReceive.body));
+  assert.equal((partialReceive.body as { deliveries: Array<{ id: number; status: string }> }).deliveries.find((delivery) => delivery.id === firstDeliveryId.id)?.status, "partial");
+
+  const completeReceive = await request(`/supplier-deliveries/${firstDeliveryId.id}/receiving`, {
+    method: "POST",
+    body: JSON.stringify({
+      lines: [{ deliveryLineId: firstDeliveryLineId, quantityReceived: 4, accepted: true }],
+    }),
+  });
+  assert.equal(completeReceive.response.status, 200, JSON.stringify(completeReceive.body));
+  assert.equal((completeReceive.body as { deliveries: Array<{ id: number; status: string }> }).deliveries.find((delivery) => delivery.id === firstDeliveryId.id)?.status, "delivered");
+
+  const secondDelivery = await request(`/supplier-orders/${convertedOrderId}/deliveries`, {
+    method: "POST",
+    body: JSON.stringify({
+      status: "delivered",
+      lines: [{ orderLineId: convertedOrderLineId, quantityDelivered: 6 }],
+    }),
+  });
+  assert.equal(secondDelivery.response.status, 201, JSON.stringify(secondDelivery.body));
+  const fulfilledOrder = await request(`/supplier-orders/${convertedOrderId}`);
+  assert.equal(fulfilledOrder.response.status, 200);
+  const fulfilledBody = fulfilledOrder.body as {
+    orderStatus: string;
+    lines: Array<{ deliveredQuantity: number; backorderedQuantity: number; receivedQuantity: number }>;
+    deliveries: Array<{ id: number; lines: Array<{ id: number }> }>;
+  };
+  assert.equal(fulfilledBody.orderStatus, "fulfilled");
+  assert.equal(fulfilledBody.lines[0].deliveredQuantity, 10);
+  assert.equal(fulfilledBody.lines[0].backorderedQuantity, 0);
+  const secondDeliveryId = secondDelivery.body as { id: number };
+  const secondDeliveryLineId = fulfilledBody.deliveries.find((delivery) => delivery.id === secondDeliveryId.id)?.lines[0].id;
+  assert(secondDeliveryLineId);
+
+  const returned = await request(`/supplier-deliveries/${secondDeliveryId.id}/receiving`, {
+    method: "POST",
+    body: JSON.stringify({
+      lines: [{ deliveryLineId: secondDeliveryLineId, quantityReceived: 0, quantityReturned: 6, accepted: false, exceptionNote: "Returned to supplier" }],
+    }),
+  });
+  assert.equal(returned.response.status, 200, JSON.stringify(returned.body));
+  const returnedBody = returned.body as { deliveries: Array<{ id: number; status: string }> };
+  assert.equal(returnedBody.deliveries.find((delivery) => delivery.id === secondDeliveryId.id)?.status, "returned");
+  const finalOrder = await request(`/supplier-orders/${convertedOrderId}`);
+  const finalOrderBody = finalOrder.body as { lines: Array<{ receivedQuantity: number }>; deliveries: Array<{ id: number; status: string }> };
+  assert.equal(finalOrderBody.lines[0].receivedQuantity, 4);
+  assert.equal(finalOrderBody.deliveries.find((delivery) => delivery.id === secondDeliveryId.id)?.status, "returned");
+});
+
+test("supplier products, orders, invoices, deliveries, and audit events stay scoped", async () => {
+  const unauthenticated = await fetch(`${baseUrl}/api/supplier-orders`);
+  assert.equal(unauthenticated.status, 401);
+
+  const product = await request("/supplier-products", {
+    method: "POST",
+    body: JSON.stringify({
+      sku: `ACTIVE-${runId}`,
+      name: "Active environment product",
+      unitCost: 3,
+      listPrice: 5,
+    }),
+  });
+  assert.equal(product.response.status, 201, JSON.stringify(product.body));
+  const products = await request("/supplier-products");
+  assert.equal(products.response.status, 200);
+  assert((products.body as Array<{ name: string }>).some((row) => row.name === "Active environment product"));
+  assert(!(products.body as Array<{ name: string }>).some((row) => row.name === "Other environment product"));
+
+  const orders = await request("/supplier-orders");
+  assert.equal(orders.response.status, 200);
+  assert(!(orders.body as Array<{ id: number }>).some((row) => row.id === otherOrderId));
+  const otherOrder = await request(`/supplier-orders/${otherOrderId}`);
+  assert.equal(otherOrder.response.status, 404);
+  const otherTenantOrder = await request(`/supplier-orders/${otherTenantOrderId}`);
+  assert.equal(otherTenantOrder.response.status, 404);
+  const otherOrderEvents = await request(`/supplier-orders/${otherOrderId}/events`);
+  assert.equal(otherOrderEvents.response.status, 404);
+  const otherTenantEvents = await request(`/supplier-orders/${otherTenantOrderId}/events`);
+  assert.equal(otherTenantEvents.response.status, 404);
+
+  const activeOrder = await request(`/supplier-orders/${orderId}`);
+  assert.equal(activeOrder.response.status, 200);
+  const activeOrderBody = activeOrder.body as { invoices: Array<{ invoiceNumber: string }>; deliveries: Array<{ id: number }> };
+  assert(!activeOrderBody.invoices.some((invoice) => invoice.invoiceNumber === `INV-OTHER-${runId}`));
+  assert(!activeOrderBody.deliveries.some((delivery) => delivery.id === otherDeliveryId));
+  const activeEvents = await request(`/supplier-orders/${orderId}/events`);
+  assert.equal(activeEvents.response.status, 200);
+  assert(!(activeEvents.body as Array<{ details: string | null }>).some((event) => event.details === "Other environment payment"));
 });
