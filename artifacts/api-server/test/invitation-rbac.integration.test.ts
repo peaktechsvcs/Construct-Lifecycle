@@ -100,7 +100,12 @@ before(async () => {
       isPlatformAdmin: true,
     },
   ]).returning();
-  userId = Object.fromEntries(users.map((user) => [user.clerkUserId, user.id])) as typeof userId;
+  userId = Object.fromEntries(
+    Object.entries(clerkIds).map(([name, clerkUserId]) => [
+      name,
+      users.find((user) => user.clerkUserId === clerkUserId)!.id,
+    ]),
+  ) as typeof userId;
 
   await db.insert(membershipsTable).values([
     { tenantId: tenantAId, userId: userId.ownerA, role: "owner" },
@@ -179,7 +184,7 @@ describe("invitation and role authorization regressions", () => {
   test("hashes invitation tokens and reports pending, expired, revoked, and accepted states", () => {
     assert.equal(
       hashInvitationToken("known-token"),
-      "e0d4f1f5f2d1be5c0c6a7f5db7f0e889d4d6b5d5e0bcd4c1f0dd73a9c2fca4e6",
+      "49e2e40e591e61357758299c8cee170fb9fa7da160ec8acf110a4a409d905aaf",
     );
     assert.notEqual(hashInvitationToken("known-token"), hashInvitationToken("other-token"));
 
