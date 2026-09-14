@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, Copy, Mail, Save, Trash2 } from 'lucide-react';
+import { Check, Copy, Mail, Save, Trash2, XCircle } from 'lucide-react';
 import {
   PlatformCustomerDetails,
   getGetPlatformCustomerQueryKey,
   getListPlatformCustomersQueryKey,
   useCreatePlatformCustomerInvitation,
+  useRevokePlatformCustomerInvitation,
   useRemovePlatformCustomerMember,
   useUpdatePlatformCustomer,
   useUpdatePlatformCustomerMember,
@@ -24,6 +25,7 @@ export function PlatformCustomerAccess({
 }) {
   const qc = useQueryClient();
   const invite = useCreatePlatformCustomerInvitation();
+  const revoke = useRevokePlatformCustomerInvitation();
   const updateCustomer = useUpdatePlatformCustomer();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CustomerRole>('member');
@@ -47,6 +49,14 @@ export function PlatformCustomerAccess({
           refresh();
         },
       },
+    );
+  };
+
+  const revokeInvitation = (invitationId: number, email: string) => {
+    if (!window.confirm(`Revoke the pending invitation for ${email}?`)) return;
+    revoke.mutate(
+      { tenantId, invitationId },
+      { onSuccess: refresh },
     );
   };
 
@@ -130,13 +140,28 @@ export function PlatformCustomerAccess({
         <div className="mt-6 border-t border-border pt-5">
           <h3 className="text-sm font-bold">Invitations</h3>
           <div className="mt-3 grid gap-2 md:grid-cols-2">
-            {details.invitations.slice(0, 6).map((invitation) => (
+            {details.invitations.map((invitation) => (
               <div key={invitation.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-xs">
                 <span className="min-w-0 truncate">{invitation.email}</span>
-                <Badge tone={invitation.status === 'pending' ? 'orange' : invitation.status === 'accepted' ? 'green' : 'neutral'}>{invitation.status}</Badge>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge tone={invitation.status === 'pending' ? 'orange' : invitation.status === 'accepted' ? 'green' : 'neutral'}>{invitation.status}</Badge>
+                  {invitation.status === 'pending' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="px-2 py-1 text-[11px]"
+                      aria-label={`Revoke invitation for ${invitation.email}`}
+                      disabled={revoke.isPending}
+                      onClick={() => revokeInvitation(invitation.id, invitation.email)}
+                    >
+                      <XCircle size={13} /> Revoke
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
+          {revoke.isError && <p role="alert" className="mt-2 text-xs text-destructive">The invitation could not be revoked. It may no longer be pending.</p>}
         </div>
       )}
     </section>

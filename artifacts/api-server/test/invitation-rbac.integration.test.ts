@@ -9,6 +9,7 @@ const {
   db,
   environmentsTable,
   membershipsTable,
+  platformAuditEventsTable,
   pool,
   tenantInvitationsTable,
   tenantsTable,
@@ -140,6 +141,7 @@ after(async () => {
     await db.delete(tenantsTable).where(inArray(tenantsTable.id, [tenantAId, tenantBId, suspendedTenantId]));
   }
   if (userId) {
+    await db.delete(platformAuditEventsTable).where(inArray(platformAuditEventsTable.actorUserId, Object.values(userId)));
     await db.delete(usersTable).where(inArray(usersTable.id, Object.values(userId)));
   }
   await pool.end();
@@ -303,6 +305,62 @@ describe("invitation and role authorization regressions", () => {
       },
     );
     assert.equal(suspendedPlatformInvite.status, 409);
+  });
+
+  test("lets platform admins revoke pending invitations and blocks acceptance", async () => {
+    const created = await createTenantInvitation(
+      tenantAId,
+      userId.ownerA,
+      `platform-revoke-${runId}@integration.test`,
+      "member",
+    );
+    const revoked = await request(
+      clerkIds.platformAdmin,
+      `/platform/customers/${tenantAId}/invitations/${created.invitation.id}/revoke`,
+      { method: "POST" },
+    );
+    assert.equal(revoked.status, 200);
+    assert.equal(bodyRecord(revoked.body).status, "revoked");
+
+    const accepted = await request(
+      clerkIds.invitee,
+      `/tenant/invitations/token/${created.token}/accept`,
+      { method: "POST" },
+    );
+    assert.equal(accepted.status, 409);
+
+    const customer = await request(clerkIds.platformAdmin, `/platform/customers/${tenantAId}`);
+    assert.equal(customer.status, 200);
+    const invitations = bodyRecord(customer.body).invitations as Array<Record<string, unknown>>;
+    assert.equal(invitations.find((invitation) => invitation.id === created.invitation.id)?.status, "revoked");
+
+    const audit = await db
+      .select()
+      .from(platformAuditEventsTable)
+      .where(and(
+        eq(platformAuditEventsTable.tenantId, tenantAId),
+        eq(platformAuditEventsTable.action, "customer_invitation_revoked"),
+      ));
+    assert.equal(audit.length, 1);
+    assert.equal(JSON.parse(audit[0].details).invitationId, created.invitation.id);
+    assert.equal(JSON.parse(audit[0].details).email, undefined);
+
+    assert.equal(
+      (await request(
+        clerkIds.ownerA,
+        `/platform/customers/${tenantAId}/invitations/${created.invitation.id}/revoke`,
+        { method: "POST" },
+      )).status,
+      403,
+    );
+    assert.equal(
+      (await request(
+        clerkIds.platformAdmin,
+        `/platform/customers/${tenantAId}/invitations/${created.invitation.id}/revoke`,
+        { method: "POST" },
+      )).status,
+      409,
+    );
   });
 
   test("prevents non-owners from changing owners and always retains one owner", async () => {

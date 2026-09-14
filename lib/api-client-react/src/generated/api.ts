@@ -14415,6 +14415,79 @@ export const useCreatePlatformCustomerInvitation = <TError = ErrorType<void>,
       return useMutation(getCreatePlatformCustomerInvitationMutationOptions(options));
     }
 
+export const getRevokePlatformCustomerInvitationUrl = (tenantId: number,
+    invitationId: number,) => {
+
+
+
+
+  return `/api/platform/customers/${tenantId}/invitations/${invitationId}/revoke`
+}
+
+/**
+ * @summary Revoke a pending customer invitation from platform administration
+ */
+export const revokePlatformCustomerInvitation = async (tenantId: number,
+    invitationId: number, options?: Parameters<typeof customFetch>[1]): Promise<TenantInvitation> => {
+
+  return customFetch<TenantInvitation>(getRevokePlatformCustomerInvitationUrl(tenantId,invitationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokePlatformCustomerInvitationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokePlatformCustomerInvitation>>, TError,{tenantId: number;invitationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokePlatformCustomerInvitation>>, TError,{tenantId: number;invitationId: number}, TContext> => {
+
+const mutationKey = ['revokePlatformCustomerInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokePlatformCustomerInvitation>>, {tenantId: number;invitationId: number}> = (props) => {
+          const {tenantId,invitationId} = props ?? {};
+
+          return  revokePlatformCustomerInvitation(tenantId,invitationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokePlatformCustomerInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof revokePlatformCustomerInvitation>>>
+
+    export type RevokePlatformCustomerInvitationMutationError = ErrorType<void>
+
+    /**
+ * @summary Revoke a pending customer invitation from platform administration
+ */
+export const useRevokePlatformCustomerInvitation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokePlatformCustomerInvitation>>, TError,{tenantId: number;invitationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokePlatformCustomerInvitation>>,
+        TError,
+        {tenantId: number;invitationId: number},
+        TContext
+      > => {
+      return useMutation(getRevokePlatformCustomerInvitationMutationOptions(options));
+    }
+
 export const getUpdatePlatformCustomerMemberUrl = (tenantId: number,
     userId: number,) => {
 

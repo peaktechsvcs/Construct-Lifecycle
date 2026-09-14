@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter } from "express";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import {
   db,
   environmentsTable,
@@ -678,6 +678,50 @@ router.post("/platform/customers/:tenantId/invitations", async (req: TenantReque
     invitation: serializeInvitation(created.invitation),
     token: created.token,
   });
+});
+
+router.post("/platform/customers/:tenantId/invitations/:invitationId/revoke", async (req: TenantRequest, res) => {
+  const tenantId = Number(req.params.tenantId);
+  const invitationId = Number(req.params.invitationId);
+  if (
+    !Number.isInteger(tenantId) ||
+    tenantId < 1 ||
+    !Number.isInteger(invitationId) ||
+    invitationId < 1
+  ) {
+    res.status(400).json({ error: "Invalid customer invitation" });
+    return;
+  }
+  const tenant = await getCustomer(tenantId);
+  if (!tenant) {
+    res.status(404).json({ error: "Customer not found" });
+    return;
+  }
+
+  const invitation = await db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(tenantInvitationsTable)
+      .set({ revokedAt: new Date() })
+      .where(and(
+        eq(tenantInvitationsTable.id, invitationId),
+        eq(tenantInvitationsTable.tenantId, tenantId),
+        isNull(tenantInvitationsTable.acceptedAt),
+        isNull(tenantInvitationsTable.revokedAt),
+        gt(tenantInvitationsTable.expiresAt, new Date()),
+      ))
+      .returning();
+    if (!updated) return null;
+    await writeAuditIn(tx, req, "customer_invitation_revoked", tenantId, {
+      invitationId: updated.id,
+      role: updated.role,
+    });
+    return updated;
+  });
+  if (!invitation) {
+    res.status(409).json({ error: "Invitation is no longer pending" });
+    return;
+  }
+  res.json(serializeInvitation(invitation));
 });
 
 router.patch("/platform/customers/:tenantId/members/:userId", async (req: TenantRequest, res) => {

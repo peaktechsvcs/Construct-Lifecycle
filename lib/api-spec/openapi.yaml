@@ -3224,6 +3224,30 @@ paths:
               schema: { $ref: "#/components/schemas/CreatedPlatformCustomerInvitation" }
         "403": { description: Platform administrator permission required }
         "409": { description: Customer is suspended or an active invitation already exists }
+  /platform/customers/{tenantId}/invitations/{invitationId}/revoke:
+    post:
+      operationId: revokePlatformCustomerInvitation
+      tags: [platform]
+      summary: Revoke a pending customer invitation from platform administration
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: path
+          name: invitationId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Revoked customer invitation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantInvitation" }
+        "400": { description: Invalid customer invitation }
+        "403": { description: Platform administrator permission required }
+        "404": { description: Customer not found }
+        "409": { description: Invitation is no longer pending }
   /platform/customers/{tenantId}/members/{userId}:
     patch:
       operationId: updatePlatformCustomerMember

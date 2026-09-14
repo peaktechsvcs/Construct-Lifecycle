@@ -10989,6 +10989,29 @@ export const CreatePlatformCustomerInvitationResponse = zod.object({
 
 
 /**
+ * @summary Revoke a pending customer invitation from platform administration
+ */
+
+
+
+
+export const RevokePlatformCustomerInvitationParams = zod.object({
+  "tenantId": zod.coerce.number().int().min(1),
+  "invitationId": zod.coerce.number().int().min(1)
+})
+
+export const RevokePlatformCustomerInvitationResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "email": zod.string().email(),
+  "role": zod.enum(['owner', 'admin', 'member', 'viewer']),
+  "status": zod.enum(['pending', 'accepted', 'revoked', 'expired']),
+  "expiresAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Update a customer user's role and environment access
  */
 
