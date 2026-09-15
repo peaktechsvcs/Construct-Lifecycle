@@ -128,6 +128,14 @@ const cases = [
     title: "404 Page Not Found · Construct Lifecycle",
   },
   {
+    name: "render error fallback",
+    path: "/__browser-test/render-error",
+    heading: "Something went wrong",
+    breadcrumb: null,
+    activeNav: null,
+    title: "Something went wrong · Construct Lifecycle",
+  },
+  {
     name: "signed-out protected route redirects home",
     path: "/customers?browserAuth=signed-out",
     heading: "Construct Lifecycle",

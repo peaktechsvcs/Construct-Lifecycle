@@ -51,6 +51,7 @@ const clerkPubKey = publishableKeyFromHost(
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 const AUTH_RETURN_KEY = 'construct-lc.auth-return';
+const browserTestMode = import.meta.env.VITE_CLC_BROWSER_TEST === '1';
 
 function stripBase(path: string): string {
   return basePath && path.startsWith(basePath)
@@ -165,6 +166,10 @@ function RouteLoading() {
       </div>
     </div>
   );
+}
+
+function BrowserTestRenderErrorRoute(): never {
+  throw new Error('Browser test render error');
 }
 
 function UnauthorizedRoute() {
@@ -373,6 +378,12 @@ function AppRouter() {
         <Route path="/accept-invitation/:token">
           <AcceptInvitation />
         </Route>
+        {browserTestMode ? (
+          <Route
+            path="/__browser-test/render-error"
+            component={BrowserTestRenderErrorRoute}
+          />
+        ) : null}
 
         <Route component={NotFound} />
       </Switch>

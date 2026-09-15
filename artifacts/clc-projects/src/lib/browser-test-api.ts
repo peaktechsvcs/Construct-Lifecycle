@@ -281,6 +281,9 @@ export function installBrowserTestApi() {
         },
       ]);
     }
+    if (url.pathname === '/api/platform/environments/1/provisioning-operations') {
+      return json([]);
+    }
     if (url.pathname === '/api/platform/environments/1/snapshots') return json([]);
     if (url.pathname === '/api/features') return json([]);
     if (url.pathname === '/api/follow-ups') return json([]);
