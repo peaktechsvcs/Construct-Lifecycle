@@ -114,6 +114,7 @@ export function Projects() {
   const urlStage = urlParams.get('stage') ?? '';
   const urlOwnerUserId = urlParams.get('ownerUserId') ?? '';
   const urlCustomerId = Number(urlParams.get('customerId'));
+  const urlCreate = urlParams.get('create') === '1';
 
   const [search, setSearch] = useState(urlSearch);
   const [stage, setStage] = useState(urlStage);
@@ -127,6 +128,7 @@ export function Projects() {
     if (stage) next.set('stage', stage);
     if (ownerUserId) next.set('ownerUserId', ownerUserId);
     if (urlParams.get('customerId')) next.set('customerId', urlParams.get('customerId')!);
+     if (urlParams.get('create') === '1') next.set('create', '1');
     const qs = next.toString();
     const newPath = qs ? `${base}?${qs}` : base;
     // Only update if the query part actually changed to avoid loops
@@ -157,13 +159,25 @@ export function Projects() {
   const initialCustomer = customerQuery.data?.find((customer) => customer.id === urlCustomerId);
 
   useEffect(() => {
-    if (Number.isFinite(urlCustomerId) && urlCustomerId > 0 && initialCustomer) setShowForm(true);
-  }, [urlCustomerId, initialCustomer]);
+    if (canManage && (urlCreate || (Number.isFinite(urlCustomerId) && urlCustomerId > 0 && initialCustomer))) {
+      setShowForm(true);
+    }
+  }, [canManage, initialCustomer, urlCreate, urlCustomerId]);
 
   const clear = () => {
     setSearch('');
     setStage('');
     setOwnerUserId('');
+  };
+  const closeForm = () => {
+    setShowForm(false);
+    setEditing(undefined);
+    if (urlCreate) {
+      const next = new URLSearchParams(location.includes('?') ? location.split('?')[1] : '');
+      next.delete('create');
+      const query = next.toString();
+      setLocation(query ? `/projects?${query}` : '/projects', { replace: true });
+    }
   };
 
   // Stage filter options in canonical lifecycle order
@@ -286,8 +300,7 @@ export function Projects() {
           project={editing}
           initialCustomer={initialCustomer}
           onClose={() => {
-            setShowForm(false);
-            setEditing(undefined);
+            closeForm();
           }}
         />
       )}

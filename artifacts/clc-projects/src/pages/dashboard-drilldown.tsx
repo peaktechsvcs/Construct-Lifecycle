@@ -37,6 +37,7 @@ import {
 import { stageLabels } from '@/lib/stage-config';
 import { groupActiveProjectStatusSections } from '@/lib/project-views';
 import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
+import { useTenant } from '@/providers/tenant-provider';
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/construct-lifecycle-design-system/components/ui/select';
 
@@ -91,10 +92,12 @@ function ActiveProjectStatusEmptyState({
   status,
   search,
   returnUrl,
+  canCreateProject,
 }: {
   status: { stableKey: string; displayName: string };
   search: string;
   returnUrl: string;
+  canCreateProject: boolean;
 }) {
   const hasSearch = Boolean(search.trim());
   const clearSearchUrl = (() => {
@@ -122,6 +125,14 @@ function ActiveProjectStatusEmptyState({
         href: '/projects',
         label: 'Open project book',
       };
+  const canStartProject = !hasSearch && canCreateProject && status.stableKey !== 'waiting';
+  const action = hasSearch
+    ? { href: clearSearchUrl, label: 'Clear search' }
+    : canStartProject
+      ? { href: '/projects?create=1', label: 'Start a project' }
+      : status.stableKey === 'waiting'
+        ? { href: guidance.href, label: guidance.label }
+        : undefined;
 
   return (
     <EmptyState
@@ -132,15 +143,15 @@ function ActiveProjectStatusEmptyState({
           ? `Clear the search to view all ${statusName} projects.`
           : guidance.text
       }
-      action={
+      action={action && (
         <Link
-          href={hasSearch ? clearSearchUrl : guidance.href}
+          href={action.href}
           className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {hasSearch ? 'Clear search' : guidance.label}
+          {action.label}
           <ExternalLink size={12} />
         </Link>
-      }
+      )}
     />
   );
 }
@@ -481,6 +492,7 @@ export function DashboardDrilldown() {
   const [search, setSearch] = useSearchParam('search');
   const [sort, setSort] = useSearchParam('sort');
   const workflow = useWorkflow();
+  const { activeRole } = useTenant();
   const [stage] = useSearchParam('stage');
 
   // Debounced search
@@ -662,6 +674,7 @@ export function DashboardDrilldown() {
                       status={status}
                       search={search}
                       returnUrl={returnUrl}
+                      canCreateProject={activeRole === 'owner' || activeRole === 'admin' || activeRole === 'member'}
                     />
                   )}
                 </section>
