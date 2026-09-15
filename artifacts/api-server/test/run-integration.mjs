@@ -10,30 +10,42 @@ globalThis.require = createRequire(import.meta.url);
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const outdir = path.join(testDir, `.integration-dist-${process.pid}`);
+const allIntegrationTests = [
+  "tenant-isolation.integration.test.ts",
+  "billing.integration.test.ts",
+  "feature-feedback.integration.test.ts",
+  "customer-onboarding.integration.test.ts",
+  "invitation-rbac.integration.test.ts",
+  "customer-project-integrity.integration.test.ts",
+  "project-controls-numbering.integration.test.ts",
+  "compliance-upload.integration.test.ts",
+  "subcontractor-review.integration.test.ts",
+  "itb-evidence-mapping.integration.test.ts",
+  "itb-documents.integration.test.ts",
+  "release-gates.integration.test.ts",
+  "integration-job-recovery.integration.test.ts",
+  "integration-connection.integration.test.ts",
+  "integrations.integration.test.ts",
+  "integration-work-recording.integration.test.ts",
+  "opportunity-preconstruction.integration.test.ts",
+  "supplier-orders.integration.test.ts",
+  "platform-provisioning.integration.test.ts",
+];
+const requestedTests = process.env.INTEGRATION_TEST_FILES
+  ?.split(",")
+  .map((name) => name.trim())
+  .filter(Boolean);
+const integrationTests = requestedTests?.length
+  ? requestedTests.map((name) => {
+    if (!allIntegrationTests.includes(name)) throw new Error(`Unknown integration test: ${name}`);
+    return name;
+  })
+  : allIntegrationTests;
+const integrationTestPaths = integrationTests.map((name) => path.join(testDir, name));
 
 try {
   await build({
-    entryPoints: [
-      path.join(testDir, "tenant-isolation.integration.test.ts"),
-      path.join(testDir, "billing.integration.test.ts"),
-      path.join(testDir, "feature-feedback.integration.test.ts"),
-      path.join(testDir, "customer-onboarding.integration.test.ts"),
-      path.join(testDir, "invitation-rbac.integration.test.ts"),
-      path.join(testDir, "customer-project-integrity.integration.test.ts"),
-      path.join(testDir, "project-controls-numbering.integration.test.ts"),
-      path.join(testDir, "compliance-upload.integration.test.ts"),
-      path.join(testDir, "subcontractor-review.integration.test.ts"),
-      path.join(testDir, "itb-evidence-mapping.integration.test.ts"),
-      path.join(testDir, "itb-documents.integration.test.ts"),
-      path.join(testDir, "release-gates.integration.test.ts"),
-      path.join(testDir, "integration-job-recovery.integration.test.ts"),
-      path.join(testDir, "integration-connection.integration.test.ts"),
-      path.join(testDir, "integrations.integration.test.ts"),
-      path.join(testDir, "integration-work-recording.integration.test.ts"),
-      path.join(testDir, "opportunity-preconstruction.integration.test.ts"),
-      path.join(testDir, "supplier-orders.integration.test.ts"),
-      path.join(testDir, "platform-provisioning.integration.test.ts"),
-    ],
+    entryPoints: integrationTestPaths,
     platform: "node",
     bundle: true,
     format: "esm",
@@ -56,28 +68,8 @@ globalThis.__dirname = __path.dirname(globalThis.__filename);`,
     },
   });
 
-  const testFiles = [
-    path.join(outdir, "tenant-isolation.integration.test.mjs"),
-    path.join(outdir, "billing.integration.test.mjs"),
-    path.join(outdir, "feature-feedback.integration.test.mjs"),
-    path.join(outdir, "customer-onboarding.integration.test.mjs"),
-    path.join(outdir, "invitation-rbac.integration.test.mjs"),
-    path.join(outdir, "customer-project-integrity.integration.test.mjs"),
-    path.join(outdir, "project-controls-numbering.integration.test.mjs"),
-    path.join(outdir, "compliance-upload.integration.test.mjs"),
-    path.join(outdir, "subcontractor-review.integration.test.mjs"),
-    path.join(outdir, "itb-evidence-mapping.integration.test.mjs"),
-    path.join(outdir, "itb-documents.integration.test.mjs"),
-    path.join(outdir, "release-gates.integration.test.mjs"),
-    path.join(outdir, "integration-job-recovery.integration.test.mjs"),
-    path.join(outdir, "integration-connection.integration.test.mjs"),
-    path.join(outdir, "integrations.integration.test.mjs"),
-    path.join(outdir, "integration-work-recording.integration.test.mjs"),
-    path.join(outdir, "opportunity-preconstruction.integration.test.mjs"),
-    path.join(outdir, "supplier-orders.integration.test.mjs"),
-    path.join(outdir, "platform-provisioning.integration.test.mjs"),
-    path.join(testDir, "auth-test-header.integration.test.mjs"),
-  ];
+  const testFiles = integrationTests.map((name) => path.join(outdir, name.replace(/\.ts$/, ".mjs")));
+  if (!requestedTests?.length) testFiles.push(path.join(testDir, "auth-test-header.integration.test.mjs"));
   const exitCode = await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--test", ...testFiles], {
       env: { ...process.env, APP_ENV: "test" },

@@ -24,6 +24,10 @@ args = "dependency-audit"
 task = "workflow.run"
 args = "clc-design-system"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "clean-database-migrations"
+
 [[workflows.workflow]]
 name = "dependency-audit"
 author = "agent"
@@ -42,6 +46,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm --filter @workspace/clc-projects run validate:design-system"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "clean-database-migrations"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm run validate:clean-database"
 
 [workflows.workflow.metadata]
 isValidation = true
