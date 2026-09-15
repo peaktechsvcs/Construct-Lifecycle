@@ -29,6 +29,7 @@ import { Compliance } from '@/pages/compliance';
 import { FollowUps } from '@/pages/follow-ups';
 import { PlatformCustomers } from '@/pages/platform-customers';
 import { PlatformFeatures } from '@/pages/platform-features';
+import { PlatformRecovery } from '@/pages/platform-recovery';
 import { FeedbackPage } from '@/pages/feedback';
 import { AcceptInvitation } from '@/pages/accept-invitation';
 import { ComingSoonPage } from '@/pages/coming-soon';
@@ -176,12 +177,37 @@ function UnauthorizedRoute() {
   );
 }
 
+function PlatformUnauthorizedRoute() {
+  return (
+    <div className="grid min-h-[100dvh] place-items-center bg-background px-4">
+      <section className="w-full max-w-lg rounded-2xl border border-border bg-card p-7 text-center shadow-sm">
+        <p className="mono text-[10px] font-bold uppercase tracking-[.16em] text-status-warning">Platform access</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight">Platform administrator access required</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          This recovery console is limited to authorized Construct Lifecycle platform operators.
+        </p>
+      </section>
+    </div>
+  );
+}
+
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isLoaded, isSignedIn } = useAuth();
   const { activeTenant, isPlatformAdmin, isLoading, isError } = useTenant();
   if (!isLoaded || isLoading) return <RouteLoading />;
   if (!isSignedIn) return <Redirect to="/" />;
   if (isError || (!activeTenant && !isPlatformAdmin)) return <UnauthorizedRoute />;
+  return (
+    <Component />
+  );
+}
+
+function PlatformAdminRoute({ component: Component }: { component: React.ComponentType }) {
+  const { isLoaded, isSignedIn } = useAuth();
+  const { isPlatformAdmin, isLoading, isError } = useTenant();
+  if (!isLoaded || isLoading) return <RouteLoading />;
+  if (!isSignedIn) return <Redirect to="/" />;
+  if (isError || !isPlatformAdmin) return <PlatformUnauthorizedRoute />;
   return (
     <Component />
   );
@@ -327,10 +353,13 @@ function AppRouter() {
           <Redirect to="/settings" />
         </Route>
         <Route path="/administration/platform/customers">
-          <Shell><ProtectedRoute component={PlatformCustomers} /></Shell>
+          <Shell><PlatformAdminRoute component={PlatformCustomers} /></Shell>
         </Route>
         <Route path="/administration/platform/features">
-          <Shell><ProtectedRoute component={PlatformFeatures} /></Shell>
+          <Shell><PlatformAdminRoute component={PlatformFeatures} /></Shell>
+        </Route>
+        <Route path="/administration/platform/recovery">
+          <Shell><PlatformAdminRoute component={PlatformRecovery} /></Shell>
         </Route>
         <Route path="/coming-soon/:item">
           <Shell><ProtectedRoute component={ComingSoonPage} /></Shell>

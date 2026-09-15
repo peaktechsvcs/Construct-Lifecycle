@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lt, or } from "drizzle-orm";
 import {
   db,
   environmentHealthChecksTable,
@@ -20,6 +20,7 @@ import {
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requirePlatformAdmin } from "../middlewares/platformAdmin";
+import { logger } from "../lib/logger";
 import {
   assertProductionToDtdRefresh,
   assertResourceTransition,
@@ -35,6 +36,10 @@ import {
 
 const router: IRouter = Router();
 router.use("/platform", requirePlatformAdmin);
+
+const RESTORE_START_LEASE_MS = 60_000;
+const RECOVERY_SWEEP_LIMIT = 100;
+let recoverySweepCursor = 0;
 
 const parseId = (value: string | string[]) => {
   if (Array.isArray(value)) return null;
@@ -86,25 +91,48 @@ async function refreshEnvironmentStatus(environmentId: number) {
   return { provisioningStatus, resourceRows, operationRows };
 }
 
-async function markRestoreFailure(operation: typeof provisioningOperationsTable.$inferSelect, message: string) {
+async function markRestoreFailure(
+  operation: typeof provisioningOperationsTable.$inferSelect,
+  message: string,
+  expectedLeaseStartedAt?: Date,
+) {
   const details = operation.details ?? {};
-  await db.update(provisioningOperationsTable).set({
+  const [failedOperation] = await db.update(provisioningOperationsTable).set({
     status: "failed",
     error: message,
     completedAt: new Date(),
-  }).where(eq(provisioningOperationsTable.id, operation.id));
+  }).where(expectedLeaseStartedAt
+    ? and(
+      eq(provisioningOperationsTable.id, operation.id),
+      eq(provisioningOperationsTable.status, "requested"),
+      eq(provisioningOperationsTable.startedAt, expectedLeaseStartedAt),
+    )
+    : and(
+      eq(provisioningOperationsTable.id, operation.id),
+      inArray(provisioningOperationsTable.status, ["requested", "running"]),
+    ),
+  ).returning();
+  // A stale lease may have been replaced while the provider call was in
+  // flight. The replacement owner is responsible for the operation and its
+  // audit trail.
+  if (!failedOperation) return false;
   await db.update(environmentResourcesTable).set({ status: "degraded", lastError: message, updatedAt: new Date() })
     .where(eq(environmentResourcesTable.environmentId, operation.environmentId));
   const snapshotId = typeof details.snapshotId === "number" ? details.snapshotId : undefined;
   const refreshId = typeof details.refreshId === "number" ? details.refreshId : undefined;
   const assignmentId = typeof details.assignmentId === "number" ? details.assignmentId : undefined;
+  if (snapshotId && refreshId) await db.update(environmentSnapshotsTable).set({
+    status: "failed",
+    verificationDetails: { error: message },
+  }).where(eq(environmentSnapshotsTable.id, snapshotId));
   if (refreshId) await db.update(environmentRefreshesTable).set({ status: "failed", error: message, completedAt: new Date() })
     .where(eq(environmentRefreshesTable.id, refreshId));
   if (assignmentId) await db.update(environmentReleaseControlsTable).set({ rollbackStatus: "failed" })
     .where(eq(environmentReleaseControlsTable.assignmentId, assignmentId));
   await writeEvent(operation.requestedByUserId ?? 0, operation.tenantId, operation.environmentId,
-    details.rollback ? "rollback_failed" : refreshId ? "refresh_failed" : "restore_failed",
+    details.releaseRollback ? "release_rollback_failed" : details.rollback ? "rollback_failed" : refreshId ? "refresh_failed" : "restore_failed",
     { operationId: operation.id, snapshotId, refreshId, assignmentId, error: message }, undefined, operation.id);
+  return true;
 }
 
 async function reconcileRestoreOperation(operationId: number) {
@@ -126,59 +154,83 @@ async function reconcileRestoreOperation(operationId: number) {
     return { status: "failed" as const };
   }
   if (providerStatus.status === "pending") {
-    await db.update(provisioningOperationsTable).set({ status: "running" }).where(eq(provisioningOperationsTable.id, operation.id));
-    return { status: "pending" as const, operation };
+    const [running] = await db.update(provisioningOperationsTable).set({ status: "running" })
+      .where(and(
+        eq(provisioningOperationsTable.id, operation.id),
+        inArray(provisioningOperationsTable.status, ["requested", "running"]),
+      )).returning();
+    if (running) return { status: "pending" as const, operation: running };
+    const [current] = await db.select().from(provisioningOperationsTable)
+      .where(eq(provisioningOperationsTable.id, operation.id)).limit(1);
+    if (current?.status === "succeeded") return { status: "succeeded" as const };
+    if (current?.status === "failed") return { status: "failed" as const };
+    return { status: "pending" as const, operation: current ?? operation };
   }
   if (providerStatus.status === "failed") {
     await markRestoreFailure(operation, providerStatus.error ?? "Provider restore operation failed");
     return { status: "failed" as const };
   }
+  let verification;
   try {
-    const verification = parseProviderVerificationResult(await getProvisioningProvider().verifyRestoredTarget({
+    verification = parseProviderVerificationResult(await getProvisioningProvider().verifyRestoredTarget({
       tenantId: operation.tenantId,
       targetEnvironmentId: operation.environmentId,
       providerOperationId: operation.providerOperationId,
     }));
-    const snapshotId = typeof details.snapshotId === "number" ? details.snapshotId : undefined;
-    const refreshId = typeof details.refreshId === "number" ? details.refreshId : undefined;
-    const assignmentId = typeof details.assignmentId === "number" ? details.assignmentId : undefined;
-    await db.update(provisioningOperationsTable).set({
-      status: "succeeded", completedAt: new Date(),
-      details: { ...details, verification },
-    }).where(eq(provisioningOperationsTable.id, operation.id));
-    if (refreshId) await db.update(environmentRefreshesTable).set({ status: "completed", completedAt: new Date() })
-      .where(eq(environmentRefreshesTable.id, refreshId));
-    if (assignmentId) await db.update(environmentReleaseControlsTable).set({ rollbackStatus: "completed", rolledBackAt: new Date() })
-      .where(eq(environmentReleaseControlsTable.assignmentId, assignmentId));
-    await writeEvent(operation.requestedByUserId ?? 0, operation.tenantId, operation.environmentId,
-      details.rollback ? "rollback_completed" : refreshId ? "refresh_completed" : "restore_completed",
-      { operationId: operation.id, snapshotId, refreshId, assignmentId }, undefined, operation.id);
-    return { status: "succeeded" as const };
   } catch (error) {
     await markRestoreFailure(operation, error instanceof Error ? error.message : "Restored target verification failed");
     return { status: "failed" as const };
   }
+  const snapshotId = typeof details.snapshotId === "number" ? details.snapshotId : undefined;
+  const refreshId = typeof details.refreshId === "number" ? details.refreshId : undefined;
+  const assignmentId = typeof details.assignmentId === "number" ? details.assignmentId : undefined;
+  const [succeeded] = await db.update(provisioningOperationsTable).set({
+    status: "succeeded", completedAt: new Date(),
+    details: { ...details, verification },
+  }).where(and(
+    eq(provisioningOperationsTable.id, operation.id),
+    inArray(provisioningOperationsTable.status, ["requested", "running"]),
+  )).returning();
+  if (!succeeded) {
+    const [current] = await db.select().from(provisioningOperationsTable)
+      .where(eq(provisioningOperationsTable.id, operation.id)).limit(1);
+    if (current?.status === "succeeded") return { status: "succeeded" as const };
+    if (current?.status === "failed") return { status: "failed" as const };
+    return { status: "pending" as const, operation: current ?? operation };
+  }
+  if (refreshId) await db.update(environmentRefreshesTable).set({ status: "completed", completedAt: new Date() })
+    .where(eq(environmentRefreshesTable.id, refreshId));
+  if (assignmentId) await db.update(environmentReleaseControlsTable).set({ rollbackStatus: "completed", rolledBackAt: new Date() })
+    .where(eq(environmentReleaseControlsTable.assignmentId, assignmentId));
+  await writeEvent(operation.requestedByUserId ?? 0, operation.tenantId, operation.environmentId,
+    details.rollback ? "rollback_completed" : refreshId ? "refresh_completed" : "restore_completed",
+    { operationId: operation.id, snapshotId, refreshId, assignmentId }, undefined, operation.id);
+  return { status: "succeeded" as const };
 }
 
-async function createRestoreOperation(input: {
+type RestoreOperationClaim = {
   tenantId: number;
   environmentId: number;
   requestedByUserId?: number;
   operationType: "restore" | "refresh" | "rollback";
   idempotencyKey: string;
-  providerOperationId: string;
   details: Record<string, unknown>;
-}) {
+};
+
+/**
+ * The operation row is the recovery claim. It must be created before the
+ * provider is called: an idempotency-key collision therefore cannot result in
+ * a second destructive provider request.
+ */
+async function claimRestoreOperation(input: RestoreOperationClaim) {
   const [operation] = await db.insert(provisioningOperationsTable).values({
     tenantId: input.tenantId,
     environmentId: input.environmentId,
     operationType: input.operationType,
     idempotencyKey: input.idempotencyKey,
-    status: "running",
-    providerOperationId: input.providerOperationId,
+    status: "requested",
     details: input.details,
     requestedByUserId: input.requestedByUserId,
-    startedAt: new Date(),
   }).onConflictDoNothing({
     target: [
       provisioningOperationsTable.environmentId,
@@ -186,14 +238,185 @@ async function createRestoreOperation(input: {
       provisioningOperationsTable.idempotencyKey,
     ],
   }).returning();
-  if (operation) return operation;
+  if (operation) return { kind: "claimed" as const, operation };
   const [existing] = await db.select().from(provisioningOperationsTable).where(and(
     eq(provisioningOperationsTable.environmentId, input.environmentId),
     eq(provisioningOperationsTable.operationType, input.operationType),
     eq(provisioningOperationsTable.idempotencyKey, input.idempotencyKey),
   )).limit(1);
   if (!existing) throw new Error("Restore operation could not be recorded");
-  return existing;
+  const existingDetails = existing.details ?? {};
+  const requestedSnapshotId = input.details.snapshotId;
+  const existingSnapshotId = existingDetails.snapshotId;
+  if (typeof requestedSnapshotId !== "number" || existingSnapshotId !== requestedSnapshotId) {
+    return {
+      kind: "conflict" as const,
+      operation: existing,
+      error: "Idempotency key is already associated with a different snapshot",
+    };
+  }
+  const requestedAssignmentId = input.details.assignmentId;
+  const existingAssignmentId = existingDetails.assignmentId;
+  if ((requestedAssignmentId !== undefined || existingAssignmentId !== undefined) &&
+    requestedAssignmentId !== existingAssignmentId) {
+    return {
+      kind: "conflict" as const,
+      operation: existing,
+      error: "Idempotency key is already associated with a different release assignment",
+    };
+  }
+  const requestedSourceEnvironmentId = input.details.sourceEnvironmentId;
+  const existingSourceEnvironmentId = existingDetails.sourceEnvironmentId;
+  if ((requestedSourceEnvironmentId !== undefined || existingSourceEnvironmentId !== undefined) &&
+    requestedSourceEnvironmentId !== existingSourceEnvironmentId) {
+    return {
+      kind: "conflict" as const,
+      operation: existing,
+      error: "Idempotency key is already associated with a different source environment",
+    };
+  }
+  const requestedSanitizationPolicy = input.details.sanitizationPolicy;
+  const existingSanitizationPolicy = existingDetails.sanitizationPolicy;
+  if ((requestedSanitizationPolicy !== undefined || existingSanitizationPolicy !== undefined) &&
+    requestedSanitizationPolicy !== existingSanitizationPolicy) {
+    return {
+      kind: "conflict" as const,
+      operation: existing,
+      error: "Idempotency key is already associated with a different sanitization policy",
+    };
+  }
+  return { kind: "existing" as const, operation: existing };
+}
+
+type RestoreStartResult =
+  | { kind: "started"; operation: typeof provisioningOperationsTable.$inferSelect }
+  | { kind: "busy"; operation: typeof provisioningOperationsTable.$inferSelect }
+  | { kind: "failed"; operation: typeof provisioningOperationsTable.$inferSelect; error: string }
+  | { kind: "lease_lost"; operation: typeof provisioningOperationsTable.$inferSelect };
+
+/**
+ * Acquire the DB-backed start lease and resume the provider request. The
+ * provider idempotency key is the persisted operation key so a process crash
+ * between provider acceptance and our update is safe to replay.
+ */
+export async function startRestoreOperation(operationId: number): Promise<RestoreStartResult> {
+  const [current] = await db.select().from(provisioningOperationsTable)
+    .where(eq(provisioningOperationsTable.id, operationId)).limit(1);
+  if (!current) throw new Error("Restore operation not found");
+  if (current.status !== "requested") return { kind: "busy", operation: current };
+
+  const leaseStartedAt = new Date();
+  const staleBefore = new Date(leaseStartedAt.getTime() - RESTORE_START_LEASE_MS);
+  const [leased] = await db.update(provisioningOperationsTable).set({
+    startedAt: leaseStartedAt,
+  }).where(and(
+    eq(provisioningOperationsTable.id, operationId),
+    eq(provisioningOperationsTable.status, "requested"),
+    or(isNull(provisioningOperationsTable.startedAt), lt(provisioningOperationsTable.startedAt, staleBefore)),
+  )).returning();
+  if (!leased) {
+    const [operation] = await db.select().from(provisioningOperationsTable)
+      .where(eq(provisioningOperationsTable.id, operationId)).limit(1);
+    if (!operation) throw new Error("Restore operation not found");
+    return { kind: "busy", operation };
+  }
+
+  const details = leased.details ?? {};
+  const snapshotId = typeof details.snapshotId === "number" ? details.snapshotId : undefined;
+  const [snapshot] = snapshotId
+    ? await db.select().from(environmentSnapshotsTable).where(and(
+      eq(environmentSnapshotsTable.id, snapshotId),
+      eq(environmentSnapshotsTable.tenantId, leased.tenantId),
+      eq(environmentSnapshotsTable.environmentId, leased.environmentId),
+    )).limit(1)
+    : [];
+  const startupError = !snapshot
+    ? "Restore operation has no matching snapshot"
+    : snapshot.status !== "verified" || !snapshot.backupReference
+      ? "Restore operation requires a verified snapshot with a backup reference"
+      : undefined;
+  if (startupError || !snapshot || !snapshot.backupReference) {
+    const error = startupError ?? "Restore operation requires a verified snapshot with a backup reference";
+    const marked = await markRestoreFailure(leased, error, leaseStartedAt);
+    const [failed] = await db.select().from(provisioningOperationsTable)
+      .where(eq(provisioningOperationsTable.id, operationId)).limit(1);
+    if (!marked) return { kind: "lease_lost", operation: failed ?? leased };
+    return {
+      kind: "failed",
+      operation: failed ?? leased,
+      error,
+    };
+  }
+
+  try {
+    const restoreOperation = await getProvisioningProvider().restoreSnapshot({
+      tenantId: leased.tenantId,
+      targetEnvironmentId: leased.environmentId,
+      backupReference: snapshot.backupReference,
+      idempotencyKey: leased.idempotencyKey,
+    });
+    const [running] = await db.update(provisioningOperationsTable).set({
+      status: "running",
+      providerOperationId: restoreOperation.providerOperationId,
+    }).where(and(
+      eq(provisioningOperationsTable.id, operationId),
+      eq(provisioningOperationsTable.status, "requested"),
+      eq(provisioningOperationsTable.startedAt, leaseStartedAt),
+    )).returning();
+    if (!running) {
+      const [operation] = await db.select().from(provisioningOperationsTable)
+        .where(eq(provisioningOperationsTable.id, operationId)).limit(1);
+      if (!operation) throw new Error("Restore operation not found after provider start");
+      return { kind: "lease_lost", operation };
+    }
+    return { kind: "started", operation: running };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Restore provider operation failed";
+    const marked = await markRestoreFailure(leased, message, leaseStartedAt);
+    const [failed] = await db.select().from(provisioningOperationsTable)
+      .where(eq(provisioningOperationsTable.id, operationId)).limit(1);
+    if (!marked) return { kind: "lease_lost", operation: failed ?? leased };
+    return {
+      kind: "failed",
+      operation: failed ?? leased,
+      error: message,
+    };
+  }
+}
+
+/** Reconcile a bounded batch so a process restart does not depend on polling. */
+export async function reconcileProvisioningRecoverySweep(): Promise<void> {
+  const activeOperations = and(
+    inArray(provisioningOperationsTable.operationType, ["restore", "refresh", "rollback"]),
+    inArray(provisioningOperationsTable.status, ["requested", "running"]),
+  );
+  let operations = await db.select().from(provisioningOperationsTable).where(and(
+    activeOperations,
+    gt(provisioningOperationsTable.id, recoverySweepCursor),
+  )).orderBy(asc(provisioningOperationsTable.id)).limit(RECOVERY_SWEEP_LIMIT);
+  if (!operations.length && recoverySweepCursor !== 0) {
+    recoverySweepCursor = 0;
+    operations = await db.select().from(provisioningOperationsTable).where(activeOperations)
+      .orderBy(asc(provisioningOperationsTable.id)).limit(RECOVERY_SWEEP_LIMIT);
+  }
+  if (operations.length) recoverySweepCursor = operations[operations.length - 1].id;
+
+  for (const operation of operations) {
+    try {
+      let current = operation;
+      if (current.status === "requested") {
+        const started = await startRestoreOperation(current.id);
+        if (started.kind === "busy" || started.kind === "lease_lost") continue;
+        current = started.operation;
+        if (started.kind === "failed") continue;
+      }
+      if (current.status === "running") await reconcileRestoreOperation(current.id);
+    } catch {
+      // Provider and database error details remain in the operation audit row;
+      // do not put potentially sensitive provider messages in process logs.
+      logger.warn({ operationId: operation.id, operationType: operation.operationType }, "Recovery sweep item failed");
+    }
+  }
 }
 
 router.get("/platform/provisioning-operations/:operationId", async (req: TenantRequest, res) => {
@@ -234,7 +457,7 @@ router.get("/platform/environments/:environmentId/provisioning-events", async (r
   if (!target) { res.status(404).json({ error: "Environment not found" }); return; }
   res.json(await db.select().from(provisioningEventsTable)
     .where(eq(provisioningEventsTable.environmentId, id))
-    .orderBy(provisioningEventsTable.occurredAt));
+    .orderBy(desc(provisioningEventsTable.occurredAt)));
 });
 
 router.post("/platform/environments/:environmentId/provision", async (req: TenantRequest, res) => {
@@ -539,7 +762,35 @@ router.post("/platform/environments/:environmentId/refresh", async (req: TenantR
     eq(environmentRefreshesTable.idempotencyKey, parsed.data.idempotencyKey),
   )).limit(1);
   if (existingRefresh) {
-    res.status(200).json(existingRefresh);
+    if (existingRefresh.sourceEnvironmentId !== source.id ||
+      existingRefresh.sanitizationPolicy !== parsed.data.sanitizationPolicy) {
+      res.status(409).json({ error: "Idempotency key is already associated with a different refresh source or sanitization policy" });
+      return;
+    }
+    const [existingOperation] = await db.select().from(provisioningOperationsTable).where(and(
+      eq(provisioningOperationsTable.environmentId, target.id),
+      eq(provisioningOperationsTable.operationType, "refresh"),
+      eq(provisioningOperationsTable.idempotencyKey, `${parsed.data.idempotencyKey}:restore`),
+    )).limit(1);
+    if (!existingRefresh.snapshotId) {
+      res.status(409).json({ error: "Existing refresh has no associated snapshot" });
+      return;
+    }
+    const [existingSnapshot] = await db.select().from(environmentSnapshotsTable)
+      .where(eq(environmentSnapshotsTable.id, existingRefresh.snapshotId)).limit(1);
+    if (!existingSnapshot) {
+      res.status(409).json({ error: "Existing refresh snapshot could not be found" });
+      return;
+    }
+    if (!existingOperation) {
+      res.status(409).json({ error: "Existing refresh has no restore operation to reconcile" });
+      return;
+    }
+    res.status(200).json({
+      refresh: existingRefresh,
+      snapshot: existingSnapshot,
+      operationId: existingOperation.id,
+    });
     return;
   }
   const [snapshot] = await db.insert(environmentSnapshotsTable).values({
@@ -564,6 +815,7 @@ router.post("/platform/environments/:environmentId/refresh", async (req: TenantR
     requestedByUserId: req.localUserId,
     startedAt: new Date(),
   }).returning();
+  let claimedOperation: typeof provisioningOperationsTable.$inferSelect | undefined;
   try {
     const result = await getProvisioningProvider().createSnapshot({
       tenantId: target.tenantId,
@@ -580,23 +832,16 @@ router.post("/platform/environments/:environmentId/refresh", async (req: TenantR
       checksum: result.checksum,
       idempotencyKey: `${parsed.data.idempotencyKey}:verify`,
     }));
-    const restoreOperation = await getProvisioningProvider().restoreSnapshot({
-      tenantId: target.tenantId,
-      targetEnvironmentId: target.id,
-      backupReference: result.backupReference,
-      idempotencyKey: `${parsed.data.idempotencyKey}:restore`,
-    });
     const [completedSnapshot] = await db.update(environmentSnapshotsTable).set({
       status: "verified", sanitized: "sanitized", backupReference: result.backupReference,
       checksum: result.checksum, verificationDetails, verifiedAt: new Date(),
     }).where(eq(environmentSnapshotsTable.id, snapshot.id)).returning();
-    const operation = await createRestoreOperation({
+    const claim = await claimRestoreOperation({
       tenantId: target.tenantId,
       environmentId: target.id,
       requestedByUserId: req.localUserId,
       operationType: "refresh",
       idempotencyKey: `${parsed.data.idempotencyKey}:restore`,
-      providerOperationId: restoreOperation.providerOperationId,
       details: {
         refreshId: refresh.id,
         snapshotId: snapshot.id,
@@ -604,6 +849,32 @@ router.post("/platform/environments/:environmentId/refresh", async (req: TenantR
         sanitizationPolicy: parsed.data.sanitizationPolicy,
       },
     });
+    if (claim.kind === "conflict") {
+      res.status(409).json({ error: claim.error });
+      return;
+    }
+    let operation = claim.operation;
+    claimedOperation = operation;
+    if (operation.status === "requested") {
+      const started = await startRestoreOperation(operation.id);
+      if (started.kind === "busy" || started.kind === "lease_lost") {
+        const [currentRefresh] = await db.select().from(environmentRefreshesTable)
+          .where(eq(environmentRefreshesTable.id, refresh.id)).limit(1);
+        res.status(202).json({ refresh: currentRefresh, snapshot: completedSnapshot, operationId: operation.id });
+        return;
+      }
+      if (started.kind === "failed") {
+        res.status(503).json({
+          error: "Production-to-DTD refresh failed explicitly",
+          refreshId: refresh.id,
+          snapshotId: snapshot.id,
+          operationId: started.operation.id,
+          details: started.error,
+        });
+        return;
+      }
+      operation = started.operation;
+    }
     const reconciled = await reconcileRestoreOperation(operation.id);
     const [currentRefresh] = await db.select().from(environmentRefreshesTable)
       .where(eq(environmentRefreshesTable.id, refresh.id)).limit(1);
@@ -618,13 +889,19 @@ router.post("/platform/environments/:environmentId/refresh", async (req: TenantR
       .json({ refresh: currentRefresh, snapshot: completedSnapshot, operationId: operation.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Snapshot provider operation failed";
-    await db.update(environmentSnapshotsTable).set({ status: "failed", verificationDetails: { error: message } })
-      .where(eq(environmentSnapshotsTable.id, snapshot.id));
-    await db.update(environmentRefreshesTable).set({ status: "failed", error: message, completedAt: new Date() })
-      .where(eq(environmentRefreshesTable.id, refresh.id));
-    await writeEvent(req.localUserId!, target.tenantId, target.id, "refresh_failed", {
-      refreshId: refresh.id, snapshotId: snapshot.id, error: message, sanitizationPolicy: parsed.data.sanitizationPolicy,
-    });
+    if (claimedOperation) {
+      const [currentOperation] = await db.select().from(provisioningOperationsTable)
+        .where(eq(provisioningOperationsTable.id, claimedOperation.id)).limit(1);
+      if (currentOperation?.status === "running") await markRestoreFailure(currentOperation, message);
+    } else {
+      await db.update(environmentSnapshotsTable).set({ status: "failed", verificationDetails: { error: message } })
+        .where(eq(environmentSnapshotsTable.id, snapshot.id));
+      await db.update(environmentRefreshesTable).set({ status: "failed", error: message, completedAt: new Date() })
+        .where(eq(environmentRefreshesTable.id, refresh.id));
+      await writeEvent(req.localUserId!, target.tenantId, target.id, "refresh_failed", {
+        refreshId: refresh.id, snapshotId: snapshot.id, error: message, sanitizationPolicy: parsed.data.sanitizationPolicy,
+      });
+    }
     res.status(503).json({ error: "Production-to-DTD refresh failed explicitly", refreshId: refresh.id, snapshotId: snapshot.id, details: message });
     return;
   }
@@ -673,22 +950,37 @@ router.post("/platform/snapshots/:snapshotId/restore", async (req: TenantRequest
     res.status(409).json({ error: "Only a verified snapshot with a backup reference can be restored" });
     return;
   }
+  const operationType = parsed.data.rollback ? "rollback" : "restore";
+  const claim = await claimRestoreOperation({
+    tenantId: snapshot.tenantId,
+    environmentId: snapshot.environmentId,
+    requestedByUserId: req.localUserId,
+    operationType,
+    idempotencyKey: parsed.data.idempotencyKey,
+    details: { snapshotId, rollback: parsed.data.rollback === true },
+  });
+  if (claim.kind === "conflict") {
+    res.status(409).json({ error: claim.error });
+    return;
+  }
+  let operation = claim.operation;
   try {
-    const restoreOperation = await getProvisioningProvider().restoreSnapshot({
-      tenantId: snapshot.tenantId,
-      targetEnvironmentId: snapshot.environmentId,
-      backupReference: snapshot.backupReference,
-      idempotencyKey: parsed.data.idempotencyKey,
-    });
-    const operation = await createRestoreOperation({
-      tenantId: snapshot.tenantId,
-      environmentId: snapshot.environmentId,
-      requestedByUserId: req.localUserId,
-      operationType: parsed.data.rollback ? "rollback" : "restore",
-      idempotencyKey: parsed.data.idempotencyKey,
-      providerOperationId: restoreOperation.providerOperationId,
-      details: { snapshotId, rollback: parsed.data.rollback === true },
-    });
+    if (operation.status === "requested") {
+      const started = await startRestoreOperation(operation.id);
+      if (started.kind === "busy" || started.kind === "lease_lost") {
+        res.status(202).json({ operation: started.operation, snapshotId });
+        return;
+      }
+      if (started.kind === "failed") {
+        res.status(503).json({
+          error: "Snapshot restore failed explicitly",
+          details: started.error,
+          operationId: started.operation.id,
+        });
+        return;
+      }
+      operation = started.operation;
+    }
     const reconciled = await reconcileRestoreOperation(operation.id);
     const [updatedOperation] = await db.select().from(provisioningOperationsTable)
       .where(eq(provisioningOperationsTable.id, operation.id)).limit(1);
@@ -697,10 +989,10 @@ router.post("/platform/snapshots/:snapshotId/restore", async (req: TenantRequest
     return;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Restore provider operation failed";
-    await writeEvent(req.localUserId!, snapshot.tenantId, snapshot.environmentId, "restore_failed", {
-      snapshotId, rollback: parsed.data.rollback, error: message,
-    });
-    res.status(503).json({ error: "Snapshot restore failed explicitly", details: message });
+    const [currentOperation] = await db.select().from(provisioningOperationsTable)
+      .where(eq(provisioningOperationsTable.id, operation.id)).limit(1);
+    if (currentOperation?.status === "running") await markRestoreFailure(currentOperation, message);
+    res.status(503).json({ error: "Snapshot restore failed explicitly", details: message, operationId: operation.id });
     return;
   }
 });
@@ -721,22 +1013,36 @@ router.post("/platform/release-assignments/:assignmentId/rollback", async (req: 
     res.status(409).json({ error: "Release rollback requires a verified rollback snapshot" });
     return;
   }
+  const claim = await claimRestoreOperation({
+    tenantId: snapshot.tenantId,
+    environmentId: snapshot.environmentId,
+    requestedByUserId: req.localUserId,
+    operationType: "rollback",
+    idempotencyKey: parsed.data.idempotencyKey,
+    details: { assignmentId, snapshotId: snapshot.id, rollback: true, releaseRollback: true },
+  });
+  if (claim.kind === "conflict") {
+    res.status(409).json({ error: claim.error });
+    return;
+  }
+  let operation = claim.operation;
   try {
-    const restoreOperation = await getProvisioningProvider().restoreSnapshot({
-      tenantId: snapshot.tenantId,
-      targetEnvironmentId: snapshot.environmentId,
-      backupReference: snapshot.backupReference,
-      idempotencyKey: parsed.data.idempotencyKey,
-    });
-    const operation = await createRestoreOperation({
-      tenantId: snapshot.tenantId,
-      environmentId: snapshot.environmentId,
-      requestedByUserId: req.localUserId,
-      operationType: "rollback",
-      idempotencyKey: parsed.data.idempotencyKey,
-      providerOperationId: restoreOperation.providerOperationId,
-      details: { assignmentId, snapshotId: snapshot.id, rollback: true },
-    });
+    if (operation.status === "requested") {
+      const started = await startRestoreOperation(operation.id);
+      if (started.kind === "busy" || started.kind === "lease_lost") {
+        res.status(202).json({ operation: started.operation, controlId: control.id });
+        return;
+      }
+      if (started.kind === "failed") {
+        res.status(503).json({
+          error: "Release rollback failed explicitly",
+          details: started.error,
+          operationId: started.operation.id,
+        });
+        return;
+      }
+      operation = started.operation;
+    }
     const reconciled = await reconcileRestoreOperation(operation.id);
     const [updatedOperation] = await db.select().from(provisioningOperationsTable)
       .where(eq(provisioningOperationsTable.id, operation.id)).limit(1);
@@ -745,12 +1051,10 @@ router.post("/platform/release-assignments/:assignmentId/rollback", async (req: 
     return;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Rollback provider operation failed";
-    await db.update(environmentReleaseControlsTable).set({ rollbackStatus: "failed" })
-      .where(eq(environmentReleaseControlsTable.id, control.id));
-    await writeEvent(req.localUserId!, snapshot.tenantId, snapshot.environmentId, "release_rollback_failed", {
-      assignmentId, snapshotId: snapshot.id, error: message,
-    });
-    res.status(503).json({ error: "Release rollback failed explicitly", details: message });
+    const [currentOperation] = await db.select().from(provisioningOperationsTable)
+      .where(eq(provisioningOperationsTable.id, operation.id)).limit(1);
+    if (currentOperation?.status === "running") await markRestoreFailure(currentOperation, message);
+    res.status(503).json({ error: "Release rollback failed explicitly", details: message, operationId: operation.id });
     return;
   }
 });

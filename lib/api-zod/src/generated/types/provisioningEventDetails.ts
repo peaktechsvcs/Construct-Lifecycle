@@ -6,4 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListProvisioningEvents200Item = { [key: string]: unknown };
+export type ProvisioningEventDetails = { [key: string]: unknown };

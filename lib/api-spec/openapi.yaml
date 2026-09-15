@@ -4098,7 +4098,7 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { type: object }
+                items: { $ref: "#/components/schemas/ProvisioningEvent" }
   /platform/environments/{environmentId}/provision:
     post:
       operationId: provisionEnvironment
@@ -4164,10 +4164,41 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/RefreshEnvironmentInput" }
       responses:
-        "201": { description: Refresh accepted and audited }
+        "200":
+          description: Existing idempotent refresh request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RefreshEnvironmentResult" }
+        "201":
+          description: Refresh completed and audited
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RefreshEnvironmentResult" }
+        "202":
+          description: Refresh accepted and pending provider verification
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RefreshEnvironmentResult" }
         "409": { description: Invalid refresh request }
         "503": { description: Provider unavailable or refresh failed }
   /platform/environments/{environmentId}/snapshots:
+    get:
+      operationId: listEnvironmentSnapshots
+      tags: [provisioning]
+      summary: List environment backup and refresh snapshots
+      parameters:
+        - in: path
+          name: environmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Environment snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/EnvironmentSnapshot" }
     post:
       operationId: createEnvironmentBackup
       tags: [provisioning]
@@ -4219,8 +4250,16 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/RestoreSnapshotInput" }
       responses:
-        "200": { description: Restore completed and target verified immediately }
-        "202": { description: Restore accepted and pending provider verification }
+        "200":
+          description: Restore completed and target verified immediately
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RestoreEnvironmentResult" }
+        "202":
+          description: Restore accepted and pending provider verification
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RestoreEnvironmentResult" }
         "409": { description: Snapshot is not verified }
         "502": { description: Provider restore or target verification failed }
         "503": { description: Provider unavailable or restore failed to start }
@@ -4235,8 +4274,16 @@ paths:
           required: true
           schema: { type: integer, minimum: 1 }
       responses:
-        "200": { description: Recovery operation completed successfully }
-        "202": { description: Recovery operation is still pending provider verification }
+        "200":
+          description: Recovery operation completed successfully
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProvisioningOperation" }
+        "202":
+          description: Recovery operation is still pending provider verification
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProvisioningOperation" }
         "400": { description: Operation is not a recovery operation }
         "404": { description: Operation not found }
         "502": { description: Recovery operation failed }
@@ -4256,8 +4303,16 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/RestoreSnapshotInput" }
       responses:
-        "200": { description: Rollback completed and target verified immediately }
-        "202": { description: Rollback accepted and pending provider verification }
+        "200":
+          description: Rollback completed and target verified immediately
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RollbackEnvironmentResult" }
+        "202":
+          description: Rollback accepted and pending provider verification
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RollbackEnvironmentResult" }
         "409": { description: Release has no verified rollback snapshot }
         "502": { description: Provider rollback or target verification failed }
         "503": { description: Provider unavailable or rollback failed to start }
@@ -8466,6 +8521,100 @@ components:
       properties:
         idempotencyKey: { type: string, minLength: 8, maxLength: 200 }
         rollback: { type: boolean, default: false }
+    ProvisioningOperation:
+      type: object
+      required: [id, tenantId, environmentId, resourceId, operationType, idempotencyKey, status, providerOperationId, details, error, requestedByUserId, startedAt, completedAt, createdAt]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        environmentId: { type: integer }
+        resourceId: { type: ["integer", "null"] }
+        operationType: { type: string, enum: [provision, verify, backup, restore, refresh, rollback] }
+        idempotencyKey: { type: string }
+        status: { type: string, enum: [requested, running, succeeded, failed] }
+        providerOperationId: { type: ["string", "null"] }
+        details:
+          type: object
+          additionalProperties: true
+        error: { type: ["string", "null"] }
+        requestedByUserId: { type: ["integer", "null"] }
+        startedAt: { type: ["string", "null"], format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+    EnvironmentRefresh:
+      type: object
+      required: [id, tenantId, sourceEnvironmentId, targetEnvironmentId, snapshotId, idempotencyKey, status, sanitizationPolicy, requestedByUserId, error, startedAt, completedAt, createdAt]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        sourceEnvironmentId: { type: integer }
+        targetEnvironmentId: { type: integer }
+        snapshotId: { type: ["integer", "null"] }
+        idempotencyKey: { type: string }
+        status: { type: string, enum: [requested, running, completed, failed] }
+        sanitizationPolicy: { type: string, enum: [redact-secrets, replace-identifiers, full] }
+        requestedByUserId: { type: ["integer", "null"] }
+        error: { type: ["string", "null"] }
+        startedAt: { type: ["string", "null"], format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+    RefreshEnvironmentResult:
+      type: object
+      required: [refresh, snapshot, operationId]
+      properties:
+        refresh: { $ref: "#/components/schemas/EnvironmentRefresh" }
+        snapshot: { $ref: "#/components/schemas/EnvironmentSnapshot" }
+        operationId: { type: integer }
+    RestoreEnvironmentResult:
+      type: object
+      required: [operation, snapshotId]
+      properties:
+        operation: { $ref: "#/components/schemas/ProvisioningOperation" }
+        snapshotId: { type: integer }
+    RollbackEnvironmentResult:
+      type: object
+      required: [operation, controlId]
+      properties:
+        operation: { $ref: "#/components/schemas/ProvisioningOperation" }
+        controlId: { type: integer }
+    ProvisioningEvent:
+      type: object
+      required: [id, tenantId, environmentId, resourceId, operationId, actorUserId, action, details, occurredAt]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        environmentId: { type: integer }
+        resourceId: { type: ["integer", "null"] }
+        operationId: { type: ["integer", "null"] }
+        actorUserId: { type: ["integer", "null"] }
+        action: { type: string }
+        details:
+          type: object
+          additionalProperties: true
+        occurredAt: { type: string, format: date-time }
+    EnvironmentSnapshot:
+      type: object
+      required: [id, tenantId, environmentId, sourceEnvironmentId, idempotencyKey, kind, status, sanitized, sanitizationPolicy, backupReference, checksum, verificationDetails, createdByUserId, verifiedAt, createdAt]
+      properties:
+        id: { type: integer }
+        tenantId: { type: integer }
+        environmentId: { type: integer }
+        sourceEnvironmentId: { type: ["integer", "null"] }
+        idempotencyKey: { type: string }
+        kind: { type: string, enum: [backup, refresh] }
+        status: { type: string, enum: [requested, running, verified, failed] }
+        sanitized: { type: string, enum: [not_applicable, pending, sanitized] }
+        sanitizationPolicy: { type: ["string", "null"], enum: [redact-secrets, replace-identifiers, full, null] }
+        backupReference:
+          type: ["string", "null"]
+          description: Opaque provider snapshot reference.
+        checksum: { type: ["string", "null"] }
+        verificationDetails:
+          type: object
+          additionalProperties: true
+        createdByUserId: { type: ["integer", "null"] }
+        verifiedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
     EnvironmentResourceInventory:
       type: object
       required: [environment, executionContextReady, resources]

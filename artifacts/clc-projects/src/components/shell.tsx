@@ -7,7 +7,7 @@ import {
   Lightbulb, Gavel, Calculator, FileText, FolderKanban, FileCheck2, Milestone,
   Package, ListChecks, ShoppingCart, ClipboardList,
   TrendingUp, HandCoins, Receipt, BadgeDollarSign, FilePenLine, Percent,
-  ShieldCheck,
+  ShieldCheck, ServerCog,
   Files, ReceiptText, Archive, BarChart3, LineChart, MessageSquareText, ClipboardCheck, Mail, type LucideIcon,
 } from 'lucide-react';
 import { useTenant } from '@/providers/tenant-provider';
@@ -261,6 +261,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/settings/administration/workflows': 'Administration · Lifecycle & Workflows',
   '/administration/platform/customers': 'Platform Customers',
   '/administration/platform/features': 'Feature Visibility',
+  '/administration/platform/recovery': 'Environment Recovery',
 };
 
 const DASHBOARD_DRILLDOWN_LABELS: Record<string, string> = {
@@ -489,20 +490,36 @@ export function Shell({ children }: { children: ReactNode }) {
             </DropdownMenu>
 
             {isPlatformAdmin && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Link
-                    href="/administration/platform/customers"
-                    aria-label="Open platform administration"
-                    data-testid="link-platform-administration"
-                    className={`inline-flex h-9 items-center gap-2 rounded-lg border border-accent/25 bg-accent/10 px-2.5 text-accent hover:bg-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sidebarCollapsed ? 'w-9 justify-center px-0' : ''}`}
-                  >
-                    <ShieldCheck size={16} />
-                    {!sidebarCollapsed && <span className="text-[10px] font-bold uppercase tracking-[.08em]">Platform</span>}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="bg-popover text-popover-foreground">Platform administration</TooltipContent>
-              </Tooltip>
+              <div className={`flex gap-1.5 ${sidebarCollapsed ? 'flex-col' : ''}`}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href="/administration/platform/customers"
+                      aria-label="Open platform administration"
+                      data-testid="link-platform-administration"
+                      className={`inline-flex h-9 items-center gap-2 rounded-lg border border-accent/25 bg-accent/10 px-2.5 text-accent hover:bg-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sidebarCollapsed ? 'w-9 justify-center px-0' : ''}`}
+                    >
+                      <ShieldCheck size={16} />
+                      {!sidebarCollapsed && <span className="text-[10px] font-bold uppercase tracking-[.08em]">Platform</span>}
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="bg-popover text-popover-foreground">Platform administration</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href="/administration/platform/recovery"
+                      aria-label="Open environment recovery console"
+                      data-testid="link-platform-recovery"
+                      className={`inline-flex h-9 items-center gap-2 rounded-lg border border-accent/25 bg-accent/10 px-2.5 text-accent hover:bg-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sidebarCollapsed ? 'w-9 justify-center px-0' : ''}`}
+                    >
+                      <ServerCog size={16} />
+                      {!sidebarCollapsed && <span className="text-[10px] font-bold uppercase tracking-[.08em]">Recovery</span>}
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="bg-popover text-popover-foreground">Environment recovery</TooltipContent>
+                </Tooltip>
+              </div>
             )}
 
             <div className="flex items-center gap-2">

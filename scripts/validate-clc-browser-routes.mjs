@@ -37,6 +37,21 @@ const cases = [
     activeNav: null,
   },
   {
+    name: "platform environment recovery",
+    path: "/administration/platform/recovery?browserAuth=platform",
+    heading: "Environment Recovery",
+    breadcrumb: "Environment Recovery",
+    activeNav: null,
+    requiredTexts: ["runtime", "database", "storage", "queue", "secrets", "jobs", "logs", "context ready"],
+  },
+  {
+    name: "customer cannot access platform recovery",
+    path: "/administration/platform/recovery?browserAuth=authenticated",
+    heading: "Platform administrator access required",
+    breadcrumb: null,
+    activeNav: null,
+  },
+  {
     name: "legacy settings redirect",
     path: "/settings/access?browserAuth=authenticated",
     heading: "Administration",
@@ -122,6 +137,7 @@ async function visit(routeCase) {
     `${baseUrl}${routeCase.path}`,
   ], { maxBuffer: 8 * 1024 * 1024 });
   const html = stdout;
+  const pageText = decodeEntities(html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
   const failures = [];
   const heading = textContent(html, "h1");
   if (heading !== routeCase.heading) failures.push(`heading="${heading}" expected "${routeCase.heading}"`);
@@ -132,6 +148,9 @@ async function visit(routeCase) {
   }
   if (routeCase.activeNav && !containsActiveNav(html, routeCase.activeNav)) {
     failures.push(`active navigation ${routeCase.activeNav} missing`);
+  }
+  for (const requiredText of routeCase.requiredTexts ?? []) {
+    if (!pageText.includes(requiredText)) failures.push(`required text "${requiredText}" missing`);
   }
   if (failures.length) throw new Error(`${routeCase.name}: ${failures.join("; ")}`);
 }

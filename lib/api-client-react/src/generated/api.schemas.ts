@@ -6861,6 +6861,194 @@ export interface RestoreSnapshotInput {
   rollback?: boolean;
 }
 
+export type ProvisioningOperationOperationType = typeof ProvisioningOperationOperationType[keyof typeof ProvisioningOperationOperationType];
+
+
+export const ProvisioningOperationOperationType = {
+  provision: 'provision',
+  verify: 'verify',
+  backup: 'backup',
+  restore: 'restore',
+  refresh: 'refresh',
+  rollback: 'rollback',
+} as const;
+
+export type ProvisioningOperationStatus = typeof ProvisioningOperationStatus[keyof typeof ProvisioningOperationStatus];
+
+
+export const ProvisioningOperationStatus = {
+  requested: 'requested',
+  running: 'running',
+  succeeded: 'succeeded',
+  failed: 'failed',
+} as const;
+
+export type ProvisioningOperationDetails = { [key: string]: unknown };
+
+export interface ProvisioningOperation {
+  id: number;
+  tenantId: number;
+  environmentId: number;
+  /** @nullable */
+  resourceId: number | null;
+  operationType: ProvisioningOperationOperationType;
+  idempotencyKey: string;
+  status: ProvisioningOperationStatus;
+  /** @nullable */
+  providerOperationId: string | null;
+  details: ProvisioningOperationDetails;
+  /** @nullable */
+  error: string | null;
+  /** @nullable */
+  requestedByUserId: number | null;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export type EnvironmentRefreshStatus = typeof EnvironmentRefreshStatus[keyof typeof EnvironmentRefreshStatus];
+
+
+export const EnvironmentRefreshStatus = {
+  requested: 'requested',
+  running: 'running',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+export type EnvironmentRefreshSanitizationPolicy = typeof EnvironmentRefreshSanitizationPolicy[keyof typeof EnvironmentRefreshSanitizationPolicy];
+
+
+export const EnvironmentRefreshSanitizationPolicy = {
+  'redact-secrets': 'redact-secrets',
+  'replace-identifiers': 'replace-identifiers',
+  full: 'full',
+} as const;
+
+export interface EnvironmentRefresh {
+  id: number;
+  tenantId: number;
+  sourceEnvironmentId: number;
+  targetEnvironmentId: number;
+  /** @nullable */
+  snapshotId: number | null;
+  idempotencyKey: string;
+  status: EnvironmentRefreshStatus;
+  sanitizationPolicy: EnvironmentRefreshSanitizationPolicy;
+  /** @nullable */
+  requestedByUserId: number | null;
+  /** @nullable */
+  error: string | null;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export type EnvironmentSnapshotKind = typeof EnvironmentSnapshotKind[keyof typeof EnvironmentSnapshotKind];
+
+
+export const EnvironmentSnapshotKind = {
+  backup: 'backup',
+  refresh: 'refresh',
+} as const;
+
+export type EnvironmentSnapshotStatus = typeof EnvironmentSnapshotStatus[keyof typeof EnvironmentSnapshotStatus];
+
+
+export const EnvironmentSnapshotStatus = {
+  requested: 'requested',
+  running: 'running',
+  verified: 'verified',
+  failed: 'failed',
+} as const;
+
+export type EnvironmentSnapshotSanitized = typeof EnvironmentSnapshotSanitized[keyof typeof EnvironmentSnapshotSanitized];
+
+
+export const EnvironmentSnapshotSanitized = {
+  not_applicable: 'not_applicable',
+  pending: 'pending',
+  sanitized: 'sanitized',
+} as const;
+
+/**
+ * @nullable
+ */
+export type EnvironmentSnapshotSanitizationPolicy = typeof EnvironmentSnapshotSanitizationPolicy[keyof typeof EnvironmentSnapshotSanitizationPolicy] | null;
+
+
+export const EnvironmentSnapshotSanitizationPolicy = {
+  'redact-secrets': 'redact-secrets',
+  'replace-identifiers': 'replace-identifiers',
+  full: 'full',
+} as const;
+
+export type EnvironmentSnapshotVerificationDetails = { [key: string]: unknown };
+
+export interface EnvironmentSnapshot {
+  id: number;
+  tenantId: number;
+  environmentId: number;
+  /** @nullable */
+  sourceEnvironmentId: number | null;
+  idempotencyKey: string;
+  kind: EnvironmentSnapshotKind;
+  status: EnvironmentSnapshotStatus;
+  sanitized: EnvironmentSnapshotSanitized;
+  /** @nullable */
+  sanitizationPolicy: EnvironmentSnapshotSanitizationPolicy;
+  /**
+     * Opaque provider snapshot reference.
+     * @nullable
+     */
+  backupReference: string | null;
+  /** @nullable */
+  checksum: string | null;
+  verificationDetails: EnvironmentSnapshotVerificationDetails;
+  /** @nullable */
+  createdByUserId: number | null;
+  /** @nullable */
+  verifiedAt: string | null;
+  createdAt: string;
+}
+
+export interface RefreshEnvironmentResult {
+  refresh: EnvironmentRefresh;
+  snapshot: EnvironmentSnapshot;
+  operationId: number;
+}
+
+export interface RestoreEnvironmentResult {
+  operation: ProvisioningOperation;
+  snapshotId: number;
+}
+
+export interface RollbackEnvironmentResult {
+  operation: ProvisioningOperation;
+  controlId: number;
+}
+
+export type ProvisioningEventDetails = { [key: string]: unknown };
+
+export interface ProvisioningEvent {
+  id: number;
+  tenantId: number;
+  environmentId: number;
+  /** @nullable */
+  resourceId: number | null;
+  /** @nullable */
+  operationId: number | null;
+  /** @nullable */
+  actorUserId: number | null;
+  action: string;
+  details: ProvisioningEventDetails;
+  occurredAt: string;
+}
+
 export type EnvironmentResourceInventoryResourcesItemResourceType = typeof EnvironmentResourceInventoryResourcesItemResourceType[keyof typeof EnvironmentResourceInventoryResourcesItemResourceType];
 
 
@@ -7148,5 +7336,3 @@ providerKey: string;
  */
 limit?: number;
 };
-
-export type ListProvisioningEvents200Item = { [key: string]: unknown };

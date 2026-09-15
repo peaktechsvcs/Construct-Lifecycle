@@ -68,6 +68,7 @@ import type {
   Environment,
   EnvironmentReleaseAssignment,
   EnvironmentResourceInventory,
+  EnvironmentSnapshot,
   Estimate,
   EstimateInput,
   EstimateUpdate,
@@ -110,7 +111,6 @@ import type {
   ListOpportunitiesParams,
   ListProjectsParams,
   ListProposalsParams,
-  ListProvisioningEvents200Item,
   ListSubcontractAgreementsParams,
   ListSubmittalDocumentProviderFiles200,
   ListSubmittalDocumentProviderFilesParams,
@@ -174,9 +174,14 @@ import type {
   ProposalInput,
   ProposalUpdate,
   ProvisionEnvironmentInput,
+  ProvisioningEvent,
+  ProvisioningOperation,
   PublishedBrandingContext,
   RefreshEnvironmentInput,
+  RefreshEnvironmentResult,
+  RestoreEnvironmentResult,
   RestoreSnapshotInput,
+  RollbackEnvironmentResult,
   ScheduleOfValue,
   ScheduleOfValueInput,
   ScheduleOfValueUpdate,
@@ -18196,9 +18201,9 @@ export const getListProvisioningEventsUrl = (environmentId: number,) => {
 /**
  * @summary List auditable provisioning transitions
  */
-export const listProvisioningEvents = async (environmentId: number, options?: Parameters<typeof customFetch>[1]): Promise<ListProvisioningEvents200Item[]> => {
+export const listProvisioningEvents = async (environmentId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProvisioningEvent[]> => {
 
-  return customFetch<ListProvisioningEvents200Item[]>(getListProvisioningEventsUrl(environmentId),
+  return customFetch<ProvisioningEvent[]>(getListProvisioningEventsUrl(environmentId),
   {
     ...options,
     method: 'GET'
@@ -18489,9 +18494,9 @@ export const getRefreshDtdEnvironmentUrl = (environmentId: number,) => {
  * @summary Refresh D/T/D from same-customer Production with sanitization
  */
 export const refreshDtdEnvironment = async (environmentId: number,
-    refreshEnvironmentInput: RefreshEnvironmentInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+    refreshEnvironmentInput: RefreshEnvironmentInput, options?: Parameters<typeof customFetch>[1]): Promise<RefreshEnvironmentResult> => {
 
-  return customFetch<void>(getRefreshDtdEnvironmentUrl(environmentId),
+  return customFetch<RefreshEnvironmentResult>(getRefreshDtdEnvironmentUrl(environmentId),
   {
     ...options,
     method: 'POST',
@@ -18548,6 +18553,83 @@ export const useRefreshDtdEnvironment = <TError = ErrorType<void>,
       > => {
       return useMutation(getRefreshDtdEnvironmentMutationOptions(options));
     }
+
+export const getListEnvironmentSnapshotsUrl = (environmentId: number,) => {
+
+
+
+
+  return `/api/platform/environments/${environmentId}/snapshots`
+}
+
+/**
+ * @summary List environment backup and refresh snapshots
+ */
+export const listEnvironmentSnapshots = async (environmentId: number, options?: Parameters<typeof customFetch>[1]): Promise<EnvironmentSnapshot[]> => {
+
+  return customFetch<EnvironmentSnapshot[]>(getListEnvironmentSnapshotsUrl(environmentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEnvironmentSnapshotsQueryKey = (environmentId: number,) => {
+    return [
+    `/api/platform/environments/${environmentId}/snapshots`
+    ] as const;
+    }
+
+
+export const getListEnvironmentSnapshotsQueryOptions = <TData = Awaited<ReturnType<typeof listEnvironmentSnapshots>>, TError = ErrorType<unknown>>(environmentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEnvironmentSnapshots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEnvironmentSnapshotsQueryKey(environmentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEnvironmentSnapshots>>> = ({ signal }) => listEnvironmentSnapshots(environmentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: environmentId !== null && environmentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEnvironmentSnapshots>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEnvironmentSnapshotsQueryResult = NonNullable<Awaited<ReturnType<typeof listEnvironmentSnapshots>>>
+export type ListEnvironmentSnapshotsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List environment backup and refresh snapshots
+ */
+
+export function useListEnvironmentSnapshots<TData = Awaited<ReturnType<typeof listEnvironmentSnapshots>>, TError = ErrorType<unknown>>(
+ environmentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEnvironmentSnapshots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEnvironmentSnapshotsQueryOptions(environmentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getCreateEnvironmentBackupUrl = (environmentId: number,) => {
 
@@ -18705,9 +18787,9 @@ export const getRestoreEnvironmentSnapshotUrl = (snapshotId: number,) => {
  * @summary Restore or roll back to a verified snapshot
  */
 export const restoreEnvironmentSnapshot = async (snapshotId: number,
-    restoreSnapshotInput: RestoreSnapshotInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+    restoreSnapshotInput: RestoreSnapshotInput, options?: Parameters<typeof customFetch>[1]): Promise<RestoreEnvironmentResult> => {
 
-  return customFetch<void>(getRestoreEnvironmentSnapshotUrl(snapshotId),
+  return customFetch<RestoreEnvironmentResult>(getRestoreEnvironmentSnapshotUrl(snapshotId),
   {
     ...options,
     method: 'POST',
@@ -18776,9 +18858,9 @@ export const getGetProvisioningOperationUrl = (operationId: number,) => {
 /**
  * @summary Poll an asynchronous restore, refresh, or rollback operation
  */
-export const getProvisioningOperation = async (operationId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+export const getProvisioningOperation = async (operationId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProvisioningOperation> => {
 
-  return customFetch<void>(getGetProvisioningOperationUrl(operationId),
+  return customFetch<ProvisioningOperation>(getGetProvisioningOperationUrl(operationId),
   {
     ...options,
     method: 'GET'
@@ -18854,9 +18936,9 @@ export const getRollbackEnvironmentReleaseUrl = (assignmentId: number,) => {
  * @summary Roll back a promoted release to its verified snapshot
  */
 export const rollbackEnvironmentRelease = async (assignmentId: number,
-    restoreSnapshotInput: RestoreSnapshotInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+    restoreSnapshotInput: RestoreSnapshotInput, options?: Parameters<typeof customFetch>[1]): Promise<RollbackEnvironmentResult> => {
 
-  return customFetch<void>(getRollbackEnvironmentReleaseUrl(assignmentId),
+  return customFetch<RollbackEnvironmentResult>(getRollbackEnvironmentReleaseUrl(assignmentId),
   {
     ...options,
     method: 'POST',

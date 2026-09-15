@@ -43,6 +43,29 @@ const environments = [
   },
 ];
 
+const platformCustomer = {
+  ...tenant,
+  memberCount: 1,
+  pendingInvitationCount: 0,
+  environments,
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+};
+
+const platformResources = ['runtime', 'database', 'storage', 'queue', 'secrets', 'jobs', 'logs'].map(
+  (resourceType, index) => ({
+    id: index + 1,
+    tenantId: tenant.id,
+    environmentId: environments[0].id,
+    resourceType,
+    status: 'ready',
+    providerKey: 'browser-test',
+    secretReference: null,
+    externalId: `browser-${resourceType}`,
+    endpoint: resourceType === 'runtime' ? 'https://runtime.example.test' : null,
+  }),
+);
+
 const workflow = {
   published: {
     template: { id: 1, name: 'Browser Test Workflow', status: 'published', version: 1 },
@@ -117,8 +140,32 @@ export function installBrowserTestApi() {
     if (url.pathname === '/api/customers') return json([]);
     if (url.pathname === '/api/tenant/members') return json([]);
     if (url.pathname === '/api/tenant/invitations') return json([]);
-    if (url.pathname === '/api/platform/customers') return json([]);
+    if (url.pathname === '/api/platform/customers') return json([platformCustomer]);
     if (url.pathname === '/api/platform/billing/plans') return json([]);
+    if (url.pathname === '/api/platform/releases') return json([]);
+    if (url.pathname === '/api/platform/environments/1/resources') {
+      return json({
+        environment: environments[0],
+        executionContextReady: true,
+        resources: platformResources,
+      });
+    }
+    if (url.pathname === '/api/platform/environments/1/provisioning-events') {
+      return json([
+        {
+          id: 1,
+          tenantId: tenant.id,
+          environmentId: environments[0].id,
+          resourceId: 1,
+          operationId: 1,
+          actorUserId: 1,
+          action: 'environment_verified',
+          details: { isolated: true },
+          occurredAt: new Date(0).toISOString(),
+        },
+      ]);
+    }
+    if (url.pathname === '/api/platform/environments/1/snapshots') return json([]);
     if (url.pathname === '/api/features') return json([]);
     if (url.pathname === '/api/follow-ups') return json([]);
     if (url.pathname === '/api/notifications') return json({ items: [], unreadCount: 0, total: 0 });

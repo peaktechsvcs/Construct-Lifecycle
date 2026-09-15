@@ -13093,8 +13093,16 @@ export const ListProvisioningEventsParams = zod.object({
 })
 
 export const ListProvisioningEventsResponseItem = zod.object({
-
-}).passthrough()
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "resourceId": zod.number().int().nullable(),
+  "operationId": zod.number().int().nullable(),
+  "actorUserId": zod.number().int().nullable(),
+  "action": zod.string(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "occurredAt": zod.coerce.date()
+})
 export const ListProvisioningEventsResponse = zod.array(ListProvisioningEventsResponseItem)
 
 
@@ -13180,7 +13188,71 @@ export const RefreshDtdEnvironmentBody = zod.object({
   "idempotencyKey": zod.string().min(refreshDtdEnvironmentBodyIdempotencyKeyMin).max(refreshDtdEnvironmentBodyIdempotencyKeyMax)
 })
 
-export const RefreshDtdEnvironmentResponse = zod.void()
+export const RefreshDtdEnvironmentResponse = zod.object({
+  "refresh": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "sourceEnvironmentId": zod.number().int(),
+  "targetEnvironmentId": zod.number().int(),
+  "snapshotId": zod.number().int().nullable(),
+  "idempotencyKey": zod.string(),
+  "status": zod.enum(['requested', 'running', 'completed', 'failed']),
+  "sanitizationPolicy": zod.enum(['redact-secrets', 'replace-identifiers', 'full']),
+  "requestedByUserId": zod.number().int().nullable(),
+  "error": zod.string().nullable(),
+  "startedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}),
+  "snapshot": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "sourceEnvironmentId": zod.number().int().nullable(),
+  "idempotencyKey": zod.string(),
+  "kind": zod.enum(['backup', 'refresh']),
+  "status": zod.enum(['requested', 'running', 'verified', 'failed']),
+  "sanitized": zod.enum(['not_applicable', 'pending', 'sanitized']),
+  "sanitizationPolicy": zod.union([zod.literal('redact-secrets'),zod.literal('replace-identifiers'),zod.literal('full'),zod.literal(null)]).nullable(),
+  "backupReference": zod.string().nullable().describe('Opaque provider snapshot reference.'),
+  "checksum": zod.string().nullable(),
+  "verificationDetails": zod.record(zod.string(), zod.unknown()),
+  "createdByUserId": zod.number().int().nullable(),
+  "verifiedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}),
+  "operationId": zod.number().int()
+})
+
+
+/**
+ * @summary List environment backup and refresh snapshots
+ */
+
+
+
+export const ListEnvironmentSnapshotsParams = zod.object({
+  "environmentId": zod.coerce.number().int().min(1)
+})
+
+export const ListEnvironmentSnapshotsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "sourceEnvironmentId": zod.number().int().nullable(),
+  "idempotencyKey": zod.string(),
+  "kind": zod.enum(['backup', 'refresh']),
+  "status": zod.enum(['requested', 'running', 'verified', 'failed']),
+  "sanitized": zod.enum(['not_applicable', 'pending', 'sanitized']),
+  "sanitizationPolicy": zod.union([zod.literal('redact-secrets'),zod.literal('replace-identifiers'),zod.literal('full'),zod.literal(null)]).nullable(),
+  "backupReference": zod.string().nullable().describe('Opaque provider snapshot reference.'),
+  "checksum": zod.string().nullable(),
+  "verificationDetails": zod.record(zod.string(), zod.unknown()),
+  "createdByUserId": zod.number().int().nullable(),
+  "verifiedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListEnvironmentSnapshotsResponse = zod.array(ListEnvironmentSnapshotsResponseItem)
 
 
 /**
@@ -13247,7 +13319,25 @@ export const RestoreEnvironmentSnapshotBody = zod.object({
   "rollback": zod.boolean().default(restoreEnvironmentSnapshotBodyRollbackDefault)
 })
 
-export const RestoreEnvironmentSnapshotResponse = zod.unknown()
+export const RestoreEnvironmentSnapshotResponse = zod.object({
+  "operation": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "resourceId": zod.number().int().nullable(),
+  "operationType": zod.enum(['provision', 'verify', 'backup', 'restore', 'refresh', 'rollback']),
+  "idempotencyKey": zod.string(),
+  "status": zod.enum(['requested', 'running', 'succeeded', 'failed']),
+  "providerOperationId": zod.string().nullable(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "error": zod.string().nullable(),
+  "requestedByUserId": zod.number().int().nullable(),
+  "startedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}),
+  "snapshotId": zod.number().int()
+})
 
 
 /**
@@ -13260,7 +13350,22 @@ export const GetProvisioningOperationParams = zod.object({
   "operationId": zod.coerce.number().int().min(1)
 })
 
-export const GetProvisioningOperationResponse = zod.unknown()
+export const GetProvisioningOperationResponse = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "resourceId": zod.number().int().nullable(),
+  "operationType": zod.enum(['provision', 'verify', 'backup', 'restore', 'refresh', 'rollback']),
+  "idempotencyKey": zod.string(),
+  "status": zod.enum(['requested', 'running', 'succeeded', 'failed']),
+  "providerOperationId": zod.string().nullable(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "error": zod.string().nullable(),
+  "requestedByUserId": zod.number().int().nullable(),
+  "startedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
 
 
 /**
@@ -13283,4 +13388,22 @@ export const RollbackEnvironmentReleaseBody = zod.object({
   "rollback": zod.boolean().default(rollbackEnvironmentReleaseBodyRollbackDefault)
 })
 
-export const RollbackEnvironmentReleaseResponse = zod.unknown()
+export const RollbackEnvironmentReleaseResponse = zod.object({
+  "operation": zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "resourceId": zod.number().int().nullable(),
+  "operationType": zod.enum(['provision', 'verify', 'backup', 'restore', 'refresh', 'rollback']),
+  "idempotencyKey": zod.string(),
+  "status": zod.enum(['requested', 'running', 'succeeded', 'failed']),
+  "providerOperationId": zod.string().nullable(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "error": zod.string().nullable(),
+  "requestedByUserId": zod.number().int().nullable(),
+  "startedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}),
+  "controlId": zod.number().int()
+})

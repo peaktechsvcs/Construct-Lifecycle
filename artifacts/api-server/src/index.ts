@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { configureProvisioningProvider, createProvisioningProviderFromEnv } from "./lib/provisioning";
 import { assertRuntimeProcessConfiguration, configureRuntimeReplayGuard } from "./middlewares/runtimeContext";
+import { startProvisioningRecoveryWorker } from "./workers/provisioning-recovery";
 
 const rawPort = process.env["PORT"];
 
@@ -50,11 +51,22 @@ if (!process.env.RUNTIME_ENVIRONMENT_ID) {
   await initializeStripe();
 }
 
-app.listen(port, (err) => {
+let stopProvisioningRecovery: (() => void) | undefined;
+const server = app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
   }
 
   logger.info({ port }, "Server listening");
+  if (!process.env.RUNTIME_ENVIRONMENT_ID) {
+    stopProvisioningRecovery = startProvisioningRecoveryWorker();
+  }
 });
+
+const shutdown = () => {
+  stopProvisioningRecovery?.();
+  server.close(() => process.exit(0));
+};
+process.once("SIGTERM", shutdown);
+process.once("SIGINT", shutdown);
