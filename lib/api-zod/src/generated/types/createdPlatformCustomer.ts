@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CreatedPlatformCustomerInvitationStatus } from './createdPlatformCustomerInvitationStatus';
 import type { PlatformCustomer } from './platformCustomer';
 import type { TenantInvitation } from './tenantInvitation';
 
@@ -13,4 +14,7 @@ export interface CreatedPlatformCustomer {
   invitation: TenantInvitation | null;
   /** @nullable */
   invitationToken: string | null;
+  invitationStatus: CreatedPlatformCustomerInvitationStatus;
+  /** @nullable */
+  invitationError: string | null;
 }

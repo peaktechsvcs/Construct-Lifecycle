@@ -3,12 +3,35 @@ import { after, test } from "node:test";
 import { eq } from "drizzle-orm";
 import { createCustomerWorkspace } from "../src/lib/customer-onboarding.ts";
 import { createPlatformCustomerHandler } from "../src/routes/platform.ts";
+import {
+  ActiveTenantInvitationError,
+  createTenantInvitation,
+} from "../src/routes/tenant-admin.ts";
 
-const { db, pool, tenantsTable } = await import("@workspace/db");
+const {
+  db,
+  pool,
+  platformAuditEventsTable,
+  tenantsTable,
+  tenantInvitationsTable,
+  usersTable,
+} = await import("@workspace/db");
 const slug = `onboarding-rollback-${Date.now()}-${process.pid}`;
+const partialSlug = `onboarding-partial-${Date.now()}-${process.pid}`;
+const testClerkUserId = `onboarding-owner-${Date.now()}-${process.pid}`;
 
 after(async () => {
   await db.delete(tenantsTable).where(eq(tenantsTable.slug, slug));
+  await db.delete(tenantsTable).where(eq(tenantsTable.slug, partialSlug));
+  const [owner] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.clerkUserId, testClerkUserId))
+    .limit(1);
+  if (owner) {
+    await db.delete(platformAuditEventsTable).where(eq(platformAuditEventsTable.actorUserId, owner.id));
+  }
+  await db.delete(usersTable).where(eq(usersTable.clerkUserId, testClerkUserId));
   await pool.end();
 });
 
@@ -58,4 +81,77 @@ test("returns the safe recovery message and rolls back when setup fails", async 
     .where(eq(tenantsTable.slug, slug))
     .limit(1);
   assert.equal(tenant, undefined);
+});
+
+test("returns partial success when the workspace exists but its owner invitation fails", async () => {
+  const [user] = await db.insert(usersTable).values({
+    clerkUserId: testClerkUserId,
+    email: "onboarding-owner@example.test",
+    displayName: "Onboarding Owner",
+  }).returning({ id: usersTable.id });
+  let statusCode = 200;
+  let responseBody: Record<string, unknown> | undefined;
+  const logMessages: unknown[] = [];
+  const response = {
+    status(code: number) {
+      statusCode = code;
+      return this;
+    },
+    json(body: Record<string, unknown>) {
+      responseBody = body;
+      return this;
+    },
+  };
+  const request = {
+    body: {
+      name: "Partial Success Customer",
+      slug: partialSlug,
+      ownerEmail: "owner@example.test",
+      businessTypes: ["general-contractor"],
+    },
+    localUserId: user.id,
+    log: { error(...args: unknown[]) { logMessages.push(args); } },
+  };
+
+  await createPlatformCustomerHandler(
+    request as never,
+    response as never,
+    (input, userId) => createCustomerWorkspace(input, userId, async () => {}),
+    async () => {
+      throw new Error("simulated invitation provider failure");
+    },
+  );
+
+  assert.equal(statusCode, 201);
+  assert.equal(responseBody?.invitationStatus, "failed");
+  assert.equal(responseBody?.invitation, null);
+  assert.equal(responseBody?.invitationToken, null);
+  assert.equal(
+    responseBody?.invitationError,
+    "Workspace created, but the owner invitation could not be created. Retry it from customer access.",
+  );
+  assert.equal(logMessages.length, 1);
+  assert.doesNotMatch(JSON.stringify(logMessages), /owner@example\.test|provider failure|token/i);
+
+  const [tenant] = await db
+    .select({ id: tenantsTable.id })
+    .from(tenantsTable)
+    .where(eq(tenantsTable.slug, partialSlug))
+    .limit(1);
+  assert.ok(tenant);
+
+  const [first, second] = await Promise.allSettled([
+    createTenantInvitation(tenant.id, user.id, "retry-owner@example.test", "owner"),
+    createTenantInvitation(tenant.id, user.id, "retry-owner@example.test", "owner"),
+  ]);
+  assert.equal([first, second].filter((result) => result.status === "fulfilled").length, 1);
+  assert.equal([first, second].filter((result) => result.status === "rejected").length, 1);
+  const rejected = [first, second].find((result) => result.status === "rejected");
+  assert.ok(rejected && rejected.reason instanceof ActiveTenantInvitationError);
+
+  const invitations = await db
+    .select({ id: tenantInvitationsTable.id })
+    .from(tenantInvitationsTable)
+    .where(eq(tenantInvitationsTable.tenantId, tenant.id));
+  assert.equal(invitations.length, 1);
 });

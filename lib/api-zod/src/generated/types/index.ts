@@ -79,6 +79,7 @@ export * from './createBillingPlanInputLimits';
 export * from './createBillingPlanResponse';
 export * from './createdPlatformCustomer';
 export * from './createdPlatformCustomerInvitation';
+export * from './createdPlatformCustomerInvitationStatus';
 export * from './createdTenantInvitation';
 export * from './createPlatformCustomerInput';
 export * from './createPlatformCustomerInvitationInput';

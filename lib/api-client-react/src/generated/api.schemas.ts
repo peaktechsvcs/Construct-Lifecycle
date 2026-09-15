@@ -4197,11 +4197,23 @@ export interface UpdateTenantBusinessProfileInput {
   businessTypes: BusinessType[];
 }
 
+export type CreatedPlatformCustomerInvitationStatus = typeof CreatedPlatformCustomerInvitationStatus[keyof typeof CreatedPlatformCustomerInvitationStatus];
+
+
+export const CreatedPlatformCustomerInvitationStatus = {
+  not_requested: 'not_requested',
+  created: 'created',
+  failed: 'failed',
+} as const;
+
 export interface CreatedPlatformCustomer {
   customer: PlatformCustomer;
   invitation: TenantInvitation | null;
   /** @nullable */
   invitationToken: string | null;
+  invitationStatus: CreatedPlatformCustomerInvitationStatus;
+  /** @nullable */
+  invitationError: string | null;
 }
 
 export type UpdatePlatformCustomerInputStatus = typeof UpdatePlatformCustomerInputStatus[keyof typeof UpdatePlatformCustomerInputStatus];

@@ -11600,7 +11600,9 @@ export const CreatePlatformCustomerResponse = zod.object({
   "expiresAt": zod.coerce.date(),
   "createdAt": zod.coerce.date()
 }),zod.null()]),
-  "invitationToken": zod.string().nullable()
+  "invitationToken": zod.string().nullable(),
+  "invitationStatus": zod.enum(['not_requested', 'created', 'failed']),
+  "invitationError": zod.string().nullable()
 })
 
 

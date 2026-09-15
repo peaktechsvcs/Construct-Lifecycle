@@ -30,3 +30,4 @@
 - [Integration job lifecycle](integration-job-lifecycle.md) — provider work must use canonical scoped job transitions so integration health cannot stay empty or leak connector errors.
 - [Recovery operation durability](recovery-operation-durability.md) — destructive recovery must outlive browser polling and survive interrupted provider startup.
 - [CLC browser route coverage](clc-browser-route-coverage.md) — use system Chromium with test-only Clerk/API fixtures when browser dependencies are unavailable.
+- [Owner invitation retry behavior](owner-invitation-retry.md) — post-commit invitation failure is explicit partial success; tenant-scoped locking prevents duplicate active retries.

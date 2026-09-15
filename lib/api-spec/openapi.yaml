@@ -6886,7 +6886,7 @@ components:
           items: { $ref: "#/components/schemas/BusinessType" }
     CreatedPlatformCustomer:
       type: object
-      required: [customer, invitation, invitationToken]
+      required: [customer, invitation, invitationToken, invitationStatus, invitationError]
       properties:
         customer: { $ref: "#/components/schemas/PlatformCustomer" }
         invitation:
@@ -6894,6 +6894,10 @@ components:
             - $ref: "#/components/schemas/TenantInvitation"
             - type: "null"
         invitationToken: { type: ["string", "null"] }
+        invitationStatus:
+          type: string
+          enum: [not_requested, created, failed]
+        invitationError: { type: ["string", "null"] }
     UpdatePlatformCustomerInput:
       type: object
       required: [status]

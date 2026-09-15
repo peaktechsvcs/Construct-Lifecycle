@@ -31,7 +31,11 @@ import {
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requirePlatformAdmin } from "../middlewares/platformAdmin";
-import { createTenantInvitation, serializeInvitation } from "./tenant-admin";
+import {
+  ActiveTenantInvitationError,
+  createTenantInvitation,
+  serializeInvitation,
+} from "./tenant-admin";
 import { createCustomerWorkspace } from "../lib/customer-onboarding";
 import { DEFAULT_TENANT_BUSINESS_TYPES, getTenantBusinessTypes } from "../lib/tenant-business-profile";
 import { isIsolatedEnvironmentReady, isRecentHealthyCheck } from "../lib/provisioning";
@@ -621,6 +625,7 @@ export async function createPlatformCustomerHandler(
   req: TenantRequest,
   res: Response,
   createWorkspace: typeof createCustomerWorkspace = createCustomerWorkspace,
+  createInvitation: typeof createTenantInvitation = createTenantInvitation,
 ) {
   const parsed = CreatePlatformCustomerBody.safeParse(req.body);
   if (!parsed.success) {
@@ -655,23 +660,44 @@ export async function createPlatformCustomerHandler(
 
   let invitation: ReturnType<typeof serializeInvitation> | null = null;
   let invitationToken: string | null = null;
+  let invitationStatus: "not_requested" | "created" | "failed" = "not_requested";
+  let invitationError: string | null = null;
   if (parsed.data.ownerEmail) {
-    const created = await createTenantInvitation(
-      tenant.id,
-      req.localUserId!,
-      parsed.data.ownerEmail,
-      "owner",
-    );
-    invitation = serializeInvitation(created.invitation);
-    invitationToken = created.token;
+    try {
+      const created = await createInvitation(
+        tenant.id,
+        req.localUserId!,
+        parsed.data.ownerEmail,
+        "owner",
+      );
+      invitation = serializeInvitation(created.invitation);
+      invitationToken = created.token;
+      invitationStatus = "created";
+    } catch (error) {
+      invitationStatus = "failed";
+      invitationError = "Workspace created, but the owner invitation could not be created. Retry it from customer access.";
+      req.log.error(
+        { tenantId: tenant.id, role: "owner" },
+        error instanceof ActiveTenantInvitationError
+          ? "Customer workspace created with an existing owner invitation"
+          : "Customer workspace created but owner invitation persistence failed",
+      );
+    }
   }
 
   await writeAudit(req, "customer_created", tenant.id, {
     name: tenant.name,
     slug: tenant.slug,
     businessTypes,
+    ownerInvitationStatus: invitationStatus,
   });
-  res.status(201).json({ customer: await serializeCustomer(tenant), invitation, invitationToken });
+  res.status(201).json({
+    customer: await serializeCustomer(tenant),
+    invitation,
+    invitationToken,
+    invitationStatus,
+    invitationError,
+  });
 }
 
 router.post("/platform/customers", (req, res) => createPlatformCustomerHandler(req, res));
@@ -790,11 +816,23 @@ router.post("/platform/customers/:tenantId/invitations", async (req: TenantReque
     res.status(409).json({ error: "An active invitation already exists for this email" });
     return;
   }
-  const created = await createTenantInvitation(tenantId, req.localUserId!, email, parsed.data.role);
-  res.status(201).json({
-    invitation: serializeInvitation(created.invitation),
-    token: created.token,
-  });
+  try {
+    const created = await createTenantInvitation(tenantId, req.localUserId!, email, parsed.data.role);
+    res.status(201).json({
+      invitation: serializeInvitation(created.invitation),
+      token: created.token,
+    });
+  } catch (error) {
+    if (error instanceof ActiveTenantInvitationError) {
+      res.status(409).json({ error: error.message });
+      return;
+    }
+    req.log.error(
+      { tenantId, role: parsed.data.role },
+      "Platform invitation persistence failed",
+    );
+    res.status(500).json({ error: "Invitation could not be created. Please try again." });
+  }
 });
 
 router.post("/platform/customers/:tenantId/invitations/:invitationId/revoke", async (req: TenantRequest, res) => {

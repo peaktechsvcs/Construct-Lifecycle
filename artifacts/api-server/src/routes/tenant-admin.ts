@@ -45,6 +45,15 @@ export function serializeInvitation(invitation: typeof tenantInvitationsTable.$i
   };
 }
 
+export class ActiveTenantInvitationError extends Error {
+  readonly code = "ACTIVE_INVITATION_EXISTS";
+
+  constructor() {
+    super("An active invitation already exists for this email");
+    this.name = "ActiveTenantInvitationError";
+  }
+}
+
 export async function createTenantInvitation(
   tenantId: number,
   invitedByUserId: number,
@@ -52,19 +61,41 @@ export async function createTenantInvitation(
   role: string,
 ) {
   const token = randomBytes(32).toString("hex");
-  const [invitation] = await db
-    .insert(tenantInvitationsTable)
-    .values({
-      tenantId,
-      invitedByUserId,
-      email: email.trim().toLowerCase(),
-      role,
-      tokenHash: hashInvitationToken(token),
-      expiresAt: new Date(
-        Date.now() + INVITATION_LIFETIME_DAYS * 24 * 60 * 60 * 1000,
-      ),
-    })
-    .returning();
+  const normalizedEmail = email.trim().toLowerCase();
+  const invitation = await db.transaction(async (tx) => {
+    // Serialize invitation creation per tenant so the preflight check and insert
+    // cannot race into duplicate active invitations.
+    await tx.execute(sql`select pg_advisory_xact_lock(${tenantId})`);
+    const [existingInvite] = await tx
+      .select({ id: tenantInvitationsTable.id })
+      .from(tenantInvitationsTable)
+      .where(
+        and(
+          eq(tenantInvitationsTable.tenantId, tenantId),
+          eq(tenantInvitationsTable.email, normalizedEmail),
+          isNull(tenantInvitationsTable.acceptedAt),
+          isNull(tenantInvitationsTable.revokedAt),
+          gt(tenantInvitationsTable.expiresAt, new Date()),
+        ),
+      )
+      .limit(1);
+    if (existingInvite) throw new ActiveTenantInvitationError();
+
+    const [created] = await tx
+      .insert(tenantInvitationsTable)
+      .values({
+        tenantId,
+        invitedByUserId,
+        email: normalizedEmail,
+        role,
+        tokenHash: hashInvitationToken(token),
+        expiresAt: new Date(
+          Date.now() + INVITATION_LIFETIME_DAYS * 24 * 60 * 60 * 1000,
+        ),
+      })
+      .returning();
+    return created;
+  });
 
   return { invitation, token };
 }
@@ -280,13 +311,25 @@ router.post(
       return;
     }
 
-    const { invitation, token } = await createTenantInvitation(
-      req.tenantId!,
-      req.localUserId!,
-      email,
-      parsed.data.role,
-    );
-    res.status(201).json({ invitation: serializeInvitation(invitation), token });
+    try {
+      const { invitation, token } = await createTenantInvitation(
+        req.tenantId!,
+        req.localUserId!,
+        email,
+        parsed.data.role,
+      );
+      res.status(201).json({ invitation: serializeInvitation(invitation), token });
+    } catch (error) {
+      if (error instanceof ActiveTenantInvitationError) {
+        res.status(409).json({ error: error.message });
+        return;
+      }
+      req.log.error(
+        { tenantId: req.tenantId!, role: parsed.data.role },
+        "Tenant invitation persistence failed",
+      );
+      res.status(500).json({ error: "Invitation could not be created. Please try again." });
+    }
   },
 );
 
