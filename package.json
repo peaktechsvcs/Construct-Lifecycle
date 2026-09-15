@@ -7,9 +7,10 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "audit:dependencies": "node scripts/audit-dependencies.mjs",
     "test:audit-dependencies": "node --test scripts/audit-dependencies.test.mjs",
+    "validate:release-gate": "node scripts/validate-release-gate.mjs",
     "validate:clean-database": "node scripts/validate-clean-database.mjs",
     "check:feature-control-schema": "node scripts/check-feature-control-schema.mjs",
-    "release:verify": "pnpm run audit:dependencies && pnpm store prune",
+    "release:verify": "pnpm run validate:release-gate && pnpm run audit:dependencies && pnpm store prune",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
