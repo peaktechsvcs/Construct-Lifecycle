@@ -14,7 +14,7 @@ let connectorMode: "success" | "failure" = "success";
 
 const base64Url = (value: string) => Buffer.from(value, "utf8").toString("base64url");
 
-ReplitConnectors.prototype.proxy = async function (_provider, path) {
+ReplitConnectors.prototype.proxy = async function (provider, path) {
   if (connectorMode === "failure") {
     return {
       ok: false,
@@ -41,6 +41,29 @@ ReplitConnectors.prototype.proxy = async function (_provider, path) {
       }),
     };
   }
+  if (path.includes("/messages/message-1/attachments/attachment-1")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ data: base64Url("protected-mailbox-attachment") }),
+    };
+  }
+  if (provider === "outlook") {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "message-1",
+        conversationId: "conversation-1",
+        subject: "Outlook ITB North Campus",
+        from: { emailAddress: { name: "Outlook Bids", address: "outlook-bids@example.com" } },
+        receivedDateTime: "2026-09-14T11:00:00Z",
+        body: { contentType: "html", content: "<p>Project: North Campus</p><p>Bid due: September 30, 2026</p>" },
+        bodyPreview: "Project: North Campus",
+        hasAttachments: false,
+      }),
+    };
+  }
   return {
     ok: true,
     status: 200,
@@ -56,6 +79,9 @@ ReplitConnectors.prototype.proxy = async function (_provider, path) {
           ],
           mimeType: "text/plain",
           body: { data: base64Url("Project: North Campus\nBid due: September 30, 2026") },
+          parts: [
+            { filename: "plans.pdf", mimeType: "application/pdf", body: { attachmentId: "attachment-1", size: 27 } },
+          ],
         },
       }],
     }),
@@ -84,19 +110,24 @@ type Json = Record<string, unknown> | unknown[];
 
 const runId = `${Date.now()}-${process.pid}`;
 const clerkUserId = `integration-work-owner-${runId}`;
+const otherClerkUserId = `integration-work-other-${runId}`;
 let server: Server;
 let baseUrl = "";
 let tenantId: number;
 let environmentId: number;
+let otherEnvironmentId: number;
+let otherTenantId: number;
+let otherTenantEnvironmentId: number;
 let userId: number;
+let otherUserId: number;
 let integrationId: number;
 
-async function request(path: string, init: RequestInit = {}) {
+async function request(path: string, init: RequestInit = {}, requestClerkUserId = clerkUserId) {
   const response = await fetch(`${baseUrl}/api${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",
-      "x-test-clerk-user-id": clerkUserId,
+      "x-test-clerk-user-id": requestClerkUserId,
       ...init.headers,
     },
   });
@@ -129,6 +160,14 @@ before(async () => {
     status: "active",
   }).returning();
   environmentId = environment.id;
+  const [otherEnvironment] = await db.insert(environmentsTable).values({
+    tenantId,
+    name: "Production",
+    slug: `production-${runId}`,
+    kind: "production",
+    status: "active",
+  }).returning();
+  otherEnvironmentId = otherEnvironment.id;
 
   const [user] = await db.insert(usersTable).values({
     clerkUserId,
@@ -146,6 +185,12 @@ before(async () => {
   await db.insert(tenantEnvironmentAccessTable).values({
     tenantId,
     environmentId,
+    userId,
+    grantedByUserId: userId,
+  });
+  await db.insert(tenantEnvironmentAccessTable).values({
+    tenantId,
+    environmentId: otherEnvironmentId,
     userId,
     grantedByUserId: userId,
   });
@@ -170,6 +215,82 @@ before(async () => {
     credentialsReference: `replit-connector:google-mail:test-${runId}`,
   }).returning();
   integrationId = integration.id;
+  await db.insert(integrationEntitlementsTable).values({
+    tenantId,
+    capabilityKey: "microsoft_365",
+    enabled: true,
+  });
+  await db.insert(integrationsTable).values({
+    tenantId,
+    environmentId,
+    providerKey: "microsoft_365",
+    providerCategory: "productivity_collaboration",
+    status: "connected",
+    connectionType: "replit_managed_oauth",
+    configuration: JSON.stringify({ connectorName: "outlook" }),
+    credentialsReference: `replit-connector:outlook:test-${runId}`,
+  });
+  await db.insert(integrationsTable).values({
+    tenantId,
+    environmentId: otherEnvironmentId,
+    providerKey: "google_workspace",
+    providerCategory: "productivity_collaboration",
+    status: "connected",
+    connectionType: "replit_managed_oauth",
+    configuration: JSON.stringify({ connectorName: "google-mail" }),
+    credentialsReference: `replit-connector:google-mail:production-${runId}`,
+  });
+  const [otherTenant] = await db.insert(tenantsTable).values({
+    name: `Integration Work Other Tenant ${runId}`,
+    slug: `integration-work-other-${runId}`,
+  }).returning();
+  otherTenantId = otherTenant.id;
+  const [otherTenantEnvironment] = await db.insert(environmentsTable).values({
+    tenantId: otherTenantId,
+    name: "Development / Test / Demo",
+    slug: `dtd-other-${runId}`,
+    kind: "dtd",
+    status: "active",
+  }).returning();
+  otherTenantEnvironmentId = otherTenantEnvironment.id;
+  const [otherUser] = await db.insert(usersTable).values({
+    clerkUserId: otherClerkUserId,
+    email: `${otherClerkUserId}@integration.test`,
+    displayName: "Other Tenant Owner",
+  }).returning();
+  otherUserId = otherUser.id;
+  await db.insert(membershipsTable).values({
+    tenantId: otherTenantId,
+    userId: otherUserId,
+    role: "owner",
+    environmentAccessConfigured: true,
+  });
+  await db.insert(tenantEnvironmentAccessTable).values({
+    tenantId: otherTenantId,
+    environmentId: otherTenantEnvironmentId,
+    userId: otherUserId,
+    grantedByUserId: otherUserId,
+  });
+  await db.insert(userTenantContextTable).values({
+    userId: otherUserId,
+    activeTenantId: otherTenantId,
+    activeEnvironmentId: otherTenantEnvironmentId,
+  });
+  await db.insert(integrationEntitlementsTable).values({
+    tenantId: otherTenantId,
+    capabilityKey: "google_workspace",
+    enabled: true,
+  });
+  await db.insert(integrationsTable).values({
+    tenantId: otherTenantId,
+    environmentId: otherTenantEnvironmentId,
+    providerKey: "google_workspace",
+    providerCategory: "productivity_collaboration",
+    status: "connected",
+    connectionType: "replit_managed_oauth",
+    configuration: JSON.stringify({ connectorName: "google-mail" }),
+    credentialsReference: `replit-connector:google-mail:other-tenant-${runId}`,
+  });
 
   server = app.listen(0, "127.0.0.1");
   await new Promise<void>((resolve, reject) => {
@@ -185,7 +306,10 @@ after(async () => {
   if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   if (tenantId) await db.delete(platformAuditEventsTable).where(eq(platformAuditEventsTable.tenantId, tenantId));
   if (tenantId) await db.delete(tenantsTable).where(eq(tenantsTable.id, tenantId));
+  if (otherTenantId) await db.delete(platformAuditEventsTable).where(eq(platformAuditEventsTable.tenantId, otherTenantId));
+  if (otherTenantId) await db.delete(tenantsTable).where(eq(tenantsTable.id, otherTenantId));
   await db.delete(usersTable).where(eq(usersTable.id, userId));
+  await db.delete(usersTable).where(eq(usersTable.id, otherUserId));
   await pool.end();
 });
 
@@ -199,6 +323,29 @@ test("records scoped mailbox preview and import work and updates successful heal
     body: JSON.stringify({ provider: "google-mail", threadId: "thread-1", messageId: "message-1" }),
   });
   assert.equal(imported.status, 201, JSON.stringify(imported.body));
+  const importedBody = imported.body as {
+    id: number;
+    sourceType: string;
+    sourceBody: string;
+    attachments: Array<{ downloadUrl: string; originalName: string; size: number }>;
+  };
+  assert.equal(importedBody.sourceType, "gmail");
+  assert.match(importedBody.sourceBody, /Project: North Campus/);
+  assert.deepEqual(importedBody.attachments.map(({ originalName, size }) => ({ originalName, size })), [
+    { originalName: "plans.pdf", size: Buffer.byteLength("protected-mailbox-attachment") },
+  ]);
+  const storedAttachment = await fetch(`${baseUrl}${importedBody.attachments[0].downloadUrl}`, {
+    headers: { "x-test-clerk-user-id": clerkUserId },
+  });
+  assert.equal(storedAttachment.status, 200);
+  assert.equal(await storedAttachment.text(), "protected-mailbox-attachment");
+
+  const duplicate = await request("/itb-intakes/mailbox/import", {
+    method: "POST",
+    body: JSON.stringify({ provider: "google-mail", threadId: "thread-1", messageId: "message-1" }),
+  });
+  assert.equal(duplicate.status, 409, JSON.stringify(duplicate.body));
+  assert.equal((duplicate.body as { intakeId: number }).intakeId, importedBody.id);
 
   const jobs = await db.select().from(integrationJobsTable)
     .where(and(
@@ -209,6 +356,7 @@ test("records scoped mailbox preview and import work and updates successful heal
     .orderBy(integrationJobsTable.createdAt);
   assert.deepEqual(jobs.map((job) => [job.jobType, job.status, job.attempts]), [
     ["mailbox_preview", "succeeded", 1],
+    ["mailbox_import", "succeeded", 1],
     ["mailbox_import", "succeeded", 1],
   ]);
   assert.equal(jobs.every((job) => job.integrationId === integrationId), true);
@@ -230,10 +378,48 @@ test("records scoped mailbox preview and import work and updates successful heal
   assert.equal(intake?.sourceSubject, "ITB North Campus");
 });
 
+test("keeps mailbox duplicate detection scoped by provider, environment, and tenant", async () => {
+  const outlook = await request("/itb-intakes/mailbox/import", {
+    method: "POST",
+    body: JSON.stringify({ provider: "outlook", threadId: "conversation-1", messageId: "message-1" }),
+  });
+  assert.equal(outlook.status, 201, JSON.stringify(outlook.body));
+  const outlookBody = outlook.body as { sourceType: string; sourceBody: string };
+  assert.equal(outlookBody.sourceType, "outlook");
+  assert.equal(outlookBody.sourceBody, "Project: North Campus Bid due: September 30, 2026");
+
+  const switched = await request("/tenant/environments", {
+    method: "POST",
+    body: JSON.stringify({ environmentId: otherEnvironmentId }),
+  });
+  assert.equal(switched.status, 200, JSON.stringify(switched.body));
+  const otherEnvironmentImport = await request("/itb-intakes/mailbox/import", {
+    method: "POST",
+    body: JSON.stringify({ provider: "google-mail", threadId: "thread-1", messageId: "message-1" }),
+  });
+  assert.equal(otherEnvironmentImport.status, 201, JSON.stringify(otherEnvironmentImport.body));
+
+  const switchedBack = await request("/tenant/environments", {
+    method: "POST",
+    body: JSON.stringify({ environmentId }),
+  });
+  assert.equal(switchedBack.status, 200, JSON.stringify(switchedBack.body));
+
+  const otherTenantImport = await request("/itb-intakes/mailbox/import", {
+    method: "POST",
+    body: JSON.stringify({ provider: "google-mail", threadId: "thread-1", messageId: "message-1" }),
+  }, otherClerkUserId);
+  assert.equal(otherTenantImport.status, 201, JSON.stringify(otherTenantImport.body));
+});
+
 test("records mailbox failures for retry and keeps connector errors bounded", async () => {
   connectorMode = "failure";
   const failed = await request("/itb-intakes/mailbox/preview?provider=google-mail&q=failure");
   assert.equal(failed.status, 424);
+  assert.deepEqual(failed.body, {
+    error: "Google Workspace mailbox is not connected or could not be read",
+  });
+  assert.equal(JSON.stringify(failed.body).includes("message contents"), false);
 
   const [job] = await db.select().from(integrationJobsTable)
     .where(and(
