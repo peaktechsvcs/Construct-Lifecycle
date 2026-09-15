@@ -30,6 +30,7 @@ const allIntegrationTests = [
   "opportunity-preconstruction.integration.test.ts",
   "supplier-orders.integration.test.ts",
   "platform-provisioning.integration.test.ts",
+  "signatures.integration.test.ts",
 ];
 const requestedTests = process.env.INTEGRATION_TEST_FILES
   ?.split(",")

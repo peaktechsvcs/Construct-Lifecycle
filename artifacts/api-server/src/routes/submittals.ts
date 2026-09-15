@@ -1757,42 +1757,76 @@ router.post("/submittals/:submittalId/signature-requests", requireRole("owner", 
     return;
   }
   const title = parsed.data.title?.trim() || `${pkg.name} · Version ${assembly.version}`;
-  const request = await db.transaction(async (tx) => {
-    const [created] = await tx.insert(submittalSignatureRequestsTable).values({
-      packageId: pkg.id,
-      assemblyId: assembly.id,
-      title,
-      status: "draft",
-      providerKey: null,
-      providerRequestId: null,
-      externalMetadata: "{}",
-      createdByUserId: req.localUserId!,
-      tenantId: req.tenantId!,
-      environmentId: req.environmentId!,
-    }).returning();
-    await tx.insert(submittalSignatureSignersTable).values(signerValidation.signers.map((signer) => ({
-      requestId: created.id,
-      name: signer.name,
-      email: signer.email,
-      role: signer.role,
-      signingOrder: signer.signingOrder,
-      status: "pending",
-      providerSignerId: null,
-      tenantId: req.tenantId!,
-      environmentId: req.environmentId!,
-    })));
-    await tx.insert(submittalSignatureEventsTable).values({
-      requestId: created.id,
-      eventType: "request_prepared",
-      fromStatus: null,
-      toStatus: "draft",
-      details: JSON.stringify({ assemblyId: assembly.id, signerCount: parsed.data.signers.length }),
-      actorUserId: req.localUserId!,
-      tenantId: req.tenantId!,
-      environmentId: req.environmentId!,
+  let request: typeof submittalSignatureRequestsTable.$inferSelect | null;
+  try {
+    request = await db.transaction(async (tx) => {
+      // The first active-request check is useful for the common repeated-request
+      // case. Recheck under an assembly-scoped transaction lock so two requests
+      // that pass the first check cannot both create an active request.
+      await tx.execute(sql`select pg_advisory_xact_lock(${assembly.id})`);
+      const [lockedActiveRequest] = await tx.select({ id: submittalSignatureRequestsTable.id })
+        .from(submittalSignatureRequestsTable)
+        .where(and(
+          eq(submittalSignatureRequestsTable.packageId, pkg.id),
+          eq(submittalSignatureRequestsTable.assemblyId, assembly.id),
+          eq(submittalSignatureRequestsTable.tenantId, req.tenantId!),
+          eq(submittalSignatureRequestsTable.environmentId, req.environmentId!),
+          inArray(submittalSignatureRequestsTable.status, [...activeSignatureRequestStatuses]),
+        ))
+        .limit(1);
+      if (lockedActiveRequest) return null;
+
+      const [created] = await tx.insert(submittalSignatureRequestsTable).values({
+        packageId: pkg.id,
+        assemblyId: assembly.id,
+        title,
+        status: "draft",
+        providerKey: null,
+        providerRequestId: null,
+        externalMetadata: "{}",
+        createdByUserId: req.localUserId!,
+        tenantId: req.tenantId!,
+        environmentId: req.environmentId!,
+      }).returning();
+      await tx.insert(submittalSignatureSignersTable).values(signerValidation.signers.map((signer) => ({
+        requestId: created.id,
+        name: signer.name,
+        email: signer.email,
+        role: signer.role,
+        signingOrder: signer.signingOrder,
+        status: "pending",
+        providerSignerId: null,
+        tenantId: req.tenantId!,
+        environmentId: req.environmentId!,
+      })));
+      await tx.insert(submittalSignatureEventsTable).values({
+        requestId: created.id,
+        eventType: "request_prepared",
+        fromStatus: null,
+        toStatus: "draft",
+        details: JSON.stringify({ assemblyId: assembly.id, signerCount: parsed.data.signers.length }),
+        actorUserId: req.localUserId!,
+        tenantId: req.tenantId!,
+        environmentId: req.environmentId!,
+      });
+      return created;
     });
-    return created;
-  });
+  } catch (error) {
+    // Keep the API idempotent even if another writer does not use the advisory
+    // lock and the database uniqueness guard is the first conflict detector.
+    if (typeof error === "object" && error !== null
+      && "code" in error && error.code === "23505"
+      && "constraint" in error
+      && error.constraint === "submittal_signature_requests_active_assembly_idx") {
+      res.status(409).json({ error: "This assembled package version already has an active signature request" });
+      return;
+    }
+    throw error;
+  }
+  if (!request) {
+    res.status(409).json({ error: "This assembled package version already has an active signature request" });
+    return;
+  }
   req.log.info({ signatureRequestId: request.id, packageId: pkg.id, assemblyId: assembly.id }, "Prepared provider-neutral submittal signature request");
   const requests = await loadSignatureRequests(req, pkg.id);
   const response = requests.find((candidate) => candidate.id === request.id);

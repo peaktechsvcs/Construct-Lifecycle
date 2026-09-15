@@ -1,5 +1,6 @@
 import { createInsertSchema } from "drizzle-zod";
-import { index, integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 import { environmentsTable, tenantsTable, usersTable } from "./tenants";
 import { submittalPackageAssembliesTable } from "./submittal-assemblies";
@@ -23,6 +24,9 @@ export const submittalSignatureRequestsTable = pgTable("submittal_signature_requ
   index("submittal_signature_requests_package_idx").on(table.packageId),
   index("submittal_signature_requests_assembly_idx").on(table.assemblyId),
   index("submittal_signature_requests_tenant_environment_idx").on(table.tenantId, table.environmentId),
+  uniqueIndex("submittal_signature_requests_active_assembly_idx")
+    .on(table.tenantId, table.environmentId, table.assemblyId)
+    .where(sql`${table.status} in ('draft', 'ready', 'sending', 'sent', 'partially_signed')`),
 ]);
 
 export const submittalSignatureSignersTable = pgTable("submittal_signature_signers", {
