@@ -4,6 +4,7 @@ import { Button, LoadingPanel } from '@/components/app-ui';
 import { useTenant } from '@/providers/tenant-provider';
 import { getListFeatureFlagsQueryKey, useListFeatureFlags } from '@workspace/api-client-react';
 import { canAccessComingSoonFeature } from '@/lib/feature-visibility';
+import { comingSoonTitle, useRouteTitle } from '@/lib/route-titles';
 
 const destinations: Record<string, { section: string; description: string }> = {
   notifications: { section: 'Home', description: 'See alerts, mentions, approvals, and changes that need your attention.' },
@@ -42,6 +43,11 @@ const destinations: Record<string, { section: string; description: string }> = {
 
 export function ComingSoonPage() {
   const { item = '' } = useParams<{ item: string }>();
+  const title = item
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+  useRouteTitle(comingSoonTitle(title));
   const { isPlatformAdmin } = useTenant();
   const featureFlagsQuery = useListFeatureFlags({
     query: {
@@ -57,11 +63,6 @@ export function ComingSoonPage() {
 
   const destination = destinations[item];
   if (!destination) return <Redirect to="/overview" />;
-  const title = item
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-
   return (
     <div className="mx-auto flex min-h-[60dvh] max-w-2xl items-center justify-center py-12">
       <section className="w-full rounded-2xl border border-border bg-card p-7 text-center shadow-sm md:p-12">

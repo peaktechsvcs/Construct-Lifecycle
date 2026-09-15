@@ -14,6 +14,36 @@ const cases = [
     heading: "Customers",
     breadcrumb: "Customers",
     activeNav: "link-nav-customers",
+    title: "Customers · Construct Lifecycle",
+  },
+  {
+    name: "public pricing page",
+    path: "/pricing",
+    heading: "Choose the plan that fits your operation",
+    breadcrumb: null,
+    activeNav: null,
+    title: "Plans & billing · Construct Lifecycle",
+  },
+  {
+    name: "sign-in page",
+    path: "/sign-in",
+    breadcrumb: null,
+    activeNav: null,
+    title: "Sign in · Construct Lifecycle",
+  },
+  {
+    name: "sign-up page",
+    path: "/sign-up",
+    breadcrumb: null,
+    activeNav: null,
+    title: "Create your account · Construct Lifecycle",
+  },
+  {
+    name: "invitation page",
+    path: "/accept-invitation/browser-test-token?browserAuth=signed-out",
+    breadcrumb: null,
+    activeNav: null,
+    title: "Invitation · Construct Lifecycle",
   },
   {
     name: "authenticated customer detail",
@@ -21,6 +51,7 @@ const cases = [
     heading: "Browser Test Customer",
     breadcrumb: "Customer details",
     activeNav: "link-nav-customers",
+    title: "Browser Test Customer · Construct Lifecycle",
   },
   {
     name: "authenticated administration",
@@ -28,6 +59,7 @@ const cases = [
     heading: "Administration",
     breadcrumb: "Administration · Access & Memberships",
     activeNav: null,
+    title: "Administration · Construct Lifecycle",
   },
   {
     name: "platform customer administration",
@@ -35,6 +67,7 @@ const cases = [
     heading: "Customers",
     breadcrumb: "Platform Customers",
     activeNav: null,
+    title: "Customers · Construct Lifecycle",
   },
   {
     name: "platform environment recovery",
@@ -42,6 +75,7 @@ const cases = [
     heading: "Environment Recovery",
     breadcrumb: "Environment Recovery",
     activeNav: null,
+    title: "Environment Recovery · Construct Lifecycle",
     requiredTexts: ["runtime", "database", "storage", "queue", "secrets", "jobs", "logs", "context ready"],
   },
   {
@@ -50,6 +84,15 @@ const cases = [
     heading: "Platform administrator access required",
     breadcrumb: null,
     activeNav: null,
+    title: "Platform administrator access required · Construct Lifecycle",
+  },
+  {
+    name: "coming soon feature",
+    path: "/coming-soon/notifications?browserAuth=platform",
+    heading: "Notifications",
+    breadcrumb: null,
+    activeNav: null,
+    title: "Notifications · Coming soon · Construct Lifecycle",
   },
   {
     name: "legacy settings redirect",
@@ -57,6 +100,7 @@ const cases = [
     heading: "Administration",
     breadcrumb: "Administration · Access & Memberships",
     activeNav: null,
+    title: "Administration · Construct Lifecycle",
   },
   {
     name: "not found page",
@@ -64,6 +108,7 @@ const cases = [
     heading: "404 Page Not Found",
     breadcrumb: null,
     activeNav: null,
+    title: "404 Page Not Found · Construct Lifecycle",
   },
   {
     name: "signed-out protected route redirects home",
@@ -71,6 +116,7 @@ const cases = [
     heading: "Construct Lifecycle",
     breadcrumb: null,
     activeNav: null,
+    title: "Construct Lifecycle",
   },
   {
     name: "signed-in account without workspace",
@@ -78,6 +124,7 @@ const cases = [
     heading: "You do not have access to a workspace",
     breadcrumb: null,
     activeNav: null,
+    title: "You do not have access to a workspace · Construct Lifecycle",
   },
 ];
 
@@ -140,7 +187,11 @@ async function visit(routeCase) {
   const pageText = decodeEntities(html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
   const failures = [];
   const heading = textContent(html, "h1");
-  if (heading !== routeCase.heading) failures.push(`heading="${heading}" expected "${routeCase.heading}"`);
+  if (routeCase.heading && heading !== routeCase.heading) failures.push(`heading="${heading}" expected "${routeCase.heading}"`);
+  if (routeCase.title) {
+    const title = decodeEntities(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim() ?? "");
+    if (title !== routeCase.title) failures.push(`title="${title}" expected "${routeCase.title}"`);
+  }
   if (routeCase.breadcrumb) {
     const breadcrumb = (html.match(/data-testid="workspace-breadcrumb"[^>]*>([\s\S]*?)<\/span>/i)?.[1] ?? "")
       .replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();

@@ -1,7 +1,9 @@
 import { Card, CardContent } from '@workspace/construct-lifecycle-design-system/components/ui/card';
 import { AlertCircle } from 'lucide-react';
+import { routeTitles, useRouteTitle } from '@/lib/route-titles';
 
 export default function NotFound() {
+  useRouteTitle(routeTitles.notFound);
   return (
     <div className="flex min-h-[100dvh] w-full items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md mx-4">
