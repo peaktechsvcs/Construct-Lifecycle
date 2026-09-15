@@ -79,6 +79,20 @@ const cases = [
     ],
     shell: true,
   },
+  {
+    id: "active-projects-filtered-empty-guidance",
+    name: "active projects filtered empty guidance",
+    path: "/dashboard/drilldown/active-projects?browserAuth=authenticated&search=does-not-match&sort=value_desc",
+    heading: "Active Projects",
+    actions: ['a[href^="/dashboard/drilldown/active-projects?browserAuth=authenticated&sort=value_desc"]'],
+    requiredTexts: [
+      "No active projects match",
+      "Clear the search to view all active projects.",
+      "No waiting projects match",
+      "Clear the search to view all waiting projects.",
+    ],
+    shell: true,
+  },
 ];
 
 function waitForServer(child) {

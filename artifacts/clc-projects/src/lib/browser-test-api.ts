@@ -405,6 +405,15 @@ export function installBrowserTestApi() {
     if (url.pathname === '/api/dashboard/summary') return json(dashboardSummary);
     if (url.pathname === '/api/dashboard/project-controls') return json(projectControls);
     if (url.pathname === '/api/dashboard/drilldown' && url.searchParams.get('type') === 'active-projects') {
+      if (url.searchParams.get('search')?.trim()) {
+        return json({
+          title: 'Active Projects',
+          type: 'active-projects',
+          count: 0,
+          total: 0,
+          projects: [],
+        });
+      }
       return json({
         title: 'Active Projects',
         type: 'active-projects',

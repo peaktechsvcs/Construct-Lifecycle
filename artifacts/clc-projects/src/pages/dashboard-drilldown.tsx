@@ -45,13 +45,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 function useSearchParam(key: string): [string, (val: string) => void] {
   const [location, setLocation] = useLocation();
-  const params = new URLSearchParams(location.includes('?') ? location.split('?')[1] : '');
+  const queryString = location.includes('?')
+    ? location.split('?')[1]
+    : typeof window !== 'undefined'
+      ? window.location.search.slice(1)
+      : '';
+  const params = new URLSearchParams(queryString);
   const value = params.get(key) ?? '';
 
   const setValue = useCallback(
     (val: string) => {
       const base = location.split('?')[0];
-      const next = new URLSearchParams(location.includes('?') ? location.split('?')[1] : '');
+      const currentQueryString = location.includes('?')
+        ? location.split('?')[1]
+        : typeof window !== 'undefined'
+          ? window.location.search.slice(1)
+          : '';
+      const next = new URLSearchParams(currentQueryString);
       if (val) {
         next.set(key, val);
       } else {

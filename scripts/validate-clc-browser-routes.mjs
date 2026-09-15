@@ -123,6 +123,23 @@ const cases = [
     requiredLinks: ["/projects?create=1&return=", "/projects/42?return="],
   },
   {
+    name: "authenticated filtered active projects guidance",
+    path: "/dashboard/drilldown/active-projects?browserAuth=authenticated&search=does-not-match&sort=value_desc",
+    heading: "Active Projects",
+    breadcrumb: "Dashboard · Active Projects",
+    activeNav: null,
+    title: "Construct Lifecycle — From Bid to Closeout",
+    requiredTexts: [
+      "No active projects match",
+      "Clear the search to view all active projects.",
+      "No waiting projects match",
+      "Clear the search to view all waiting projects.",
+    ],
+    requiredLinks: [
+      "/dashboard/drilldown/active-projects?browserAuth=authenticated&sort=value_desc",
+    ],
+  },
+  {
     name: "authenticated administration",
     path: "/settings/administration/access?browserAuth=authenticated",
     heading: "Administration",
