@@ -1,8 +1,11 @@
 import { useEffect } from 'react';
+import { useLocation } from 'wouter';
 
 export const APP_TITLE = 'Construct Lifecycle';
 export const DEFAULT_DESCRIPTION =
   'Construct Lifecycle helps construction teams manage work from bid through closeout in one connected workspace.';
+export const PUBLIC_SITE_URL = 'https://constructlifecycle.com';
+export const PUBLIC_SHARE_IMAGE_URL = `${PUBLIC_SITE_URL}/og-image.png`;
 
 const title = (label: string) => `${label} · ${APP_TITLE}`;
 
@@ -102,29 +105,65 @@ function updateMeta(
   return { element, previousContent: null, created: true };
 }
 
+function updateCanonical(href: string) {
+  const existing = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (existing) {
+    return { element: existing, previousHref: existing.getAttribute('href'), created: false };
+  }
+  const element = document.createElement('link');
+  element.rel = 'canonical';
+  document.head.appendChild(element);
+  return { element, previousHref: null, created: true };
+}
+
+function canonicalPath(pathname: string) {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  return normalized === '/subscribe' ? '/pricing' : normalized;
+}
+
 export function useRouteMetadata(route: RouteMetadata) {
+  const [location] = useLocation();
+  const pathname = location.split('?')[0] || window.location.pathname;
   useEffect(() => {
     const previousTitle = document.title;
-    const shareUrl = new URL(window.location.pathname, window.location.origin);
+    const canonicalUrl = new URL(canonicalPath(pathname), PUBLIC_SITE_URL).href;
+    const canonical = updateCanonical(canonicalUrl);
     const metaUpdates = [
       updateMeta('meta[name="description"]', 'name', 'description'),
       updateMeta('meta[property="og:title"]', 'property', 'og:title'),
       updateMeta('meta[property="og:description"]', 'property', 'og:description'),
       updateMeta('meta[property="og:url"]', 'property', 'og:url'),
+      updateMeta('meta[property="og:site_name"]', 'property', 'og:site_name'),
+      updateMeta('meta[property="og:image"]', 'property', 'og:image'),
+      updateMeta('meta[property="og:image:alt"]', 'property', 'og:image:alt'),
       updateMeta('meta[name="twitter:title"]', 'name', 'twitter:title'),
       updateMeta('meta[name="twitter:description"]', 'name', 'twitter:description'),
+      updateMeta('meta[name="twitter:image"]', 'name', 'twitter:image'),
+      updateMeta('meta[name="twitter:image:alt"]', 'name', 'twitter:image:alt'),
     ];
 
     document.title = route.title;
     metaUpdates[0].element.content = route.description;
     metaUpdates[1].element.content = route.title;
     metaUpdates[2].element.content = route.description;
-    metaUpdates[3].element.content = shareUrl.href;
-    metaUpdates[4].element.content = route.title;
-    metaUpdates[5].element.content = route.description;
+    metaUpdates[3].element.content = canonicalUrl;
+    metaUpdates[4].element.content = APP_TITLE;
+    metaUpdates[5].element.content = PUBLIC_SHARE_IMAGE_URL;
+    metaUpdates[6].element.content = 'Construct Lifecycle — From Bid to Closeout';
+    metaUpdates[7].element.content = route.title;
+    metaUpdates[8].element.content = route.description;
+    metaUpdates[9].element.content = PUBLIC_SHARE_IMAGE_URL;
+    metaUpdates[10].element.content = 'Construct Lifecycle — From Bid to Closeout';
 
     return () => {
       document.title = previousTitle;
+      if (canonical.created) {
+        canonical.element.remove();
+      } else if (canonical.previousHref === null) {
+        canonical.element.removeAttribute('href');
+      } else {
+        canonical.element.href = canonical.previousHref;
+      }
       for (const update of metaUpdates) {
         if (update.created) {
           update.element.remove();
@@ -135,7 +174,7 @@ export function useRouteMetadata(route: RouteMetadata) {
         }
       }
     };
-  }, [route.title, route.description]);
+  }, [pathname, route.title, route.description]);
 }
 
 export function useRouteTitle(routeTitle: string) {

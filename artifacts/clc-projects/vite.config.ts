@@ -1,7 +1,8 @@
 import path from 'path';
+import { readFile, writeFile } from 'node:fs/promises';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
@@ -21,6 +22,67 @@ if (Number.isNaN(port) || port <= 0) {
 
 const basePath = process.env.BASE_PATH;
 const browserTestMode = process.env.CLC_BROWSER_TEST === '1';
+const publicSiteUrl = 'https://constructlifecycle.com';
+const publicShareImageUrl = `${publicSiteUrl}/og-image.png`;
+const publicRouteMetadata = {
+  '/': {
+    title: 'Construct Lifecycle',
+    description: 'Construct Lifecycle helps construction teams manage work from bid through closeout in one connected workspace.',
+    canonicalPath: '/',
+  },
+  '/pricing': {
+    title: 'Plans & billing · Construct Lifecycle',
+    description: 'Compare Construct Lifecycle plans for managing your construction lifecycle from bid through closeout.',
+    canonicalPath: '/pricing',
+  },
+  '/subscribe': {
+    title: 'Plans & billing · Construct Lifecycle',
+    description: 'Compare Construct Lifecycle plans for managing your construction lifecycle from bid through closeout.',
+    canonicalPath: '/pricing',
+  },
+} as const;
+
+function replaceHeadTag(html: string, pattern: RegExp, tag: string) {
+  return html.replace(pattern, tag);
+}
+
+function applyPublicRouteMetadata(html: string, pathname: string) {
+  const route = publicRouteMetadata[pathname as keyof typeof publicRouteMetadata] ?? publicRouteMetadata['/'];
+  const canonicalUrl = `${publicSiteUrl}${route.canonicalPath}`;
+  const replacements: Array<[RegExp, string]> = [
+    [/<title>[\s\S]*?<\/title>/, `<title>${route.title}</title>`],
+    [/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${canonicalUrl}" />`],
+    [/<meta name="description"[^>]*>/, `<meta name="description" content="${route.description}" />`],
+    [/<meta property="og:title"[^>]*>/, `<meta property="og:title" content="${route.title}" />`],
+    [/<meta property="og:description"[^>]*>/, `<meta property="og:description" content="${route.description}" />`],
+    [/<meta property="og:url"[^>]*>/, `<meta property="og:url" content="${canonicalUrl}" />`],
+    [/<meta property="og:image"[^>]*>/, `<meta property="og:image" content="${publicShareImageUrl}" />`],
+    [/<meta name="twitter:title"[^>]*>/, `<meta name="twitter:title" content="${route.title}" />`],
+    [/<meta name="twitter:description"[^>]*>/, `<meta name="twitter:description" content="${route.description}" />`],
+    [/<meta name="twitter:image"[^>]*>/, `<meta name="twitter:image" content="${publicShareImageUrl}" />`],
+    [/<meta property="og:site_name"[^>]*>/, '<meta property="og:site_name" content="Construct Lifecycle" />'],
+    [/<meta property="og:image:alt"[^>]*>/, '<meta property="og:image:alt" content="Construct Lifecycle — From Bid to Closeout" />'],
+  ];
+  return replacements.reduce((result, [pattern, replacement]) => replaceHeadTag(result, pattern, replacement), html);
+}
+
+function routeMetadataPlugin(): Plugin {
+  return {
+    name: 'clc-route-metadata',
+    transformIndexHtml(html, ctx) {
+      const pathname = new URL(ctx.path, 'http://localhost').pathname.replace(/\/+$/, '') || '/';
+      return applyPublicRouteMetadata(html, pathname);
+    },
+    async writeBundle(options) {
+      if (!options.dir) return;
+      const source = await readFile(path.join(options.dir, 'index.html'), 'utf8');
+      for (const route of ['/pricing', '/subscribe'] as const) {
+        const routeHtml = applyPublicRouteMetadata(source, route);
+        await writeFile(path.join(options.dir, route.slice(1)), routeHtml);
+      }
+    },
+  };
+}
 
 if (!basePath) {
   throw new Error(
@@ -41,6 +103,7 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss({ optimize: false }),
+    routeMetadataPlugin(),
     runtimeErrorOverlay(),
     ...(process.env.NODE_ENV !== 'production' &&
     process.env.REPL_ID !== undefined

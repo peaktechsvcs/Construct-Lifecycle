@@ -38,3 +38,4 @@
 - [Branding logo safety](branding-logo-safety.md) — treat published tenant logo URLs as untrusted and keep a shared-logo fallback for invalid or unreachable assets.
 - [Node strip-types import resolution](node-strip-types-imports.md) — direct Node tests need explicit `.ts` extensions for local TypeScript imports.
 - [SPA query-state handoffs](spa-query-state.md) — modal and deep-link flags need a browser search fallback when router location omits query strings.
+- [Static route metadata shells](static-route-metadata-shells.md) — crawler-visible SPA metadata needs exact route files emitted alongside the fallback index.
