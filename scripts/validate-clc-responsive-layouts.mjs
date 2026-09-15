@@ -1,18 +1,27 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { rm } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { deflateSync, inflateSync } from "node:zlib";
 
 const appPort = Number(process.env.CLC_RESPONSIVE_TEST_PORT ?? 22782);
 const debuggingPort = Number(process.env.CLC_RESPONSIVE_DEBUG_PORT ?? 22783);
 const baseUrl = `http://127.0.0.1:${appPort}`;
 const chromium = process.env.CHROMIUM_PATH ?? "/repl/tools/bin/chromium";
 const profileDir = `/tmp/clc-responsive-chromium-${process.pid}`;
+const baselineDir = fileURLToPath(new URL("./fixtures/clc-visual-baselines/", import.meta.url));
+const diffDir = process.env.CLC_VISUAL_DIFF_DIR ?? `${process.cwd()}/tmp/clc-visual-diffs`;
+const updateBaselines = process.env.CLC_UPDATE_VISUAL_BASELINES === "1";
+const visualChannelTolerance = Number(process.env.CLC_VISUAL_CHANNEL_TOLERANCE ?? 8);
+const visualMaxDiffRatio = Number(process.env.CLC_VISUAL_MAX_DIFF_RATIO ?? 0.0025);
+const visualMaxMeanError = Number(process.env.CLC_VISUAL_MAX_MEAN_ERROR ?? 1.5);
 const viewports = [
   { name: "mobile", width: 390, height: 844 },
   { name: "desktop", width: 1440, height: 1000 },
 ];
 const cases = [
   {
+    id: "public-landing",
     name: "public landing",
     path: "/?browserAuth=signed-out",
     heading: "Construct Lifecycle",
@@ -20,12 +29,14 @@ const cases = [
     shell: false,
   },
   {
+    id: "authenticated-workspace-shell",
     name: "authenticated workspace shell",
     path: "/overview?browserAuth=authenticated",
     actions: ['a[data-testid="link-brand"]'],
     shell: true,
   },
   {
+    id: "project-list",
     name: "project list",
     path: "/projects?browserAuth=authenticated",
     heading: "Projects",
@@ -33,6 +44,7 @@ const cases = [
     shell: true,
   },
   {
+    id: "project-detail",
     name: "project detail",
     path: "/projects/42?browserAuth=authenticated",
     heading: "Browser Test Project",
@@ -40,6 +52,7 @@ const cases = [
     shell: true,
   },
   {
+    id: "active-projects-empty-guidance",
     name: "active projects empty guidance",
     path: "/dashboard/drilldown/active-projects?browserAuth=authenticated",
     heading: "Active Projects",
@@ -93,6 +106,170 @@ async function waitForDevTools() {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error("Timed out waiting for Chromium DevTools");
+}
+
+const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+function crc32(buffer) {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type, data) {
+  const typeBuffer = Buffer.from(type);
+  const body = Buffer.concat([typeBuffer, data]);
+  const header = Buffer.alloc(4);
+  header.writeUInt32BE(data.length, 0);
+  const checksum = Buffer.alloc(4);
+  checksum.writeUInt32BE(crc32(body), 0);
+  return Buffer.concat([header, body, checksum]);
+}
+
+function encodeRgbaPng(width, height, rgba) {
+  const scanlines = Buffer.alloc((width * 4 + 1) * height);
+  for (let row = 0; row < height; row += 1) {
+    const scanlineOffset = row * (width * 4 + 1);
+    scanlines[scanlineOffset] = 0;
+    rgba.copy(scanlines, scanlineOffset + 1, row * width * 4, (row + 1) * width * 4);
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8;
+  header[9] = 6;
+  return Buffer.concat([
+    pngSignature,
+    pngChunk("IHDR", header),
+    pngChunk("IDAT", deflateSync(scanlines, { level: 9 })),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+function decodeRgbaPng(buffer) {
+  if (!buffer.subarray(0, pngSignature.length).equals(pngSignature)) {
+    throw new Error("Visual baseline is not a PNG");
+  }
+  let offset = pngSignature.length;
+  let width;
+  let height;
+  let bitDepth;
+  let colorType;
+  const imageData = [];
+  while (offset < buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.toString("ascii", offset + 4, offset + 8);
+    const dataStart = offset + 8;
+    const dataEnd = dataStart + length;
+    const data = buffer.subarray(dataStart, dataEnd);
+    offset = dataEnd + 4;
+    if (type === "IHDR") {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+    } else if (type === "IDAT") {
+      imageData.push(data);
+    } else if (type === "IEND") {
+      break;
+    }
+  }
+  if (!width || !height || bitDepth !== 8 || ![2, 6].includes(colorType)) {
+    throw new Error("Visual baseline must be an 8-bit RGB or RGBA PNG");
+  }
+  const bytesPerPixel = colorType === 6 ? 4 : 3;
+  const stride = width * bytesPerPixel;
+  const decoded = inflateSync(Buffer.concat(imageData));
+  const rgba = Buffer.alloc(width * height * 4);
+  let sourceOffset = 0;
+  let previousRow = Buffer.alloc(stride);
+  for (let rowIndex = 0; rowIndex < height; rowIndex += 1) {
+    const filter = decoded[sourceOffset];
+    sourceOffset += 1;
+    const row = Buffer.from(decoded.subarray(sourceOffset, sourceOffset + stride));
+    sourceOffset += stride;
+    if (row.length !== stride) throw new Error("Visual baseline PNG data is truncated");
+    for (let index = 0; index < stride; index += 1) {
+      const left = index >= bytesPerPixel ? row[index - bytesPerPixel] : 0;
+      const above = previousRow[index] ?? 0;
+      const upperLeft = index >= bytesPerPixel ? previousRow[index - bytesPerPixel] ?? 0 : 0;
+      if (filter === 1) row[index] = (row[index] + left) & 0xff;
+      else if (filter === 2) row[index] = (row[index] + above) & 0xff;
+      else if (filter === 3) row[index] = (row[index] + Math.floor((left + above) / 2)) & 0xff;
+      else if (filter === 4) {
+        const estimate = left + above - upperLeft;
+        const leftDistance = Math.abs(estimate - left);
+        const aboveDistance = Math.abs(estimate - above);
+        const upperLeftDistance = Math.abs(estimate - upperLeft);
+        const predictor = leftDistance <= aboveDistance && leftDistance <= upperLeftDistance
+          ? left
+          : aboveDistance <= upperLeftDistance ? above : upperLeft;
+        row[index] = (row[index] + predictor) & 0xff;
+      } else if (filter !== 0) {
+        throw new Error(`Unsupported visual baseline PNG filter ${filter}`);
+      }
+    }
+    for (let pixel = 0; pixel < width; pixel += 1) {
+      const source = pixel * bytesPerPixel;
+      const target = (rowIndex * width + pixel) * 4;
+      rgba[target] = row[source];
+      rgba[target + 1] = row[source + 1];
+      rgba[target + 2] = row[source + 2];
+      rgba[target + 3] = colorType === 6 ? row[source + 3] : 255;
+    }
+    previousRow = row;
+  }
+  return { width, height, rgba };
+}
+
+function comparePng(expectedBuffer, actualBuffer) {
+  const expected = decodeRgbaPng(expectedBuffer);
+  const actual = decodeRgbaPng(actualBuffer);
+  if (expected.width !== actual.width || expected.height !== actual.height) {
+    return {
+      matches: false,
+      summary: `dimensions ${actual.width}×${actual.height}, expected ${expected.width}×${expected.height}`,
+    };
+  }
+  const diff = Buffer.alloc(actual.rgba.length);
+  let differingPixels = 0;
+  let totalError = 0;
+  let maximumError = 0;
+  for (let offset = 0; offset < actual.rgba.length; offset += 4) {
+    const red = Math.abs(actual.rgba[offset] - expected.rgba[offset]);
+    const green = Math.abs(actual.rgba[offset + 1] - expected.rgba[offset + 1]);
+    const blue = Math.abs(actual.rgba[offset + 2] - expected.rgba[offset + 2]);
+    const alpha = Math.abs(actual.rgba[offset + 3] - expected.rgba[offset + 3]);
+    const error = Math.max(red, green, blue, alpha);
+    maximumError = Math.max(maximumError, error);
+    totalError += red + green + blue + alpha;
+    if (error > visualChannelTolerance) {
+      differingPixels += 1;
+      const intensity = Math.min(255, 80 + error * 8);
+      diff[offset] = 255;
+      diff[offset + 1] = Math.max(0, 255 - intensity);
+      diff[offset + 2] = Math.max(0, 255 - intensity);
+      diff[offset + 3] = 255;
+    } else {
+      diff[offset] = 255;
+      diff[offset + 1] = 255;
+      diff[offset + 2] = 255;
+      diff[offset + 3] = 255;
+    }
+  }
+  const pixelCount = actual.width * actual.height;
+  const diffRatio = differingPixels / pixelCount;
+  const meanError = totalError / (pixelCount * 4);
+  return {
+    matches: diffRatio <= visualMaxDiffRatio && meanError <= visualMaxMeanError,
+    diffPng: encodeRgbaPng(actual.width, actual.height, diff),
+    summary: `${differingPixels}/${pixelCount} pixels (${(diffRatio * 100).toFixed(3)}%), mean channel error ${meanError.toFixed(2)}, max ${maximumError}`,
+  };
 }
 
 class CdpClient {
@@ -176,13 +353,16 @@ async function waitForRenderedPage(client, routeCase) {
       const shellReady = ${routeCase.shell}
         ? document.querySelector('a[data-testid="link-nav-all-projects"]') !== null
         : true;
+      const fontsReady = !document.fonts || document.fonts.status === "loaded";
       const ready = document.readyState === "complete"
         && heading.length > 0
         && (!expectedHeading || heading === expectedHeading)
+        && fontsReady
         && shellReady;
       return {
         ready,
         heading,
+        fontsReady,
         shellReady,
         body: document.body.innerText.slice(0, 400),
       };
@@ -191,6 +371,20 @@ async function waitForRenderedPage(client, routeCase) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(`${routeCase.name}: page did not finish rendering (${JSON.stringify(state)})`);
+}
+
+async function stabilize(client) {
+  await evaluate(client, `(() => {
+    const style = document.createElement("style");
+    style.dataset.visualBaselineStabilizer = "true";
+    style.textContent = [
+      "*, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }",
+      "html { scroll-behavior: auto !important; }",
+    ].join("\\n");
+    document.head.appendChild(style);
+    return document.fonts?.ready ?? true;
+  })()`);
+  await new Promise((resolve) => setTimeout(resolve, 100));
 }
 
 async function inspect(client, routeCase, viewport) {
@@ -219,14 +413,29 @@ async function inspect(client, routeCase, viewport) {
       document.documentElement.scrollWidth - document.documentElement.clientWidth,
       document.body.scrollWidth - document.body.clientWidth,
     );
-    const overflowing = rootOverflow > 1
-      ? [...document.querySelectorAll("body *")].flatMap((element) => {
-          const rect = element.getBoundingClientRect();
-          return rect.right > innerWidth + 1
-            ? [element.getAttribute("data-testid") || element.id || element.tagName.toLowerCase()]
-            : [];
-        }).slice(0, 8)
-      : [];
+    const isIntentionalScrollRegion = (element) => {
+      const style = getComputedStyle(element);
+      return element.scrollWidth > element.clientWidth + 1
+        && ["auto", "scroll"].includes(style.overflowX);
+    };
+    const isInsideIntentionalScrollRegion = (element) => {
+      let parent = element.parentElement;
+      while (parent) {
+        if (isIntentionalScrollRegion(parent)) return true;
+        parent = parent.parentElement;
+      }
+      return false;
+    };
+    const overflowingElements = [...document.querySelectorAll("body *")].filter((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.right > innerWidth + 1 && !isInsideIntentionalScrollRegion(element);
+    });
+    const effectiveOverflow = overflowingElements.length
+      ? Math.max(...overflowingElements.map((element) => element.getBoundingClientRect().right - innerWidth))
+      : 0;
+    const overflowing = overflowingElements
+      .map((element) => element.getAttribute("data-testid") || element.id || element.tagName.toLowerCase())
+      .slice(0, 8);
     const actions = ${JSON.stringify(routeCase.actions)}.filter((selector) => !visible(selector));
     const requiredSelectors = ${JSON.stringify(routeCase.requiredSelectors ?? [])}
       .filter((selector) => !document.querySelector(selector));
@@ -235,8 +444,66 @@ async function inspect(client, routeCase, viewport) {
     const navigationVisible = ${routeCase.shell}
       ? visible('a[data-testid="link-nav-all-projects"]')
       : true;
-    return { rootOverflow, overflowing, actions, requiredSelectors, requiredTexts, navigationVisible };
+    return { rootOverflow, effectiveOverflow, overflowing, actions, requiredSelectors, requiredTexts, navigationVisible };
   })()`);
+}
+
+function visualBaselinePath(routeCase, viewport) {
+  return `${baselineDir}/${routeCase.id}-${viewport.name}.png`;
+}
+
+async function saveVisualFailure(routeCase, viewport, actualPng, comparison, error) {
+  await mkdir(diffDir, { recursive: true });
+  const prefix = `${diffDir}/${routeCase.id}-${viewport.name}`;
+  await writeFile(`${prefix}.actual.png`, actualPng);
+  if (comparison?.diffPng) await writeFile(`${prefix}.diff.png`, comparison.diffPng);
+  await writeFile(`${prefix}.json`, JSON.stringify({
+    route: routeCase.path,
+    viewport,
+    baseline: visualBaselinePath(routeCase, viewport),
+    summary: comparison?.summary ?? error?.message ?? "Visual comparison failed",
+    tolerance: {
+      channel: visualChannelTolerance,
+      maxDiffRatio: visualMaxDiffRatio,
+      maxMeanError: visualMaxMeanError,
+    },
+  }, null, 2));
+  return prefix;
+}
+
+async function captureAndCompareVisual(client, routeCase, viewport) {
+  const screenshot = await client.command("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false,
+  });
+  const actualPng = Buffer.from(screenshot.data, "base64");
+  const baselinePath = visualBaselinePath(routeCase, viewport);
+  if (updateBaselines) {
+    await mkdir(baselineDir, { recursive: true });
+    await writeFile(baselinePath, actualPng);
+    console.log(`↻ ${routeCase.name} ${viewport.name} baseline updated`);
+    return;
+  }
+
+  let expectedPng;
+  try {
+    expectedPng = await readFile(baselinePath);
+  } catch (error) {
+    const artifactPrefix = await saveVisualFailure(routeCase, viewport, actualPng, undefined, error);
+    throw new Error(`${routeCase.name} (${viewport.name}): missing visual baseline ${baselinePath}; actual screenshot saved to ${artifactPrefix}.actual.png`);
+  }
+
+  let comparison;
+  try {
+    comparison = comparePng(expectedPng, actualPng);
+  } catch (error) {
+    const artifactPrefix = await saveVisualFailure(routeCase, viewport, actualPng, undefined, error);
+    throw new Error(`${routeCase.name} (${viewport.name}): could not compare visual baseline; artifacts saved to ${artifactPrefix}.*`);
+  }
+  if (!comparison.matches) {
+    const artifactPrefix = await saveVisualFailure(routeCase, viewport, actualPng, comparison);
+    throw new Error(`${routeCase.name} (${viewport.name}): visual baseline mismatch (${comparison.summary}); artifacts saved to ${artifactPrefix}.*`);
+  }
 }
 
 async function visit(routeCase, viewport) {
@@ -261,17 +528,19 @@ async function visit(routeCase, viewport) {
     const loaded = client.event("Page.loadEventFired");
     await client.command("Page.reload", { ignoreCache: true });
     await loaded;
+    await stabilize(client);
     await waitForRenderedPage(client, routeCase);
     const result = await inspect(client, routeCase, viewport);
     const failures = [];
-    if (result.rootOverflow > 1) {
-      failures.push(`horizontal overflow of ${result.rootOverflow}px${result.overflowing.length ? ` from ${result.overflowing.join(", ")}` : ""}`);
+    if (result.effectiveOverflow > 1) {
+      failures.push(`horizontal overflow of ${result.effectiveOverflow}px${result.overflowing.length ? ` from ${result.overflowing.join(", ")}` : ""}`);
     }
     if (!result.navigationVisible) failures.push("primary Projects navigation is not visible");
     if (result.actions.length) failures.push(`missing primary actions: ${result.actions.join(", ")}`);
     if (result.requiredSelectors.length) failures.push(`missing required elements: ${result.requiredSelectors.join(", ")}`);
     if (result.requiredTexts.length) failures.push(`missing required text: ${result.requiredTexts.join(", ")}`);
     if (failures.length) throw new Error(`${routeCase.name} (${viewport.name}): ${failures.join("; ")}`);
+    await captureAndCompareVisual(client, routeCase, viewport);
     console.log(`✔ ${routeCase.name} at ${viewport.width}×${viewport.height}`);
   } finally {
     client.close();
