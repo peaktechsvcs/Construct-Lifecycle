@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation, Link } from 'wouter';
 import {
   LayoutDashboard, BriefcaseBusiness, Building2,
@@ -26,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@workspace/construct-li
 import { NotificationPreview } from '@/components/notification-preview';
 import { filterFeatureNavigationGroups } from '@/lib/feature-visibility';
 import { getBillingAccessPresentation } from '@/lib/billing-access-copy';
+import { getSafeBrandingLogoUrl } from '@/lib/branding-logo';
 
 function OpenFollowUpDot() {
   const { data } = useListFollowUps({ query: { queryKey: getListFollowUpsQueryKey(), staleTime: 60000 } });
@@ -153,6 +154,34 @@ function HeaderEnvironmentPill() {
         You are viewing Design / Test / Demo data. Changes here do not affect Production.
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+function WorkspaceLogo({
+  brandedUrl,
+  fallbackUrl,
+  tenantName,
+}: {
+  brandedUrl: string;
+  fallbackUrl: string;
+  tenantName: string;
+}) {
+  const [src, setSrc] = useState(brandedUrl);
+
+  useEffect(() => {
+    setSrc(brandedUrl);
+  }, [brandedUrl]);
+
+  return (
+    <img
+      data-testid="workspace-logo"
+      src={src}
+      alt={`${tenantName} logo`}
+      onError={() => {
+        if (src !== fallbackUrl) setSrc(fallbackUrl);
+      }}
+      className="h-9 w-9 rounded-lg bg-background object-contain"
+    />
   );
 }
 
@@ -330,14 +359,16 @@ export function Shell({ children }: { children: ReactNode }) {
     );
   };
 
+  const fallbackLogoUrl = `${basePath}/logo-icon.png`;
   const getLogoUrl = () => {
     if (branding?.published && branding.published.length > 0) {
       const latest = [...branding.published].sort((a, b) => b.version - a.version)[0];
       const data = latest.data as Record<string, string>;
-      if (data.logoUrl) return data.logoUrl;
+      return getSafeBrandingLogoUrl(data.logoUrl, fallbackLogoUrl, window.location.origin);
     }
-    return `${basePath}/logo-icon.png`;
+    return fallbackLogoUrl;
   };
+  const tenantName = activeTenant?.name || 'Construct Lifecycle';
 
   const breadcrumbLabel = getBreadcrumbLabel(location);
   const canManageSettings = activeRole === 'owner' || activeRole === 'admin';
@@ -376,14 +407,14 @@ export function Shell({ children }: { children: ReactNode }) {
           {/* Brand / tenant header */}
           <div className={`flex h-[86px] items-center border-b border-sidebar-border ${sidebarCollapsed ? 'justify-center px-2' : 'justify-between px-5'}`}>
             <Link href="/overview" className={`flex min-w-0 items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`} data-testid="link-brand">
-              <img
-                src={getLogoUrl()}
-                alt="Logo"
-                className="h-9 w-9 rounded-lg object-contain bg-background"
-              />
+                <WorkspaceLogo
+                  brandedUrl={getLogoUrl()}
+                  fallbackUrl={fallbackLogoUrl}
+                  tenantName={tenantName}
+                />
               <div className={`min-w-0 ${sidebarCollapsed ? 'hidden' : ''}`}>
                 <span className="block truncate text-[15px] font-bold tracking-tight">
-                  {activeTenant?.name || 'Construct Lifecycle'}
+                    {tenantName}
                 </span>
                 <span className="mono block text-[9px] uppercase tracking-[.2em] text-sidebar-foreground/55">
                    From Bid to Closeout

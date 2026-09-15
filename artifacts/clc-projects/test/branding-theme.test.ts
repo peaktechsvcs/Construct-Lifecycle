@@ -7,6 +7,7 @@ import {
   normalizeHexColor,
   sanitizeBrandingColors,
 } from '../src/lib/color-utils.ts';
+import { getSafeBrandingLogoUrl } from '../src/lib/branding-logo.ts';
 import { getContrastRatio } from '../src/lib/accessibility.ts';
 
 test('branding colors accept only finite hex values before entering CSS variables', () => {
@@ -39,4 +40,18 @@ test('default branded actions and page text meet WCAG AA contrast', () => {
   assert.ok(getContrastRatio('#ffffff', BRANDING_FALLBACKS.primaryColor) >= 4.5);
   assert.ok(getContrastRatio(BRANDING_FALLBACKS.foregroundColor, BRANDING_FALLBACKS.backgroundColor) >= 4.5);
   assert.ok(getContrastRatio('#ffffff', '#ffffff') < 4.5);
+});
+
+test('branding logo URLs allow web images and fall back for empty or unsafe values', () => {
+  const fallback = '/logo-icon.png';
+  assert.equal(
+    getSafeBrandingLogoUrl(' https://cdn.example.test/logo.svg ', fallback),
+    'https://cdn.example.test/logo.svg',
+  );
+  assert.equal(getSafeBrandingLogoUrl('/uploaded/logo.png', fallback), '/uploaded/logo.png');
+  assert.equal(getSafeBrandingLogoUrl('', fallback), fallback);
+  assert.equal(getSafeBrandingLogoUrl(null, fallback), fallback);
+  assert.equal(getSafeBrandingLogoUrl('javascript:alert(1)', fallback), fallback);
+  assert.equal(getSafeBrandingLogoUrl('data:image/svg+xml,<svg></svg>', fallback), fallback);
+  assert.equal(getSafeBrandingLogoUrl('https://user:password@example.test/logo.png', fallback), fallback);
 });

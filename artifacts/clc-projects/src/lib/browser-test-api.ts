@@ -1,4 +1,5 @@
 type BrowserAuthMode = 'authenticated' | 'platform' | 'signed-out' | 'no-tenant';
+type BrowserBrandingMode = 'default' | 'valid' | 'empty' | 'broken';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -12,6 +13,11 @@ function mode(): BrowserAuthMode {
   return value === 'platform' || value === 'signed-out' || value === 'no-tenant'
     ? value
     : 'authenticated';
+}
+
+function brandingMode(): BrowserBrandingMode {
+  const value = new URLSearchParams(window.location.search).get('browserBranding');
+  return value === 'valid' || value === 'empty' || value === 'broken' ? value : 'default';
 }
 
 const tenant = {
@@ -316,9 +322,10 @@ export function installBrowserTestApi() {
     }
 
     if (url.pathname === '/api/tenant/context') {
+      const customerBrandingEnabled = brandingMode() !== 'default';
       return json({
-        activeTenant: tenant,
-        memberships: [{ ...tenant, role: 'owner' }],
+        activeTenant: { ...tenant, customerBrandingEnabled },
+        memberships: [{ ...tenant, role: 'owner', customerBrandingEnabled }],
         activeEnvironment: environments[0],
         environments,
         environmentLabel: 'development',
@@ -334,7 +341,24 @@ export function installBrowserTestApi() {
         },
       });
     }
-    if (url.pathname === '/api/tenant/branding/published') return json({ published: [] });
+    if (url.pathname === '/api/tenant/branding/published') {
+      const currentBrandingMode = brandingMode();
+      if (currentBrandingMode === 'valid' || currentBrandingMode === 'broken') {
+        return json({
+          published: [{
+            id: 1,
+            version: 1,
+            data: {
+              logoUrl: currentBrandingMode === 'valid'
+                ? '/logo-full.png'
+                : '/__browser-test/missing-logo.png',
+            },
+            publishedAt: new Date(0).toISOString(),
+          }],
+        });
+      }
+      return json({ published: [] });
+    }
     if (url.pathname === '/api/workflow/config') return json(workflow);
     if (url.pathname === '/api/dashboard/summary') return json(dashboardSummary);
     if (url.pathname === '/api/dashboard/project-controls') return json(projectControls);

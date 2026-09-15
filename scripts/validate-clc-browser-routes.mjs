@@ -15,6 +15,25 @@ const cases = [
     breadcrumb: "Customers",
     activeNav: "link-nav-customers",
     title: "Customers · Construct Lifecycle",
+    logo: { src: "/logo-icon.png", alt: "Browser Test Workspace logo" },
+  },
+  {
+    name: "authenticated customer list with valid branding logo",
+    path: "/customers?browserAuth=authenticated&browserBranding=valid",
+    heading: "Customers",
+    breadcrumb: "Customers",
+    activeNav: "link-nav-customers",
+    title: "Customers · Construct Lifecycle",
+    logo: { src: "/logo-full.png", alt: "Browser Test Workspace logo" },
+  },
+  {
+    name: "authenticated customer list with broken branding logo",
+    path: "/customers?browserAuth=authenticated&browserBranding=broken",
+    heading: "Customers",
+    breadcrumb: "Customers",
+    activeNav: "link-nav-customers",
+    title: "Customers · Construct Lifecycle",
+    logo: { src: "/logo-icon.png", alt: "Browser Test Workspace logo" },
   },
   {
     name: "public pricing page",
@@ -221,6 +240,14 @@ function containsActiveNav(html, testId) {
   return new RegExp(`data-testid="${testId}"[^>]*aria-current="page"`, "i").test(html);
 }
 
+function workspaceLogoAttributes(html) {
+  const tag = html.match(/<img\b[^>]*data-testid="workspace-logo"[^>]*>/i)?.[0] ?? "";
+  return {
+    src: decodeEntities(tag.match(/\ssrc="([^"]*)"/i)?.[1] ?? ""),
+    alt: decodeEntities(tag.match(/\salt="([^"]*)"/i)?.[1] ?? ""),
+  };
+}
+
 async function visit(routeCase) {
   const { stdout } = await execFileAsync(chromium, [
     "--headless=new",
@@ -268,6 +295,12 @@ async function visit(routeCase) {
   }
   for (const requiredLink of routeCase.requiredLinks ?? []) {
     if (!decodeEntities(html).includes(`href="${requiredLink}`)) failures.push(`required link "${requiredLink}" missing`);
+  }
+  if (routeCase.logo) {
+    const logo = workspaceLogoAttributes(html);
+    if (!logo.src) failures.push("workspace logo image missing");
+    if (logo.src !== routeCase.logo.src) failures.push(`workspace logo src="${logo.src}" expected "${routeCase.logo.src}"`);
+    if (logo.alt !== routeCase.logo.alt) failures.push(`workspace logo alt="${logo.alt}" expected "${routeCase.logo.alt}"`);
   }
   if (failures.length) throw new Error(`${routeCase.name}: ${failures.join("; ")}`);
 }
