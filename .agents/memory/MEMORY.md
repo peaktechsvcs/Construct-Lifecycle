@@ -39,3 +39,4 @@
 - [Node strip-types import resolution](node-strip-types-imports.md) — direct Node tests need explicit `.ts` extensions for local TypeScript imports.
 - [SPA query-state handoffs](spa-query-state.md) — modal and deep-link flags need a browser search fallback when router location omits query strings.
 - [Static route metadata shells](static-route-metadata-shells.md) — crawler-visible SPA metadata needs exact route files emitted alongside the fallback index.
+- [Post-merge database setup](post-merge-database-setup.md) — noninteractive Drizzle schema pushes need an explicit force flag and enough timeout for schema introspection.
