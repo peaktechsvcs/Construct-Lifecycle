@@ -1,5 +1,6 @@
 type BrowserAuthMode = 'authenticated' | 'platform' | 'signed-out' | 'no-tenant';
 type BrowserBrandingMode = 'default' | 'valid' | 'empty' | 'broken' | 'invalid-draft';
+type BrowserRole = 'owner' | 'admin' | 'member' | 'viewer';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -20,6 +21,18 @@ function brandingMode(): BrowserBrandingMode {
   return value === 'valid' || value === 'empty' || value === 'broken' || value === 'invalid-draft'
     ? value
     : 'default';
+}
+
+function browserRole(): BrowserRole {
+  const value = new URLSearchParams(window.location.search).get('browserRole');
+  if (value === 'owner' || value === 'admin' || value === 'member' || value === 'viewer') {
+    window.sessionStorage.setItem('clc-browser-role', value);
+    return value;
+  }
+  const stored = window.sessionStorage.getItem('clc-browser-role');
+  return stored === 'owner' || stored === 'admin' || stored === 'member' || stored === 'viewer'
+    ? stored
+    : 'owner';
 }
 
 const tenant = {
@@ -325,9 +338,10 @@ export function installBrowserTestApi() {
 
     if (url.pathname === '/api/tenant/context') {
       const customerBrandingEnabled = brandingMode() !== 'default';
+      const role = browserRole();
       return json({
-        activeTenant: { ...tenant, customerBrandingEnabled },
-        memberships: [{ ...tenant, role: 'owner', customerBrandingEnabled }],
+        activeTenant: { ...tenant, role, customerBrandingEnabled },
+        memberships: [{ ...tenant, role, customerBrandingEnabled }],
         activeEnvironment: environments[0],
         environments,
         environmentLabel: 'development',
@@ -418,7 +432,7 @@ export function installBrowserTestApi() {
       });
     }
     if (url.pathname === '/api/customers/42') return json(businessCustomer);
-    if (url.pathname === '/api/customers') return json([]);
+    if (url.pathname === '/api/customers') return json([businessCustomer]);
     if (url.pathname === '/api/trade-partners') return json([browserTradePartner]);
     if (url.pathname === `/api/trade-partners/${browserTradePartner.id}`) {
       return json({ partner: browserTradePartner, complianceDocuments: browserComplianceDocuments, requirements: [], agreements: [] });

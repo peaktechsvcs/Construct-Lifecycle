@@ -37,3 +37,4 @@
 - [ClamAV runtime provisioning](clamav-runtime-provisioning.md) — the package includes the scanner binary but not definitions; refresh a writable database at API startup and fail closed if unavailable.
 - [Branding logo safety](branding-logo-safety.md) — treat published tenant logo URLs as untrusted and keep a shared-logo fallback for invalid or unreachable assets.
 - [Node strip-types import resolution](node-strip-types-imports.md) — direct Node tests need explicit `.ts` extensions for local TypeScript imports.
+- [SPA query-state handoffs](spa-query-state.md) — modal and deep-link flags need a browser search fallback when router location omits query strings.

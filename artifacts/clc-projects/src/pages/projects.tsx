@@ -109,7 +109,12 @@ export function Projects() {
   const [editing, setEditing] = useState<Project>();
 
   // Persist search and stage in URL query state
-  const urlParams = new URLSearchParams(location.includes('?') ? location.split('?')[1] : '');
+  const queryString = location.includes('?')
+    ? location.split('?')[1]
+    : typeof window !== 'undefined'
+      ? window.location.search.slice(1)
+      : '';
+  const urlParams = new URLSearchParams(queryString);
   const urlSearch = urlParams.get('search') ?? '';
   const urlStage = urlParams.get('stage') ?? '';
   const urlOwnerUserId = urlParams.get('ownerUserId') ?? '';
@@ -132,7 +137,11 @@ export function Projects() {
     const qs = next.toString();
     const newPath = qs ? `${base}?${qs}` : base;
     // Only update if the query part actually changed to avoid loops
-    const currentQs = location.includes('?') ? location.split('?')[1] : '';
+    const currentQs = location.includes('?')
+      ? location.split('?')[1]
+      : typeof window !== 'undefined'
+        ? window.location.search.slice(1)
+        : '';
     if (qs !== currentQs) {
       setLocation(newPath, { replace: true });
     }
@@ -173,7 +182,13 @@ export function Projects() {
     setShowForm(false);
     setEditing(undefined);
     if (urlCreate) {
-      const next = new URLSearchParams(location.includes('?') ? location.split('?')[1] : '');
+      const next = new URLSearchParams(
+        location.includes('?')
+          ? location.split('?')[1]
+          : typeof window !== 'undefined'
+            ? window.location.search.slice(1)
+            : '',
+      );
       next.delete('create');
       const query = next.toString();
       setLocation(query ? `/projects?${query}` : '/projects', { replace: true });
