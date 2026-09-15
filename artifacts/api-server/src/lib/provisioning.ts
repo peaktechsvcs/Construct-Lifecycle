@@ -51,7 +51,7 @@ export function parseProviderVerificationResult(payload: unknown): ProviderVerif
   if (!payload || typeof payload !== "object" || (payload as Record<string, unknown>).verified !== true ||
     ("healthy" in payload && typeof (payload as Record<string, unknown>).healthy !== "boolean") ||
     (payload as Record<string, unknown>).healthy === false) {
-    throw new ProvisioningProviderRequestError("Provisioning provider returned an unverified result");
+    throw new ProvisioningProviderRequestError("Provisioning provider returned an unverified result", undefined, false);
   }
   return payload as ProviderVerificationResult;
 }
@@ -137,11 +137,19 @@ export class ProvisioningProviderUnavailableError extends Error {
 export class ProvisioningProviderRequestError extends Error {
   readonly code = "PROVISIONING_PROVIDER_REQUEST_FAILED";
   readonly status?: number;
-  constructor(message: string, status?: number) {
+  readonly retryable: boolean;
+  constructor(message: string, status?: number, retryable = status === undefined ||
+    status === 408 || status === 425 || status === 429 || status >= 500) {
     super(message);
     this.status = status;
+    this.retryable = retryable;
     this.name = "ProvisioningProviderRequestError";
   }
+}
+
+export function isRetryableProvisioningProviderError(error: unknown): boolean {
+  return error instanceof ProvisioningProviderUnavailableError ||
+    (error instanceof ProvisioningProviderRequestError && error.retryable);
 }
 
 type HttpProviderOptions = {
@@ -236,7 +244,7 @@ export class HttpProvisioningProvider implements ProvisioningProvider {
       body: request,
     });
     if (!resource || typeof resource.externalId !== "string" || !resource.externalId) {
-      throw new ProvisioningProviderRequestError("Provisioning provider returned no external resource ID");
+      throw new ProvisioningProviderRequestError("Provisioning provider returned no external resource ID", undefined, false);
     }
     return resource;
   }
@@ -260,7 +268,7 @@ export class HttpProvisioningProvider implements ProvisioningProvider {
     });
     const key = payload && typeof payload === "object" ? (payload as Record<string, unknown>).signingKey : undefined;
     if (typeof key !== "string" || key.length < 32) {
-      throw new ProvisioningProviderRequestError("Provisioning provider returned no valid runtime signing key");
+      throw new ProvisioningProviderRequestError("Provisioning provider returned no valid runtime signing key", undefined, false);
     }
     return key;
   }
@@ -279,7 +287,7 @@ export class HttpProvisioningProvider implements ProvisioningProvider {
       body: request,
     });
     if (typeof snapshot.backupReference !== "string" || typeof snapshot.checksum !== "string") {
-      throw new ProvisioningProviderRequestError("Provisioning provider returned an invalid snapshot");
+      throw new ProvisioningProviderRequestError("Provisioning provider returned an invalid snapshot", undefined, false);
     }
     return snapshot as { backupReference: string; checksum: string; providerOperationId?: string };
   }
@@ -310,7 +318,7 @@ export class HttpProvisioningProvider implements ProvisioningProvider {
       body: request,
     });
     if (typeof operation.providerOperationId !== "string" || !operation.providerOperationId) {
-      throw new ProvisioningProviderRequestError("Provisioning provider returned no restore operation ID");
+      throw new ProvisioningProviderRequestError("Provisioning provider returned no restore operation ID", undefined, false);
     }
     const status = operation.status === "succeeded" || operation.status === "failed"
       ? operation.status
@@ -334,7 +342,7 @@ export class HttpProvisioningProvider implements ProvisioningProvider {
     });
     if (typeof operation.providerOperationId !== "string" || !operation.providerOperationId ||
       !["pending", "succeeded", "failed"].includes(String(operation.status))) {
-      throw new ProvisioningProviderRequestError("Provisioning provider returned an invalid restore operation status");
+      throw new ProvisioningProviderRequestError("Provisioning provider returned an invalid restore operation status", undefined, false);
     }
     return {
       providerOperationId: operation.providerOperationId,

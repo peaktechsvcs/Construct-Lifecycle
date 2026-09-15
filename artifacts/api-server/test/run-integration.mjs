@@ -32,6 +32,7 @@ try {
       path.join(testDir, "integration-work-recording.integration.test.ts"),
       path.join(testDir, "opportunity-preconstruction.integration.test.ts"),
       path.join(testDir, "supplier-orders.integration.test.ts"),
+      path.join(testDir, "platform-provisioning.integration.test.ts"),
     ],
     platform: "node",
     bundle: true,
@@ -74,6 +75,7 @@ globalThis.__dirname = __path.dirname(globalThis.__filename);`,
     path.join(outdir, "integration-work-recording.integration.test.mjs"),
     path.join(outdir, "opportunity-preconstruction.integration.test.mjs"),
     path.join(outdir, "supplier-orders.integration.test.mjs"),
+    path.join(outdir, "platform-provisioning.integration.test.mjs"),
     path.join(testDir, "auth-test-header.integration.test.mjs"),
   ];
   const exitCode = await new Promise((resolve, reject) => {

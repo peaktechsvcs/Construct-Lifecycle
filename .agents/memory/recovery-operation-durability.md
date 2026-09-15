@@ -3,8 +3,8 @@ name: Recovery operation durability
 description: Destructive environment recovery must complete independently of browser polling and survive interrupted provider startup.
 ---
 
-Recovery operations require a persisted idempotency claim, a reclaimable database-backed startup lease, and server-side reconciliation. Browser polling is for operator visibility only, not the mechanism that completes restore, refresh, or rollback state.
+Destructive recovery must continue safely without browser polling, and every stage transition must leave one truthful, recoverable durable state.
 
-**Why:** A process or browser can stop after a provider accepts work but before the provider operation ID is stored. Without a lease and server worker, operations can remain pending forever; without conditional terminal transitions, concurrent pollers can duplicate audit effects.
+**Why:** A process can stop after external work succeeds but before local state is stored, and older non-atomic writes may leave terminal records partially applied.
 
-**How to apply:** For future destructive provider workflows, persist the claim before provider execution, replay only with the provider's persisted idempotency key after a stale lease, run bounded reconciliation in the control-plane server, and make terminal state updates conditional.
+**How to apply:** Distinguish definitive provider failure from retryable local interruption, commit linked state and audit effects atomically, and reconcile both active work and partial terminal history on the server.
