@@ -10,4 +10,4 @@ if [ "${APP_ENV:-development}" = "production" ]; then
 fi
 
 pnpm install --frozen-lockfile
-pnpm --filter @workspace/db run push -- --force
+pnpm --filter @workspace/db exec drizzle-kit push --config ./drizzle.config.ts --force
