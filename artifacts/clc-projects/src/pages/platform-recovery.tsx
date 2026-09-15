@@ -30,6 +30,7 @@ import {
   useListPlatformReleases,
   useGetEnvironmentResources,
   useListProvisioningEvents,
+  useListProvisioningOperations,
   useListEnvironmentSnapshots,
   useProvisionEnvironment,
   useVerifyEnvironment,
@@ -43,6 +44,7 @@ import {
   getListPlatformReleasesQueryKey,
   getGetEnvironmentResourcesQueryKey,
   getListProvisioningEventsQueryKey,
+  getListProvisioningOperationsQueryKey,
   getListEnvironmentSnapshotsQueryKey,
   getGetProvisioningOperationQueryKey,
   RefreshEnvironmentInputSanitizationPolicy,
@@ -221,9 +223,10 @@ interface TrackedOperationInfo {
 interface OperationStatusPanelProps {
   tracked: TrackedOperationInfo;
   onTerminal: () => void;
+  auditEvents?: ProvisioningEvent[];
 }
 
-function OperationStatusPanel({ tracked, onTerminal }: OperationStatusPanelProps) {
+function OperationStatusPanel({ tracked, onTerminal, auditEvents }: OperationStatusPanelProps) {
   const { operationId, actionLabel, environmentName, idempotencyKey } = tracked;
 
   // Whether we've already fired invalidations for this operation — prevent loops
@@ -267,6 +270,7 @@ function OperationStatusPanel({ tracked, onTerminal }: OperationStatusPanelProps
     const envId = tracked.environmentId;
     qc.invalidateQueries({ queryKey: getGetEnvironmentResourcesQueryKey(envId) });
     qc.invalidateQueries({ queryKey: getListProvisioningEventsQueryKey(envId) });
+    qc.invalidateQueries({ queryKey: getListProvisioningOperationsQueryKey(envId) });
     qc.invalidateQueries({ queryKey: getListEnvironmentSnapshotsQueryKey(envId) });
     qc.invalidateQueries({ queryKey: getListPlatformCustomersQueryKey() });
     qc.invalidateQueries({ queryKey: getListPlatformReleasesQueryKey() });
@@ -369,6 +373,12 @@ function OperationStatusPanel({ tracked, onTerminal }: OperationStatusPanelProps
                 <dd>{fmtShort(op.completedAt)}</dd>
               </div>
             )}
+            {op?.providerOperationId && (
+              <div>
+                <dt className="font-semibold text-muted-foreground">Provider operation</dt>
+                <dd className="font-mono truncate" title={op.providerOperationId}>{op.providerOperationId}</dd>
+              </div>
+            )}
           </dl>
 
           <div>
@@ -385,6 +395,29 @@ function OperationStatusPanel({ tracked, onTerminal }: OperationStatusPanelProps
             >
               <p className="font-bold mb-0.5">Operation error</p>
               <p className="text-muted-foreground">{errorText}</p>
+            </div>
+          )}
+
+          {auditEvents && (
+            <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs">
+              <p className="mono mb-1 text-[9px] font-bold uppercase tracking-[.14em] text-muted-foreground">
+                Audit outcome
+              </p>
+              {auditEvents.length > 0 ? (
+                <ul className="space-y-1">
+                  {auditEvents.map((event) => (
+                    <li key={event.id} className="flex flex-wrap gap-x-2 gap-y-0.5">
+                      <span className="font-semibold">{event.action}</span>
+                      <span className="text-muted-foreground">{fmtShort(event.occurredAt)}</span>
+                      {typeof event.details?.error === 'string' && (
+                        <span className="w-full text-destructive">{event.details.error}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">No operation audit event has been recorded yet.</p>
+              )}
             </div>
           )}
 
@@ -584,6 +617,83 @@ function EventList({ events }: { events: ProvisioningEvent[] }) {
   );
 }
 
+function recoveryOperationLabel(operationType: string): string {
+  switch (operationType) {
+    case 'refresh':
+      return 'Refresh D/T/D from Production';
+    case 'restore':
+      return 'Restore from Snapshot';
+    case 'rollback':
+      return 'Roll Back Release';
+    default:
+      return operationType;
+  }
+}
+
+function recoveryOperationTone(status: string): 'green' | 'orange' | 'red' | 'neutral' {
+  if (status === 'succeeded') return 'green';
+  if (status === 'failed') return 'red';
+  if (status === 'running' || status === 'requested') return 'orange';
+  return 'neutral';
+}
+
+function RecoveryOperationHistory({
+  operations,
+  selectedId,
+  onSelect,
+}: {
+  operations: ProvisioningOperation[];
+  selectedId: number | null;
+  onSelect: (operationId: number) => void;
+}) {
+  return (
+    <section className="rounded-xl border border-border bg-card p-5" aria-label="Recovery operation history">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-bold">Recovery operations</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Active and recently completed refresh, restore, and rollback operations for this environment.
+          </p>
+        </div>
+        <span className="mono text-[10px] text-muted-foreground">{operations.length} shown</span>
+      </div>
+      {operations.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border px-3 py-4 text-xs text-muted-foreground">
+          No recovery operations have been recorded for this environment.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {operations.map((operation) => {
+            const isSelected = operation.id === selectedId;
+            return (
+              <button
+                key={operation.id}
+                type="button"
+                onClick={() => onSelect(operation.id)}
+                aria-expanded={isSelected}
+                className={`flex w-full flex-wrap items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  isSelected
+                    ? 'border-primary/40 bg-primary/5'
+                    : 'border-border bg-secondary/20 hover:bg-secondary/50'
+                }`}
+              >
+                <Activity size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold">{recoveryOperationLabel(operation.operationType)}</span>
+                  <span className="mono mt-0.5 block text-[10px] text-muted-foreground">
+                    op {operation.id} · {fmtShort(operation.createdAt)}
+                  </span>
+                </span>
+                <Badge tone={recoveryOperationTone(operation.status)}>{operation.status}</Badge>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ─── SnapshotTable ───────────────────────────────────────────────────────────
 
 function SnapshotTable({ snapshots }: { snapshots: EnvironmentSnapshot[] }) {
@@ -695,6 +805,7 @@ interface EnvironmentPanelProps {
 
 function EnvironmentPanel({ envId, customer, env, onAction }: EnvironmentPanelProps) {
   const [tab, setTab] = useState<'resources' | 'events' | 'snapshots' | 'releases'>('resources');
+  const [selectedOperationId, setSelectedOperationId] = useState<number | null>(null);
 
   const resourcesQ = useGetEnvironmentResources(envId, {
     query: { enabled: !!envId, queryKey: getGetEnvironmentResourcesQueryKey(envId) },
@@ -702,12 +813,21 @@ function EnvironmentPanel({ envId, customer, env, onAction }: EnvironmentPanelPr
   const eventsQ = useListProvisioningEvents(envId, {
     query: { enabled: !!envId, queryKey: getListProvisioningEventsQueryKey(envId) },
   });
+  const operationsQ = useListProvisioningOperations(envId, {
+    query: { enabled: !!envId, queryKey: getListProvisioningOperationsQueryKey(envId) },
+  });
   const snapshotsQ = useListEnvironmentSnapshots(envId, {
     query: { enabled: !!envId, queryKey: getListEnvironmentSnapshotsQueryKey(envId) },
   });
   const releasesQ = useListPlatformReleases({
     query: { queryKey: getListPlatformReleasesQueryKey() },
   });
+
+  useEffect(() => {
+    setSelectedOperationId(null);
+  }, [envId]);
+
+  const selectedOperation = (operationsQ.data ?? []).find((operation) => operation.id === selectedOperationId) ?? null;
 
   const isDtd = env.kind === 'dtd';
 
@@ -818,6 +938,33 @@ function EnvironmentPanel({ envId, customer, env, onAction }: EnvironmentPanelPr
             </Button>
           </div>
         </div>
+      </div>
+
+      <div className="space-y-3">
+        {operationsQ.isLoading && <LoadingPanel lines={3} />}
+        {operationsQ.isError && <ErrorPanel onRetry={() => operationsQ.refetch()} />}
+        {operationsQ.data && (
+          <>
+            <RecoveryOperationHistory
+              operations={operationsQ.data}
+              selectedId={selectedOperationId}
+              onSelect={setSelectedOperationId}
+            />
+            {selectedOperation && (
+              <OperationStatusPanel
+                tracked={{
+                  operationId: selectedOperation.id,
+                  actionLabel: recoveryOperationLabel(selectedOperation.operationType),
+                  environmentName: env.name,
+                  idempotencyKey: selectedOperation.idempotencyKey,
+                  environmentId: envId,
+                }}
+                auditEvents={eventsQ.data?.filter((event) => event.operationId === selectedOperation.id)}
+                onTerminal={() => setSelectedOperationId(null)}
+              />
+            )}
+          </>
+        )}
       </div>
 
       {/* Tabs */}

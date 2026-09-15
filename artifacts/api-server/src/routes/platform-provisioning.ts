@@ -42,6 +42,7 @@ router.use("/platform", requirePlatformAdmin);
 const RESTORE_START_LEASE_MS = 60_000;
 const SNAPSHOT_PREPARATION_OPERATION_TYPE = "snapshot_prepare" as const;
 const RECOVERY_SWEEP_LIMIT = 100;
+const RECOVERY_OPERATION_HISTORY_LIMIT = 25;
 let recoverySweepCursor = 0;
 let terminalRecoverySweepCursor = 0;
 
@@ -1298,6 +1299,22 @@ export async function reconcileProvisioningRecoverySweep(): Promise<void> {
     }
   }
 }
+
+router.get("/platform/environments/:environmentId/provisioning-operations", async (req: TenantRequest, res) => {
+  const id = parseId(req.params.environmentId);
+  if (!id) { res.status(400).json({ error: "Invalid environment" }); return; }
+  const target = await environment(id);
+  if (!target) { res.status(404).json({ error: "Environment not found" }); return; }
+  const operations = await db.select().from(provisioningOperationsTable)
+    .where(and(
+      eq(provisioningOperationsTable.tenantId, target.tenantId),
+      eq(provisioningOperationsTable.environmentId, id),
+      inArray(provisioningOperationsTable.operationType, ["restore", "refresh", "rollback"]),
+    ))
+    .orderBy(desc(provisioningOperationsTable.createdAt), desc(provisioningOperationsTable.id))
+    .limit(RECOVERY_OPERATION_HISTORY_LIMIT);
+  res.json(operations);
+});
 
 router.get("/platform/provisioning-operations/:operationId", async (req: TenantRequest, res) => {
   const operationId = parseId(req.params.operationId);

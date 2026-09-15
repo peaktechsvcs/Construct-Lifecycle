@@ -18924,6 +18924,83 @@ export function useGetProvisioningOperation<TData = Awaited<ReturnType<typeof ge
 
 
 
+export const getListProvisioningOperationsUrl = (environmentId: number,) => {
+
+
+
+
+  return `/api/platform/environments/${environmentId}/provisioning-operations`
+}
+
+/**
+ * @summary List active and recent recovery operations for an environment
+ */
+export const listProvisioningOperations = async (environmentId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProvisioningOperation[]> => {
+
+  return customFetch<ProvisioningOperation[]>(getListProvisioningOperationsUrl(environmentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProvisioningOperationsQueryKey = (environmentId: number,) => {
+    return [
+    `/api/platform/environments/${environmentId}/provisioning-operations`
+    ] as const;
+    }
+
+
+export const getListProvisioningOperationsQueryOptions = <TData = Awaited<ReturnType<typeof listProvisioningOperations>>, TError = ErrorType<void>>(environmentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProvisioningOperations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProvisioningOperationsQueryKey(environmentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProvisioningOperations>>> = ({ signal }) => listProvisioningOperations(environmentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: environmentId !== null && environmentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProvisioningOperations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProvisioningOperationsQueryResult = NonNullable<Awaited<ReturnType<typeof listProvisioningOperations>>>
+export type ListProvisioningOperationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List active and recent recovery operations for an environment
+ */
+
+export function useListProvisioningOperations<TData = Awaited<ReturnType<typeof listProvisioningOperations>>, TError = ErrorType<void>>(
+ environmentId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProvisioningOperations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProvisioningOperationsQueryOptions(environmentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getRollbackEnvironmentReleaseUrl = (assignmentId: number,) => {
 
 

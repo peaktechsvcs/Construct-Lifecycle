@@ -4287,6 +4287,26 @@ paths:
         "400": { description: Operation is not a recovery operation }
         "404": { description: Operation not found }
         "502": { description: Recovery operation failed }
+  /platform/environments/{environmentId}/provisioning-operations:
+    get:
+      operationId: listProvisioningOperations
+      tags: [provisioning]
+      summary: List active and recent recovery operations for an environment
+      parameters:
+        - in: path
+          name: environmentId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Recovery operations scoped to the selected environment
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProvisioningOperation" }
+        "400": { description: Invalid environment }
+        "404": { description: Environment not found }
   /platform/release-assignments/{assignmentId}/rollback:
     post:
       operationId: rollbackEnvironmentRelease

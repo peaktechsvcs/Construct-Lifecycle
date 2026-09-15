@@ -303,6 +303,52 @@ test("provisions every isolated resource, persists audit records, and safely rep
   assert.equal(provider.provisionCalls.filter((call) => call.environmentId === dtdAId).length, resourceTypes.length);
 });
 
+test("lists bounded recovery history only for the selected environment", async () => {
+  await db.insert(provisioningOperationsTable).values(
+    Array.from({ length: 26 }, (_, index) => ({
+      tenantId: tenantAId,
+      environmentId: dtdAId,
+      operationType: (index % 3 === 0 ? "refresh" : index % 3 === 1 ? "restore" : "rollback") as string,
+      idempotencyKey: `history-${runId}-${index}`,
+      status: index % 2 === 0 ? "succeeded" : "requested",
+      details: { historyIndex: index },
+      requestedByUserId: platformAdminId,
+      ...(index % 2 === 0 ? { completedAt: new Date(Date.now() + index) } : {}),
+    })),
+  );
+  await db.insert(provisioningOperationsTable).values({
+    tenantId: tenantBId,
+    environmentId: dtdBId,
+    operationType: "refresh",
+    idempotencyKey: `history-cross-environment-${runId}`,
+    status: "succeeded",
+    details: {},
+    requestedByUserId: platformAdminId,
+  });
+
+  const history = await request(`/platform/environments/${dtdAId}/provisioning-operations`);
+  assert.equal(history.status, 200, JSON.stringify(history.body));
+  const operations = history.body as Array<{
+    environmentId: number;
+    operationType: string;
+    idempotencyKey: string;
+  }>;
+  assert.equal(operations.length, 25);
+  assert.equal(operations.every((operation) => operation.environmentId === dtdAId), true);
+  assert.equal(operations.every((operation) => ["refresh", "restore", "rollback"].includes(operation.operationType)), true);
+  assert.equal(operations.some((operation) => operation.idempotencyKey === `history-${runId}-25`), true);
+  assert.equal(operations.some((operation) => operation.idempotencyKey === `history-cross-environment-${runId}`), false);
+
+  const otherEnvironmentHistory = await request(`/platform/environments/${dtdBId}/provisioning-operations`);
+  assert.equal(otherEnvironmentHistory.status, 200, JSON.stringify(otherEnvironmentHistory.body));
+  assert.equal(
+    (otherEnvironmentHistory.body as Array<{ idempotencyKey: string }>).some(
+      (operation) => operation.idempotencyKey === `history-cross-environment-${runId}`,
+    ),
+    true,
+  );
+});
+
 test("records a resource failure and permits a successful retry with a new idempotency key", async () => {
   provider.failProvisionFor.add(`${failureEnvironmentId}:database`);
   const failedKey = `provision-failure-${runId}`;

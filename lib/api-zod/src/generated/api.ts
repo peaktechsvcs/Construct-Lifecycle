@@ -13371,6 +13371,35 @@ export const GetProvisioningOperationResponse = zod.object({
 
 
 /**
+ * @summary List active and recent recovery operations for an environment
+ */
+
+
+
+export const ListProvisioningOperationsParams = zod.object({
+  "environmentId": zod.coerce.number().int().min(1)
+})
+
+export const ListProvisioningOperationsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "tenantId": zod.number().int(),
+  "environmentId": zod.number().int(),
+  "resourceId": zod.number().int().nullable(),
+  "operationType": zod.enum(['provision', 'verify', 'backup', 'restore', 'refresh', 'rollback']),
+  "idempotencyKey": zod.string(),
+  "status": zod.enum(['requested', 'running', 'succeeded', 'failed']),
+  "providerOperationId": zod.string().nullable(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "error": zod.string().nullable(),
+  "requestedByUserId": zod.number().int().nullable(),
+  "startedAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListProvisioningOperationsResponse = zod.array(ListProvisioningOperationsResponseItem)
+
+
+/**
  * @summary Roll back a promoted release to its verified snapshot
  */
 
