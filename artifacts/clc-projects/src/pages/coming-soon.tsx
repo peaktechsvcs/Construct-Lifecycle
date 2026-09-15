@@ -4,7 +4,7 @@ import { Button, LoadingPanel } from '@/components/app-ui';
 import { useTenant } from '@/providers/tenant-provider';
 import { getListFeatureFlagsQueryKey, useListFeatureFlags } from '@workspace/api-client-react';
 import { canAccessComingSoonFeature } from '@/lib/feature-visibility';
-import { comingSoonTitle, useRouteTitle } from '@/lib/route-titles';
+import { comingSoonMetadata, useRouteMetadata } from '@/lib/route-titles';
 
 const destinations: Record<string, { section: string; description: string }> = {
   notifications: { section: 'Home', description: 'See alerts, mentions, approvals, and changes that need your attention.' },
@@ -47,7 +47,7 @@ export function ComingSoonPage() {
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
-  useRouteTitle(comingSoonTitle(title));
+  useRouteMetadata(comingSoonMetadata(title));
   const { isPlatformAdmin } = useTenant();
   const featureFlagsQuery = useListFeatureFlags({
     query: {

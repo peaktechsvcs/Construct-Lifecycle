@@ -23,6 +23,7 @@ const cases = [
     breadcrumb: null,
     activeNav: null,
     title: "Plans & billing · Construct Lifecycle",
+    description: "Compare Construct Lifecycle plans for managing your construction lifecycle from bid through closeout.",
   },
   {
     name: "sign-in page",
@@ -30,6 +31,7 @@ const cases = [
     breadcrumb: null,
     activeNav: null,
     title: "Sign in · Construct Lifecycle",
+    description: "Sign in to Construct Lifecycle to manage construction projects from bid through closeout.",
   },
   {
     name: "sign-up page",
@@ -37,6 +39,7 @@ const cases = [
     breadcrumb: null,
     activeNav: null,
     title: "Create your account · Construct Lifecycle",
+    description: "Create a Construct Lifecycle account to manage construction work from bid through closeout.",
   },
   {
     name: "invitation page",
@@ -44,6 +47,7 @@ const cases = [
     breadcrumb: null,
     activeNav: null,
     title: "Invitation · Construct Lifecycle",
+    description: "Accept your Construct Lifecycle workspace invitation and join your construction team.",
   },
   {
     name: "authenticated customer detail",
@@ -102,6 +106,7 @@ const cases = [
     breadcrumb: null,
     activeNav: null,
     title: "Platform administrator access required · Construct Lifecycle",
+    description: "Construct Lifecycle platform administrator access is required to open this recovery console.",
   },
   {
     name: "coming soon feature",
@@ -110,6 +115,7 @@ const cases = [
     breadcrumb: null,
     activeNav: null,
     title: "Notifications · Coming soon · Construct Lifecycle",
+    description: "Notifications is coming soon in Construct Lifecycle. Check back for updates on this construction workflow.",
   },
   {
     name: "legacy settings redirect",
@@ -126,6 +132,7 @@ const cases = [
     breadcrumb: null,
     activeNav: null,
     title: "404 Page Not Found · Construct Lifecycle",
+    description: "The Construct Lifecycle page you requested could not be found.",
   },
   {
     name: "render error fallback",
@@ -134,14 +141,17 @@ const cases = [
     breadcrumb: null,
     activeNav: null,
     title: "Something went wrong · Construct Lifecycle",
+    description: "Construct Lifecycle encountered an error while loading this page. Try again to continue.",
   },
   {
     name: "signed-out protected route redirects home",
     path: "/customers?browserAuth=signed-out",
+    ogUrlPath: "/",
     heading: "Construct Lifecycle",
     breadcrumb: null,
     activeNav: null,
     title: "Construct Lifecycle",
+    description: "Construct Lifecycle helps construction teams manage work from bid through closeout in one connected workspace.",
   },
   {
     name: "signed-in account without workspace",
@@ -150,6 +160,7 @@ const cases = [
     breadcrumb: null,
     activeNav: null,
     title: "You do not have access to a workspace · Construct Lifecycle",
+    description: "Your Construct Lifecycle account is signed in, but it is not assigned to a Construct Lifecycle workspace.",
   },
 ];
 
@@ -216,6 +227,19 @@ async function visit(routeCase) {
   if (routeCase.title) {
     const title = decodeEntities(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim() ?? "");
     if (title !== routeCase.title) failures.push(`title="${title}" expected "${routeCase.title}"`);
+  }
+  if (routeCase.description) {
+    const description = decodeEntities(html.match(/<meta[^>]+name="description"[^>]+content="([^"]*)"/i)?.[1] ?? "");
+    if (description !== routeCase.description) failures.push(`description="${description}" expected "${routeCase.description}"`);
+    const ogTitle = decodeEntities(html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]*)"/i)?.[1] ?? "");
+    if (ogTitle !== routeCase.title) failures.push(`og:title="${ogTitle}" expected "${routeCase.title}"`);
+    const ogDescription = decodeEntities(html.match(/<meta[^>]+property="og:description"[^>]+content="([^"]*)"/i)?.[1] ?? "");
+    if (ogDescription !== routeCase.description) failures.push(`og:description="${ogDescription}" expected "${routeCase.description}"`);
+    const expectedOgUrl = new URL(routeCase.ogUrlPath ?? routeCase.path, baseUrl);
+    expectedOgUrl.search = "";
+    expectedOgUrl.hash = "";
+    const ogUrl = decodeEntities(html.match(/<meta[^>]+property="og:url"[^>]+content="([^"]*)"/i)?.[1] ?? "");
+    if (ogUrl !== expectedOgUrl.href) failures.push(`og:url="${ogUrl}" expected "${expectedOgUrl.href}"`);
   }
   if (routeCase.breadcrumb) {
     const breadcrumb = (html.match(/data-testid="workspace-breadcrumb"[^>]*>([\s\S]*?)<\/span>/i)?.[1] ?? "")

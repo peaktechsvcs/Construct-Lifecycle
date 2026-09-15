@@ -38,7 +38,7 @@ import { Notifications } from '@/pages/notifications';
 import { PricingCanceledPage, PricingPage, PricingSuccessPage } from '@/pages/pricing';
 import { SupplierOrders } from '@/pages/supplier-orders';
 import { ItbIntakes } from '@/pages/itb-intakes';
-import { routeTitles, useRouteTitle } from '@/lib/route-titles';
+import { routeMetadata, useRouteMetadata } from '@/lib/route-titles';
 
 const queryClient = new QueryClient();
 
@@ -113,7 +113,7 @@ const clerkAppearance = {
 };
 
 function SignInPage() {
-  useRouteTitle(routeTitles.signIn);
+  useRouteMetadata(routeMetadata.signIn);
   const [fallbackRedirectUrl] = useState(
     () => sessionStorage.getItem(AUTH_RETURN_KEY) || `${basePath}/overview`,
   );
@@ -128,7 +128,7 @@ function SignInPage() {
 }
 
 function SignUpPage() {
-  useRouteTitle(routeTitles.signUp);
+  useRouteMetadata(routeMetadata.signUp);
   const [fallbackRedirectUrl] = useState(
     () => sessionStorage.getItem(AUTH_RETURN_KEY) || `${basePath}/overview`,
   );
@@ -158,7 +158,7 @@ function HomeRedirect() {
 }
 
 function RouteLoading() {
-  useRouteTitle(routeTitles.loading);
+  useRouteMetadata(routeMetadata.loading);
   return (
     <div className="grid min-h-[100dvh] place-items-center bg-background px-4">
       <div className="w-full max-w-md">
@@ -173,7 +173,7 @@ function BrowserTestRenderErrorRoute(): never {
 }
 
 function UnauthorizedRoute() {
-  useRouteTitle(routeTitles.workspaceAccess);
+  useRouteMetadata(routeMetadata.workspaceAccess);
   return (
     <div className="grid min-h-[100dvh] place-items-center bg-background px-4">
       <section className="w-full max-w-lg rounded-2xl border border-border bg-card p-7 text-center shadow-sm">
@@ -188,7 +188,7 @@ function UnauthorizedRoute() {
 }
 
 function PlatformUnauthorizedRoute() {
-  useRouteTitle(routeTitles.platformAccess);
+  useRouteMetadata(routeMetadata.platformAccess);
   return (
     <div className="grid min-h-[100dvh] place-items-center bg-background px-4">
       <section className="w-full max-w-lg rounded-2xl border border-border bg-card p-7 text-center shadow-sm">

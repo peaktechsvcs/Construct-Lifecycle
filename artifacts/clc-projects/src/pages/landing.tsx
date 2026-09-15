@@ -1,9 +1,9 @@
 import { Link } from 'wouter';
 import { Button } from '@workspace/construct-lifecycle-design-system/components/ui/button';
-import { routeTitles, useRouteTitle } from '@/lib/route-titles';
+import { routeMetadata, useRouteMetadata } from '@/lib/route-titles';
 
 export function LandingPage() {
-  useRouteTitle(routeTitles.landing);
+  useRouteMetadata(routeMetadata.landing);
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-background p-4 text-center">

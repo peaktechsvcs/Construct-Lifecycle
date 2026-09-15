@@ -2,7 +2,7 @@ import { Link } from 'wouter';
 import { ArrowLeft, CheckCircle2, ExternalLink, ShieldCheck } from 'lucide-react';
 import { StripePricingTable, isStripeTestMode } from '@/components/stripe-pricing-table';
 import { Button } from '@workspace/construct-lifecycle-design-system/components/ui/button';
-import { routeTitles, useRouteTitle } from '@/lib/route-titles';
+import { routeMetadata, useRouteMetadata } from '@/lib/route-titles';
 
 function PricingHeader() {
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -24,7 +24,7 @@ function PricingHeader() {
 }
 
 export function PricingPage() {
-  useRouteTitle(routeTitles.pricing);
+  useRouteMetadata(routeMetadata.pricing);
   const testMode = isStripeTestMode();
 
   return (
@@ -81,7 +81,7 @@ export function PricingPage() {
 }
 
 export function PricingSuccessPage() {
-  useRouteTitle(routeTitles.pricingSuccess);
+  useRouteMetadata(routeMetadata.pricingSuccess);
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 py-10">
       <section className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 text-center shadow-sm sm:p-10">
@@ -98,7 +98,7 @@ export function PricingSuccessPage() {
 }
 
 export function PricingCanceledPage() {
-  useRouteTitle(routeTitles.pricingCanceled);
+  useRouteMetadata(routeMetadata.pricingCanceled);
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 py-10">
       <section className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 text-center shadow-sm sm:p-10">

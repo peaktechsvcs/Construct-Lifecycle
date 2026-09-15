@@ -5,10 +5,10 @@ import { useLocation, useParams } from 'wouter';
 import { Check, Link2 } from 'lucide-react';
 import { useAcceptTenantInvitation, useGetInvitationDetails, getGetInvitationDetailsQueryKey, getGetTenantContextQueryKey } from '@workspace/api-client-react';
 import { Button, ErrorPanel, LoadingPanel } from '@/components/app-ui';
-import { routeTitles, useRouteTitle } from '@/lib/route-titles';
+import { routeMetadata, useRouteMetadata } from '@/lib/route-titles';
 export function AcceptInvitation() {
   const { token = '' } = useParams<{ token: string }>(); const [, setLocation] = useLocation(); const qc = useQueryClient(); const { isLoaded, isSignedIn } = useAuth(); const [accepted, setAccepted] = useState(false);
-  useRouteTitle(routeTitles.invitation);
+  useRouteMetadata(routeMetadata.invitation);
   const details = useGetInvitationDetails(token, { query: { queryKey: getGetInvitationDetailsQueryKey(token), enabled: !!token && isLoaded && !!isSignedIn } }); const accept = useAcceptTenantInvitation();
   useEffect(() => { if (accepted) { qc.clear(); setLocation('/overview'); } }, [accepted, qc, setLocation]);
   if (!isLoaded) return <div className="mx-auto flex min-h-[100dvh] max-w-lg items-center px-4"><LoadingPanel lines={4} /></div>;
