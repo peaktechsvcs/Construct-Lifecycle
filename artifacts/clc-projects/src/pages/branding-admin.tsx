@@ -7,7 +7,7 @@ import {
   BrandingInput
 } from '@workspace/api-client-react';
 import { PageTitle, Button, LoadingPanel, ErrorPanel, Badge } from '@/components/app-ui';
-import { hexToHsl } from '@/lib/color-utils';
+import { brandingColorsWithFallbacks, hexToHsl, normalizeHexColor } from '@/lib/color-utils';
 import { getContrastRatio } from '@/lib/accessibility';
 
 export function BrandingAdmin() {
@@ -90,15 +90,21 @@ export function BrandingAdmin() {
   if (brandingQuery.isError) return <ErrorPanel onRetry={() => brandingQuery.refetch()} />;
 
   const publishedVersions = brandingQuery.data?.published || [];
-  
-  // Create inline styles for live preview container
-  const previewStyle = {
-    '--primary': hexToHsl(form.primaryColor),
-    '--secondary': hexToHsl(form.secondaryColor),
-    '--accent': hexToHsl(form.accentColor),
-    '--background': hexToHsl(form.backgroundColor),
-    '--foreground': hexToHsl(form.foregroundColor),
-  } as React.CSSProperties;
+  const previewColors = brandingColorsWithFallbacks(form);
+  const previewStyle = Object.fromEntries(
+    Object.entries(previewColors).map(([key, value]) => [
+      `--${key.replace('Color', '')}`,
+      hexToHsl(value),
+    ]),
+  ) as React.CSSProperties;
+  const contrastChecks = [
+    { label: 'Primary action', foreground: '#ffffff', background: previewColors.primaryColor },
+    { label: 'Text on page', foreground: previewColors.foregroundColor, background: previewColors.backgroundColor },
+  ].map((check) => ({
+    ...check,
+    ratio: getContrastRatio(check.foreground, check.background),
+  }));
+  const contrastFailures = contrastChecks.filter((check) => check.ratio < 4.5);
 
   return (
     <div className="animate-rise">
@@ -121,7 +127,7 @@ export function BrandingAdmin() {
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Primary Color</span>
                 <div className="flex gap-2">
-                  <input type="color" value={form.primaryColor} onChange={(e) => handleChange('primaryColor', e.target.value)} className="h-10 w-10 cursor-pointer rounded border border-input p-1" />
+                  <input type="color" value={normalizeHexColor(form.primaryColor) || previewColors.primaryColor} onChange={(e) => handleChange('primaryColor', e.target.value)} className="h-10 w-10 cursor-pointer rounded border border-input p-1" />
                   <input type="text" value={form.primaryColor} onChange={(e) => handleChange('primaryColor', e.target.value)} className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-primary/20" />
                 </div>
               </label>
@@ -129,7 +135,7 @@ export function BrandingAdmin() {
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Background Color</span>
                 <div className="flex gap-2">
-                  <input type="color" value={form.backgroundColor} onChange={(e) => handleChange('backgroundColor', e.target.value)} className="h-10 w-10 cursor-pointer rounded border border-input p-1" />
+                  <input type="color" value={normalizeHexColor(form.backgroundColor) || previewColors.backgroundColor} onChange={(e) => handleChange('backgroundColor', e.target.value)} className="h-10 w-10 cursor-pointer rounded border border-input p-1" />
                   <input type="text" value={form.backgroundColor} onChange={(e) => handleChange('backgroundColor', e.target.value)} className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-primary/20" />
                 </div>
               </label>
@@ -137,7 +143,7 @@ export function BrandingAdmin() {
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Text Color (Foreground)</span>
                 <div className="flex gap-2">
-                  <input type="color" value={form.foregroundColor} onChange={(e) => handleChange('foregroundColor', e.target.value)} className="h-10 w-10 cursor-pointer rounded border border-input p-1" />
+                  <input type="color" value={normalizeHexColor(form.foregroundColor) || previewColors.foregroundColor} onChange={(e) => handleChange('foregroundColor', e.target.value)} className="h-10 w-10 cursor-pointer rounded border border-input p-1" />
                   <input type="text" value={form.foregroundColor} onChange={(e) => handleChange('foregroundColor', e.target.value)} className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-primary/20" />
                 </div>
               </label>
@@ -160,17 +166,17 @@ export function BrandingAdmin() {
               <h3 className="mb-3 text-xs font-bold text-muted-foreground uppercase tracking-wider">Accessibility</h3>
               
               {(() => {
-                const ratio = getContrastRatio(form.foregroundColor || '#000000', form.backgroundColor || '#ffffff');
-                const passes = ratio >= 4.5;
+                const passes = contrastFailures.length === 0;
+                const ratio = contrastChecks.find((check) => check.label === 'Text on page')?.ratio ?? 1;
                 return (
                   <div className={`flex items-start gap-3 rounded-lg p-3 text-sm ${passes ? 'bg-secondary/50 text-foreground' : 'bg-destructive/10 text-destructive'}`}>
                     <div className="mt-0.5 shrink-0">
                       {passes ? <Check size={16} className="text-emerald-500" /> : <AlertTriangle size={16} />}
                     </div>
                     <div>
-                      <p className="font-bold">Text contrast {passes ? 'passes' : 'fails'} WCAG AA</p>
+                      <p className="font-bold">Brand contrast {passes ? 'passes' : 'fails'} WCAG AA</p>
                       <p className={`text-xs mt-1 ${passes ? 'text-muted-foreground' : 'text-destructive/80'}`}>
-                        Contrast ratio is {ratio.toFixed(2)}:1 between background and text color. {passes ? 'Good readability.' : 'Must be at least 4.5:1. Adjust colors to improve readability.'}
+                        Text contrast is {ratio.toFixed(2)}:1. {passes ? 'Primary actions and page text are readable.' : `${contrastFailures.map((check) => `${check.label} ${check.ratio.toFixed(2)}:1`).join('; ')}. Each must be at least 4.5:1.`}
                       </p>
                     </div>
                   </div>

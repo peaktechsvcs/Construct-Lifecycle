@@ -13,7 +13,7 @@ import {
   PublishedBrandingContext,
   TenantContextEnvironmentLabel,
 } from '@workspace/api-client-react';
-import { hexToHsl } from '@/lib/color-utils';
+import { BRANDING_COLOR_KEYS, hexToHsl, sanitizeBrandingColors } from '@/lib/color-utils';
 
 interface TenantContextType {
   activeTenant?: Tenant;
@@ -76,26 +76,23 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
   // Apply published branding to CSS variables globally
   useEffect(() => {
-    if (!branding || branding.published.length === 0) return;
+    if (!branding || !Array.isArray(branding.published) || branding.published.length === 0) return;
 
     const latest = [...branding.published].sort((a, b) => b.version - a.version)[0];
-    if (!latest || !latest.data) return;
+    if (!latest || !latest.data || typeof latest.data !== 'object') return;
 
     const root = document.documentElement;
-    const data = latest.data as Record<string, string>;
-
-    if (data.primaryColor) root.style.setProperty('--primary', hexToHsl(data.primaryColor) || '');
-    if (data.secondaryColor) root.style.setProperty('--secondary', hexToHsl(data.secondaryColor) || '');
-    if (data.accentColor) root.style.setProperty('--accent', hexToHsl(data.accentColor) || '');
-    if (data.backgroundColor) root.style.setProperty('--background', hexToHsl(data.backgroundColor) || '');
-    if (data.foregroundColor) root.style.setProperty('--foreground', hexToHsl(data.foregroundColor) || '');
+    const safeColors = sanitizeBrandingColors(latest.data);
+    const appliedVariables = BRANDING_COLOR_KEYS.flatMap((key) => {
+      const hsl = hexToHsl(safeColors[key]);
+      if (!hsl) return [];
+      const variable = `--${key.replace('Color', '')}`;
+      root.style.setProperty(variable, hsl);
+      return [variable];
+    });
 
     return () => {
-      root.style.removeProperty('--primary');
-      root.style.removeProperty('--secondary');
-      root.style.removeProperty('--accent');
-      root.style.removeProperty('--background');
-      root.style.removeProperty('--foreground');
+      for (const variable of appliedVariables) root.style.removeProperty(variable);
     };
   }, [branding]);
 
