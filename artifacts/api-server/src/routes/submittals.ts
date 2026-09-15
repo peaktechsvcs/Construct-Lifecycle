@@ -47,6 +47,11 @@ import { requireRole } from "../middlewares/rbac";
 import { ObjectNotFoundError, ObjectStorageService } from "../lib/objectStorage";
 import { screenStoredDocument } from "../lib/documentScreening";
 import {
+  isAllowedSubmittalDocumentType as isAllowedDocumentType,
+  maxSubmittalDocumentSize,
+  sanitizeSubmittalFileName as sanitizeFileName,
+} from "../lib/submittalDocumentPolicy";
+import {
   getSignatureProvider,
   registerSignatureProvider,
 } from "../lib/signatures/provider";
@@ -93,7 +98,7 @@ const objectStorage = new ObjectStorageService();
 const connectors = new ReplitConnectors();
 const documentProvider = createSubmittalDocumentProvider(connectors);
 registerDocuSignSignatureProvider(connectors, registerSignatureProvider);
-const maxDocumentSize = 100 * 1024 * 1024;
+const maxDocumentSize = maxSubmittalDocumentSize;
 const uploadRateWindowMs = 60_000;
 const uploadRateLimit = 20;
 const uploadAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -102,7 +107,7 @@ const signatureSendRateLimit = 10;
 const signatureSendAttempts = new Map<string, { count: number; resetAt: number }>();
 const documentRequestBody = z.object({
   originalName: z.string().trim().min(1).max(255),
-  size: z.number().int().min(1).max(maxDocumentSize),
+  size: z.number().int().min(1).max(maxSubmittalDocumentSize),
   contentType: z.string().trim().min(1).max(160),
 });
 const coordinationInput = z.object({
@@ -149,20 +154,6 @@ const signatureRequestParams = z.object({
 const sendSignatureRequestInput = z.object({
   providerKey: z.string().trim().min(1).max(80),
 });
-const sanitizeFileName = (value: string) =>
-  value.replace(/[\u0000-\u001f\u007f]/g, "").split(/[\\/]/).pop()?.trim().slice(0, 255) || "submittal-document";
-const isAllowedDocumentType = (contentType: string) =>
-  contentType === "application/pdf"
-  || contentType === "application/octet-stream"
-  || ["image/gif", "image/jpeg", "image/png", "image/webp", "image/tiff"].includes(contentType)
-  || ["text/plain", "text/csv"].includes(contentType)
-  || contentType === "application/zip"
-  || [
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  ].includes(contentType);
-
 const takeUploadAttempt = (req: TenantRequest) => {
   const key = `${req.tenantId}:${req.environmentId}:${req.localUserId}`;
   const now = Date.now();
@@ -866,6 +857,17 @@ router.patch("/submittals/:submittalId", requireRole("owner", "admin", "member")
     res.status(404).json({ error: "Submittal package not found" });
     return;
   }
+  if (parsed.data.sourceBidId) {
+    const [sourceBid] = await db.select({ id: bidsTable.id }).from(bidsTable).where(and(
+      eq(bidsTable.id, parsed.data.sourceBidId),
+      eq(bidsTable.tenantId, req.tenantId!),
+      eq(bidsTable.environmentId, req.environmentId!),
+    ));
+    if (!sourceBid) {
+      res.status(400).json({ error: "Source bid not found in the active environment" });
+      return;
+    }
+  }
   const status = parsed.data.status ?? existing.status;
   await db.update(submittalPackagesTable).set({
     ...(parsed.data.sourceBidId !== undefined ? { sourceBidId: parsed.data.sourceBidId } : {}),
@@ -895,15 +897,48 @@ router.delete("/submittals/:submittalId", requireRole("owner", "admin"), async (
     res.status(400).json({ error: "Invalid submittal package id" });
     return;
   }
-  const deleted = await db.delete(submittalPackagesTable).where(and(
+  const [pkg] = await db.select({ id: submittalPackagesTable.id }).from(submittalPackagesTable).where(and(
     eq(submittalPackagesTable.id, params.data.submittalId),
     eq(submittalPackagesTable.tenantId, req.tenantId!),
     eq(submittalPackagesTable.environmentId, req.environmentId!),
-  )).returning({ id: submittalPackagesTable.id });
-  if (!deleted.length) {
+  ));
+  if (!pkg) {
     res.status(404).json({ error: "Submittal package not found" });
     return;
   }
+  const documents = await db.select({ objectPath: submittalDocumentsTable.objectPath })
+    .from(submittalDocumentsTable)
+    .innerJoin(submittalItemsTable, eq(submittalItemsTable.id, submittalDocumentsTable.itemId))
+    .where(and(
+      eq(submittalItemsTable.packageId, pkg.id),
+      eq(submittalDocumentsTable.tenantId, req.tenantId!),
+      eq(submittalDocumentsTable.environmentId, req.environmentId!),
+    ));
+  const assemblies = await db.select({ objectPath: submittalPackageAssembliesTable.objectPath })
+    .from(submittalPackageAssembliesTable)
+    .where(and(
+      eq(submittalPackageAssembliesTable.packageId, pkg.id),
+      eq(submittalPackageAssembliesTable.tenantId, req.tenantId!),
+      eq(submittalPackageAssembliesTable.environmentId, req.environmentId!),
+    ));
+  try {
+    await Promise.all([...documents, ...assemblies].map(async ({ objectPath }) => {
+      try {
+        await objectStorage.deleteObject(objectPath);
+      } catch (error) {
+        if (!(error instanceof ObjectNotFoundError)) throw error;
+      }
+    }));
+  } catch (error) {
+    req.log.error({ err: error, submittalId: pkg.id }, "Failed to remove submittal package objects");
+    res.status(503).json({ error: "Submittal storage is temporarily unavailable; package was not deleted" });
+    return;
+  }
+  await db.delete(submittalPackagesTable).where(and(
+    eq(submittalPackagesTable.id, pkg.id),
+    eq(submittalPackagesTable.tenantId, req.tenantId!),
+    eq(submittalPackagesTable.environmentId, req.environmentId!),
+  ));
   res.status(204).send();
 });
 
@@ -977,6 +1012,24 @@ router.delete("/submittal-items/:itemId", requireRole("owner", "admin"), async (
     res.status(400).json({ error: "Invalid submittal item id" });
     return;
   }
+  const documents = await db.select({ objectPath: submittalDocumentsTable.objectPath }).from(submittalDocumentsTable).where(and(
+    eq(submittalDocumentsTable.itemId, params.data.itemId),
+    eq(submittalDocumentsTable.tenantId, req.tenantId!),
+    eq(submittalDocumentsTable.environmentId, req.environmentId!),
+  ));
+  try {
+    await Promise.all(documents.map(async ({ objectPath }) => {
+      try {
+        await objectStorage.deleteObject(objectPath);
+      } catch (error) {
+        if (!(error instanceof ObjectNotFoundError)) throw error;
+      }
+    }));
+  } catch (error) {
+    req.log.error({ err: error, itemId: params.data.itemId }, "Failed to remove submittal item objects");
+    res.status(503).json({ error: "Submittal storage is temporarily unavailable; item was not deleted" });
+    return;
+  }
   const deleted = await db.delete(submittalItemsTable).where(and(
     eq(submittalItemsTable.id, params.data.itemId),
     eq(submittalItemsTable.tenantId, req.tenantId!),
@@ -1029,7 +1082,7 @@ router.post("/submittal-items/:itemId/documents/request-upload", requireRole("ow
   const itemId = Number(req.params.itemId);
   const parsed = documentRequestBody.safeParse(req.body);
   if (!Number.isInteger(itemId) || itemId < 1 || !parsed.success || !isAllowedDocumentType(parsed.data.contentType)) {
-    res.status(400).json({ error: "Invalid document name, size, or content type" });
+    res.status(400).json({ error: "Invalid document name, size, or supported content type" });
     return;
   }
   const [item] = await db.select({ id: submittalItemsTable.id }).from(submittalItemsTable).where(and(
@@ -1367,7 +1420,7 @@ router.get("/submittal-documents/:documentId", async (req: TenantRequest, res) =
   }
 });
 
-router.delete("/submittal-documents/:documentId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+router.delete("/submittal-documents/:documentId", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
   const documentId = Number(req.params.documentId);
   if (!Number.isInteger(documentId) || documentId < 1) {
     res.status(400).json({ error: "Invalid document id" });
@@ -2254,6 +2307,7 @@ router.patch("/submittal-coordination/:coordinationId", requireRole("owner", "ad
     res.status(400).json({ error: "Revision does not belong to this submittal package" });
     return;
   }
+  const nextStatus = parsed.data.status ?? existing.status;
   const [updated] = await db.update(submittalCoordinationTable).set({
     ...(parsed.data.revisionId !== undefined ? { revisionId: parsed.data.revisionId } : {}),
     ...(parsed.data.coordinationType !== undefined ? { coordinationType: parsed.data.coordinationType } : {}),
@@ -2262,7 +2316,9 @@ router.patch("/submittal-coordination/:coordinationId", requireRole("owner", "ad
     ...(parsed.data.externalReference !== undefined ? { externalReference: parsed.data.externalReference || null } : {}),
     ...(parsed.data.notes !== undefined ? { notes: parsed.data.notes || null } : {}),
     ...(parsed.data.dueDate !== undefined ? { dueDate: parsed.data.dueDate } : {}),
-    ...(parsed.data.failureReason !== undefined ? { failureReason: parsed.data.failureReason || null } : {}),
+    ...(parsed.data.failureReason !== undefined
+      ? { failureReason: parsed.data.failureReason || null }
+      : { failureReason: nextStatus === "failed" ? existing.failureReason : null }),
     updatedAt: new Date(),
   }).where(and(
     eq(submittalCoordinationTable.id, coordinationId),
