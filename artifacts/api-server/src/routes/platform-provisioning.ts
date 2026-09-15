@@ -506,6 +506,7 @@ async function markSnapshotPreparationFailure(
   const details = operation.details ?? {};
   const snapshotId = typeof details.snapshotId === "number" ? details.snapshotId : undefined;
   const refreshId = typeof details.refreshId === "number" ? details.refreshId : undefined;
+  const action = details.kind === "backup" ? "backup_failed" : "refresh_failed";
   return db.transaction(async (tx) => {
     const [locked] = await tx.select().from(provisioningOperationsTable)
       .where(eq(provisioningOperationsTable.id, operation.id)).for("update").limit(1);
@@ -542,14 +543,14 @@ async function markSnapshotPreparationFailure(
     ));
     const [existingEvent] = await tx.select({ id: provisioningEventsTable.id }).from(provisioningEventsTable).where(and(
       eq(provisioningEventsTable.operationId, operation.id),
-      eq(provisioningEventsTable.action, "refresh_failed"),
+      eq(provisioningEventsTable.action, action),
     )).limit(1);
     if (!existingEvent) await tx.insert(provisioningEventsTable).values({
       tenantId: operation.tenantId,
       environmentId: operation.environmentId,
       actorUserId: operation.requestedByUserId,
       operationId: operation.id,
-      action: "refresh_failed",
+      action,
       details: { operationId: operation.id, snapshotId, refreshId, error: message },
     });
     return true;
@@ -643,6 +644,8 @@ async function startSnapshotPreparationOperation(operationId: number): Promise<S
   const details = leased.details ?? {};
   const snapshotId = typeof details.snapshotId === "number" ? details.snapshotId : undefined;
   const refreshId = typeof details.refreshId === "number" ? details.refreshId : undefined;
+  const snapshotKind = details.kind === "backup" ? "backup" : "refresh";
+  const isBackup = snapshotKind === "backup";
   const sourceEnvironmentId = typeof details.sourceEnvironmentId === "number" ? details.sourceEnvironmentId : undefined;
   const sanitizationPolicy = typeof details.sanitizationPolicy === "string" ? details.sanitizationPolicy : undefined;
   const [snapshot] = snapshotId
@@ -659,14 +662,18 @@ async function startSnapshotPreparationOperation(operationId: number): Promise<S
       eq(environmentRefreshesTable.targetEnvironmentId, leased.environmentId),
     )).limit(1)
     : [];
-  const validationError = !snapshot || !refresh || sourceEnvironmentId === undefined || !sanitizationPolicy
-    ? "Snapshot preparation operation has incomplete durable details"
-    : refreshSnapshotValidationError({
-      refresh,
-      snapshot,
-      sourceEnvironmentId,
-      sanitizationPolicy,
-    });
+  const validationError = isBackup
+    ? !snapshot || snapshot.kind !== "backup" || sourceEnvironmentId !== leased.environmentId
+      ? "Backup snapshot preparation operation has incomplete durable details"
+      : undefined
+    : !snapshot || !refresh || sourceEnvironmentId === undefined || !sanitizationPolicy
+      ? "Snapshot preparation operation has incomplete durable details"
+      : refreshSnapshotValidationError({
+        refresh,
+        snapshot,
+        sourceEnvironmentId,
+        sanitizationPolicy,
+      });
   if (validationError) {
     const marked = await markSnapshotPreparationFailure(leased, validationError, leaseStartedAt);
     const [failed] = await db.select().from(provisioningOperationsTable)
@@ -683,8 +690,10 @@ async function startSnapshotPreparationOperation(operationId: number): Promise<S
       tenantId: leased.tenantId,
       sourceEnvironmentId: sourceEnvironmentId!,
       targetEnvironmentId: leased.environmentId,
-      sanitized: true,
-      sanitizationPolicy: sanitizationPolicy as "redact-secrets" | "replace-identifiers" | "full",
+      sanitized: !isBackup,
+      ...(isBackup ? {} : {
+        sanitizationPolicy: sanitizationPolicy as "redact-secrets" | "replace-identifiers" | "full",
+      }),
       idempotencyKey: leased.idempotencyKey,
     });
     verificationDetails = parseProviderVerificationResult(await provider.verifySnapshot({
@@ -694,8 +703,8 @@ async function startSnapshotPreparationOperation(operationId: number): Promise<S
       checksum: result.checksum,
       idempotencyKey: `${leased.idempotencyKey}:verify`,
     }));
-    if (verificationDetails.sanitized !== true ||
-      verificationDetails.sanitizationPolicy !== sanitizationPolicy) {
+    if (!isBackup && (verificationDetails.sanitized !== true ||
+      verificationDetails.sanitizationPolicy !== sanitizationPolicy)) {
       throw new Error("Refresh snapshot verification did not explicitly confirm sanitization and the requested policy");
     }
   } catch (error) {
@@ -725,7 +734,7 @@ async function startSnapshotPreparationOperation(operationId: number): Promise<S
       if (!completedOperation) return { operation: undefined, snapshot: undefined };
       const [completedSnapshot] = await tx.update(environmentSnapshotsTable).set({
         status: "verified",
-        sanitized: "sanitized",
+        sanitized: isBackup ? "not_applicable" : "sanitized",
         backupReference: result.backupReference,
         checksum: result.checksum,
         verificationDetails,
@@ -737,50 +746,56 @@ async function startSnapshotPreparationOperation(operationId: number): Promise<S
       if (!completedSnapshot) {
         throw new SnapshotPreparationConsistencyError("Refresh snapshot status changed during provider preparation");
       }
-      const restoreDetails = {
-        refreshId: refresh!.id,
-        snapshotId: snapshot!.id,
-        sourceEnvironmentId,
-        sanitizationPolicy,
-      };
-      const [insertedRestoreOperation] = await tx.insert(provisioningOperationsTable).values({
-        tenantId: leased.tenantId,
-        environmentId: leased.environmentId,
-        operationType: "refresh",
-        idempotencyKey: `${leased.idempotencyKey}:restore`,
-        status: "requested",
-        details: restoreDetails,
-        requestedByUserId: leased.requestedByUserId,
-      }).onConflictDoNothing({
-        target: [
-          provisioningOperationsTable.environmentId,
-          provisioningOperationsTable.operationType,
-          provisioningOperationsTable.idempotencyKey,
-        ],
-      }).returning();
-      const restoreOperation = insertedRestoreOperation ?? (await tx.select()
-        .from(provisioningOperationsTable)
-        .where(and(
-          eq(provisioningOperationsTable.environmentId, leased.environmentId),
-          eq(provisioningOperationsTable.operationType, "refresh"),
-          eq(provisioningOperationsTable.idempotencyKey, `${leased.idempotencyKey}:restore`),
-        ))
-        .limit(1))[0];
-      const existingDetails = restoreOperation?.details ?? {};
-      if (!restoreOperation ||
-        existingDetails.refreshId !== restoreDetails.refreshId ||
-        existingDetails.snapshotId !== restoreDetails.snapshotId ||
-        existingDetails.sourceEnvironmentId !== restoreDetails.sourceEnvironmentId ||
-        existingDetails.sanitizationPolicy !== restoreDetails.sanitizationPolicy) {
-        throw new SnapshotPreparationConsistencyError("Refresh restore claim conflicts with the completed snapshot preparation");
+      if (!isBackup) {
+        const restoreDetails = {
+          refreshId: refresh!.id,
+          snapshotId: snapshot!.id,
+          sourceEnvironmentId,
+          sanitizationPolicy,
+        };
+        const [insertedRestoreOperation] = await tx.insert(provisioningOperationsTable).values({
+          tenantId: leased.tenantId,
+          environmentId: leased.environmentId,
+          operationType: "refresh",
+          idempotencyKey: `${leased.idempotencyKey}:restore`,
+          status: "requested",
+          details: restoreDetails,
+          requestedByUserId: leased.requestedByUserId,
+        }).onConflictDoNothing({
+          target: [
+            provisioningOperationsTable.environmentId,
+            provisioningOperationsTable.operationType,
+            provisioningOperationsTable.idempotencyKey,
+          ],
+        }).returning();
+        const restoreOperation = insertedRestoreOperation ?? (await tx.select()
+          .from(provisioningOperationsTable)
+          .where(and(
+            eq(provisioningOperationsTable.environmentId, leased.environmentId),
+            eq(provisioningOperationsTable.operationType, "refresh"),
+            eq(provisioningOperationsTable.idempotencyKey, `${leased.idempotencyKey}:restore`),
+          ))
+          .limit(1))[0];
+        const existingDetails = restoreOperation?.details ?? {};
+        if (!restoreOperation ||
+          existingDetails.refreshId !== restoreDetails.refreshId ||
+          existingDetails.snapshotId !== restoreDetails.snapshotId ||
+          existingDetails.sourceEnvironmentId !== restoreDetails.sourceEnvironmentId ||
+          existingDetails.sanitizationPolicy !== restoreDetails.sanitizationPolicy) {
+          throw new SnapshotPreparationConsistencyError("Refresh restore claim conflicts with the completed snapshot preparation");
+        }
       }
       await tx.insert(provisioningEventsTable).values({
         tenantId: leased.tenantId,
         environmentId: leased.environmentId,
         actorUserId: leased.requestedByUserId,
         operationId: leased.id,
-        action: "snapshot_preparation_completed",
-        details: { operationId: leased.id, snapshotId: snapshot!.id, refreshId: refresh!.id },
+        action: isBackup ? "backup_verified" : "snapshot_preparation_completed",
+        details: {
+          operationId: leased.id,
+          snapshotId: snapshot!.id,
+          ...(refresh ? { refreshId: refresh.id } : {}),
+        },
       });
       return { snapshot: completedSnapshot, operation: completedOperation };
     });
@@ -1073,6 +1088,90 @@ async function resumeRefreshOperation(input: {
   };
 }
 
+async function claimBackupSnapshot(input: {
+  tenantId: number;
+  environmentId: number;
+  requestedByUserId?: number;
+  idempotencyKey: string;
+}) {
+  return db.transaction(async (tx) => {
+    const [insertedSnapshot] = await tx.insert(environmentSnapshotsTable).values({
+      tenantId: input.tenantId,
+      environmentId: input.environmentId,
+      sourceEnvironmentId: input.environmentId,
+      idempotencyKey: input.idempotencyKey,
+      kind: "backup",
+      status: "requested",
+      sanitized: "not_applicable",
+      createdByUserId: input.requestedByUserId,
+    }).onConflictDoNothing({
+      target: [environmentSnapshotsTable.environmentId, environmentSnapshotsTable.idempotencyKey],
+    }).returning();
+    const [snapshot] = insertedSnapshot
+      ? [insertedSnapshot]
+      : await tx.select().from(environmentSnapshotsTable).where(and(
+        eq(environmentSnapshotsTable.environmentId, input.environmentId),
+        eq(environmentSnapshotsTable.idempotencyKey, input.idempotencyKey),
+      )).limit(1);
+    if (!snapshot) throw new Error("Backup snapshot could not be claimed");
+    if (snapshot.tenantId !== input.tenantId || snapshot.kind !== "backup") {
+      return { kind: "conflict" as const, snapshot };
+    }
+
+    const details = {
+      kind: "backup",
+      snapshotId: snapshot.id,
+      sourceEnvironmentId: input.environmentId,
+      ...(!insertedSnapshot && snapshot.status === "verified"
+        ? { recoveredFromVerifiedSnapshot: true }
+        : {}),
+    };
+    const snapshotVerificationError = snapshot.verificationDetails?.error;
+    const recoveredStatus = !insertedSnapshot && snapshot.status === "verified"
+      ? "succeeded"
+      : !insertedSnapshot && snapshot.status === "failed"
+        ? "failed"
+        : "requested";
+    const [insertedOperation] = await tx.insert(provisioningOperationsTable).values({
+      tenantId: input.tenantId,
+      environmentId: input.environmentId,
+      operationType: SNAPSHOT_PREPARATION_OPERATION_TYPE,
+      idempotencyKey: input.idempotencyKey,
+      status: recoveredStatus,
+      error: recoveredStatus === "failed" && typeof snapshotVerificationError === "string"
+        ? snapshotVerificationError
+        : undefined,
+      details,
+      requestedByUserId: input.requestedByUserId,
+      completedAt: recoveredStatus === "requested" ? undefined : new Date(),
+    }).onConflictDoNothing({
+      target: [
+        provisioningOperationsTable.environmentId,
+        provisioningOperationsTable.operationType,
+        provisioningOperationsTable.idempotencyKey,
+      ],
+    }).returning();
+    const [operation] = insertedOperation
+      ? [insertedOperation]
+      : await tx.select().from(provisioningOperationsTable).where(and(
+        eq(provisioningOperationsTable.environmentId, input.environmentId),
+        eq(provisioningOperationsTable.operationType, SNAPSHOT_PREPARATION_OPERATION_TYPE),
+        eq(provisioningOperationsTable.idempotencyKey, input.idempotencyKey),
+      )).limit(1);
+    if (!operation) throw new Error("Backup preparation operation could not be claimed");
+    const existingDetails = operation.details ?? {};
+    if (existingDetails.kind !== "backup" || existingDetails.snapshotId !== snapshot.id) {
+      return { kind: "conflict" as const, snapshot, operation };
+    }
+    return {
+      kind: "claimed" as const,
+      created: Boolean(insertedSnapshot && insertedOperation),
+      snapshot,
+      operation,
+    };
+  });
+}
+
 type RestoreStartResult =
   | { kind: "started"; operation: typeof provisioningOperationsTable.$inferSelect }
   | { kind: "busy"; operation: typeof provisioningOperationsTable.$inferSelect }
@@ -1238,7 +1337,14 @@ export async function reconcileProvisioningRecoverySweep(): Promise<void> {
       .orderBy(asc(provisioningOperationsTable.id)).limit(batchLimit);
   }
   if (terminal.length) terminalRecoverySweepCursor = terminal[terminal.length - 1].id;
-  const operations = [...active, ...terminal];
+  // A process can advance the cursor before local repair of a terminal row
+  // finishes. Revisit a bounded newest-first batch so partial terminal state
+  // remains recoverable without making the sweep unbounded.
+  const recentTerminal = await db.select().from(provisioningOperationsTable).where(terminalOperations)
+    .orderBy(desc(provisioningOperationsTable.id)).limit(batchLimit);
+  const operations = [...new Map(
+    [...active, ...terminal, ...recentTerminal].map((item) => [item.id, item]),
+  ).values()];
 
   for (const operation of operations) {
     try {
@@ -1599,55 +1705,43 @@ router.post("/platform/environments/:environmentId/snapshots", async (req: Tenan
   if (!id || !parsed.success) { res.status(400).json({ error: "Invalid backup request" }); return; }
   const target = await environment(id);
   if (!target) { res.status(404).json({ error: "Environment not found" }); return; }
-  const [existingSnapshot] = await db.select().from(environmentSnapshotsTable).where(and(
-    eq(environmentSnapshotsTable.environmentId, target.id),
-    eq(environmentSnapshotsTable.idempotencyKey, parsed.data.idempotencyKey),
-  )).limit(1);
-  if (existingSnapshot) {
-    res.status(200).json(existingSnapshot);
-    return;
-  }
-  const [snapshot] = await db.insert(environmentSnapshotsTable).values({
+  const claim = await claimBackupSnapshot({
     tenantId: target.tenantId,
     environmentId: target.id,
+    requestedByUserId: req.localUserId,
     idempotencyKey: parsed.data.idempotencyKey,
-    kind: "backup",
-    status: "running",
-    sanitized: "not_applicable",
-    createdByUserId: req.localUserId,
-  }).returning();
-  try {
-    const result = await getProvisioningProvider().createSnapshot({
-      tenantId: target.tenantId,
-      sourceEnvironmentId: target.id,
-      targetEnvironmentId: target.id,
-      sanitized: false,
-      idempotencyKey: parsed.data.idempotencyKey,
-    });
-    const verificationDetails = parseProviderVerificationResult(await getProvisioningProvider().verifySnapshot({
-      tenantId: target.tenantId,
-      environmentId: target.id,
-      backupReference: result.backupReference,
-      checksum: result.checksum,
-      idempotencyKey: `${parsed.data.idempotencyKey}:verify`,
-    }));
-    const [verified] = await db.update(environmentSnapshotsTable).set({
-      status: "verified",
-      backupReference: result.backupReference,
-      checksum: result.checksum,
-      verificationDetails,
-      verifiedAt: new Date(),
-    }).where(eq(environmentSnapshotsTable.id, snapshot.id)).returning();
-    await writeEvent(req.localUserId!, target.tenantId, target.id, "backup_verified", { snapshotId: snapshot.id });
-    res.status(201).json(verified);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Backup provider operation failed";
-    const [failed] = await db.update(environmentSnapshotsTable).set({
-      status: "failed", verificationDetails: { error: message },
-    }).where(eq(environmentSnapshotsTable.id, snapshot.id)).returning();
-    await writeEvent(req.localUserId!, target.tenantId, target.id, "backup_failed", { snapshotId: snapshot.id, error: message });
-    res.status(503).json({ error: "Environment backup failed explicitly", snapshot: failed, details: message });
+  });
+  if (claim.kind === "conflict") {
+    res.status(409).json({ error: "Idempotency key is already associated with a different snapshot" });
+    return;
   }
+
+  const reconciled = await reconcileSnapshotPreparationOperation(claim.operation.id);
+  const [snapshot] = await db.select().from(environmentSnapshotsTable)
+    .where(eq(environmentSnapshotsTable.id, claim.snapshot.id)).limit(1);
+  const [operation] = await db.select().from(provisioningOperationsTable)
+    .where(eq(provisioningOperationsTable.id, claim.operation.id)).limit(1);
+  const currentSnapshot = snapshot ?? claim.snapshot;
+  const currentOperation = operation ?? claim.operation;
+
+  if (reconciled.status === "failed") {
+    res.status(503).json({
+      error: "Environment backup failed explicitly",
+      snapshot: currentSnapshot,
+      operationId: currentOperation.id,
+      details: currentOperation.error ?? "Backup preparation failed",
+    });
+    return;
+  }
+  if (reconciled.status === "pending") {
+    res.status(202).json({
+      status: "pending",
+      snapshot: currentSnapshot,
+      operationId: currentOperation.id,
+    });
+    return;
+  }
+  res.status(claim.created ? 201 : 200).json(currentSnapshot);
 });
 
 router.post("/platform/environments/:environmentId/refresh", async (req: TenantRequest, res) => {

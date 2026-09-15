@@ -79,6 +79,9 @@ class InMemoryProvisioningProvider implements ProvisioningProvider {
   failVerification = false;
   snapshotStatusRaceKeys = new Set<string>();
   snapshotError?: Error;
+  snapshotVerificationError?: Error;
+  snapshotCreateStarted?: () => void;
+  snapshotCreateWait?: Promise<void>;
   restoreStartError?: Error;
   restorePollError?: Error;
   restoreVerifyError?: Error;
@@ -131,6 +134,8 @@ class InMemoryProvisioningProvider implements ProvisioningProvider {
       targetEnvironmentId: request.targetEnvironmentId,
       idempotencyKey: request.idempotencyKey,
     });
+    this.snapshotCreateStarted?.();
+    if (this.snapshotCreateWait) await this.snapshotCreateWait;
     if (this.snapshotError) throw this.snapshotError;
     return {
       backupReference: `backup-${request.targetEnvironmentId}-${request.idempotencyKey}`,
@@ -146,6 +151,7 @@ class InMemoryProvisioningProvider implements ProvisioningProvider {
     checksum: string;
     idempotencyKey: string;
   }): Promise<ProviderVerificationResult> {
+    if (this.snapshotVerificationError) throw this.snapshotVerificationError;
     const refreshKey = request.idempotencyKey.replace(/:verify$/, "");
     if (this.snapshotStatusRaceKeys.has(refreshKey)) {
       await db.update(environmentSnapshotsTable).set({
@@ -573,6 +579,124 @@ test("rejects a refresh when its key belongs to a normal backup snapshot", async
   const [failedRefresh] = await db.select().from(environmentRefreshesTable)
     .where(eq(environmentRefreshesTable.id, refreshBody.refreshId));
   assert.equal(failedRefresh?.status, "failed");
+});
+
+test("keeps a generic backup recoverable after a retryable provider interruption", async () => {
+  const key = `backup-retryable-${runId}`;
+  const callsBefore = provider.snapshotCalls.length;
+  provider.snapshotError = new ProvisioningProviderRequestError("backup provider temporarily unavailable", 503);
+  const interrupted = await request(`/platform/environments/${dtdAId}/snapshots`, {
+    method: "POST",
+    body: JSON.stringify({ idempotencyKey: key }),
+  });
+  provider.snapshotError = undefined;
+  assert.equal(interrupted.status, 202, JSON.stringify(interrupted.body));
+  const [preparation] = await db.select().from(provisioningOperationsTable).where(and(
+    eq(provisioningOperationsTable.environmentId, dtdAId),
+    eq(provisioningOperationsTable.operationType, "snapshot_prepare"),
+    eq(provisioningOperationsTable.idempotencyKey, key),
+  ));
+  const [pendingSnapshot] = await db.select().from(environmentSnapshotsTable).where(and(
+    eq(environmentSnapshotsTable.environmentId, dtdAId),
+    eq(environmentSnapshotsTable.idempotencyKey, key),
+  ));
+  assert.equal(preparation?.status, "running");
+  assert.equal(pendingSnapshot?.status, "requested");
+
+  await db.update(provisioningOperationsTable).set({
+    startedAt: new Date(Date.now() - 120_000),
+  }).where(eq(provisioningOperationsTable.id, preparation.id));
+  await reconcileProvisioningRecoverySweep();
+
+  const [recoveredPreparation] = await db.select().from(provisioningOperationsTable)
+    .where(eq(provisioningOperationsTable.id, preparation.id));
+  const [recoveredSnapshot] = await db.select().from(environmentSnapshotsTable)
+    .where(eq(environmentSnapshotsTable.id, pendingSnapshot.id));
+  assert.equal(recoveredPreparation?.status, "succeeded");
+  assert.equal(recoveredSnapshot?.status, "verified");
+  assert.equal(provider.snapshotCalls.filter((call) => call.idempotencyKey === key).length, 2);
+
+  const replay = await request(`/platform/environments/${dtdAId}/snapshots`, {
+    method: "POST",
+    body: JSON.stringify({ idempotencyKey: key }),
+  });
+  assert.equal(replay.status, 200, JSON.stringify(replay.body));
+  assert.equal(provider.snapshotCalls.length, callsBefore + 2);
+});
+
+test("shares one durable backup claim across concurrent same-key requests", async () => {
+  const key = `backup-concurrent-${runId}`;
+  let releaseProvider!: () => void;
+  let signalProviderStarted!: () => void;
+  const providerStarted = new Promise<void>((resolve) => { signalProviderStarted = resolve; });
+  const providerBlocked = new Promise<void>((resolve) => { releaseProvider = resolve; });
+  provider.snapshotCreateStarted = signalProviderStarted;
+  provider.snapshotCreateWait = providerBlocked;
+
+  let firstPromise: Promise<Awaited<ReturnType<typeof request>>>;
+  try {
+    firstPromise = request(`/platform/environments/${dtdAId}/snapshots`, {
+      method: "POST",
+      body: JSON.stringify({ idempotencyKey: key }),
+    });
+    await providerStarted;
+    const concurrent = await request(`/platform/environments/${dtdAId}/snapshots`, {
+      method: "POST",
+      body: JSON.stringify({ idempotencyKey: key }),
+    });
+    assert.equal(concurrent.status, 202, JSON.stringify(concurrent.body));
+    assert.equal(provider.snapshotCalls.filter((call) => call.idempotencyKey === key).length, 1);
+
+    releaseProvider();
+    const first = await firstPromise;
+    assert.equal(first.status, 201, JSON.stringify(first.body));
+    const [operations] = await Promise.all([
+      db.select().from(provisioningOperationsTable).where(and(
+        eq(provisioningOperationsTable.environmentId, dtdAId),
+        eq(provisioningOperationsTable.operationType, "snapshot_prepare"),
+        eq(provisioningOperationsTable.idempotencyKey, key),
+      )),
+    ]);
+    assert.equal(operations.length, 1);
+    assert.equal(operations[0]?.status, "succeeded");
+  } finally {
+    releaseProvider();
+    provider.snapshotCreateStarted = undefined;
+    provider.snapshotCreateWait = undefined;
+  }
+});
+
+test("keeps terminal generic backup verification failures failed and auditable", async () => {
+  const key = `backup-verification-failure-${runId}`;
+  provider.snapshotVerificationError = new Error("backup verification rejected");
+  const failed = await request(`/platform/environments/${dtdAId}/snapshots`, {
+    method: "POST",
+    body: JSON.stringify({ idempotencyKey: key }),
+  });
+  provider.snapshotVerificationError = undefined;
+  assert.equal(failed.status, 503, JSON.stringify(failed.body));
+  const failedBody = failed.body as { snapshot: { id: number; status: string }; operationId: number };
+  assert.equal(failedBody.snapshot.status, "failed");
+
+  const [operation] = await db.select().from(provisioningOperationsTable)
+    .where(eq(provisioningOperationsTable.id, failedBody.operationId));
+  assert.equal(operation?.status, "failed");
+  const [snapshot] = await db.select().from(environmentSnapshotsTable)
+    .where(eq(environmentSnapshotsTable.id, failedBody.snapshot.id));
+  assert.equal(snapshot?.status, "failed");
+  const events = await db.select().from(provisioningEventsTable).where(and(
+    eq(provisioningEventsTable.operationId, failedBody.operationId),
+    eq(provisioningEventsTable.action, "backup_failed"),
+  ));
+  assert.equal(events.length, 1);
+
+  const callsBeforeReplay = provider.snapshotCalls.filter((call) => call.idempotencyKey === key).length;
+  const replay = await request(`/platform/environments/${dtdAId}/snapshots`, {
+    method: "POST",
+    body: JSON.stringify({ idempotencyKey: key }),
+  });
+  assert.equal(replay.status, 503, JSON.stringify(replay.body));
+  assert.equal(provider.snapshotCalls.filter((call) => call.idempotencyKey === key).length, callsBeforeReplay);
 });
 
 test("fails preparation if snapshot status changes while provider verification is in flight", async () => {
