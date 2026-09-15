@@ -29,6 +29,11 @@ import {
   selectManagedConnection,
   summarizeIntegrationHealth,
 } from "../lib/integrations/managed-connection";
+import {
+  effectiveEntitlementEnabled,
+  getEffectiveFeatureAccess,
+  tenantHasEffectiveEntitlement,
+} from "../lib/billing-access";
 
 const router: IRouter = Router();
 const connectors = new ReplitConnectors();
@@ -62,6 +67,7 @@ const serializeConnection = (
 const entitledConnector = async (tenantId: number, providerKey: string) => {
   const definition = getConnectorDefinition(providerKey);
   if (!definition) return null;
+  if (!await tenantHasEffectiveEntitlement(tenantId, definition.entitlementKey)) return null;
   const [entitlement] = await db.select({ id: integrationEntitlementsTable.id })
     .from(integrationEntitlementsTable)
     .where(and(
@@ -206,7 +212,8 @@ async function mutateJob(
 }
 
 router.get("/integrations", requireRole("owner", "admin"), async (req: TenantRequest, res): Promise<void> => {
-  const [entitlements, connections, latestActivity, jobs] = await Promise.all([
+  const [effectiveAccess, entitlements, connections, latestActivity, jobs] = await Promise.all([
+    getEffectiveFeatureAccess(req.tenantId!),
     db.select().from(integrationEntitlementsTable)
       .where(and(eq(integrationEntitlementsTable.tenantId, req.tenantId!), eq(integrationEntitlementsTable.enabled, true))),
     db.select().from(integrationsTable)
@@ -236,7 +243,10 @@ router.get("/integrations", requireRole("owner", "admin"), async (req: TenantReq
   }
 
   const response = connectorCatalog
-    .filter((connector) => entitlementKeys.has(connector.entitlementKey))
+    .filter((connector) =>
+      entitlementKeys.has(connector.entitlementKey)
+      && effectiveEntitlementEnabled(effectiveAccess, connector.entitlementKey),
+    )
     .map((connector) => {
       const connection = connectionByProvider.get(connector.providerKey);
       const activity = activityByProvider.get(connector.providerKey);
@@ -455,12 +465,7 @@ router.get("/integrations/activity", requireRole("owner", "admin"), async (req: 
     return;
   }
 
-  const [entitlement] = await db.select().from(integrationEntitlementsTable).where(and(
-    eq(integrationEntitlementsTable.tenantId, req.tenantId!),
-    eq(integrationEntitlementsTable.capabilityKey, definition.entitlementKey),
-    eq(integrationEntitlementsTable.enabled, true),
-  ));
-  if (!entitlement) {
+  if (!await entitledConnector(req.tenantId!, definition.providerKey)) {
     res.status(404).json({ error: "Integration provider not available" });
     return;
   }
@@ -491,12 +496,7 @@ router.get("/integrations/jobs", requireRole("owner", "admin"), async (req: Tena
     return;
   }
 
-  const [entitlement] = await db.select().from(integrationEntitlementsTable).where(and(
-    eq(integrationEntitlementsTable.tenantId, req.tenantId!),
-    eq(integrationEntitlementsTable.capabilityKey, definition.entitlementKey),
-    eq(integrationEntitlementsTable.enabled, true),
-  ));
-  if (!entitlement) {
+  if (!await entitledConnector(req.tenantId!, definition.providerKey)) {
     res.status(404).json({ error: "Integration provider not available" });
     return;
   }

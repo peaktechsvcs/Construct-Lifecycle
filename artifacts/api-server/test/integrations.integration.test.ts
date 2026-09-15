@@ -4,6 +4,19 @@ import type { Server } from "node:http";
 import { and, eq, inArray } from "drizzle-orm";
 
 process.env.APP_ENV = "test";
+process.env.REPLIT_CONNECTORS_HOSTNAME = "integrations-billing-unavailable.test";
+
+const nativeFetch = globalThis.fetch;
+globalThis.fetch = async (input, init) => {
+  const url = new URL(typeof input === "string" ? input : input.url);
+  if (url.hostname === process.env.REPLIT_CONNECTORS_HOSTNAME) {
+    return new Response(JSON.stringify({ error: "connector unavailable for test" }), {
+      status: 503,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  return nativeFetch(input, init);
+};
 
 const {
   db,
@@ -13,7 +26,9 @@ const {
   integrationsTable,
   membershipsTable,
   pool,
+  tenantBillingAccountsTable,
   tenantEnvironmentAccessTable,
+  tenantEntitlementOverridesTable,
   tenantsTable,
   userTenantContextTable,
   usersTable,
@@ -340,4 +355,55 @@ test("returns stable errors for unknown providers and malformed job limits", asy
   const oversizedLimit = await request(clerkIds.ownerA, "/integrations/jobs?providerKey=google_workspace&limit=101");
   assert.equal(oversizedLimit.status, 404);
   assert.deepEqual(oversizedLimit.body, { error: "Integration provider not found" });
+});
+
+test("blocks suspended paid integrations while preserving tenant-scoped support grants", async () => {
+  await db.insert(tenantBillingAccountsTable).values({
+    tenantId: tenantBId,
+    externalCustomerId: `missing-customer-${runId}`,
+  });
+  await db.insert(integrationEntitlementsTable).values({
+    tenantId: tenantBId,
+    capabilityKey: "google_workspace",
+    enabled: true,
+  });
+
+  const suspendedList = await request(clerkIds.ownerB, "/integrations");
+  assert.equal(suspendedList.status, 200, JSON.stringify(suspendedList.body));
+  assert.deepEqual(suspendedList.body, []);
+
+  const suspendedJobs = await request(clerkIds.ownerB, "/integrations/jobs?providerKey=google_workspace");
+  assert.equal(suspendedJobs.status, 404);
+  assert.deepEqual(suspendedJobs.body, { error: "Integration provider not available" });
+
+  const suspendedConnect = await request(clerkIds.ownerB, "/integrations/google_workspace/connect", { method: "POST" });
+  assert.equal(suspendedConnect.status, 404);
+  assert.deepEqual(suspendedConnect.body, { error: "Integration provider not available" });
+
+  await db.insert(tenantEntitlementOverridesTable).values({
+    tenantId: tenantBId,
+    capabilityKey: "google_workspace",
+    enabled: true,
+  });
+
+  const grantedList = await request(clerkIds.ownerB, "/integrations");
+  assert.equal(grantedList.status, 200, JSON.stringify(grantedList.body));
+  assert.equal((grantedList.body as IntegrationResponse[]).some((item) => item.providerKey === "google_workspace"), true);
+
+  const tenantAList = await request(clerkIds.ownerA, "/integrations");
+  assert.equal(tenantAList.status, 200, JSON.stringify(tenantAList.body));
+  assert.equal((tenantAList.body as IntegrationResponse[]).some((item) => item.providerKey === "google_workspace"), true);
+
+  await db.insert(tenantEntitlementOverridesTable).values({
+    tenantId: tenantBId,
+    capabilityKey: "google_workspace",
+    enabled: false,
+  }).onConflictDoUpdate({
+    target: [tenantEntitlementOverridesTable.tenantId, tenantEntitlementOverridesTable.capabilityKey],
+    set: { enabled: false, updatedAt: new Date() },
+  });
+
+  const deniedList = await request(clerkIds.ownerB, "/integrations");
+  assert.equal(deniedList.status, 200, JSON.stringify(deniedList.body));
+  assert.deepEqual(deniedList.body, []);
 });

@@ -14,6 +14,7 @@ import {
 } from "@workspace/db";
 import type { TenantRequest } from "../../middlewares/tenantContext";
 import { getConnectorDefinition } from "../integrations/catalog";
+import { tenantHasEffectiveEntitlement } from "../billing-access";
 import {
   markIntegrationJobFailed,
   markIntegrationJobSucceeded,
@@ -60,6 +61,9 @@ const getSelectedProvider = async (req: TenantRequest, providerKey: string) => {
   const provider = getAccountingProvider(providerKey);
   if (!provider || !provider.capabilities.has("sync_approved_pay_application") || !provider.capabilities.has("sync_project_cost_status")) {
     throw new AccountingSyncError("The selected accounting provider is not available.", 409);
+  }
+  if (!await tenantHasEffectiveEntitlement(req.tenantId!, definition.entitlementKey)) {
+    throw new AccountingSyncError("The selected accounting provider is not entitled for this subscription.", 403);
   }
   const [entitlement] = await db.select({ id: integrationEntitlementsTable.id }).from(integrationEntitlementsTable).where(and(
     eq(integrationEntitlementsTable.tenantId, req.tenantId!),

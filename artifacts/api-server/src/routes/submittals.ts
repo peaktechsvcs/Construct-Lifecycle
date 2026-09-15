@@ -59,6 +59,11 @@ import {
 } from "../lib/signatures/state";
 import { validateAndNormalizeSignatureSigners } from "../lib/signatures/validation";
 import { getConnectorDefinition } from "../lib/integrations/catalog";
+import {
+  effectiveEntitlementEnabled,
+  getEffectiveFeatureAccess,
+  tenantHasEffectiveEntitlement,
+} from "../lib/billing-access";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { createSubmittalDocumentProvider, DocumentProviderError, type DocumentProviderKey } from "../lib/submittal-document-provider";
 
@@ -260,6 +265,7 @@ const documentProviderQuery = z.object({
 });
 
 const connectedDocumentProvider = async (req: TenantRequest, providerKey: DocumentProviderKey) => {
+  if (!await tenantHasEffectiveEntitlement(req.tenantId!, providerKey)) return null;
   const [integration] = await db.select().from(integrationsTable).where(and(
     eq(integrationsTable.tenantId, req.tenantId!),
     eq(integrationsTable.environmentId, req.environmentId!),
@@ -332,6 +338,7 @@ const parseObject = (value: string | null | undefined): Record<string, unknown> 
 const requiredSignatureCapabilities = ["send", "status", "cancel", "download_signed_document"] as const;
 
 const getConnectedSignatureProviders = async (req: TenantRequest) => {
+  const effectiveAccess = await getEffectiveFeatureAccess(req.tenantId!);
   const rows = await db.select({
     integrationId: integrationsTable.id,
     providerKey: integrationsTable.providerKey,
@@ -349,6 +356,7 @@ const getConnectedSignatureProviders = async (req: TenantRequest) => {
       eq(integrationsTable.status, "connected"),
     ));
   return rows.map((row) => {
+    if (!effectiveEntitlementEnabled(effectiveAccess, row.providerKey)) return null;
     const provider = getSignatureProvider(row.providerKey);
     const definition = getConnectorDefinition(row.providerKey);
     if (!provider || !requiredSignatureCapabilities.every((capability) => provider.capabilities.has(capability))) {

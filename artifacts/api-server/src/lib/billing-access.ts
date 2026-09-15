@@ -70,6 +70,14 @@ const parseMetadataRecord = (value: unknown) => {
   }
 };
 
+async function readTenantEntitlementOverrides(tenantId: number): Promise<EffectiveEntitlementOverride[]> {
+  return db.select({
+    capabilityKey: tenantEntitlementOverridesTable.capabilityKey,
+    enabled: tenantEntitlementOverridesTable.enabled,
+  }).from(tenantEntitlementOverridesTable)
+    .where(eq(tenantEntitlementOverridesTable.tenantId, tenantId));
+}
+
 export async function readPlans(): Promise<BillingPlan[]> {
   try {
     const result = await db.execute(sql`
@@ -212,11 +220,7 @@ export async function readBillingAccount(tenantId: number): Promise<BillingAccou
       last4: (card.card as Record<string, unknown> | undefined)?.last4,
     } : null;
   }
-  const overrides = await db.select({
-    capabilityKey: tenantEntitlementOverridesTable.capabilityKey,
-    enabled: tenantEntitlementOverridesTable.enabled,
-  }).from(tenantEntitlementOverridesTable)
-    .where(eq(tenantEntitlementOverridesTable.tenantId, tenantId));
+  const overrides = await readTenantEntitlementOverrides(tenantId);
 
   const subscriptionRecord = jsonObject(directSubscription);
   return {
@@ -247,6 +251,7 @@ export async function getEffectiveFeatureAccess(tenantId: number): Promise<Effec
     account = await readBillingAccount(tenantId);
   } catch {
     // A subscription that cannot be verified must not unlock paid features.
+    const overrides = await readTenantEntitlementOverrides(tenantId).catch(() => []);
     return {
       billingConfigured: true,
       state: "suspended",
@@ -254,7 +259,10 @@ export async function getEffectiveFeatureAccess(tenantId: number): Promise<Effec
       cancelAtPeriodEnd: false,
       planId: null,
       planName: null,
-      entitlements: {},
+      entitlements: Object.fromEntries(overrides.map((override) => [
+        override.capabilityKey,
+        override.enabled,
+      ])),
     };
   }
   if (!account?.subscription) {
@@ -295,4 +303,23 @@ export async function getEffectiveFeatureAccess(tenantId: number): Promise<Effec
     planId: plan?.productId ?? null,
     planName: plan?.name ?? null,
   };
+}
+
+/**
+ * Legacy tenants continue using their existing platform-managed capability rows.
+ * Once billing is configured, the shared subscription resolver is the required
+ * paid-capability gate and includes tenant-scoped support overrides.
+ */
+export function effectiveEntitlementEnabled(
+  access: EffectiveFeatureAccess,
+  capabilityKey: string,
+) {
+  return !access.billingConfigured || access.entitlements[capabilityKey] === true;
+}
+
+export async function tenantHasEffectiveEntitlement(
+  tenantId: number,
+  capabilityKey: string,
+) {
+  return effectiveEntitlementEnabled(await getEffectiveFeatureAccess(tenantId), capabilityKey);
 }
