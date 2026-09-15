@@ -39,6 +39,21 @@ const cases = [
     actions: ['a[data-testid="link-back-projects"]', 'button[data-testid="button-edit-project-detail"]'],
     shell: true,
   },
+  {
+    name: "active projects empty guidance",
+    path: "/dashboard/drilldown/active-projects?browserAuth=authenticated",
+    heading: "Active Projects",
+    actions: ['a[href="/projects?create=1"]'],
+    requiredSelectors: ['a[data-testid="link-drilldown-project-42"]'],
+    requiredTexts: [
+      "No active projects",
+      "Create a project or move a waiting project into Active when work is ready.",
+      "Waiting projects",
+      "Projects currently carrying the Waiting status.",
+      "Browser Test Waiting Project",
+    ],
+    shell: true,
+  },
 ];
 
 function waitForServer(child) {
@@ -213,10 +228,14 @@ async function inspect(client, routeCase, viewport) {
         }).slice(0, 8)
       : [];
     const actions = ${JSON.stringify(routeCase.actions)}.filter((selector) => !visible(selector));
+    const requiredSelectors = ${JSON.stringify(routeCase.requiredSelectors ?? [])}
+      .filter((selector) => !document.querySelector(selector));
+    const requiredTexts = ${JSON.stringify(routeCase.requiredTexts ?? [])}
+      .filter((text) => !document.body.innerText.includes(text));
     const navigationVisible = ${routeCase.shell}
       ? visible('a[data-testid="link-nav-all-projects"]')
       : true;
-    return { rootOverflow, overflowing, actions, navigationVisible };
+    return { rootOverflow, overflowing, actions, requiredSelectors, requiredTexts, navigationVisible };
   })()`);
 }
 
@@ -250,6 +269,8 @@ async function visit(routeCase, viewport) {
     }
     if (!result.navigationVisible) failures.push("primary Projects navigation is not visible");
     if (result.actions.length) failures.push(`missing primary actions: ${result.actions.join(", ")}`);
+    if (result.requiredSelectors.length) failures.push(`missing required elements: ${result.requiredSelectors.join(", ")}`);
+    if (result.requiredTexts.length) failures.push(`missing required text: ${result.requiredTexts.join(", ")}`);
     if (failures.length) throw new Error(`${routeCase.name} (${viewport.name}): ${failures.join("; ")}`);
     console.log(`✔ ${routeCase.name} at ${viewport.width}×${viewport.height}`);
   } finally {

@@ -54,6 +54,23 @@ const cases = [
     title: "Browser Test Customer · Construct Lifecycle",
   },
   {
+    name: "authenticated active projects guidance",
+    path: "/dashboard/drilldown/active-projects?browserAuth=authenticated",
+    heading: "Active Projects",
+    breadcrumb: "Dashboard · Active Projects",
+    activeNav: null,
+    title: "Construct Lifecycle — From Bid to Closeout",
+    requiredTexts: [
+      "No active projects",
+      "Create a project or move a waiting project into Active when work is ready.",
+      "Start a project",
+      "Waiting projects",
+      "Projects currently carrying the Waiting status.",
+      "Browser Test Waiting Project",
+    ],
+    requiredLinks: ["/projects?create=1", "/projects/42?return="],
+  },
+  {
     name: "authenticated administration",
     path: "/settings/administration/access?browserAuth=authenticated",
     heading: "Administration",
@@ -202,6 +219,9 @@ async function visit(routeCase) {
   }
   for (const requiredText of routeCase.requiredTexts ?? []) {
     if (!pageText.includes(requiredText)) failures.push(`required text "${requiredText}" missing`);
+  }
+  for (const requiredLink of routeCase.requiredLinks ?? []) {
+    if (!decodeEntities(html).includes(`href="${requiredLink}`)) failures.push(`required link "${requiredLink}" missing`);
   }
   if (failures.length) throw new Error(`${routeCase.name}: ${failures.join("; ")}`);
 }

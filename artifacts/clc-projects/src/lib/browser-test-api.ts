@@ -68,9 +68,40 @@ const platformResources = ['runtime', 'database', 'storage', 'queue', 'secrets',
 
 const workflow = {
   published: {
-    template: { id: 1, name: 'Browser Test Workflow', status: 'published', version: 1 },
+    template: {
+      id: 1,
+      name: 'Browser Test Workflow',
+      status: 'published',
+      version: 1,
+      activeProjectStatusKeys: ['active', 'waiting'],
+    },
     states: [],
-    statuses: [],
+    statuses: [
+      {
+        id: 1,
+        workflowTemplateId: 1,
+        stableKey: 'active',
+        displayName: 'Active',
+        stateKeys: [],
+        displayOrder: 0,
+        active: true,
+        required: false,
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+      },
+      {
+        id: 2,
+        workflowTemplateId: 1,
+        stableKey: 'waiting',
+        displayName: 'Waiting',
+        stateKeys: [],
+        displayOrder: 1,
+        active: true,
+        required: false,
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+      },
+    ],
     transitions: [],
   },
   draft: null,
@@ -194,6 +225,33 @@ export function installBrowserTestApi() {
     if (url.pathname === '/api/workflow/config') return json(workflow);
     if (url.pathname === '/api/dashboard/summary') return json(dashboardSummary);
     if (url.pathname === '/api/dashboard/project-controls') return json(projectControls);
+    if (url.pathname === '/api/dashboard/drilldown' && url.searchParams.get('type') === 'active-projects') {
+      return json({
+        title: 'Active Projects',
+        type: 'active-projects',
+        count: 1,
+        total: project.contractValue,
+        projects: [{
+          id: project.id,
+          projectNumber: project.projectNumber,
+          customerName: project.customerName,
+          projectName: 'Browser Test Waiting Project',
+          owner: project.owner,
+          ownerUserId: null,
+          assignedUser: null,
+          stage: 'deliver',
+          projectStatus: 'waiting',
+          contractValue: project.contractValue,
+          receivedAmount: project.receivedAmount,
+          deliveryPercent: project.deliveryPercent,
+          contractStart: null,
+          contractEnd: null,
+          nextFollowUp: null,
+          updatedAt: project.updatedAt,
+          nextAction: null,
+        }],
+      });
+    }
     if (url.pathname === '/api/customers/42') return json(businessCustomer);
     if (url.pathname === '/api/customers') return json([]);
     if (url.pathname === '/api/tenant/members') return json([]);
