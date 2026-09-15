@@ -2,6 +2,7 @@ import { Link } from 'wouter';
 import { ArrowLeft, CheckCircle2, ExternalLink, ShieldCheck } from 'lucide-react';
 import { StripePricingTable, isStripeTestMode } from '@/components/stripe-pricing-table';
 import { Button } from '@workspace/construct-lifecycle-design-system/components/ui/button';
+import { PUBLIC_PRICING_PLANS } from '@/lib/public-page-content';
 import { routeMetadata, useRouteMetadata } from '@/lib/route-titles';
 
 function PricingHeader() {
@@ -20,6 +21,37 @@ function PricingHeader() {
         <Button asChild variant="outline"><Link href="/sign-in">Sign in</Link></Button>
       </div>
     </header>
+  );
+}
+
+function PublicPlanOverview() {
+  return (
+    <section className="mx-auto mt-8 max-w-5xl" aria-labelledby="available-plans-heading">
+      <div className="mb-4">
+        <p className="mono text-[10px] font-bold uppercase tracking-[.16em] text-accent">Plan overview</p>
+        <h2 id="available-plans-heading" className="mt-2 text-2xl font-bold tracking-tight">Available subscription plans</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Compare the public plan details below. Stripe adds interactive checkout controls when the pricing table is configured.
+        </p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {PUBLIC_PRICING_PLANS.map((plan) => (
+          <article key={plan.name} className="rounded-xl border border-border bg-card p-5">
+            <h3 className="text-lg font-bold">{plan.name}</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{plan.description}</p>
+            <div className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <p><strong className="text-2xl">{plan.monthlyPrice}</strong> <span className="text-sm text-muted-foreground">/ month</span></p>
+              <p><strong>{plan.annualPrice}</strong> <span className="text-sm text-muted-foreground">/ year</span></p>
+            </div>
+            <h4 className="mt-5 text-sm font-semibold">Included features</h4>
+            <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+              {plan.features.map((feature) => <li key={feature}>• {feature}</li>)}
+            </ul>
+            <Button asChild className="mt-5"><Link href="/sign-up">Start with {plan.name}</Link></Button>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -51,6 +83,8 @@ export function PricingPage() {
             </div>
           </div>
         )}
+
+        <PublicPlanOverview />
 
         <section className="mx-auto mt-8 max-w-5xl" aria-labelledby="pricing-table-heading">
           <h2 id="pricing-table-heading" className="sr-only">Available subscription plans</h2>
