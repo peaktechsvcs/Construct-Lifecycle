@@ -1,5 +1,5 @@
 type BrowserAuthMode = 'authenticated' | 'platform' | 'signed-out' | 'no-tenant';
-type BrowserBrandingMode = 'default' | 'valid' | 'empty' | 'broken';
+type BrowserBrandingMode = 'default' | 'valid' | 'empty' | 'broken' | 'invalid-draft';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -17,7 +17,9 @@ function mode(): BrowserAuthMode {
 
 function brandingMode(): BrowserBrandingMode {
   const value = new URLSearchParams(window.location.search).get('browserBranding');
-  return value === 'valid' || value === 'empty' || value === 'broken' ? value : 'default';
+  return value === 'valid' || value === 'empty' || value === 'broken' || value === 'invalid-draft'
+    ? value
+    : 'default';
 }
 
 const tenant = {
@@ -358,6 +360,32 @@ export function installBrowserTestApi() {
         });
       }
       return json({ published: [] });
+    }
+    if (url.pathname === '/api/tenant/branding') {
+      if (brandingMode() === 'invalid-draft') {
+        return json({
+          draft: {
+            logoUrl: '',
+            primaryColor: '#ffffff',
+            secondaryColor: '#12zz34',
+            accentColor: '#f1f5f9',
+            backgroundColor: '#ffffff',
+            foregroundColor: '#ffffff',
+          },
+          published: [],
+        });
+      }
+      return json({
+        draft: {
+          logoUrl: '',
+          primaryColor: '#2563eb',
+          secondaryColor: '#f1f5f9',
+          accentColor: '#f1f5f9',
+          backgroundColor: '#ffffff',
+          foregroundColor: '#0f172a',
+        },
+        published: [],
+      });
     }
     if (url.pathname === '/api/workflow/config') return json(workflow);
     if (url.pathname === '/api/dashboard/summary') return json(dashboardSummary);

@@ -36,6 +36,21 @@ const cases = [
     logo: { src: "/logo-icon.png", alt: "Browser Test Workspace logo" },
   },
   {
+    name: "branding draft guidance",
+    path: "/settings/branding?browserAuth=authenticated&browserBranding=invalid-draft",
+    heading: "Customer Branding",
+    breadcrumb: "Branding",
+    activeNav: null,
+    title: "Customer Branding · Construct Lifecycle",
+    requiredLinks: ["/settings"],
+    requiredTexts: [
+      "Use a 3- or 6-digit hex color, such as #2563eb.",
+      "Draft autosave is paused until the highlighted color values are corrected.",
+      "White text on this action color",
+      "Page text contrast is",
+    ],
+  },
+  {
     name: "public pricing page",
     path: "/pricing",
     heading: "Choose the plan that fits your operation",

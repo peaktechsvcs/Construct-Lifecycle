@@ -1,3 +1,5 @@
+import { getContrastRatio } from './accessibility.ts';
+
 export const BRANDING_COLOR_KEYS = [
   'primaryColor',
   'secondaryColor',
@@ -8,6 +10,7 @@ export const BRANDING_COLOR_KEYS = [
 
 export type BrandingColorKey = typeof BRANDING_COLOR_KEYS[number];
 export type BrandingColors = Partial<Record<BrandingColorKey, string>>;
+export type BrandingColorIssues = Partial<Record<BrandingColorKey, string[]>>;
 
 export const BRANDING_FALLBACKS: Record<BrandingColorKey, string> = {
   primaryColor: '#2563eb',
@@ -41,6 +44,50 @@ export function sanitizeBrandingColors(data: unknown): BrandingColors {
 
 export function brandingColorsWithFallbacks(data: unknown): Record<BrandingColorKey, string> {
   return { ...BRANDING_FALLBACKS, ...sanitizeBrandingColors(data) };
+}
+
+function recordFromUnknown(data: unknown): Record<string, unknown> {
+  return data && typeof data === 'object' ? data as Record<string, unknown> : {};
+}
+
+export function getInvalidBrandingColorFields(data: unknown): BrandingColorKey[] {
+  const source = recordFromUnknown(data);
+  return BRANDING_COLOR_KEYS.filter((key) => key in source && normalizeHexColor(
+    typeof source[key] === 'string' ? source[key] : null,
+  ) === null);
+}
+
+export function getBrandingColorIssues(data: unknown): BrandingColorIssues {
+  const source = recordFromUnknown(data);
+  const issues: BrandingColorIssues = {};
+  const addIssue = (key: BrandingColorKey, message: string) => {
+    issues[key] = [...(issues[key] ?? []), message];
+  };
+
+  for (const key of getInvalidBrandingColorFields(source)) {
+    addIssue(key, 'Use a 3- or 6-digit hex color, such as #2563eb.');
+  }
+
+  const primaryColor = normalizeHexColor(typeof source.primaryColor === 'string' ? source.primaryColor : null);
+  if (primaryColor) {
+    const ratio = getContrastRatio('#ffffff', primaryColor);
+    if (ratio < 4.5) {
+      addIssue('primaryColor', `White text on this action color is ${ratio.toFixed(2)}:1; use a darker color for at least 4.5:1.`);
+    }
+  }
+
+  const foregroundColor = normalizeHexColor(typeof source.foregroundColor === 'string' ? source.foregroundColor : null);
+  const backgroundColor = normalizeHexColor(typeof source.backgroundColor === 'string' ? source.backgroundColor : null);
+  if (foregroundColor && backgroundColor) {
+    const ratio = getContrastRatio(foregroundColor, backgroundColor);
+    if (ratio < 4.5) {
+      const message = `Page text contrast is ${ratio.toFixed(2)}:1; adjust this color or its pair to reach at least 4.5:1.`;
+      addIssue('foregroundColor', message);
+      addIssue('backgroundColor', message);
+    }
+  }
+
+  return issues;
 }
 
 export function hexToHsl(hex?: string | null): string | null {

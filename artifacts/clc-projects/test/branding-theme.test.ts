@@ -3,6 +3,8 @@ import test from 'node:test';
 import {
   BRANDING_FALLBACKS,
   brandingColorsWithFallbacks,
+  getBrandingColorIssues,
+  getInvalidBrandingColorFields,
   hexToHsl,
   normalizeHexColor,
   sanitizeBrandingColors,
@@ -54,4 +56,23 @@ test('branding logo URLs allow web images and fall back for empty or unsafe valu
   assert.equal(getSafeBrandingLogoUrl('javascript:alert(1)', fallback), fallback);
   assert.equal(getSafeBrandingLogoUrl('data:image/svg+xml,<svg></svg>', fallback), fallback);
   assert.equal(getSafeBrandingLogoUrl('https://user:password@example.test/logo.png', fallback), fallback);
+});
+
+test('branding draft guidance distinguishes malformed values from contrast failures', () => {
+  const issues = getBrandingColorIssues({
+    primaryColor: '#ffffff',
+    secondaryColor: '#12zz34',
+    backgroundColor: '#ffffff',
+    foregroundColor: '#ffffff',
+  });
+  assert.deepEqual(getInvalidBrandingColorFields({
+    primaryColor: '#ffffff',
+    secondaryColor: '#12zz34',
+    backgroundColor: '#ffffff',
+    foregroundColor: '#ffffff',
+  }), ['secondaryColor']);
+  assert.match(issues.secondaryColor?.[0] ?? '', /3- or 6-digit hex/);
+  assert.match(issues.primaryColor?.[0] ?? '', /White text on this action color/);
+  assert.match(issues.foregroundColor?.[0] ?? '', /Page text contrast/);
+  assert.match(issues.backgroundColor?.[0] ?? '', /Page text contrast/);
 });
