@@ -129,7 +129,7 @@ function ActiveProjectStatusEmptyState({
   const action = hasSearch
     ? { href: clearSearchUrl, label: 'Clear search' }
     : canStartProject
-      ? { href: '/projects?create=1', label: 'Start a project' }
+      ? { href: `/projects?create=1&return=${encodeURIComponent(returnUrl)}`, label: 'Start a project' }
       : status.stableKey === 'waiting'
         ? { href: guidance.href, label: guidance.label }
         : undefined;
@@ -502,7 +502,9 @@ export function DashboardDrilldown() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const returnUrl = location;
+  const returnUrl = location.includes('?') || typeof window === 'undefined'
+    ? location
+    : `${location}${window.location.search}`;
 
   if (!type || !isValidDrilldownType(type)) {
     return (

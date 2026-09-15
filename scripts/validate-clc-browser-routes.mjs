@@ -120,7 +120,7 @@ const cases = [
       "Projects currently carrying the Waiting status.",
       "Browser Test Waiting Project",
     ],
-    requiredLinks: ["/projects?create=1", "/projects/42?return="],
+    requiredLinks: ["/projects?create=1&return=", "/projects/42?return="],
   },
   {
     name: "authenticated administration",

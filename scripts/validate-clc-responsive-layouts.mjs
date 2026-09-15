@@ -68,7 +68,7 @@ const cases = [
     name: "active projects empty guidance",
     path: "/dashboard/drilldown/active-projects?browserAuth=authenticated",
     heading: "Active Projects",
-    actions: ['a[href="/projects?create=1"]'],
+    actions: ['a[href^="/projects?create=1"]'],
     requiredSelectors: ['a[data-testid="link-drilldown-project-42"]'],
     requiredTexts: [
       "No active projects",

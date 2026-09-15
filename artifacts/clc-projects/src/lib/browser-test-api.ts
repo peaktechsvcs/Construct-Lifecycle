@@ -478,6 +478,9 @@ export function installBrowserTestApi() {
     if (url.pathname === '/api/projects/42/activity') return json([]);
     if (url.pathname === '/api/projects/42/controls') return json(projectDetailControls);
     if (url.pathname === '/api/projects/42') return json(project);
+    if (url.pathname === '/api/projects' && String(init?.method ?? 'GET').toUpperCase() === 'POST') {
+      return json({ ...project, id: 43, projectNumber: 'P-0043', projectName: 'Browser Created Project' }, 201);
+    }
     if (url.pathname === '/api/projects') return json([project]);
 
     if (url.pathname.endsWith('/supplier-account-history')) {

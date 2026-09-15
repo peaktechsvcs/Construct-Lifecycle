@@ -113,7 +113,7 @@ async function closeTarget(target, client) {
 
 async function checkPermittedRole(role) {
   const { target, client } = await openTarget(
-    `/dashboard/drilldown/active-projects?browserAuth=authenticated&browserRole=${role}`,
+    `/dashboard/drilldown/active-projects?browserAuth=authenticated&browserRole=${role}&sort=value_desc`,
   );
   try {
     await waitFor(
@@ -121,12 +121,12 @@ async function checkPermittedRole(role) {
       `${role} empty-state action`,
       `(() => ({
         ready: document.body?.innerText?.includes("No active projects") === true
-          && document.querySelector('a[href="/projects?create=1"]') !== null,
+          && document.querySelector('a[href^="/projects?create=1"]') !== null,
       }))()`,
     );
 
     const clicked = await evaluate(client, `(() => {
-      const action = document.querySelector('a[href="/projects?create=1"]');
+      const action = document.querySelector('a[href^="/projects?create=1"]');
       if (!(action instanceof HTMLElement)) return false;
       action.click();
       return true;
@@ -190,7 +190,130 @@ async function checkPermittedRole(role) {
         ready: document.querySelector('[data-testid="input-project-customer"]')?.value === "Browser Test Customer",
       }))()`,
     );
+    if (role === "owner") {
+      const projectNameFocused = await evaluate(client, `(() => {
+        const input = document.querySelector('[data-testid="input-project-projectName"]');
+        if (!(input instanceof HTMLInputElement)) return false;
+        input.focus();
+        return true;
+      })()`);
+      if (!projectNameFocused) throw new Error("owner could not focus the project name");
+      await client.command("Input.insertText", { text: "Browser Created From Active Projects" });
+      const ownerFormState = await evaluate(client, `(() => ({
+        projectName: document.querySelector('[data-testid="input-project-projectName"]')?.value ?? "",
+        submitDisabled: document.querySelector('[data-testid="button-save-project"]')?.disabled ?? true,
+      }))()`);
+      if (!ownerFormState.projectName || ownerFormState.submitDisabled) {
+        throw new Error(`owner form is not ready to submit: ${JSON.stringify(ownerFormState)}`);
+      }
+      const submitted = await evaluate(client, `(() => {
+        const button = document.querySelector('[data-testid="button-save-project"]');
+        if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+        button.click();
+        return true;
+      })()`);
+      if (!submitted) throw new Error("owner could not submit the project form");
+      await waitFor(
+        client,
+        "Active Projects return after project creation",
+        `(() => ({
+          ready: window.location.pathname === "/dashboard/drilldown/active-projects"
+            && window.location.search === "?browserAuth=authenticated&browserRole=owner&sort=value_desc"
+            && document.querySelector('[role="dialog"]') === null,
+          url: window.location.href,
+        }))()`,
+      );
+      console.log("✔ project creation returns to Active Projects with sort context");
+    }
     console.log(`✔ ${role} can open the project form from the empty state`);
+  } finally {
+    await closeTarget(target, client);
+  }
+}
+
+async function checkDirectProjectBookCreation() {
+  const { target, client } = await openTarget(
+    "/projects?browserAuth=authenticated&browserRole=owner",
+  );
+  try {
+    await waitFor(
+      client,
+      "direct project-book page",
+      `(() => ({
+        ready: document.querySelector('[data-testid="button-new-project"]') !== null,
+      }))()`,
+    );
+    const opened = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-new-project"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!opened) throw new Error("direct project-book create action was unavailable");
+    await waitFor(
+      client,
+      "direct project-book modal",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
+      }))()`,
+    );
+    const customerInputFocused = await evaluate(client, `(() => {
+      const input = document.querySelector('[data-testid="input-project-customer"]');
+      if (!(input instanceof HTMLInputElement)) return false;
+      input.focus();
+      input.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+      return true;
+    })()`);
+    if (!customerInputFocused) throw new Error("direct project-book flow could not open the customer selector");
+    await waitFor(
+      client,
+      "direct project-book customer selector",
+      `(() => ({
+        ready: [...document.querySelectorAll('[role="option"]')]
+          .some((option) => option.textContent?.includes("Browser Test Customer")),
+      }))()`,
+    );
+    const customerSelected = await evaluate(client, `(() => {
+      const option = [...document.querySelectorAll('[role="option"]')]
+        .find((candidate) => candidate.textContent?.includes("Browser Test Customer"));
+      if (!(option instanceof HTMLElement)) return false;
+      option.click();
+      return true;
+    })()`);
+    if (!customerSelected) throw new Error("direct project-book flow could not select the customer");
+    const projectNameFocused = await evaluate(client, `(() => {
+      const input = document.querySelector('[data-testid="input-project-projectName"]');
+      if (!(input instanceof HTMLInputElement)) return false;
+      input.focus();
+      return true;
+    })()`);
+    if (!projectNameFocused) throw new Error("direct project-book flow could not focus the project name");
+    await client.command("Input.insertText", { text: "Browser Direct Project" });
+    const directFormState = await evaluate(client, `(() => ({
+      projectName: document.querySelector('[data-testid="input-project-projectName"]')?.value ?? "",
+      submitDisabled: document.querySelector('[data-testid="button-save-project"]')?.disabled ?? true,
+    }))()`);
+    if (!directFormState.projectName || directFormState.submitDisabled) {
+      throw new Error(`direct project-book form is not ready to submit: ${JSON.stringify(directFormState)}`);
+    }
+    const submitted = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-save-project"]');
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!submitted) throw new Error("direct project-book flow could not submit");
+    await waitFor(
+      client,
+      "direct project-book return",
+      `(() => ({
+        ready: window.location.pathname === "/projects"
+          && window.location.search === ""
+          && document.querySelector('[role="dialog"]') === null,
+        url: window.location.href,
+      }))()`,
+    );
+    console.log("✔ direct project-book creation stays on the project book");
   } finally {
     await closeTarget(target, client);
   }
@@ -206,7 +329,7 @@ async function checkRestrictedRole() {
       "viewer empty-state guidance",
       `(() => ({
         ready: document.body?.innerText?.includes("No active projects") === true
-          && document.querySelector('a[href="/projects?create=1"]') === null,
+          && document.querySelector('a[href^="/projects?create=1"]') === null,
       }))()`,
     );
     console.log("✔ viewer does not receive the project create action");
@@ -247,6 +370,7 @@ try {
   await Promise.all([waitForServer(server), waitForDevTools()]);
   for (const role of ["owner", "admin", "member"]) await checkPermittedRole(role);
   await checkRestrictedRole();
+  await checkDirectProjectBookCreation();
   console.log("Validated empty-state project creation for all project roles.");
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);

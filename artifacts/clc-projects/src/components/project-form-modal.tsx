@@ -7,7 +7,7 @@ import {
   useCreateProject, useUpdateProject,
   useListBusinessCustomers, getListBusinessCustomersQueryKey,
   useListTenantMembers, getListTenantMembersQueryKey,
-  getListProjectsQueryKey, getGetProjectQueryKey, getGetDashboardSummaryQueryKey,
+  getListProjectsQueryKey, getGetProjectQueryKey, getGetDashboardSummaryQueryKey, getGetDashboardDrilldownQueryKey,
 } from '@workspace/api-client-react';
 import { Modal, Button } from '@/components/app-ui';
 import { useTenant } from '@/providers/tenant-provider';
@@ -184,7 +184,17 @@ function CustomerSelector({
   );
 }
 
-export function ProjectFormModal({ project, initialCustomer, onClose }: { project?: Project; initialCustomer?: { id: number; companyName: string }; onClose: () => void }) {
+export function ProjectFormModal({
+  project,
+  initialCustomer,
+  onClose,
+  onCreated,
+}: {
+  project?: Project;
+  initialCustomer?: { id: number; companyName: string };
+  onClose: () => void;
+  onCreated?: () => void;
+}) {
   const [form, setForm] = useState<ProjectForm>(
     project
       ? formFromProject(project)
@@ -214,9 +224,15 @@ export function ProjectFormModal({ project, initialCustomer, onClose }: { projec
   const setCustomerDraft = (draft?: BusinessCustomerInput) =>
     setForm((current) => ({
       ...current,
-      businessCustomerId: undefined,
-      customerName: draft?.companyName ?? current.customerName,
-      newCustomer: draft,
+      ...(draft
+        ? {
+          businessCustomerId: undefined,
+          customerName: draft.companyName ?? current.customerName,
+          newCustomer: draft,
+        }
+        : {
+          newCustomer: undefined,
+        }),
     }));
 
   const submit = (event: React.FormEvent) => {
@@ -240,7 +256,8 @@ export function ProjectFormModal({ project, initialCustomer, onClose }: { projec
           onSuccess: () => {
             qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
             qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-            onClose();
+            qc.invalidateQueries({ queryKey: getGetDashboardDrilldownQueryKey() });
+            onCreated ? onCreated() : onClose();
           },
         },
       );

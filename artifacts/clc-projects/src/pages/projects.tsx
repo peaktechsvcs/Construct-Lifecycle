@@ -21,6 +21,17 @@ import { getAllProjectsTableRows } from '@/lib/project-views';
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/construct-lifecycle-design-system/components/ui/select';
 
+function getInternalReturnPath(value: string | null): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null;
+  try {
+    const candidate = new URL(value, window.location.origin);
+    if (candidate.origin !== window.location.origin) return null;
+    return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+  } catch {
+    return null;
+  }
+}
+
 function stageBadgeTone(stage: string) {
   if (stage === 'financial') return 'violet' as const;
   if (stage === 'closeout') return 'green' as const;
@@ -120,6 +131,7 @@ export function Projects() {
   const urlOwnerUserId = urlParams.get('ownerUserId') ?? '';
   const urlCustomerId = Number(urlParams.get('customerId'));
   const urlCreate = urlParams.get('create') === '1';
+  const returnPath = getInternalReturnPath(urlParams.get('return'));
 
   const [search, setSearch] = useState(urlSearch);
   const [stage, setStage] = useState(urlStage);
@@ -134,6 +146,7 @@ export function Projects() {
     if (ownerUserId) next.set('ownerUserId', ownerUserId);
     if (urlParams.get('customerId')) next.set('customerId', urlParams.get('customerId')!);
      if (urlParams.get('create') === '1') next.set('create', '1');
+      if (returnPath) next.set('return', returnPath);
     const qs = next.toString();
     const newPath = qs ? `${base}?${qs}` : base;
     // Only update if the query part actually changed to avoid loops
@@ -181,6 +194,10 @@ export function Projects() {
   const closeForm = () => {
     setShowForm(false);
     setEditing(undefined);
+    if (returnPath) {
+      setLocation(returnPath, { replace: true });
+      return;
+    }
     if (urlCreate) {
       const next = new URLSearchParams(
         location.includes('?')
@@ -190,9 +207,19 @@ export function Projects() {
             : '',
       );
       next.delete('create');
+      next.delete('return');
       const query = next.toString();
       setLocation(query ? `/projects?${query}` : '/projects', { replace: true });
     }
+  };
+  const handleCreated = () => {
+    setShowForm(false);
+    setEditing(undefined);
+    if (returnPath) {
+      setLocation(returnPath, { replace: true });
+      return;
+    }
+    closeForm();
   };
 
   // Stage filter options in canonical lifecycle order
@@ -317,6 +344,7 @@ export function Projects() {
           onClose={() => {
             closeForm();
           }}
+          onCreated={handleCreated}
         />
       )}
     </div>

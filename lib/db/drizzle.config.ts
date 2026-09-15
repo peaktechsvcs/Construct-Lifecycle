@@ -1,14 +1,19 @@
 import { defineConfig } from "drizzle-kit";
-import path from "path";
+import { resolveDirectDatabaseUrl } from "./src/runtime-database";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
-}
+// Migrations need a session-level connection; see resolveDirectDatabaseUrl.
+// This throws with an actionable message when DIRECT_URL is missing and
+// DATABASE_URL points at a pooler.
+const url = resolveDirectDatabaseUrl();
 
 export default defineConfig({
-  schema: path.join(__dirname, "./src/schema/index.ts"),
+  schema: "./src/schema/index.ts",
+  out: "./drizzle",
   dialect: "postgresql",
-  dbCredentials: {
-    url: process.env.DATABASE_URL,
-  },
+  dbCredentials: { url },
+  // Surfaces the statements drizzle-kit is about to run. Worth keeping while
+  // the schema is still moving.
+  verbose: true,
+  // Requires confirmation before destructive changes. Do not disable.
+  strict: true,
 });
