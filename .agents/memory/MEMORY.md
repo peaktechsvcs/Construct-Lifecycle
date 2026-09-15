@@ -32,3 +32,4 @@
 - [Recovery operation durability](recovery-operation-durability.md) — destructive recovery must outlive browser polling and survive interrupted provider startup.
 - [CLC browser route coverage](clc-browser-route-coverage.md) — use system Chromium with test-only Clerk/API fixtures when browser dependencies are unavailable.
 - [Owner invitation retry behavior](owner-invitation-retry.md) — post-commit invitation failure is explicit partial success; tenant-scoped locking prevents duplicate active retries.
+- [Release gate validation harness](release-gate-validation-harness.md) — exercise the real release command through a temporary pnpm shim while preventing recursive self-validation.
