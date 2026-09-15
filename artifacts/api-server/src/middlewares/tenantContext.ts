@@ -13,6 +13,10 @@ import {
   environmentHealthChecksTable,
 } from "@workspace/db";
 import { isIsolatedEnvironmentReady, isRecentHealthyCheck, isRuntimeSigningBoundaryReady } from "../lib/provisioning";
+import {
+  shouldBootstrapDefaultTenant,
+  shouldCreateDevelopmentEnvironment,
+} from "../lib/development-bootstrap";
 
 const DEFAULT_TENANT = { name: "Construct Lifecycle Demo", slug: "construct-lc-demo" };
 const APP_ENV = process.env.APP_ENV ?? "development";
@@ -199,29 +203,41 @@ export async function requireTenantContext(
     }
 
     // Preserve the populated demo experience for the first development user,
-    // while keeping production access invitation/membership controlled.
-    if (userMemberships.length === 0 && !user.isPlatformAdmin && APP_ENV !== "production") {
-      const [{ count: membershipCount }] = await db
+    // while keeping production access invitation/membership controlled. A
+    // platform-admin flag is assigned before this middleware resolves a
+    // tenant, so the first development request must also seed the default
+    // tenant when the previous bootstrap stopped after creating the user.
+    const membershipCount = !user.isPlatformAdmin && userMemberships.length === 0
+      ? Number((await db
         .select({ count: sql<number>`count(*)::int` })
-        .from(membershipsTable);
+        .from(membershipsTable))[0]?.count ?? 0)
+      : 0;
+    if (shouldBootstrapDefaultTenant({
+      appEnv: APP_ENV,
+      isPlatformAdmin: user.isPlatformAdmin,
+      hasUserMemberships: userMemberships.length > 0,
+      membershipCount,
+    })) {
+      const [tenant] = await db
+        .insert(tenantsTable)
+        .values(DEFAULT_TENANT)
+        .onConflictDoUpdate({
+          target: tenantsTable.slug,
+          set: { name: DEFAULT_TENANT.name, status: "active", updatedAt: new Date() },
+        })
+        .returning();
 
-      if (Number(membershipCount) === 0) {
-        const [tenant] = await db
-          .insert(tenantsTable)
-          .values(DEFAULT_TENANT)
-          .onConflictDoUpdate({
-            target: tenantsTable.slug,
-            set: { name: DEFAULT_TENANT.name, updatedAt: new Date() },
-          })
-          .returning();
-
+      if (!user.isPlatformAdmin) {
         await db
           .insert(membershipsTable)
           .values({ tenantId: tenant.id, userId: user.id, role: "owner" })
           .onConflictDoNothing();
-
-        userMemberships = [{ tenantId: tenant.id, role: "owner" }];
       }
+
+      userMemberships = [{
+        tenantId: tenant.id,
+        role: user.isPlatformAdmin ? "platform_admin" : "owner",
+      }];
     }
 
     if (userMemberships.length === 0) {
@@ -306,7 +322,10 @@ export async function requireTenantContext(
       )
       .limit(1);
 
-    if (!environment && APP_ENV !== "production" && !user.isPlatformAdmin) {
+    if (shouldCreateDevelopmentEnvironment({
+      appEnv: APP_ENV,
+      hasEnvironment: Boolean(environment),
+    })) {
       [environment] = await db
         .insert(environmentsTable)
         .values({
