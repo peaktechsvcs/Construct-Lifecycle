@@ -19,25 +19,35 @@ const {
 const slug = `onboarding-rollback-${Date.now()}-${process.pid}`;
 const partialSlug = `onboarding-partial-${Date.now()}-${process.pid}`;
 const testClerkUserId = `onboarding-owner-${Date.now()}-${process.pid}`;
+const retryClerkUserId = `onboarding-retry-owner-${Date.now()}-${process.pid}`;
 
 after(async () => {
   await db.delete(tenantsTable).where(eq(tenantsTable.slug, slug));
   await db.delete(tenantsTable).where(eq(tenantsTable.slug, partialSlug));
-  const [owner] = await db
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(eq(usersTable.clerkUserId, testClerkUserId))
-    .limit(1);
-  if (owner) {
-    await db.delete(platformAuditEventsTable).where(eq(platformAuditEventsTable.actorUserId, owner.id));
+  for (const clerkUserId of [testClerkUserId, retryClerkUserId]) {
+    const [owner] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.clerkUserId, clerkUserId))
+      .limit(1);
+    if (owner) {
+      await db.delete(platformAuditEventsTable).where(eq(platformAuditEventsTable.actorUserId, owner.id));
+    }
   }
   await db.delete(usersTable).where(eq(usersTable.clerkUserId, testClerkUserId));
+  await db.delete(usersTable).where(eq(usersTable.clerkUserId, retryClerkUserId));
   await pool.end();
 });
 
 test("returns the safe recovery message and rolls back when setup fails", async () => {
+  const [retryOwner] = await db.insert(usersTable).values({
+    clerkUserId: retryClerkUserId,
+    email: "onboarding-retry-owner@example.test",
+    displayName: "Onboarding Retry Owner",
+  }).returning({ id: usersTable.id });
   let statusCode = 200;
   let responseBody: unknown;
+  let workflowShouldFail = true;
   const response = {
     status(code: number) {
       statusCode = code;
@@ -54,20 +64,18 @@ test("returns the safe recovery message and rolls back when setup fails", async 
       slug,
       businessTypes: ["general-contractor"],
     },
-    localUserId: undefined,
+    localUserId: retryOwner.id,
     log: { error() {} },
   };
+  const createWorkspace = (input: Parameters<typeof createCustomerWorkspace>[0], userId: number | undefined) =>
+    createCustomerWorkspace(input, userId, async () => {
+      if (workflowShouldFail) throw new Error("simulated default workflow failure");
+    });
 
   await createPlatformCustomerHandler(
     request as never,
     response as never,
-    (input, userId) => createCustomerWorkspace(
-      input,
-      userId,
-      async () => {
-        throw new Error("simulated default workflow failure");
-      },
-    ),
+    createWorkspace,
   );
 
   assert.equal(statusCode, 500);
@@ -81,6 +89,25 @@ test("returns the safe recovery message and rolls back when setup fails", async 
     .where(eq(tenantsTable.slug, slug))
     .limit(1);
   assert.equal(tenant, undefined);
+
+  workflowShouldFail = false;
+  statusCode = 200;
+  responseBody = undefined;
+
+  await createPlatformCustomerHandler(
+    request as never,
+    response as never,
+    createWorkspace,
+  );
+
+  assert.equal(statusCode, 201);
+  assert.equal((responseBody as { customer?: { slug?: string } }).customer?.slug, slug);
+
+  const customers = await db
+    .select({ id: tenantsTable.id })
+    .from(tenantsTable)
+    .where(eq(tenantsTable.slug, slug));
+  assert.equal(customers.length, 1);
 });
 
 test("returns partial success when the workspace exists but its owner invitation fails", async () => {
