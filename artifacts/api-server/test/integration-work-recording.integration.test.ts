@@ -7,10 +7,18 @@ import {
   markIntegrationJobFailed,
   startIntegrationJob,
 } from "../src/lib/integrations/job-lifecycle.ts";
+import { ObjectStorageService } from "../src/lib/objectStorage.ts";
 
 process.env.APP_ENV = "test";
 
 let connectorMode: "success" | "failure" = "success";
+let storedAttachmentCount = 0;
+
+const originalStoreBytes = ObjectStorageService.prototype.storeBytes;
+ObjectStorageService.prototype.storeBytes = async function (prefix, bytes, contentType) {
+  storedAttachmentCount += 1;
+  return originalStoreBytes.call(this, prefix, bytes, contentType);
+};
 
 const base64Url = (value: string) => Buffer.from(value, "utf8").toString("base64url");
 
@@ -339,6 +347,7 @@ test("records scoped mailbox preview and import work and updates successful heal
   });
   assert.equal(storedAttachment.status, 200);
   assert.equal(await storedAttachment.text(), "protected-mailbox-attachment");
+  assert.equal(storedAttachmentCount, 1);
 
   const duplicate = await request("/itb-intakes/mailbox/import", {
     method: "POST",
@@ -346,6 +355,7 @@ test("records scoped mailbox preview and import work and updates successful heal
   });
   assert.equal(duplicate.status, 409, JSON.stringify(duplicate.body));
   assert.equal((duplicate.body as { intakeId: number }).intakeId, importedBody.id);
+  assert.equal(storedAttachmentCount, 1);
 
   const jobs = await db.select().from(integrationJobsTable)
     .where(and(

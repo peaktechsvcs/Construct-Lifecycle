@@ -215,6 +215,14 @@ const getIntake = async (req: TenantRequest, id: number) => {
 const getAttachments = async (intakeId: number) => db.select().from(itbIntakeAttachmentsTable)
   .where(eq(itbIntakeAttachmentsTable.intakeId, intakeId)).orderBy(asc(itbIntakeAttachmentsTable.createdAt));
 
+const findMailboxImport = async (req: TenantRequest, provider: MailboxProvider, sourceMessageId: string) =>
+  db.select({ id: itbIntakesTable.id }).from(itbIntakesTable).where(and(
+    eq(itbIntakesTable.tenantId, req.tenantId!),
+    eq(itbIntakesTable.environmentId, req.environmentId!),
+    eq(itbIntakesTable.sourceProvider, provider),
+    eq(itbIntakesTable.sourceMessageId, sourceMessageId),
+  )).limit(1);
+
 const fingerprint = (parts: string[]) => createHash("sha256").update(parts.join("\u0000")).digest("hex");
 const privatePrefix = () => {
   const privateDir = process.env.PRIVATE_OBJECT_DIR?.trim();
@@ -467,6 +475,15 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
     return;
   }
   try {
+    const requestedMessageId = parsed.data.messageId?.trim();
+    if (requestedMessageId) {
+      const existing = await findMailboxImport(req, provider, requestedMessageId);
+      if (existing.length) {
+        await markIntegrationJobSucceeded(mailboxJob.scope, mailboxJob.job);
+        res.status(409).json({ error: "This mailbox message was already imported", intakeId: existing[0].id });
+        return;
+      }
+    }
     const message = await mailboxClient.importMessage(provider, parsed.data.threadId, parsed.data.messageId);
     const attachments: Array<{ originalName: string; contentType: string; size: number; objectPath: string; sourceAttachmentId: string }> = [];
     for (const attachment of message.attachments) {
@@ -483,12 +500,7 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
         req.log.warn({ err: error, attachmentName: attachment.originalName }, "ITB mailbox attachment could not be stored");
       }
     }
-    const existing = await db.select().from(itbIntakesTable).where(and(
-      eq(itbIntakesTable.tenantId, req.tenantId!),
-      eq(itbIntakesTable.environmentId, req.environmentId!),
-      eq(itbIntakesTable.sourceProvider, message.sourceProvider),
-      eq(itbIntakesTable.sourceMessageId, message.sourceMessageId),
-    )).limit(1);
+    const existing = await findMailboxImport(req, message.sourceProvider, message.sourceMessageId);
     if (existing.length) {
       await markIntegrationJobSucceeded(mailboxJob.scope, mailboxJob.job);
       res.status(409).json({ error: "This mailbox message was already imported", intakeId: existing[0].id });
