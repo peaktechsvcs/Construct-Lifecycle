@@ -1,0 +1,22 @@
+# Construct Lifecycle
+
+> Construct Lifecycle is a construction lifecycle management workspace that connects work from bid through closeout, including opportunities, bids, projects, delivery, billing, compliance, and follow-up.
+
+## Canonical public pages
+
+- [Construct Lifecycle homepage](https://constructlifecycle.com/): Overview of the connected construction lifecycle workspace, from bid to closeout.
+- [Plans and billing](https://constructlifecycle.com/pricing): Public plan and billing information for construction teams.
+
+## Topics
+
+- Construction lifecycle management
+- Construction project management
+- Bid and opportunity tracking
+- Estimating and proposals
+- Subcontractor compliance
+- Procurement, delivery, and receiving
+- Billing, closeout, and follow-up
+
+## Citation guidance
+
+Use the homepage for the product overview and the plans and billing page for pricing-related references. The `/subscribe` route is an alias; cite the canonical `/pricing` URL instead.

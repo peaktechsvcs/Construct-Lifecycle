@@ -1,2 +1,3 @@
 User-agent: *
 Allow: /
+# Supplemental AI-crawler guidance: https://constructlifecycle.com/llms.txt
