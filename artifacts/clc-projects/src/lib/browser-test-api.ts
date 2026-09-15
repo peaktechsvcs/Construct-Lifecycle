@@ -111,6 +111,64 @@ const projectControls = {
   closeoutReadyProjects: 0,
 };
 
+const project = {
+  id: 42,
+  tenantId: tenant.id,
+  projectNumber: 'P-0042',
+  projectName: 'Browser Test Project',
+  customerName: businessCustomer.companyName,
+  businessCustomerId: businessCustomer.id,
+  category: 'Commercial',
+  owner: 'Browser Test User',
+  assignedUser: null,
+  stage: 'opportunity',
+  contractValue: 1250000,
+  address: '42 Test Avenue',
+  bidOutcome: 'pending',
+  proposalStatus: 'draft',
+  proposalDetails: 'Responsive browser fixture',
+  requirementsSummary: 'Representative project detail content',
+  contractStatus: 'draft',
+  contractStart: null,
+  contractEnd: null,
+  contractDetails: null,
+  deliveryPercent: 20,
+  productCategories: ['Casework'],
+  invoicedAmount: 100000,
+  receivedAmount: 75000,
+  billingStatus: 'in_progress',
+  billingDetails: null,
+  closeoutStatus: 'not_started',
+  closeoutDetails: null,
+  nextFollowUp: null,
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+};
+
+const projectDetailControls = {
+  contract: null,
+  financials: null,
+  commitments: [],
+  issues: [],
+  changeOrders: [],
+  closeoutRequirements: [],
+  events: [],
+  payApplications: [],
+  sovLines: [],
+  metrics: {
+    contractValue: project.contractValue,
+    committedCost: 0,
+    forecastCost: 0,
+    forecastMargin: project.contractValue,
+    scheduleRiskDays: 0,
+    openIssues: 0,
+    overdueIssues: 0,
+    closeoutReadiness: 0,
+    retainageHeld: 0,
+    billedToDate: project.invoicedAmount,
+  },
+};
+
 export function installBrowserTestApi() {
   const originalFetch = window.fetch.bind(window);
   window.fetch = async (input, init) => {
@@ -170,7 +228,10 @@ export function installBrowserTestApi() {
     if (url.pathname === '/api/follow-ups') return json([]);
     if (url.pathname === '/api/notifications') return json({ items: [], unreadCount: 0, total: 0 });
     if (url.pathname === '/api/dashboard/activity') return json([]);
-    if (url.pathname === '/api/projects') return json([]);
+    if (url.pathname === '/api/projects/42/activity') return json([]);
+    if (url.pathname === '/api/projects/42/controls') return json(projectDetailControls);
+    if (url.pathname === '/api/projects/42') return json(project);
+    if (url.pathname === '/api/projects') return json([project]);
 
     if (url.pathname.endsWith('/supplier-account-history')) {
       return json({
