@@ -21,7 +21,7 @@ publicDir = "artifacts/clc-projects/dist/public"
 
 [[services.production.rewrites]]
 from = "/*"
-to = "/index.html"
+to = "/private.html"
 
 [services.env]
 PORT = "22780"

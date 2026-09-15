@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type Plugin } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
-import { renderPublicRouteBody } from './src/lib/public-page-content';
+import { renderPublicRouteBody, renderPublicSitemap } from './src/lib/public-page-content';
 
 const rawPort = process.env.PORT;
 
@@ -30,30 +30,45 @@ const publicRouteMetadata = {
     title: 'Construct Lifecycle',
     description: 'Construct Lifecycle helps construction teams manage work from bid through closeout in one connected workspace.',
     canonicalPath: '/',
+    robots: 'index, follow',
   },
   '/pricing': {
     title: 'Plans & billing · Construct Lifecycle',
     description: 'Compare Construct Lifecycle plans for managing your construction lifecycle from bid through closeout.',
     canonicalPath: '/pricing',
+    robots: 'index, follow',
   },
   '/subscribe': {
     title: 'Plans & billing · Construct Lifecycle',
     description: 'Compare Construct Lifecycle plans for managing your construction lifecycle from bid through closeout.',
     canonicalPath: '/pricing',
+    robots: 'noindex, nofollow',
   },
+} as const;
+const privateRouteMetadata = {
+  title: 'Construct Lifecycle',
+  description: 'Construct Lifecycle helps construction teams manage work from bid through closeout in one connected workspace.',
+  canonicalPath: '/',
+  robots: 'noindex, nofollow',
 } as const;
 
 function replaceHeadTag(html: string, pattern: RegExp, tag: string) {
   return html.replace(pattern, tag);
 }
 
+function normalizeRoutePath(url: string) {
+  const pathname = new URL(url, 'http://localhost').pathname.replace(/\/+$/, '') || '/';
+  return pathname === '/index.html' ? '/' : pathname;
+}
+
 function applyPublicRouteMetadata(html: string, pathname: string) {
-  const route = publicRouteMetadata[pathname as keyof typeof publicRouteMetadata] ?? publicRouteMetadata['/'];
+  const route = publicRouteMetadata[pathname as keyof typeof publicRouteMetadata] ?? privateRouteMetadata;
   const canonicalUrl = `${publicSiteUrl}${route.canonicalPath}`;
   const replacements: Array<[RegExp, string]> = [
     [/<title>[\s\S]*?<\/title>/, `<title>${route.title}</title>`],
     [/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${canonicalUrl}" />`],
     [/<meta name="description"[^>]*>/, `<meta name="description" content="${route.description}" />`],
+    [/<meta name="robots"[^>]*>/, `<meta name="robots" content="${route.robots}" />`],
     [/<meta property="og:title"[^>]*>/, `<meta property="og:title" content="${route.title}" />`],
     [/<meta property="og:description"[^>]*>/, `<meta property="og:description" content="${route.description}" />`],
     [/<meta property="og:url"[^>]*>/, `<meta property="og:url" content="${canonicalUrl}" />`],
@@ -89,6 +104,12 @@ function routeMetadataPlugin(): Plugin {
 
         const requestedUrl = req.originalUrl ?? req.url ?? '/';
         const pathname = new URL(requestedUrl, 'http://localhost').pathname.replace(/\/+$/, '') || '/';
+        if (pathname === '/sitemap.xml') {
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/xml');
+          res.end(renderPublicSitemap());
+          return;
+        }
         if (pathname !== '/' && pathname !== '/pricing' && pathname !== '/subscribe') {
           next();
           return;
@@ -107,7 +128,7 @@ function routeMetadataPlugin(): Plugin {
     },
     transformIndexHtml(html, ctx) {
       const requestedUrl = ctx.originalUrl ?? ctx.path;
-      const pathname = new URL(requestedUrl, 'http://localhost').pathname.replace(/\/+$/, '') || '/';
+      const pathname = normalizeRoutePath(requestedUrl);
       return applyPublicRouteMetadata(replacePublicRoot(html, pathname), pathname);
     },
     async writeBundle(options) {
@@ -117,6 +138,9 @@ function routeMetadataPlugin(): Plugin {
         const routeHtml = applyPublicRouteMetadata(replacePublicRoot(source, route), route);
         await writeFile(path.join(options.dir, route.slice(1)), routeHtml);
       }
+      const privateHtml = applyPublicRouteMetadata(replacePublicRoot(source, '/__private'), '/__private');
+      await writeFile(path.join(options.dir, 'private.html'), privateHtml);
+      await writeFile(path.join(options.dir, 'sitemap.xml'), renderPublicSitemap());
     },
   };
 }

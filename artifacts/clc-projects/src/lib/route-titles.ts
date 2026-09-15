@@ -121,6 +121,11 @@ function canonicalPath(pathname: string) {
   return normalized === '/subscribe' ? '/pricing' : normalized;
 }
 
+function isIndexablePublicPath(pathname: string) {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  return normalized === '/' || normalized === '/pricing';
+}
+
 export function useRouteMetadata(route: RouteMetadata) {
   const [location] = useLocation();
   const pathname = location.split('?')[0] || window.location.pathname;
@@ -140,6 +145,7 @@ export function useRouteMetadata(route: RouteMetadata) {
       updateMeta('meta[name="twitter:description"]', 'name', 'twitter:description'),
       updateMeta('meta[name="twitter:image"]', 'name', 'twitter:image'),
       updateMeta('meta[name="twitter:image:alt"]', 'name', 'twitter:image:alt'),
+      updateMeta('meta[name="robots"]', 'name', 'robots'),
     ];
 
     document.title = route.title;
@@ -154,6 +160,9 @@ export function useRouteMetadata(route: RouteMetadata) {
     metaUpdates[8].element.content = route.description;
     metaUpdates[9].element.content = PUBLIC_SHARE_IMAGE_URL;
     metaUpdates[10].element.content = 'Construct Lifecycle — From Bid to Closeout';
+    metaUpdates[11].element.content = isIndexablePublicPath(pathname)
+      ? 'index, follow'
+      : 'noindex, nofollow';
 
     return () => {
       document.title = previousTitle;

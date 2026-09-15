@@ -1,3 +1,6 @@
+export const PUBLIC_SITE_URL = 'https://constructlifecycle.com';
+export const PUBLIC_INDEXABLE_PATHS = ['/', '/pricing'] as const;
+
 export type PublicPricingPlan = {
   name: string;
   description: string;
@@ -19,6 +22,14 @@ export const PUBLIC_PRICING_PLANS: readonly PublicPricingPlan[] = [
     ],
   },
 ];
+
+export function renderPublicSitemap() {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${PUBLIC_INDEXABLE_PATHS.map((pathname) => `  <url><loc>${PUBLIC_SITE_URL}${pathname === '/' ? '/' : pathname}</loc></url>`).join('\n')}
+</urlset>
+`;
+}
 
 function renderPlanCards() {
   return PUBLIC_PRICING_PLANS.map(
