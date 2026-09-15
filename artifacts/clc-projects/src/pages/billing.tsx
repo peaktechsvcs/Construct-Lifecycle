@@ -12,6 +12,7 @@ import {
 import { Badge, Button, EmptyState, ErrorPanel, LoadingPanel, PageTitle } from '@/components/app-ui';
 import { StripePricingTable } from '@/components/stripe-pricing-table';
 import { useTenant } from '@/providers/tenant-provider';
+import { getBillingAccessPresentation } from '@/lib/billing-access-copy';
 
 const money = (amount: number | null | undefined, currency = 'usd') =>
   amount == null ? 'Contact us' : new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount / 100);
@@ -30,6 +31,8 @@ export function BillingAdmin() {
 
   const account = billing.data.billing;
   const subscription = account?.subscription;
+  const access = billing.data.effectiveAccess;
+  const accessPresentation = getBillingAccessPresentation(access);
   const refresh = () => qc.invalidateQueries({ queryKey: getGetBillingQueryKey() });
   const openPortal = () => portal.mutate({
     data: { returnUrl: `${window.location.origin}${import.meta.env.BASE_URL}settings/billing` },
@@ -47,6 +50,36 @@ export function BillingAdmin() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
           <section className="rounded-xl border border-border bg-card p-5">
+            <div className={`mb-5 rounded-lg border p-4 ${
+              accessPresentation.tone === 'red'
+                ? 'border-status-error/30 bg-status-error/10'
+                : accessPresentation.tone === 'orange'
+                  ? 'border-status-warning/30 bg-status-warning/10'
+                  : accessPresentation.tone === 'green'
+                    ? 'border-status-success/30 bg-status-success/10'
+                    : 'border-border bg-secondary/45'
+            }`} role={accessPresentation.tone === 'red' ? 'alert' : 'status'}>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="mono text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground">Effective workspace access</p>
+                    <Badge tone={accessPresentation.tone}>{accessPresentation.label}</Badge>
+                  </div>
+                  <h2 className="mt-2 text-base font-bold">{accessPresentation.title}</h2>
+                  <p className="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">{accessPresentation.description}</p>
+                  {access.subscriptionStatus && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Stripe subscription status: <span className="font-semibold">{access.subscriptionStatus}</span>
+                    </p>
+                  )}
+                </div>
+                {accessPresentation.showRecoveryAction && (
+                  <Button variant={accessPresentation.tone === 'red' ? 'primary' : 'outline'} onClick={openPortal} disabled={portal.isPending}>
+                    <ExternalLink size={14} /> {portal.isPending ? 'Opening…' : 'Open billing portal'}
+                  </Button>
+                )}
+              </div>
+            </div>
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="mono text-[10px] uppercase tracking-[.14em] text-accent">Stripe Pricing Table</p>

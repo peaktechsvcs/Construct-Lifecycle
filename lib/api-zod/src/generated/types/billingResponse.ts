@@ -7,8 +7,10 @@
  */
 import type { BillingAccount } from './billingAccount';
 import type { BillingPlan } from './billingPlan';
+import type { EffectiveBillingAccess } from './effectiveBillingAccess';
 
 export interface BillingResponse {
   plans: BillingPlan[];
   billing: BillingAccount | null;
+  effectiveAccess: EffectiveBillingAccess;
 }

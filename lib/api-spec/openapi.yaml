@@ -6716,7 +6716,7 @@ components:
         executionContextReady: { type: boolean }
     TenantContext:
       type: object
-      required: [activeTenant, memberships, activeEnvironment, environments, environmentLabel, isPlatformAdmin]
+      required: [activeTenant, memberships, activeEnvironment, environments, environmentLabel, isPlatformAdmin, effectiveAccess]
       properties:
         activeTenant: { $ref: "#/components/schemas/Tenant" }
         memberships:
@@ -6728,6 +6728,7 @@ components:
           items: { $ref: "#/components/schemas/Environment" }
         environmentLabel: { type: string, enum: [development, demo, production] }
         isPlatformAdmin: { type: boolean }
+        effectiveAccess: { $ref: "#/components/schemas/EffectiveBillingAccess" }
     BusinessType:
       type: string
       enum: [general-contractor, subcontractor, supplier]
@@ -7056,12 +7057,24 @@ components:
           items: { $ref: "#/components/schemas/EntitlementOverride" }
     BillingResponse:
       type: object
-      required: [plans, billing]
+      required: [plans, billing, effectiveAccess]
       properties:
         plans:
           type: array
           items: { $ref: "#/components/schemas/BillingPlan" }
         billing: { oneOf: [{ $ref: "#/components/schemas/BillingAccount" }, { type: "null" }] }
+        effectiveAccess: { $ref: "#/components/schemas/EffectiveBillingAccess" }
+    EffectiveBillingAccess:
+      type: object
+      required: [billingConfigured, state, subscriptionStatus, cancelAtPeriodEnd, planId, planName, entitlements]
+      properties:
+        billingConfigured: { type: boolean }
+        state: { type: string, enum: [active, grace_period, scheduled_cancellation, suspended, not_subscribed] }
+        subscriptionStatus: { type: ["string", "null"] }
+        cancelAtPeriodEnd: { type: boolean }
+        planId: { type: ["string", "null"] }
+        planName: { type: ["string", "null"] }
+        entitlements: { type: object, additionalProperties: { type: boolean } }
     BillingCheckoutInput:
       type: object
       required: [priceId, successUrl, cancelUrl]

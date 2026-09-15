@@ -12,6 +12,7 @@ import {
   Environment,
   PublishedBrandingContext,
   TenantContextEnvironmentLabel,
+  EffectiveBillingAccess,
 } from '@workspace/api-client-react';
 import { BRANDING_COLOR_KEYS, hexToHsl, sanitizeBrandingColors } from '@/lib/color-utils';
 
@@ -22,6 +23,7 @@ interface TenantContextType {
   activeEnvironment?: Environment;
   environments: Environment[];
   environmentLabel?: TenantContextEnvironmentLabel;
+  effectiveAccess?: EffectiveBillingAccess;
   isPlatformAdmin: boolean;
   activeRole?: string;
   isLoading: boolean;
@@ -70,6 +72,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const activeEnvironment = tenantQuery.data?.activeEnvironment;
   const environments = tenantQuery.data?.environments ?? [];
   const environmentLabel = tenantQuery.data?.environmentLabel;
+  const effectiveAccess = tenantQuery.data?.effectiveAccess;
   const isPlatformAdmin = tenantQuery.data?.isPlatformAdmin ?? false;
   const activeRole = memberships.find((membership) => membership.id === activeTenant?.id)?.role;
   const branding = brandingQuery.data;
@@ -132,6 +135,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         activeEnvironment,
         environments,
         environmentLabel,
+        effectiveAccess,
         isPlatformAdmin,
         activeRole,
         isLoading: !isLoaded || tenantQuery.isLoading,

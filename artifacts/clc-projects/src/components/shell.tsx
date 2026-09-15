@@ -25,6 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipTrigger } from '@workspace/construct-lifecycle-design-system/components/ui/tooltip';
 import { NotificationPreview } from '@/components/notification-preview';
 import { filterFeatureNavigationGroups } from '@/lib/feature-visibility';
+import { getBillingAccessPresentation } from '@/lib/billing-access-copy';
 
 function OpenFollowUpDot() {
   const { data } = useListFollowUps({ query: { queryKey: getListFollowUpsQueryKey(), staleTime: 60000 } });
@@ -301,7 +302,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const pathname = location.split('?')[0];
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { activeTenant, memberships, branding, activeEnvironment, activeRole, isPlatformAdmin } = useTenant();
+  const { activeTenant, memberships, branding, activeEnvironment, activeRole, isPlatformAdmin, effectiveAccess } = useTenant();
   const { user } = useUser();
   const { signOut } = useClerk();
   const switchTenant = useSwitchTenant();
@@ -345,6 +346,10 @@ export function Shell({ children }: { children: ReactNode }) {
     featureFlagsQuery.data,
     isPlatformAdmin,
   );
+  const accessPresentation = effectiveAccess ? getBillingAccessPresentation(effectiveAccess) : null;
+  const showAccessBanner = effectiveAccess?.billingConfigured === true
+    && effectiveAccess.state !== 'active'
+    && accessPresentation;
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -614,6 +619,29 @@ export function Shell({ children }: { children: ReactNode }) {
              <NotificationPreview />
           </div>
         </header>
+        {showAccessBanner && (
+          <div
+            className={`flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 md:px-9 ${
+              accessPresentation.tone === 'red'
+                ? 'border-status-error/30 bg-status-error/10'
+                : 'border-status-warning/30 bg-status-warning/10'
+            }`}
+            role={accessPresentation.tone === 'red' ? 'alert' : 'status'}
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${accessPresentation.tone === 'red' ? 'bg-status-error' : 'bg-status-warning'}`} />
+              <p className="min-w-0 text-sm">
+                <span className="font-bold">{accessPresentation.title}.</span>{' '}
+                <span className="text-muted-foreground">{accessPresentation.description}</span>
+              </p>
+            </div>
+            {accessPresentation.showRecoveryAction && (
+              <Link href="/settings/billing" className="shrink-0 text-sm font-bold text-primary hover:underline">
+                Review billing
+              </Link>
+            )}
+          </div>
+        )}
         <div className="mx-auto max-w-[1500px] px-4 py-7 md:px-9 md:py-9">{children}</div>
       </main>
     </div>

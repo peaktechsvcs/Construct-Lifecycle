@@ -219,6 +219,15 @@ export function installBrowserTestApi() {
         environments,
         environmentLabel: 'development',
         isPlatformAdmin: mode() === 'platform',
+        effectiveAccess: {
+          billingConfigured: false,
+          state: 'not_subscribed',
+          subscriptionStatus: null,
+          cancelAtPeriodEnd: false,
+          planId: null,
+          planName: null,
+          entitlements: {},
+        },
       });
     }
     if (url.pathname === '/api/tenant/branding/published') return json({ published: [] });

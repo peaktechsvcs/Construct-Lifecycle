@@ -3946,6 +3946,32 @@ export const TenantContextEnvironmentLabel = {
   production: 'production',
 } as const;
 
+export type EffectiveBillingAccessState = typeof EffectiveBillingAccessState[keyof typeof EffectiveBillingAccessState];
+
+
+export const EffectiveBillingAccessState = {
+  active: 'active',
+  grace_period: 'grace_period',
+  scheduled_cancellation: 'scheduled_cancellation',
+  suspended: 'suspended',
+  not_subscribed: 'not_subscribed',
+} as const;
+
+export type EffectiveBillingAccessEntitlements = {[key: string]: boolean};
+
+export interface EffectiveBillingAccess {
+  billingConfigured: boolean;
+  state: EffectiveBillingAccessState;
+  /** @nullable */
+  subscriptionStatus: string | null;
+  cancelAtPeriodEnd: boolean;
+  /** @nullable */
+  planId: string | null;
+  /** @nullable */
+  planName: string | null;
+  entitlements: EffectiveBillingAccessEntitlements;
+}
+
 export interface TenantContext {
   activeTenant: Tenant;
   memberships: TenantMembershipSummary[];
@@ -3953,6 +3979,7 @@ export interface TenantContext {
   environments: Environment[];
   environmentLabel: TenantContextEnvironmentLabel;
   isPlatformAdmin: boolean;
+  effectiveAccess: EffectiveBillingAccess;
 }
 
 export interface FeatureFlag {
@@ -4396,6 +4423,7 @@ export interface BillingAccount {
 export interface BillingResponse {
   plans: BillingPlan[];
   billing: BillingAccount | null;
+  effectiveAccess: EffectiveBillingAccess;
 }
 
 export interface BillingCheckoutInput {

@@ -461,7 +461,17 @@ describe("billing lifecycle", () => {
 
     const account = await request(clerkIds.ownerA, "/billing");
     assert.equal(account.status, 200);
-    assert.equal(((account.body as Record<string, unknown>).billing as Record<string, unknown>).customerId, customerAId);
+    const accountBody = account.body as Record<string, unknown>;
+    assert.equal((accountBody.billing as Record<string, unknown>).customerId, customerAId);
+    assert.deepEqual(accountBody.effectiveAccess, {
+      billingConfigured: true,
+      state: "active",
+      subscriptionStatus: "active",
+      cancelAtPeriodEnd: false,
+      planId: "prod-standard",
+      planName: "Standard",
+      entitlements: { projects: true, billing: true },
+    });
   });
 
   test("preserves failed-payment state and resolves overrides for the correct tenant", async () => {

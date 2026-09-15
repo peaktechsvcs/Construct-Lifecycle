@@ -11,7 +11,7 @@ import { requireTenantContext, type TenantRequest } from "../middlewares/tenantC
 import { requirePlatformAdmin } from "../middlewares/platformAdmin";
 import { requireRole } from "../middlewares/rbac";
 import { getUncachableStripeClient } from "../stripeClient";
-import { readBillingAccount, readPlans } from "../lib/billing-access";
+import { getEffectiveFeatureAccess, readBillingAccount, readPlans } from "../lib/billing-access";
 
 const router: IRouter = Router();
 const stripePriceId = z.string().min(5).max(100);
@@ -64,7 +64,11 @@ router.get("/billing/plans", async (_req, res) => {
 });
 
 router.get("/billing", async (req: TenantRequest, res) => {
-  res.json({ plans: await readPlans(), billing: await readBillingAccount(req.tenantId!) });
+  res.json({
+    plans: await readPlans(),
+    billing: await readBillingAccount(req.tenantId!),
+    effectiveAccess: await getEffectiveFeatureAccess(req.tenantId!),
+  });
 });
 
 router.post("/billing/checkout", requireRole("owner", "admin"), async (req: TenantRequest, res) => {

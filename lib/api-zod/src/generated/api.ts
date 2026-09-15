@@ -11072,7 +11072,16 @@ export const GetTenantContextResponse = zod.object({
   "executionContextReady": zod.boolean().optional()
 })),
   "environmentLabel": zod.enum(['development', 'demo', 'production']),
-  "isPlatformAdmin": zod.boolean()
+  "isPlatformAdmin": zod.boolean(),
+  "effectiveAccess": zod.object({
+  "billingConfigured": zod.boolean(),
+  "state": zod.enum(['active', 'grace_period', 'scheduled_cancellation', 'suspended', 'not_subscribed']),
+  "subscriptionStatus": zod.string().nullable(),
+  "cancelAtPeriodEnd": zod.boolean(),
+  "planId": zod.string().nullable(),
+  "planName": zod.string().nullable(),
+  "entitlements": zod.record(zod.string(), zod.boolean())
+})
 })
 
 
@@ -11132,7 +11141,16 @@ export const SwitchTenantResponse = zod.object({
   "executionContextReady": zod.boolean().optional()
 })),
   "environmentLabel": zod.enum(['development', 'demo', 'production']),
-  "isPlatformAdmin": zod.boolean()
+  "isPlatformAdmin": zod.boolean(),
+  "effectiveAccess": zod.object({
+  "billingConfigured": zod.boolean(),
+  "state": zod.enum(['active', 'grace_period', 'scheduled_cancellation', 'suspended', 'not_subscribed']),
+  "subscriptionStatus": zod.string().nullable(),
+  "cancelAtPeriodEnd": zod.boolean(),
+  "planId": zod.string().nullable(),
+  "planName": zod.string().nullable(),
+  "entitlements": zod.record(zod.string(), zod.boolean())
+})
 })
 
 
@@ -11292,7 +11310,16 @@ export const SwitchEnvironmentResponse = zod.object({
   "executionContextReady": zod.boolean().optional()
 })),
   "environmentLabel": zod.enum(['development', 'demo', 'production']),
-  "isPlatformAdmin": zod.boolean()
+  "isPlatformAdmin": zod.boolean(),
+  "effectiveAccess": zod.object({
+  "billingConfigured": zod.boolean(),
+  "state": zod.enum(['active', 'grace_period', 'scheduled_cancellation', 'suspended', 'not_subscribed']),
+  "subscriptionStatus": zod.string().nullable(),
+  "cancelAtPeriodEnd": zod.boolean(),
+  "planId": zod.string().nullable(),
+  "planName": zod.string().nullable(),
+  "entitlements": zod.record(zod.string(), zod.boolean())
+})
 })
 
 
@@ -12522,7 +12549,16 @@ export const GetBillingResponse = zod.object({
   "capabilityKey": zod.string(),
   "enabled": zod.boolean()
 }))
-}),zod.null()])
+}),zod.null()]),
+  "effectiveAccess": zod.object({
+  "billingConfigured": zod.boolean(),
+  "state": zod.enum(['active', 'grace_period', 'scheduled_cancellation', 'suspended', 'not_subscribed']),
+  "subscriptionStatus": zod.string().nullable(),
+  "cancelAtPeriodEnd": zod.boolean(),
+  "planId": zod.string().nullable(),
+  "planName": zod.string().nullable(),
+  "entitlements": zod.record(zod.string(), zod.boolean())
+})
 })
 
 

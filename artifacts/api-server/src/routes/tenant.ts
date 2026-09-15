@@ -35,6 +35,7 @@ import {
   replaceTenantBusinessTypes,
 } from "../lib/tenant-business-profile";
 import { isIsolatedEnvironmentReady, isRecentHealthyCheck, isRuntimeSigningBoundaryReady } from "../lib/provisioning";
+import { getEffectiveFeatureAccess } from "../lib/billing-access";
 
 const router: IRouter = Router();
 const releaseAssignment = async (assignmentId: number, tenantId: number, userId: number, isPlatformAdmin = false) => {
@@ -230,6 +231,7 @@ const context = async (req: TenantRequest) => {
   const activeEnvironment = environmentsWithReadiness.find(x => x.id === req.environmentId) ?? environmentsWithReadiness[0];
   const activeTenant = memberships.find(x => x.id === req.tenantId);
   const businessTypes = await getTenantBusinessTypes(req.tenantId!);
+  const effectiveAccess = await getEffectiveFeatureAccess(req.tenantId!);
   return {
     activeTenant: activeTenant ? { ...activeTenant, businessTypes } : undefined,
     memberships,
@@ -237,6 +239,7 @@ const context = async (req: TenantRequest) => {
     environments: environmentsWithReadiness,
     environmentLabel: req.environmentLabel ?? process.env.APP_ENV ?? "development",
     isPlatformAdmin: Boolean(req.isPlatformAdmin),
+    effectiveAccess,
   };
 };
 
