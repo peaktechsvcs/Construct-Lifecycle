@@ -20,6 +20,7 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 const basePath = process.env.BASE_PATH;
+const browserTestMode = process.env.CLC_BROWSER_TEST === '1';
 
 if (!basePath) {
   throw new Error(
@@ -56,15 +57,30 @@ export default defineConfig({
       : []),
   ],
   resolve: {
-    alias: {
-      '@': path.resolve(import.meta.dirname, 'src'),
-      '@assets': path.resolve(
-        import.meta.dirname,
-        '..',
-        '..',
-        'attached_assets',
-      ),
-    },
+    alias: [
+      ...(browserTestMode
+        ? [
+            {
+              find: '@clerk/react/internal',
+              replacement: path.resolve(import.meta.dirname, 'src/lib/browser-test-clerk-internal.ts'),
+            },
+            {
+              find: '@clerk/react',
+              replacement: path.resolve(import.meta.dirname, 'src/lib/browser-test-clerk.tsx'),
+            },
+          ]
+        : []),
+      { find: '@', replacement: path.resolve(import.meta.dirname, 'src') },
+      {
+        find: '@assets',
+        replacement: path.resolve(
+          import.meta.dirname,
+          '..',
+          '..',
+          'attached_assets',
+        ),
+      },
+    ],
     dedupe: ['react', 'react-dom'],
   },
   root: path.resolve(import.meta.dirname),

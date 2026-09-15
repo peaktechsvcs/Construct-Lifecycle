@@ -580,7 +580,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
               <span>{activeTenant?.name || 'Construct Lifecycle'}</span>
               <span className="text-border">/</span>
-              <span className="font-semibold text-foreground">{breadcrumbLabel}</span>
+              <span data-testid="workspace-breadcrumb" className="font-semibold text-foreground">{breadcrumbLabel}</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
