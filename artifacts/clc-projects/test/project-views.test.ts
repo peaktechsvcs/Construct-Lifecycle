@@ -5,7 +5,7 @@ import {
   groupActiveProjectStatusSections,
 } from '../src/lib/project-views.ts';
 
-test('Active Projects prioritizes Active and Waiting before custom statuses', () => {
+test('Active Projects keeps every configured status in display order', () => {
   const sections = groupActiveProjectStatusSections(
     [
       { id: 5, projectNumber: 'PRJ-005', projectStatus: 'review_pending' },
@@ -22,10 +22,10 @@ test('Active Projects prioritizes Active and Waiting before custom statuses', ()
   );
 
   assert.deepEqual(sections.map((section) => section.stableKey), [
-    'active',
-    'waiting',
     'review_pending',
     'field_active',
+    'waiting',
+    'active',
   ]);
 });
 
