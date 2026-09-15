@@ -41,6 +41,12 @@ const cases = [
     path: "/projects?browserAuth=authenticated",
     heading: "Projects",
     actions: ['button[data-testid="button-new-project"]', 'a[data-testid="link-project-42"]'],
+    dialog: {
+      openSelector: 'button[data-testid="button-new-project"]',
+      title: "Create a new project",
+      submitSelector: 'button[data-testid="button-save-project"]',
+      submitLabel: "Create project",
+    },
     shell: true,
   },
   {
@@ -49,6 +55,12 @@ const cases = [
     path: "/projects/42?browserAuth=authenticated",
     heading: "Browser Test Project",
     actions: ['a[data-testid="link-back-projects"]', 'button[data-testid="button-edit-project-detail"]'],
+    dialog: {
+      openSelector: 'button[data-testid="button-edit-project-detail"]',
+      title: "Edit P-0042",
+      submitSelector: 'button[data-testid="button-save-project"]',
+      submitLabel: "Save changes",
+    },
     shell: true,
   },
   {
@@ -387,6 +399,141 @@ async function stabilize(client) {
   await new Promise((resolve) => setTimeout(resolve, 100));
 }
 
+async function inspectDialog(client, routeCase, viewport) {
+  const dialogCase = routeCase.dialog;
+  if (!dialogCase) return;
+
+  const opened = await evaluate(client, `(() => {
+    const opener = document.querySelector(${JSON.stringify(dialogCase.openSelector)});
+    if (!(opener instanceof HTMLElement)) return false;
+    opener.click();
+    return true;
+  })()`);
+  if (!opened) {
+    throw new Error(`${routeCase.name} (${viewport.name}): dialog opener missing (${dialogCase.openSelector})`);
+  }
+
+  const dialogDeadline = Date.now() + 5_000;
+  let dialogState;
+  while (Date.now() < dialogDeadline) {
+    dialogState = await evaluate(client, `(() => {
+      const dialog = document.querySelector('[role="dialog"]');
+      const title = dialog?.querySelector('h2')?.textContent?.trim() ?? "";
+      return {
+        ready: dialog instanceof HTMLElement && title.length > 0,
+        title,
+      };
+    })()`);
+    if (dialogState.ready) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  if (!dialogState?.ready) {
+    throw new Error(`${routeCase.name} (${viewport.name}): project dialog did not open`);
+  }
+
+  const initialState = await evaluate(client, `(() => {
+    const dialog = document.querySelector('[role="dialog"]');
+    const title = dialog?.querySelector('h2')?.textContent?.trim() ?? "";
+    const close = dialog?.querySelector('button[aria-label="Close modal"]');
+    const submit = dialog?.querySelector(${JSON.stringify(dialogCase.submitSelector)});
+    const visible = (element) => {
+      if (!(element instanceof HTMLElement)) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0
+        && rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.left < innerWidth
+        && rect.bottom > 0 && rect.top < innerHeight;
+    };
+    return {
+      title,
+      closeVisible: visible(close),
+      submitExists: submit instanceof HTMLElement,
+      submitLabel: submit?.textContent?.trim() ?? "",
+    };
+  })()`);
+  const initialFailures = [];
+  if (initialState.title !== dialogCase.title) {
+    initialFailures.push(`dialog title "${initialState.title}" instead of "${dialogCase.title}"`);
+  }
+  if (!initialState.closeVisible) initialFailures.push("dialog close control is not visible");
+  if (!initialState.submitExists) initialFailures.push(`missing primary submit action: ${dialogCase.submitSelector}`);
+  if (initialState.submitExists && initialState.submitLabel !== dialogCase.submitLabel) {
+    initialFailures.push(`submit label "${initialState.submitLabel}" instead of "${dialogCase.submitLabel}"`);
+  }
+  if (initialFailures.length) {
+    throw new Error(`${routeCase.name} (${viewport.name}): ${initialFailures.join("; ")}`);
+  }
+
+  await evaluate(client, `(() => {
+    const submit = document.querySelector(${JSON.stringify(dialogCase.submitSelector)});
+    if (submit instanceof HTMLElement) submit.scrollIntoView({ block: "nearest", inline: "nearest" });
+    return true;
+  })()`);
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  const openLayout = await evaluate(client, `(() => {
+    const dialog = document.querySelector('[role="dialog"]');
+    const submit = dialog?.querySelector(${JSON.stringify(dialogCase.submitSelector)});
+    const visible = (element) => {
+      if (!(element instanceof HTMLElement)) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0
+        && rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.left < innerWidth
+        && rect.bottom > 0 && rect.top < innerHeight;
+    };
+    const isIntentionalScrollRegion = (element) => {
+      const style = getComputedStyle(element);
+      return element.scrollWidth > element.clientWidth + 1
+        && ["auto", "scroll"].includes(style.overflowX);
+    };
+    const isInsideIntentionalScrollRegion = (element) => {
+      let parent = element.parentElement;
+      while (parent) {
+        if (isIntentionalScrollRegion(parent)) return true;
+        parent = parent.parentElement;
+      }
+      return false;
+    };
+    const overflowingElements = [...document.querySelectorAll("body *")].filter((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.right > innerWidth + 1 && !isInsideIntentionalScrollRegion(element);
+    });
+    const effectiveOverflow = overflowingElements.length
+      ? Math.max(...overflowingElements.map((element) => element.getBoundingClientRect().right - innerWidth))
+      : 0;
+    return {
+      submitVisible: visible(submit),
+      effectiveOverflow,
+      overflowing: overflowingElements
+        .map((element) => element.getAttribute("data-testid") || element.id || element.tagName.toLowerCase())
+        .slice(0, 8),
+    };
+  })()`);
+  const openFailures = [];
+  if (!openLayout.submitVisible) openFailures.push("primary submit action is not visible/reachable in the dialog viewport");
+  if (openLayout.effectiveOverflow > 1) {
+    openFailures.push(`horizontal overflow of ${openLayout.effectiveOverflow}px while dialog is open${openLayout.overflowing.length ? ` from ${openLayout.overflowing.join(", ")}` : ""}`);
+  }
+  if (openFailures.length) {
+    throw new Error(`${routeCase.name} (${viewport.name}): ${openFailures.join("; ")}`);
+  }
+
+  await evaluate(client, `(() => {
+    const close = document.querySelector('[role="dialog"] button[aria-label="Close modal"]');
+    if (!(close instanceof HTMLElement)) return false;
+    close.click();
+    return true;
+  })()`);
+  const closeDeadline = Date.now() + 5_000;
+  while (Date.now() < closeDeadline) {
+    const closed = await evaluate(client, `document.querySelector('[role="dialog"]') === null`);
+    if (closed) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`${routeCase.name} (${viewport.name}): dialog close control did not close the dialog`);
+}
+
 async function inspect(client, routeCase, viewport) {
   if (routeCase.shell && viewport.name === "mobile") {
     const opened = await evaluate(client, `(() => {
@@ -398,6 +545,8 @@ async function inspect(client, routeCase, viewport) {
     if (!opened) throw new Error(`${routeCase.name} (${viewport.name}): mobile menu button missing`);
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
+
+  await inspectDialog(client, routeCase, viewport);
 
   return evaluate(client, `(() => {
     const visible = (selector) => {
