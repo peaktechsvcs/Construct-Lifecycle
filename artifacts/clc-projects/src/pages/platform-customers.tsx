@@ -4,6 +4,8 @@ import { ArrowRight, Building2, CheckCircle2, Copy, CreditCard, Eye, Mail, Megap
 import { Link, useLocation } from 'wouter';
 import {
   BusinessType,
+  CreatedPlatformCustomerInvitationStatus,
+  InvitationDeliveryOutcome,
   PlatformCustomerStatus,
   UpdatePlatformCustomerInputStatus,
   getListPlatformBillingPlansQueryKey,
@@ -20,7 +22,7 @@ import {
 } from '@workspace/api-client-react';
 import { Badge, Button, EmptyState, ErrorPanel, LoadingPanel, PageTitle } from '@/components/app-ui';
 import { BUSINESS_TYPE_OPTIONS, businessTypeLabel } from '@/lib/business-profile';
-import { canSubmitPlatformCustomerCreation, platformCustomerCreationMessage } from '@/lib/platform-customer-recovery';
+import { canSubmitPlatformCustomerCreation, needsOwnerInvitationRetry, platformCustomerCreationMessage } from '@/lib/platform-customer-recovery';
 import { PlatformCustomerAccess } from '@/pages/platform-customer-access';
 
 const inputClass = 'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-primary/20';
@@ -60,7 +62,13 @@ export function PlatformCustomers() {
   const [planName, setPlanName] = useState('');
   const [monthlyAmount, setMonthlyAmount] = useState('');
   const [annualAmount, setAnnualAmount] = useState('');
-  const [onboardedCustomer, setOnboardedCustomer] = useState<{ id: number; name: string; invitationToken?: string | null } | null>(null);
+  const [onboardedCustomer, setOnboardedCustomer] = useState<{
+    id: number;
+    name: string;
+    invitationToken: string | null;
+    invitationStatus: CreatedPlatformCustomerInvitationStatus;
+    invitationDelivery: InvitationDeliveryOutcome | null;
+  } | null>(null);
 
   if (customers.isLoading) return <><PageTitle eyebrow="Platform" title="Customers" description="Onboard and control customer workspaces." /><LoadingPanel lines={6} /></>;
   if (customers.isError) {
@@ -113,7 +121,7 @@ export function PlatformCustomers() {
         </section>
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="mb-5 flex items-center gap-3 border-b border-border pb-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary"><Plus size={16} /></span><h2 className="text-base font-bold">Create customer</h2></div>
-          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (businessTypes.length === 0) return; create.mutate({ data: { name, slug, ownerEmail: ownerEmail || null, businessTypes } }, { onSuccess: (result) => { setName(''); setSlug(''); setOwnerEmail(''); setBusinessTypes([BusinessType['general-contractor']]); setOnboardedCustomer({ id: result.customer.id, name: result.customer.name, invitationToken: result.invitationToken }); refresh(); if (result.invitationToken) setLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${result.invitationToken}`); } }); }}>
+          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (businessTypes.length === 0) return; setLink(null); setCopied(false); setOnboardedCustomer(null); create.mutate({ data: { name, slug, ownerEmail: ownerEmail || null, businessTypes } }, { onSuccess: (result) => { setName(''); setSlug(''); setOwnerEmail(''); setBusinessTypes([BusinessType['general-contractor']]); setOnboardedCustomer({ id: result.customer.id, name: result.customer.name, invitationToken: result.invitationToken, invitationStatus: result.invitationStatus, invitationDelivery: result.invitationDelivery }); refresh(); if (result.invitationToken) setLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${result.invitationToken}`); } }); }}>
             <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Customer name</span><input required minLength={2} value={name} onChange={(event) => setName(event.target.value)} className={inputClass} /></label>
             <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Slug</span><input required pattern="[a-z0-9][a-z0-9-]{2,62}" value={slug} onChange={(event) => setSlug(event.target.value.toLowerCase())} className={inputClass} placeholder="acme-builders" /></label>
             <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Owner email <span className="font-normal text-muted-foreground">(optional)</span></span><input type="email" value={ownerEmail} onChange={(event) => setOwnerEmail(event.target.value)} className={inputClass} /></label>
@@ -147,22 +155,43 @@ export function PlatformCustomers() {
         <PlatformCustomerAccess tenantId={selectedCustomerId} details={selectedCustomer.data} />
       )}
       {onboardedCustomer && (
-        <section className="mt-6 rounded-xl border border-primary/25 bg-primary/5 p-5">
+        <section className={`mt-6 rounded-xl border p-5 ${needsOwnerInvitationRetry(onboardedCustomer.invitationStatus) ? 'border-status-warning/40 bg-status-warning/10' : 'border-primary/25 bg-primary/5'}`}>
           <div className="flex flex-wrap items-start gap-4">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Rocket size={19} /></span>
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${needsOwnerInvitationRetry(onboardedCustomer.invitationStatus) ? 'bg-status-warning/15 text-status-warning' : 'bg-primary/10 text-primary'}`}>
+              {needsOwnerInvitationRetry(onboardedCustomer.invitationStatus) ? <ShieldAlert size={19} /> : <Rocket size={19} />}
+            </span>
             <div className="min-w-0 flex-1">
-              <p className="mono text-[10px] font-bold uppercase tracking-[.14em] text-primary">Onboarding started</p>
-              <h2 className="mt-1 text-base font-bold">{onboardedCustomer.name} is ready for setup</h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">Both customer environments and their default lifecycle workflows are provisioned. Finish the workflow review, then share the owner invitation.</p>
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                <div className="flex items-center gap-2 text-xs font-semibold"><CheckCircle2 size={15} className="text-status-success" /> Workspace created</div>
-                <div className="flex items-center gap-2 text-xs font-semibold"><CheckCircle2 size={15} className="text-status-success" /> Environments ready</div>
-                <div className="flex items-center gap-2 text-xs font-semibold"><CheckCircle2 size={15} className="text-status-success" /> Default workflows ready</div>
-              </div>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Button onClick={() => openWorkflowManager(onboardedCustomer.id)} disabled={switchTenant.isPending}><Workflow size={14} /> Review workflow <ArrowRight size={14} /></Button>
-                {onboardedCustomer.invitationToken && <Button variant="outline" onClick={() => setLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${onboardedCustomer.invitationToken}`)}>View owner invite</Button>}
-              </div>
+              {needsOwnerInvitationRetry(onboardedCustomer.invitationStatus) ? (
+                <div role="alert">
+                  <p className="mono text-[10px] font-bold uppercase tracking-[.14em] text-status-warning">Workspace created</p>
+                  <h2 className="mt-1 text-base font-bold">Owner invitation needs a retry</h2>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    {onboardedCustomer.name} is ready for setup, but the owner invitation was not saved. Open customer access to create a new owner invitation.
+                  </p>
+                  <Button className="mt-5" onClick={() => setSelectedCustomerId(onboardedCustomer.id)}>
+                    <Mail size={14} /> Open customer access <ArrowRight size={14} />
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <p className="mono text-[10px] font-bold uppercase tracking-[.14em] text-primary">Onboarding started</p>
+                  <h2 className="mt-1 text-base font-bold">{onboardedCustomer.name} is ready for setup</h2>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">Both customer environments and their default lifecycle workflows are provisioned. Finish the workflow review, then share the owner invitation.</p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold"><CheckCircle2 size={15} className="text-status-success" /> Workspace created</div>
+                    <div className="flex items-center gap-2 text-xs font-semibold"><CheckCircle2 size={15} className="text-status-success" /> Environments ready</div>
+                    <div className="flex items-center gap-2 text-xs font-semibold"><CheckCircle2 size={15} className="text-status-success" /> Default workflows ready</div>
+                  </div>
+                  {onboardedCustomer.invitationDelivery === InvitationDeliveryOutcome.failed && (
+                    <p role="status" className="mt-4 text-xs text-status-warning">The owner invitation was created, but email delivery failed. Use the one-time link below or open customer access to create another invitation.</p>
+                  )}
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <Button onClick={() => openWorkflowManager(onboardedCustomer.id)} disabled={switchTenant.isPending}><Workflow size={14} /> Review workflow <ArrowRight size={14} /></Button>
+                    {onboardedCustomer.invitationToken && <Button variant="outline" onClick={() => setLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${onboardedCustomer.invitationToken}`)}>View owner invite</Button>}
+                    <Button variant="outline" onClick={() => setSelectedCustomerId(onboardedCustomer.id)}><Mail size={14} /> Open customer access</Button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </section>

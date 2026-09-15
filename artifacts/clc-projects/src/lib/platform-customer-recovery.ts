@@ -12,3 +12,7 @@ export function platformCustomerCreationMessage(error: unknown): string {
 export function canSubmitPlatformCustomerCreation(isPending: boolean, businessTypeCount: number): boolean {
   return !isPending && businessTypeCount > 0;
 }
+
+export function needsOwnerInvitationRetry(invitationStatus: string): boolean {
+  return invitationStatus === 'failed';
+}
