@@ -232,6 +232,56 @@ describe("feature visibility and roadmap feedback integration", { concurrency: f
     assert.equal(disabledAgain.status, 200);
   });
 
+  test("removes enabled features from voting without changing existing totals", async () => {
+    const existingVote = await request(clerkIds.memberA, "/feedback/vote", {
+      method: "POST",
+      body: JSON.stringify({ featureKey: "contracts" }),
+    });
+    assert.equal(existingVote.status, 200);
+    assert.equal(feature(existingVote.body, "contracts")?.voteCount, 1);
+
+    const enabled = await request(clerkIds.platformAdmin, "/platform/features/contracts", {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: true }),
+    });
+    assert.equal(enabled.status, 200);
+    assert.equal(feature(enabled.body, "contracts")?.enabled, true);
+
+    const hiddenFromVoting = await request(clerkIds.memberA, "/feedback/features");
+    assert.equal(hiddenFromVoting.status, 200);
+    assert.equal(feature(hiddenFromVoting.body, "contracts"), undefined);
+
+    const rejectedVote = await request(clerkIds.viewerA, "/feedback/vote", {
+      method: "POST",
+      body: JSON.stringify({ featureKey: "contracts" }),
+    });
+    assert.equal(rejectedVote.status, 400);
+    assert.deepEqual(rejectedVote.body, { error: "That feature is not available for voting" });
+
+    const voteRowsWhileEnabled = await db
+      .select()
+      .from(featureFeedbackVotesTable)
+      .where(eq(featureFeedbackVotesTable.featureKey, "contracts"));
+    assert.equal(voteRowsWhileEnabled.filter((vote) => vote.tenantId === tenantAId).length, 1);
+
+    const disabled = await request(clerkIds.platformAdmin, "/platform/features/contracts", {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: false }),
+    });
+    assert.equal(disabled.status, 200);
+    assert.equal(feature(disabled.body, "contracts")?.enabled, false);
+
+    const restoredVoting = await request(clerkIds.memberA, "/feedback/features");
+    assert.equal(restoredVoting.status, 200);
+    assert.equal(feature(restoredVoting.body, "contracts")?.voteCount, 1);
+    assert.equal(feature(restoredVoting.body, "contracts")?.votedByCurrentUser, true);
+
+    await db.delete(featureFeedbackVotesTable).where(and(
+      eq(featureFeedbackVotesTable.tenantId, tenantAId),
+      eq(featureFeedbackVotesTable.featureKey, "contracts"),
+    ));
+  });
+
   test("each tenant user has one replaceable vote and counts aggregate across tenants", async () => {
     const beforeVoting = await request(clerkIds.memberA, "/feedback/features");
     assert.equal(beforeVoting.status, 200);
