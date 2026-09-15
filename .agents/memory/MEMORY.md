@@ -5,6 +5,7 @@
 - [Web artifact build inputs](web-artifact-build-inputs.md) — manual Vite builds require both PORT and BASE_PATH, matching the artifact workflow environment.
 - [Settings authorization boundary](settings-authorization.md) — keep tenant configuration admin-only while exposing only published branding for global theme hydration.
 - [Stripe connector runtime](stripe-connector-runtime.md) — the attached connection may expose proxy access without a raw sync secret; billing must fail closed around sync/webhooks.
+- [Stripe webhook idempotency](stripe-webhook-idempotency.md) — guard StripeSync with a durable receipt and transaction-scoped advisory lock.
 - [Sidebar token mapping](sidebar-token-mapping.md) — Tailwind v4 custom sidebar utilities need explicit `@theme` color mappings or mobile navigation can become transparent.
 - [Clerk environment identity boundary](clerk-environment-identity.md) — Replit-managed Development and Production Clerk users are separate; tenant access must be explicitly provisioned per environment.
 - [Feature visibility and feedback](feature-visibility-feedback.md) — upcoming navigation is server-gated; CLC controls advertisement and tenants cast one current roadmap vote.

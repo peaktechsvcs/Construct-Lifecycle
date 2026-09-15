@@ -1,5 +1,6 @@
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { StripeSync } from "stripe-replit-sync";
+import type { Stripe } from "stripe";
 
 const connectors = new ReplitConnectors();
 
@@ -138,14 +139,41 @@ async function getStripeSyncCredentials(): Promise<{ secretKey: string; webhookS
   return { secretKey: settings.secret_key, webhookSecret: settings.webhook_secret };
 }
 
-export async function getStripeSync(): Promise<StripeSync> {
+type StripeWebhookEvent = Stripe.Event;
+
+async function getManagedWebhookSecret(sync: StripeSync): Promise<string | undefined> {
+  const accountId = await sync.getAccountId();
+  const result = await sync.postgresClient.query(
+    `SELECT secret FROM "stripe"."_managed_webhooks" WHERE account_id = $1 LIMIT 1`,
+    [accountId],
+  );
+  const secret = result.rows[0]?.secret;
+  return typeof secret === "string" && secret.length > 0 ? secret : undefined;
+}
+
+export type VerifiedStripeSync = StripeSync & {
+  verifyWebhook(payload: Buffer, signature: string): Promise<StripeWebhookEvent>;
+};
+
+export async function getStripeSync(): Promise<VerifiedStripeSync> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL is required for Stripe sync");
   const { secretKey, webhookSecret } = await getStripeSyncCredentials();
-  return new StripeSync({
+  const sync = new StripeSync({
     poolConfig: { connectionString: databaseUrl },
     stripeSecretKey: secretKey,
     stripeWebhookSecret: webhookSecret ?? "",
     backfillRelatedEntities: true,
+  });
+  return Object.assign(sync, {
+    verifyWebhook: async (payload: Buffer, signature: string) => {
+      const secret = webhookSecret ?? await getManagedWebhookSecret(sync);
+      if (!secret) {
+        throw new Error(
+          "No webhook secret provided. Either create a managed webhook or configure stripeWebhookSecret.",
+        );
+      }
+      return await sync.stripe.webhooks.constructEventAsync(payload, signature, secret);
+    },
   });
 }

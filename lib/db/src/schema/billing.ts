@@ -49,6 +49,14 @@ export const subscriptionAuditEventsTable = pgTable("subscription_audit_events",
   index("subscription_audit_events_created_idx").on(table.createdAt),
 ]);
 
+export const stripeWebhookEventsTable = pgTable("stripe_webhook_events", {
+  eventId: text("event_id").primaryKey(),
+  eventType: text("event_type").notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("stripe_webhook_events_processed_idx").on(table.processedAt),
+]);
+
 export const insertTenantBillingAccountSchema = createInsertSchema(tenantBillingAccountsTable).omit({
   createdAt: true,
   updatedAt: true,
@@ -68,6 +76,7 @@ export const insertSubscriptionAuditEventSchema = createInsertSchema(subscriptio
 export type TenantBillingAccount = typeof tenantBillingAccountsTable.$inferSelect;
 export type TenantEntitlementOverride = typeof tenantEntitlementOverridesTable.$inferSelect;
 export type SubscriptionAuditEvent = typeof subscriptionAuditEventsTable.$inferSelect;
+export type StripeWebhookEvent = typeof stripeWebhookEventsTable.$inferSelect;
 export type TenantBillingAccountInput = z.infer<typeof insertTenantBillingAccountSchema>;
 export type TenantEntitlementOverrideInput = z.infer<typeof insertTenantEntitlementOverrideSchema>;
 export type SubscriptionAuditEventInput = z.infer<typeof insertSubscriptionAuditEventSchema>;

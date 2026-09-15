@@ -13,6 +13,8 @@ const {
   membershipsTable,
   pool,
   platformFeatureFlagsTable,
+  stripeWebhookEventsTable,
+  subscriptionAuditEventsTable,
   tenantBillingAccountsTable,
   tenantEntitlementOverridesTable,
   tenantsTable,
@@ -528,5 +530,69 @@ describe("Stripe webhook boundary", () => {
     });
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), { error: "Webhook processing failed" });
+  });
+
+  test("processes a verified event once across duplicate, concurrent, and replayed deliveries", async () => {
+    await db.delete(stripeWebhookEventsTable)
+      .where(eq(stripeWebhookEventsTable.eventId, "evt_duplicatesubscription"));
+    await db.delete(subscriptionAuditEventsTable)
+      .where(eq(subscriptionAuditEventsTable.providerReference, "sub-test-1"));
+    const event = Buffer.from(JSON.stringify({
+      id: "evt_duplicatesubscription",
+      type: "customer.subscription.updated",
+      data: { object: { id: "sub-test-1" } },
+    }));
+    let processorCalls = 0;
+    let verificationCalls = 0;
+    let activeProcessors = 0;
+    let peakProcessors = 0;
+    const sync = {
+      verifyWebhook: async (_payload: Buffer, signature: string) => {
+        assert.equal(signature, "verified-signature");
+        verificationCalls += 1;
+        return {} as never;
+      },
+      processWebhook: async () => {
+        processorCalls += 1;
+        activeProcessors += 1;
+        peakProcessors = Math.max(peakProcessors, activeProcessors);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        await db.insert(subscriptionAuditEventsTable).values({
+          tenantId: tenantAId,
+          action: "stripe_webhook_subscription_updated",
+          providerReference: "sub-test-1",
+          details: JSON.stringify({ eventId: "evt_duplicatesubscription" }),
+        });
+        activeProcessors -= 1;
+      },
+    };
+
+    await Promise.all([
+      WebhookHandlers.processWebhook(event, "verified-signature", sync),
+      WebhookHandlers.processWebhook(event, "verified-signature", sync),
+    ]);
+    await WebhookHandlers.processWebhook(event, "verified-signature", {
+      verifyWebhook: async (_payload: Buffer, signature: string) => {
+        assert.equal(signature, "verified-signature");
+        verificationCalls += 1;
+        return {} as never;
+      },
+      processWebhook: async () => {
+        processorCalls += 1;
+      },
+    });
+
+    assert.equal(processorCalls, 1);
+    assert.equal(verificationCalls, 3);
+    assert.equal(peakProcessors, 1);
+    const [receipt] = await db.select().from(stripeWebhookEventsTable)
+      .where(eq(stripeWebhookEventsTable.eventId, "evt_duplicatesubscription"));
+    assert.equal(receipt?.eventType, "customer.subscription.updated");
+    assert.equal(receipt?.processedAt instanceof Date, true);
+    const audit = await db.select().from(subscriptionAuditEventsTable)
+      .where(eq(subscriptionAuditEventsTable.providerReference, "sub-test-1"));
+    assert.equal(audit.length, 1);
+    await db.delete(stripeWebhookEventsTable)
+      .where(eq(stripeWebhookEventsTable.eventId, "evt_duplicatesubscription"));
   });
 });
