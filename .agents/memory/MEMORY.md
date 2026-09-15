@@ -28,4 +28,5 @@
 - [Object storage prefix normalization](object-storage-prefix-normalization.md) — protected object URLs omit the storage bucket segment and must be compared after the same normalization.
 - [ITB OCR runtime](itb-ocr-runtime.md) — scanned-document OCR uses system Tesseract/Poppler tools and must cancel child work at the request deadline.
 - [Integration job lifecycle](integration-job-lifecycle.md) — provider work must use canonical scoped job transitions so integration health cannot stay empty or leak connector errors.
+- [Recovery operation durability](recovery-operation-durability.md) — destructive recovery must outlive browser polling and survive interrupted provider startup.
 - [CLC browser route coverage](clc-browser-route-coverage.md) — use system Chromium with test-only Clerk/API fixtures when browser dependencies are unavailable.
