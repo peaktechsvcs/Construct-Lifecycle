@@ -28,6 +28,10 @@ args = "clc-design-system"
 task = "workflow.run"
 args = "clean-database-migrations"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "feature-control-schema"
+
 [[workflows.workflow]]
 name = "dependency-audit"
 author = "agent"
@@ -57,6 +61,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm run validate:clean-database"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "feature-control-schema"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm run check:feature-control-schema"
 
 [workflows.workflow.metadata]
 isValidation = true
