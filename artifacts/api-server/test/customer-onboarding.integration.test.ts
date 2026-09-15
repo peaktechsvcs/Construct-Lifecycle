@@ -62,6 +62,7 @@ test("returns the safe recovery message and rolls back when setup fails", async 
     body: {
       name: "Workflow Failure Customer",
       slug,
+      ownerEmail: "owner@example.test",
       businessTypes: ["general-contractor"],
     },
     localUserId: retryOwner.id,
@@ -102,6 +103,8 @@ test("returns the safe recovery message and rolls back when setup fails", async 
 
   assert.equal(statusCode, 201);
   assert.equal((responseBody as { customer?: { slug?: string } }).customer?.slug, slug);
+   assert.equal((responseBody as { invitationStatus?: string }).invitationStatus, "created");
+   assert.equal((responseBody as { invitationDelivery?: string }).invitationDelivery, "not_configured");
 
   const customers = await db
     .select({ id: tenantsTable.id })
@@ -153,6 +156,7 @@ test("returns partial success when the workspace exists but its owner invitation
   assert.equal(responseBody?.invitationStatus, "failed");
   assert.equal(responseBody?.invitation, null);
   assert.equal(responseBody?.invitationToken, null);
+   assert.equal(responseBody?.invitationDelivery, null);
   assert.equal(
     responseBody?.invitationError,
     "Workspace created, but the owner invitation could not be created. Retry it from customer access.",

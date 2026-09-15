@@ -5,9 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { InvitationDeliveryOutcome } from './invitationDeliveryOutcome';
 import type { TenantInvitation } from './tenantInvitation';
 
 export interface CreatedPlatformCustomerInvitation {
   invitation: TenantInvitation;
   token: string;
+  delivery: InvitationDeliveryOutcome;
 }

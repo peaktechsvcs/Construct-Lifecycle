@@ -21,6 +21,7 @@ const {
   hashInvitationToken,
   invitationStatus,
 } = await import("../src/routes/tenant-admin.ts");
+const { resetInvitationRateLimits } = await import("../src/lib/invitation-email.ts");
 const { default: app } = await import("../src/app.ts");
 
 type Json = Record<string, unknown> | unknown[];
@@ -62,7 +63,7 @@ async function request(
       body = { raw: text };
     }
   }
-  return { status: response.status, body };
+  return { status: response.status, body, retryAfter: response.headers.get("retry-after") };
 }
 
 function bodyRecord(body: Json | undefined) {
@@ -218,6 +219,16 @@ describe("invitation and role authorization regressions", () => {
     assert.equal(invitation.status, 201);
     const invitationId = bodyRecord(invitation.body).invitation as Record<string, unknown>;
     assert.equal(invitationId.tenantId, tenantAId);
+    assert.equal(bodyRecord(invitation.body).delivery, "not_configured");
+    const invitationToken = bodyRecord(invitation.body).token;
+    const [storedInvitation] = await db
+      .select()
+      .from(tenantInvitationsTable)
+      .where(eq(tenantInvitationsTable.id, Number(invitationId.id)));
+    assert(storedInvitation);
+    assert.equal(storedInvitation.acceptedAt, null);
+    assert.equal(invitationStatus(storedInvitation), "pending");
+    assert.notEqual(storedInvitation.tokenHash, invitationToken);
 
     const switchAttempt = await request(clerkIds.ownerA, "/tenant/context", {
       method: "POST",
@@ -259,6 +270,45 @@ describe("invitation and role authorization regressions", () => {
       body: JSON.stringify({ email: `owner-invite-${runId}@integration.test`, role: "owner" }),
     });
     assert.equal(adminOwnerInvite.status, 403);
+  });
+
+  test("returns safe delivery outcomes for platform invitations and throttles repeated sends", async () => {
+    resetInvitationRateLimits();
+    const first = await request(
+      clerkIds.platformAdmin,
+      `/platform/customers/${tenantAId}/invitations`,
+      {
+        method: "POST",
+        body: JSON.stringify({ email: `platform-delivery-${runId}@integration.test`, role: "member" }),
+      },
+    );
+    assert.equal(first.status, 201);
+    assert.equal(bodyRecord(first.body).delivery, "not_configured");
+
+    for (let index = 0; index < 9; index += 1) {
+      const response = await request(
+        clerkIds.platformAdmin,
+        `/platform/customers/${tenantAId}/invitations`,
+        {
+          method: "POST",
+          body: JSON.stringify({ email: `platform-limit-${runId}-${index}@integration.test`, role: "viewer" }),
+        },
+      );
+      assert.equal(response.status, 201);
+      assert.equal(bodyRecord(response.body).delivery, "not_configured");
+    }
+
+    const limited = await request(
+      clerkIds.platformAdmin,
+      `/platform/customers/${tenantAId}/invitations`,
+      {
+        method: "POST",
+        body: JSON.stringify({ email: `platform-limit-${runId}-blocked@integration.test`, role: "viewer" }),
+      },
+    );
+    assert.equal(limited.status, 429);
+    assert.ok(limited.retryAfter);
+    assert.match(limited.retryAfter, /^\d+$/);
   });
 
   test("accepts valid invitations without downgrading an existing member", async () => {

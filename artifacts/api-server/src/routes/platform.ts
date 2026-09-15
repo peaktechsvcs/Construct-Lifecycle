@@ -34,11 +34,18 @@ import { requirePlatformAdmin } from "../middlewares/platformAdmin";
 import {
   ActiveTenantInvitationError,
   createTenantInvitation,
+  InvalidTenantInvitationError,
+  normalizeInvitationEmail,
   serializeInvitation,
 } from "./tenant-admin";
 import { createCustomerWorkspace } from "../lib/customer-onboarding";
 import { DEFAULT_TENANT_BUSINESS_TYPES, getTenantBusinessTypes } from "../lib/tenant-business-profile";
 import { isIsolatedEnvironmentReady, isRecentHealthyCheck } from "../lib/provisioning";
+import {
+  checkInvitationRateLimit,
+  deliverInvitationEmail,
+  type InvitationDeliveryOutcome,
+} from "../lib/invitation-email";
 
 const router: IRouter = Router();
 const APP_ENV = process.env.APP_ENV ?? "development";
@@ -632,6 +639,23 @@ export async function createPlatformCustomerHandler(
     res.status(400).json({ error: "Invalid customer", details: parsed.error.issues });
     return;
   }
+  let ownerEmail: string | null = null;
+  if (parsed.data.ownerEmail) {
+    try {
+      ownerEmail = normalizeInvitationEmail(parsed.data.ownerEmail);
+    } catch {
+      res.status(400).json({ error: "Invalid customer" });
+      return;
+    }
+  }
+  if (ownerEmail) {
+    const rateLimit = checkInvitationRateLimit(0, req.localUserId!);
+    if (!rateLimit.allowed) {
+      res.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
+      res.status(429).json({ error: "Too many invitation requests. Please try again later." });
+      return;
+    }
+  }
   const slug = parsed.data.slug.trim().toLowerCase();
   const [existing] = await db
     .select({ id: tenantsTable.id })
@@ -662,17 +686,31 @@ export async function createPlatformCustomerHandler(
   let invitationToken: string | null = null;
   let invitationStatus: "not_requested" | "created" | "failed" = "not_requested";
   let invitationError: string | null = null;
-  if (parsed.data.ownerEmail) {
+  let invitationDelivery: InvitationDeliveryOutcome | null = null;
+  if (ownerEmail) {
     try {
       const created = await createInvitation(
         tenant.id,
         req.localUserId!,
-        parsed.data.ownerEmail,
+        ownerEmail,
         "owner",
       );
       invitation = serializeInvitation(created.invitation);
       invitationToken = created.token;
       invitationStatus = "created";
+      invitationDelivery = await deliverInvitationEmail(
+        {
+          invitationId: created.invitation.id,
+          tenantId: created.invitation.tenantId,
+          actorId: req.localUserId!,
+          recipient: created.invitation.email,
+          customerName: tenant.name,
+          role: created.invitation.role,
+          token: created.token,
+          expiresAt: created.invitation.expiresAt,
+        },
+        req.log,
+      );
     } catch (error) {
       invitationStatus = "failed";
       invitationError = "Workspace created, but the owner invitation could not be created. Retry it from customer access.";
@@ -697,6 +735,7 @@ export async function createPlatformCustomerHandler(
     invitationToken,
     invitationStatus,
     invitationError,
+    invitationDelivery,
   });
 }
 
@@ -798,7 +837,13 @@ router.post("/platform/customers/:tenantId/invitations", async (req: TenantReque
     res.status(409).json({ error: "Suspended customers cannot receive invitations" });
     return;
   }
-  const email = parsed.data.email.trim().toLowerCase();
+  let email: string;
+  try {
+    email = normalizeInvitationEmail(parsed.data.email);
+  } catch {
+    res.status(400).json({ error: "Invalid customer invitation" });
+    return;
+  }
   const [existingInvite] = await db
     .select()
     .from(tenantInvitationsTable)
@@ -816,15 +861,35 @@ router.post("/platform/customers/:tenantId/invitations", async (req: TenantReque
     res.status(409).json({ error: "An active invitation already exists for this email" });
     return;
   }
+  const rateLimit = checkInvitationRateLimit(tenantId, req.localUserId!);
+  if (!rateLimit.allowed) {
+    res.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
+    res.status(429).json({ error: "Too many invitation requests. Please try again later." });
+    return;
+  }
   try {
     const created = await createTenantInvitation(tenantId, req.localUserId!, email, parsed.data.role);
+    const delivery: InvitationDeliveryOutcome = await deliverInvitationEmail(
+      {
+        invitationId: created.invitation.id,
+        tenantId: created.invitation.tenantId,
+        actorId: req.localUserId!,
+        recipient: created.invitation.email,
+        customerName: tenant.name,
+        role: created.invitation.role,
+        token: created.token,
+        expiresAt: created.invitation.expiresAt,
+      },
+      req.log,
+    );
     res.status(201).json({
       invitation: serializeInvitation(created.invitation),
       token: created.token,
+      delivery,
     });
   } catch (error) {
-    if (error instanceof ActiveTenantInvitationError) {
-      res.status(409).json({ error: error.message });
+    if (error instanceof ActiveTenantInvitationError || error instanceof InvalidTenantInvitationError) {
+      res.status(error instanceof ActiveTenantInvitationError ? 409 : 400).json({ error: error.message });
       return;
     }
     req.log.error(

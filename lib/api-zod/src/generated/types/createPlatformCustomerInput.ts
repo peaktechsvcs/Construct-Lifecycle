@@ -15,7 +15,10 @@ export interface CreatePlatformCustomerInput {
   name: string;
   /** @pattern ^[a-z0-9][a-z0-9-]{2,62}$ */
   slug: string;
-  /** @nullable */
+  /**
+     * @maxLength 254
+     * @nullable
+     */
   ownerEmail?: string | null;
   /** @minItems 1 */
   businessTypes: BusinessType[];

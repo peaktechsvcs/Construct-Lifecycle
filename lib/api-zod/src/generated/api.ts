@@ -11522,7 +11522,8 @@ export const CreateTenantInvitationResponse = zod.object({
   "expiresAt": zod.coerce.date(),
   "createdAt": zod.coerce.date()
 }),
-  "token": zod.string()
+  "token": zod.string(),
+  "delivery": zod.enum(['sent', 'failed', 'not_configured'])
 })
 
 
@@ -11621,13 +11622,15 @@ export const createPlatformCustomerBodyNameMin = 2;
 export const createPlatformCustomerBodyNameMax = 120;
 
 export const createPlatformCustomerBodySlugRegExp = new RegExp('^[a-z0-9][a-z0-9-]{2,62}$');
+export const createPlatformCustomerBodyOwnerEmailMax = 254;
+
 
 
 
 export const CreatePlatformCustomerBody = zod.object({
   "name": zod.string().min(createPlatformCustomerBodyNameMin).max(createPlatformCustomerBodyNameMax),
   "slug": zod.string().regex(createPlatformCustomerBodySlugRegExp),
-  "ownerEmail": zod.string().email().nullish(),
+  "ownerEmail": zod.string().email().max(createPlatformCustomerBodyOwnerEmailMax).nullish(),
   "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1)
 })
 
@@ -11665,7 +11668,8 @@ export const CreatePlatformCustomerResponse = zod.object({
 }),zod.null()]),
   "invitationToken": zod.string().nullable(),
   "invitationStatus": zod.enum(['not_requested', 'created', 'failed']),
-  "invitationError": zod.string().nullable()
+  "invitationError": zod.string().nullable(),
+  "invitationDelivery": zod.union([zod.enum(['sent', 'failed', 'not_configured']),zod.null()])
 })
 
 
@@ -11826,8 +11830,12 @@ export const CreatePlatformCustomerInvitationParams = zod.object({
   "tenantId": zod.coerce.number().int().min(1)
 })
 
+export const createPlatformCustomerInvitationBodyEmailMax = 254;
+
+
+
 export const CreatePlatformCustomerInvitationBody = zod.object({
-  "email": zod.string().email(),
+  "email": zod.string().email().max(createPlatformCustomerInvitationBodyEmailMax),
   "role": zod.enum(['owner', 'admin', 'member', 'viewer'])
 })
 
@@ -11841,7 +11849,8 @@ export const CreatePlatformCustomerInvitationResponse = zod.object({
   "expiresAt": zod.coerce.date(),
   "createdAt": zod.coerce.date()
 }),
-  "token": zod.string()
+  "token": zod.string(),
+  "delivery": zod.enum(['sent', 'failed', 'not_configured'])
 })
 
 

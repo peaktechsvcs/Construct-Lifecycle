@@ -6835,10 +6835,14 @@ components:
         createdAt: { type: string, format: date-time }
     CreatedTenantInvitation:
       type: object
-      required: [invitation, token]
+      required: [invitation, token, delivery]
       properties:
         invitation: { $ref: "#/components/schemas/TenantInvitation" }
         token: { type: string }
+        delivery: { $ref: "#/components/schemas/InvitationDeliveryOutcome" }
+    InvitationDeliveryOutcome:
+      type: string
+      enum: [sent, failed, not_configured]
     InvitationDetails:
       type: object
       required: [id, tenantId, tenantName, email, role, status, expiresAt]
@@ -6891,7 +6895,7 @@ components:
       properties:
         name: { type: string, minLength: 2, maxLength: 120 }
         slug: { type: string, pattern: "^[a-z0-9][a-z0-9-]{2,62}$" }
-        ownerEmail: { type: ["string", "null"], format: email }
+        ownerEmail: { type: ["string", "null"], format: email, maxLength: 254 }
         businessTypes:
           type: array
           minItems: 1
@@ -6909,7 +6913,7 @@ components:
           items: { $ref: "#/components/schemas/BusinessType" }
     CreatedPlatformCustomer:
       type: object
-      required: [customer, invitation, invitationToken, invitationStatus, invitationError]
+      required: [customer, invitation, invitationToken, invitationStatus, invitationError, invitationDelivery]
       properties:
         customer: { $ref: "#/components/schemas/PlatformCustomer" }
         invitation:
@@ -6921,6 +6925,10 @@ components:
           type: string
           enum: [not_requested, created, failed]
         invitationError: { type: ["string", "null"] }
+        invitationDelivery:
+          oneOf:
+            - $ref: "#/components/schemas/InvitationDeliveryOutcome"
+            - type: "null"
     UpdatePlatformCustomerInput:
       type: object
       required: [status]
@@ -6994,14 +7002,15 @@ components:
       type: object
       required: [email, role]
       properties:
-        email: { type: string, format: email }
+        email: { type: string, format: email, maxLength: 254 }
         role: { type: string, enum: [owner, admin, member, viewer] }
     CreatedPlatformCustomerInvitation:
       type: object
-      required: [invitation, token]
+      required: [invitation, token, delivery]
       properties:
         invitation: { $ref: "#/components/schemas/TenantInvitation" }
         token: { type: string }
+        delivery: { $ref: "#/components/schemas/InvitationDeliveryOutcome" }
     UpdatePlatformCustomerMemberInput:
       type: object
       required: [role]

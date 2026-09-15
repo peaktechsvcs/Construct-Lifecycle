@@ -2,7 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
-import { logger } from "./lib/logger";
+import { logger, redactSensitiveUrl } from "./lib/logger";
 
 const app: Express = express();
 const isRuntimeMode = Boolean(process.env.RUNTIME_ENVIRONMENT_ID);
@@ -15,7 +15,7 @@ app.use(
         return {
           id: req.id,
           method: req.method,
-          url: req.url?.split("?")[0],
+          url: redactSensitiveUrl(req.url),
         };
       },
       res(res) {

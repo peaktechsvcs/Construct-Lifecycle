@@ -4127,9 +4127,19 @@ export interface TenantInvitation {
   createdAt: string;
 }
 
+export type InvitationDeliveryOutcome = typeof InvitationDeliveryOutcome[keyof typeof InvitationDeliveryOutcome];
+
+
+export const InvitationDeliveryOutcome = {
+  sent: 'sent',
+  failed: 'failed',
+  not_configured: 'not_configured',
+} as const;
+
 export interface CreatedTenantInvitation {
   invitation: TenantInvitation;
   token: string;
+  delivery: InvitationDeliveryOutcome;
 }
 
 export type InvitationDetailsRole = typeof InvitationDetailsRole[keyof typeof InvitationDetailsRole];
@@ -4224,7 +4234,10 @@ export interface CreatePlatformCustomerInput {
   name: string;
   /** @pattern ^[a-z0-9][a-z0-9-]{2,62}$ */
   slug: string;
-  /** @nullable */
+  /**
+     * @maxLength 254
+     * @nullable
+     */
   ownerEmail?: string | null;
   /** @minItems 1 */
   businessTypes: BusinessType[];
@@ -4255,6 +4268,7 @@ export interface CreatedPlatformCustomer {
   invitationStatus: CreatedPlatformCustomerInvitationStatus;
   /** @nullable */
   invitationError: string | null;
+  invitationDelivery: InvitationDeliveryOutcome | null;
 }
 
 export type UpdatePlatformCustomerInputStatus = typeof UpdatePlatformCustomerInputStatus[keyof typeof UpdatePlatformCustomerInputStatus];
@@ -4341,6 +4355,7 @@ export const CreatePlatformCustomerInvitationInputRole = {
 } as const;
 
 export interface CreatePlatformCustomerInvitationInput {
+  /** @maxLength 254 */
   email: string;
   role: CreatePlatformCustomerInvitationInputRole;
 }
@@ -4348,6 +4363,7 @@ export interface CreatePlatformCustomerInvitationInput {
 export interface CreatedPlatformCustomerInvitation {
   invitation: TenantInvitation;
   token: string;
+  delivery: InvitationDeliveryOutcome;
 }
 
 export type UpdatePlatformCustomerMemberInputRole = typeof UpdatePlatformCustomerMemberInputRole[keyof typeof UpdatePlatformCustomerMemberInputRole];

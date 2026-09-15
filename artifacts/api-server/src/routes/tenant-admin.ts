@@ -14,6 +14,11 @@ import {
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { getCurrentTenantRole, requireRole } from "../middlewares/rbac";
+import {
+  checkInvitationRateLimit,
+  deliverInvitationEmail,
+  type InvitationDeliveryOutcome,
+} from "../lib/invitation-email";
 
 const router: IRouter = Router();
 const INVITATION_LIFETIME_DAYS = 7;
@@ -54,6 +59,26 @@ export class ActiveTenantInvitationError extends Error {
   }
 }
 
+export class InvalidTenantInvitationError extends Error {
+  readonly code = "INVALID_INVITATION_INPUT";
+
+  constructor() {
+    super("Invalid invitation input");
+    this.name = "InvalidTenantInvitationError";
+  }
+}
+
+export function normalizeInvitationEmail(email: string) {
+  const normalized = email.trim().toLowerCase();
+  if (
+    normalized.length > 254
+    || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)
+  ) {
+    throw new InvalidTenantInvitationError();
+  }
+  return normalized;
+}
+
 export async function createTenantInvitation(
   tenantId: number,
   invitedByUserId: number,
@@ -61,7 +86,7 @@ export async function createTenantInvitation(
   role: string,
 ) {
   const token = randomBytes(32).toString("hex");
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedEmail = normalizeInvitationEmail(email);
   const invitation = await db.transaction(async (tx) => {
     // Serialize invitation creation per tenant so the preflight check and insert
     // cannot race into duplicate active invitations.
@@ -284,7 +309,7 @@ router.post(
   async (req: TenantRequest, res) => {
     const parsed = CreateTenantInvitationBody.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Invalid invitation", details: parsed.error.issues });
+      res.status(400).json({ error: "Invalid invitation" });
       return;
     }
     if (parsed.data.role === "owner" && (await getCurrentTenantRole(req)) !== "owner") {
@@ -292,7 +317,13 @@ router.post(
       return;
     }
 
-    const email = parsed.data.email.trim().toLowerCase();
+    let email: string;
+    try {
+      email = normalizeInvitationEmail(parsed.data.email);
+    } catch {
+      res.status(400).json({ error: "Invalid invitation" });
+      return;
+    }
     const [existingInvite] = await db
       .select()
       .from(tenantInvitationsTable)
@@ -310,6 +341,12 @@ router.post(
       res.status(409).json({ error: "An active invitation already exists for this email" });
       return;
     }
+    const rateLimit = checkInvitationRateLimit(req.tenantId!, req.localUserId!);
+    if (!rateLimit.allowed) {
+      res.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
+      res.status(429).json({ error: "Too many invitation requests. Please try again later." });
+      return;
+    }
 
     try {
       const { invitation, token } = await createTenantInvitation(
@@ -318,10 +355,28 @@ router.post(
         email,
         parsed.data.role,
       );
-      res.status(201).json({ invitation: serializeInvitation(invitation), token });
+      const [tenant] = await db
+        .select({ name: tenantsTable.name })
+        .from(tenantsTable)
+        .where(eq(tenantsTable.id, req.tenantId!))
+        .limit(1);
+      const delivery: InvitationDeliveryOutcome = await deliverInvitationEmail(
+        {
+          invitationId: invitation.id,
+          tenantId: invitation.tenantId,
+          actorId: req.localUserId!,
+          recipient: invitation.email,
+          customerName: tenant?.name ?? "your customer workspace",
+          role: invitation.role,
+          token,
+          expiresAt: invitation.expiresAt,
+        },
+        req.log,
+      );
+      res.status(201).json({ invitation: serializeInvitation(invitation), token, delivery });
     } catch (error) {
-      if (error instanceof ActiveTenantInvitationError) {
-        res.status(409).json({ error: error.message });
+      if (error instanceof ActiveTenantInvitationError || error instanceof InvalidTenantInvitationError) {
+        res.status(error instanceof ActiveTenantInvitationError ? 409 : 400).json({ error: error.message });
         return;
       }
       req.log.error(

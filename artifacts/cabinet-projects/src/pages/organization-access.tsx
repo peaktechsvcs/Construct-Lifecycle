@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Copy, Mail, UserMinus, Users } from 'lucide-react';
 import {
   CreateTenantInvitationInputRole,
+  InvitationDeliveryOutcome,
   TenantMemberRole,
   useCreateTenantInvitation,
   useListTenantInvitations,
@@ -38,6 +39,7 @@ export function OrganizationAccess({
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CreateTenantInvitationInputRole>('member');
   const [link, setLink] = useState<string | null>(null);
+  const [delivery, setDelivery] = useState<InvitationDeliveryOutcome | null>(null);
   const [copied, setCopied] = useState(false);
   const refresh = () => {
     qc.invalidateQueries({ queryKey: getListTenantMembersQueryKey() });
@@ -68,13 +70,21 @@ export function OrganizationAccess({
         </section>
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="mb-5 flex items-center gap-3 border-b border-border pb-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary"><Mail size={16} /></span><h2 className="text-base font-bold">Invite someone</h2></div>
-             <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); create.mutate({ data: { email, role } }, { onSuccess: (result) => { setEmail(''); setLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${result.token}`); refresh(); } }); }}>
+             <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setLink(null); setDelivery(null); setCopied(false); create.mutate({ data: { email, role } }, { onSuccess: (result) => { setEmail(''); setDelivery(result.delivery); setLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${result.token}`); refresh(); } }); }}>
             <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Email address</span><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="teammate@company.com" /></label>
             <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Role</span><select value={role} onChange={(e) => setRole(e.target.value as CreateTenantInvitationInputRole)} className={inputClass}>{Object.values(CreateTenantInvitationInputRole).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
             <Button type="submit" disabled={busy}><Mail size={15} /> {create.isPending ? 'Creating invitation…' : 'Create invitation'}</Button>
             {create.isError && <p role="alert" className="text-xs text-destructive">Invitation could not be created. Try again.</p>}
           </form>
-          {link && <div className="mt-5 rounded-lg border border-primary/20 bg-primary/5 p-4"><p className="text-xs font-semibold">One-time invitation link</p><div className="mt-2 flex gap-2"><input readOnly value={link} aria-label="Invitation link" className={`${inputClass} text-xs`} /><Button variant="outline" onClick={() => { navigator.clipboard.writeText(link); setCopied(true); }}><Copy size={14} /> {copied ? 'Copied' : 'Copy'}</Button></div></div>}
+           {link && <div className="mt-5 rounded-lg border border-primary/20 bg-primary/5 p-4">
+             <p role="status" className={`text-xs font-semibold ${delivery === 'sent' ? 'text-status-success' : delivery === 'failed' ? 'text-status-danger' : 'text-status-warning'}`}>
+               {delivery === 'sent' && 'Invitation email sent.'}
+               {delivery === 'failed' && 'Email delivery failed; the invitation is still pending.'}
+               {delivery === 'not_configured' && 'Email delivery is not configured; share the recovery link below.'}
+             </p>
+             <p className="mt-2 text-xs text-muted-foreground">This one-time recovery link is shown only now and expires in seven days.</p>
+             <div className="mt-2 flex gap-2"><input readOnly value={link} aria-label="Invitation link" className={`${inputClass} text-xs`} /><Button variant="outline" onClick={() => { navigator.clipboard.writeText(link); setCopied(true); }}><Copy size={14} /> {copied ? 'Copied' : 'Copy'}</Button></div>
+           </div>}
         </section>
       </div>
       <section className="mt-6 rounded-xl border border-border bg-card p-5">

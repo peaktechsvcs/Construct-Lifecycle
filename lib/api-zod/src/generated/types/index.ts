@@ -155,6 +155,7 @@ export * from './integrationConnectionHealthStatus';
 export * from './integrationConnectionStatus';
 export * from './integrationJob';
 export * from './integrationJobStatus';
+export * from './invitationDeliveryOutcome';
 export * from './invitationDetails';
 export * from './invitationDetailsRole';
 export * from './invitationDetailsStatus';

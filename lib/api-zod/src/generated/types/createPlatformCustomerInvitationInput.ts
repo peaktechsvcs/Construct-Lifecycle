@@ -8,6 +8,7 @@
 import type { CreatePlatformCustomerInvitationInputRole } from './createPlatformCustomerInvitationInputRole';
 
 export interface CreatePlatformCustomerInvitationInput {
+  /** @maxLength 254 */
   email: string;
   role: CreatePlatformCustomerInvitationInputRole;
 }
