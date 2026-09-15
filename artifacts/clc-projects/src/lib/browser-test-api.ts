@@ -1,5 +1,5 @@
 type BrowserAuthMode = 'authenticated' | 'platform' | 'signed-out' | 'no-tenant';
-type BrowserBrandingMode = 'default' | 'valid' | 'empty' | 'broken' | 'invalid-draft';
+type BrowserBrandingMode = 'default' | 'valid' | 'empty' | 'broken' | 'invalid-draft' | 'unreachable-draft';
 type BrowserRole = 'owner' | 'admin' | 'member' | 'viewer';
 
 function json(body: unknown, status = 200): Response {
@@ -18,7 +18,7 @@ function mode(): BrowserAuthMode {
 
 function brandingMode(): BrowserBrandingMode {
   const value = new URLSearchParams(window.location.search).get('browserBranding');
-  return value === 'valid' || value === 'empty' || value === 'broken' || value === 'invalid-draft'
+  return value === 'valid' || value === 'empty' || value === 'broken' || value === 'invalid-draft' || value === 'unreachable-draft'
     ? value
     : 'default';
 }
@@ -388,10 +388,10 @@ export function installBrowserTestApi() {
       return json({ published: [] });
     }
     if (url.pathname === '/api/tenant/branding') {
-      if (brandingMode() === 'invalid-draft') {
+      if (brandingMode() === 'invalid-draft' || brandingMode() === 'unreachable-draft') {
         return json({
           draft: {
-            logoUrl: '',
+            logoUrl: brandingMode() === 'unreachable-draft' ? '/__browser-test/missing-logo.png' : 'javascript:alert(1)',
             primaryColor: '#ffffff',
             secondaryColor: '#12zz34',
             accentColor: '#f1f5f9',

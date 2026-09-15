@@ -17,7 +17,14 @@ export function getSafeBrandingLogoUrl(
 
   try {
     const parsed = new URL(candidate, origin);
-    if (!SAFE_LOGO_PROTOCOLS.has(parsed.protocol) || parsed.username || parsed.password) {
+    const isRootRelative = candidate.startsWith('/') && !candidate.startsWith('//');
+    const hasExplicitScheme = /^[a-z][a-z\d+.-]*:/i.test(candidate);
+    if (
+      (!isRootRelative && !hasExplicitScheme)
+      || !SAFE_LOGO_PROTOCOLS.has(parsed.protocol)
+      || parsed.username
+      || parsed.password
+    ) {
       return fallback;
     }
     return candidate;

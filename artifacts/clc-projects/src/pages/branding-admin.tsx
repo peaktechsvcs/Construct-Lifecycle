@@ -16,6 +16,7 @@ import {
   type BrandingColorKey,
 } from '@/lib/color-utils';
 import { getContrastRatio } from '@/lib/accessibility';
+import { getSafeBrandingLogoUrl } from '@/lib/branding-logo';
 
 export function BrandingAdmin() {
   const qc = useQueryClient();
@@ -98,6 +99,10 @@ export function BrandingAdmin() {
   if (brandingQuery.isError) return <ErrorPanel onRetry={() => brandingQuery.refetch()} />;
 
   const publishedVersions = brandingQuery.data?.published || [];
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const fallbackLogoUrl = `${basePath}/logo-icon.png`;
+  const previewLogoUrl = getSafeBrandingLogoUrl(form.logoUrl, fallbackLogoUrl, window.location.origin);
+  const previewLogoAlt = 'Construct Lifecycle logo';
   const previewColors = brandingColorsWithFallbacks(form);
   const previewStyle = Object.fromEntries(
     Object.entries(previewColors).map(([key, value]) => [
@@ -260,11 +265,17 @@ export function BrandingAdmin() {
               style={previewStyle}
             >
               <div className="mb-6 flex items-center gap-3">
-                {form.logoUrl ? (
-                  <img src={form.logoUrl} alt="Logo" className="h-8 w-8 object-contain" />
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">L</div>
-                )}
+                <img
+                  data-testid="branding-preview-logo"
+                  src={previewLogoUrl}
+                  alt={previewLogoAlt}
+                  className="h-8 w-8 object-contain"
+                  onError={(event) => {
+                    if (event.currentTarget.src !== new URL(fallbackLogoUrl, window.location.origin).href) {
+                      event.currentTarget.src = fallbackLogoUrl;
+                    }
+                  }}
+                />
                 <span className="font-bold">Construction Lifecycle</span>
               </div>
               

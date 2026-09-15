@@ -49,6 +49,16 @@ const cases = [
       "White text on this action color",
       "Page text contrast is",
     ],
+    previewLogo: { src: "/logo-icon.png", alt: "Construct Lifecycle logo" },
+  },
+  {
+    name: "branding preview with unreachable draft logo",
+    path: "/settings/branding?browserAuth=authenticated&browserBranding=unreachable-draft",
+    heading: "Customer Branding",
+    breadcrumb: "Branding",
+    activeNav: null,
+    title: "Customer Branding · Construct Lifecycle",
+    previewLogo: { src: "/logo-icon.png", alt: "Construct Lifecycle logo" },
   },
   {
     name: "public pricing page",
@@ -290,6 +300,14 @@ function workspaceLogoAttributes(html) {
   };
 }
 
+function brandingPreviewLogoAttributes(html) {
+  const tag = html.match(/<img\b[^>]*data-testid="branding-preview-logo"[^>]*>/i)?.[0] ?? "";
+  return {
+    src: decodeEntities(tag.match(/\ssrc="([^"]*)"/i)?.[1] ?? ""),
+    alt: decodeEntities(tag.match(/\salt="([^"]*)"/i)?.[1] ?? ""),
+  };
+}
+
 async function visit(routeCase) {
   const { stdout } = await execFileAsync(chromium, [
     "--headless=new",
@@ -353,6 +371,12 @@ async function visit(routeCase) {
     if (!logo.src) failures.push("workspace logo image missing");
     if (logo.src !== routeCase.logo.src) failures.push(`workspace logo src="${logo.src}" expected "${routeCase.logo.src}"`);
     if (logo.alt !== routeCase.logo.alt) failures.push(`workspace logo alt="${logo.alt}" expected "${routeCase.logo.alt}"`);
+  }
+  if (routeCase.previewLogo) {
+    const logo = brandingPreviewLogoAttributes(html);
+    if (!logo.src) failures.push("branding preview logo image missing");
+    if (logo.src !== routeCase.previewLogo.src) failures.push(`branding preview logo src="${logo.src}" expected "${routeCase.previewLogo.src}"`);
+    if (logo.alt !== routeCase.previewLogo.alt) failures.push(`branding preview logo alt="${logo.alt}" expected "${routeCase.previewLogo.alt}"`);
   }
   if (failures.length) throw new Error(`${routeCase.name}: ${failures.join("; ")}`);
 }

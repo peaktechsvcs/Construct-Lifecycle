@@ -52,7 +52,10 @@ test('branding logo URLs allow web images and fall back for empty or unsafe valu
   );
   assert.equal(getSafeBrandingLogoUrl('/uploaded/logo.png', fallback), '/uploaded/logo.png');
   assert.equal(getSafeBrandingLogoUrl('', fallback), fallback);
+  assert.equal(getSafeBrandingLogoUrl('   ', fallback), fallback);
   assert.equal(getSafeBrandingLogoUrl(null, fallback), fallback);
+  assert.equal(getSafeBrandingLogoUrl('not a valid logo URL', fallback), fallback);
+  assert.equal(getSafeBrandingLogoUrl('images/logo.png', fallback), fallback);
   assert.equal(getSafeBrandingLogoUrl('javascript:alert(1)', fallback), fallback);
   assert.equal(getSafeBrandingLogoUrl('data:image/svg+xml,<svg></svg>', fallback), fallback);
   assert.equal(getSafeBrandingLogoUrl('https://user:password@example.test/logo.png', fallback), fallback);
