@@ -234,6 +234,15 @@ const serializeDocument = (document: typeof submittalDocumentsTable.$inferSelect
   pageOrder: document.pageOrder ? JSON.parse(document.pageOrder) : null,
   version: document.version,
   status: document.status,
+  scanStatus: document.malwareScanStatus,
+  scanMessage: ({
+    not_scanned: "Security scan pending.",
+    scanning: "Security scan in progress.",
+    clean: "Security scan passed.",
+    infected: "File blocked after a security scan.",
+    unavailable: "Security scan unavailable. Try again later.",
+    timeout: "Security scan timed out. Try again later.",
+  } as Record<string, string>)[document.malwareScanStatus] ?? "Security scan pending.",
   providerKey: document.providerKey,
   externalId: document.externalId,
   sourceUrl: document.sourceUrl,
@@ -1204,6 +1213,8 @@ router.post("/submittal-items/:itemId/documents/import", requireRole("owner", "a
         importStatus: "importing",
         failureReason: null,
         status: "pending",
+        malwareScanStatus: "not_scanned",
+        malwareScannedAt: null,
       }).where(and(
         eq(submittalDocumentsTable.id, document.id),
         eq(submittalDocumentsTable.tenantId, req.tenantId!),
@@ -1241,7 +1252,24 @@ router.post("/submittal-items/:itemId/documents/import", requireRole("owner", "a
     if (screening.status === "rejected") {
       await objectStorage.deleteObject(stored.objectPath).catch(() => undefined);
       objectPath = undefined;
-      throw new DocumentProviderError("External document failed upload safety screening", screening.reason === "content_mismatch" ? 415 : 422);
+      await db.update(submittalDocumentsTable).set({
+        malwareScanStatus: screening.scanStatus ?? "not_scanned",
+        malwareScannedAt: screening.scanStatus ? new Date() : null,
+      }).where(eq(submittalDocumentsTable.id, document!.id));
+      const statusCode = screening.reason === "content_mismatch" ? 415
+        : screening.reason === "malware_timeout" ? 504
+          : screening.reason === "malware_unavailable" ? 503
+            : 422;
+      throw new DocumentProviderError(
+        screening.reason === "malware_infected" || screening.reason === "malware_signature"
+          ? "External document was blocked by the security scan"
+          : screening.reason === "malware_timeout"
+            ? "External document security scan timed out; try again later"
+            : screening.reason === "malware_unavailable"
+              ? "External document security scan is temporarily unavailable; try again later"
+              : "External document failed upload safety screening",
+        statusCode,
+      );
     }
     const pageCount = imported.contentType === "application/pdf"
       ? (await PDFDocument.load(imported.bytes)).getPageCount()
@@ -1255,6 +1283,8 @@ router.post("/submittal-items/:itemId/documents/import", requireRole("owner", "a
       pageOrder: pageCount ? JSON.stringify(Array.from({ length: pageCount }, (_, index) => index + 1)) : null,
       sourceUrl: imported.sourceUrl,
       status: "uploaded",
+      malwareScanStatus: "clean",
+      malwareScannedAt: new Date(),
       importStatus: "imported",
       failureReason: null,
       uploadedAt: new Date(),
@@ -1335,22 +1365,44 @@ router.post("/submittal-documents/:documentId/complete", requireRole("owner", "a
     const storedContentType = typeof metadata.contentType === "string" ? metadata.contentType : null;
     if (storedSize <= 0 || storedSize > document.size) {
       await objectStorage.deleteObject(document.objectPath).catch(() => undefined);
-      await db.update(submittalDocumentsTable).set({ status: "rejected" }).where(eq(submittalDocumentsTable.id, document.id));
+      await db.update(submittalDocumentsTable).set({
+        status: "rejected",
+        malwareScanStatus: "not_scanned",
+        malwareScannedAt: null,
+      }).where(eq(submittalDocumentsTable.id, document.id));
       res.status(413).json({ error: "Uploaded document exceeds the declared size" });
       return;
     }
     if (storedContentType && storedContentType !== document.contentType) {
       await objectStorage.deleteObject(document.objectPath).catch(() => undefined);
-      await db.update(submittalDocumentsTable).set({ status: "rejected" }).where(eq(submittalDocumentsTable.id, document.id));
+      await db.update(submittalDocumentsTable).set({
+        status: "rejected",
+        malwareScanStatus: "not_scanned",
+        malwareScannedAt: null,
+      }).where(eq(submittalDocumentsTable.id, document.id));
       res.status(415).json({ error: "Uploaded document content type does not match its declared type" });
       return;
     }
     const screening = await screenStoredDocument(file, document.contentType, storedSize);
     if (screening.status === "rejected") {
       await objectStorage.deleteObject(document.objectPath).catch(() => undefined);
-      await db.update(submittalDocumentsTable).set({ status: "rejected" }).where(eq(submittalDocumentsTable.id, document.id));
-      const statusCode = screening.reason === "content_mismatch" ? 415 : 422;
-      res.status(statusCode).json({ error: "Document failed upload safety screening" });
+      await db.update(submittalDocumentsTable).set({
+        status: "rejected",
+        malwareScanStatus: screening.scanStatus ?? "not_scanned",
+        malwareScannedAt: screening.scanStatus ? new Date() : null,
+      }).where(eq(submittalDocumentsTable.id, document.id));
+      const statusCode = screening.reason === "content_mismatch" ? 415
+        : screening.reason === "malware_timeout" ? 504
+          : screening.reason === "malware_unavailable" ? 503
+            : 422;
+      const error = screening.reason === "malware_infected" || screening.reason === "malware_signature"
+        ? "Document was blocked by the security scan"
+        : screening.reason === "malware_timeout"
+          ? "Document security scan timed out; try again later"
+          : screening.reason === "malware_unavailable"
+            ? "Document security scan is temporarily unavailable; try again later"
+            : "Document failed upload safety screening";
+      res.status(statusCode).json({ error, ...(screening.scanStatus ? { scanStatus: screening.scanStatus } : {}) });
       return;
     }
     const pageCount = document.contentType === "application/pdf"
@@ -1358,6 +1410,8 @@ router.post("/submittal-documents/:documentId/complete", requireRole("owner", "a
       : null;
     const [updated] = await db.update(submittalDocumentsTable).set({
       status: "uploaded",
+      malwareScanStatus: "clean",
+      malwareScannedAt: new Date(),
       uploadedAt: new Date(),
       pageCount,
       pageOrder: pageCount ? JSON.stringify(Array.from({ length: pageCount }, (_, index) => index + 1)) : null,
@@ -1392,7 +1446,7 @@ router.get("/submittal-documents/:documentId", async (req: TenantRequest, res) =
     res.status(404).json({ error: "Submittal document not found" });
     return;
   }
-  if (document.status !== "uploaded") {
+  if (document.status !== "uploaded" || document.malwareScanStatus !== "clean") {
     res.status(409).json({ error: "Submittal document is not ready" });
     return;
   }

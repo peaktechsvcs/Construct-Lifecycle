@@ -72,7 +72,12 @@ globalThis.__dirname = __path.dirname(globalThis.__filename);`,
   if (!requestedTests?.length) testFiles.push(path.join(testDir, "auth-test-header.integration.test.mjs"));
   const exitCode = await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--test", ...testFiles], {
-      env: { ...process.env, APP_ENV: "test" },
+      env: {
+        ...process.env,
+        APP_ENV: "test",
+        CLAMSCAN_PATH: path.join(testDir, "fake-clamscan.mjs"),
+        MALWARE_SCANNER_TIMEOUT_MS: "1000",
+      },
       stdio: "inherit",
     });
     child.once("error", reject);

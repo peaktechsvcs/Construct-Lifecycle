@@ -226,6 +226,16 @@ async function serializePartner(req: TenantRequest, partner: typeof tradePartner
 }
 
 function serializeDocument(document: typeof tradePartnerComplianceDocumentsTable.$inferSelect) {
+  const scanStatus = document.pendingObjectPath
+    ? document.pendingMalwareScanStatus
+    : document.malwareScanStatus;
+  const scanMessages: Record<string, string> = {
+    not_scanned: "Security scan pending.",
+    clean: "Security scan passed.",
+    infected: "File blocked after a security scan.",
+    unavailable: "Security scan unavailable. Try again later.",
+    timeout: "Security scan timed out. Try again later.",
+  };
   return {
     id: document.id,
     tradePartnerId: document.tradePartnerId,
@@ -240,6 +250,8 @@ function serializeDocument(document: typeof tradePartnerComplianceDocumentsTable
     originalName: document.originalName,
     contentType: document.contentType,
     fileSize: document.fileSize,
+    scanStatus,
+    scanMessage: scanMessages[scanStatus] ?? "Security scan pending.",
     reviewedAt: document.reviewedAt,
     reviewNotes: document.reviewNotes,
     createdAt: document.createdAt,
@@ -429,6 +441,11 @@ router.post("/trade-partners/:tradePartnerId/compliance-documents/request-upload
       originalName: sanitizeFileName(parsed.data.originalName),
       contentType: parsed.data.contentType,
       fileSize: parsed.data.size,
+      pendingObjectPath: objectPath,
+      pendingOriginalName: sanitizeFileName(parsed.data.originalName),
+      pendingContentType: parsed.data.contentType,
+      pendingFileSize: parsed.data.size,
+      pendingMalwareScanStatus: "not_scanned",
       uploadedByUserId: null,
       tenantId: req.tenantId!,
       environmentId: req.environmentId!,
@@ -464,6 +481,8 @@ router.post("/trade-partners/:tradePartnerId/compliance-documents/:documentId/re
       pendingOriginalName: sanitizeFileName(parsed.data.originalName),
       pendingContentType: parsed.data.contentType,
       pendingFileSize: parsed.data.size,
+      pendingMalwareScanStatus: "not_scanned",
+      pendingMalwareScannedAt: null,
       updatedAt: new Date(),
     }).where(and(
       scope(req, tradePartnerComplianceDocumentsTable),
@@ -513,10 +532,44 @@ router.post("/trade-partners/:tradePartnerId/compliance-documents/:documentId/co
       res.status(415).json({ error: "Uploaded document content type does not match its declared type" });
       return;
     }
+    await db.update(tradePartnerComplianceDocumentsTable).set({
+      pendingMalwareScanStatus: "scanning",
+      pendingMalwareScannedAt: null,
+      updatedAt: new Date(),
+    }).where(and(
+      scope(req, tradePartnerComplianceDocumentsTable),
+      eq(tradePartnerComplianceDocumentsTable.id, document.id),
+    ));
     const screening = await screenStoredDocument(file, contentType, storedSize);
     if (screening.status === "rejected") {
-      await objectStorage.deleteObject(objectPath).catch(() => undefined);
-      res.status(screening.reason === "content_mismatch" ? 415 : 422).json({ error: "Document failed upload safety screening" });
+      const scannerStatus = screening.scanStatus;
+      if (scannerStatus) {
+        await db.update(tradePartnerComplianceDocumentsTable).set({
+          pendingMalwareScanStatus: scannerStatus,
+          pendingMalwareScannedAt: new Date(),
+          updatedAt: new Date(),
+        }).where(and(
+          scope(req, tradePartnerComplianceDocumentsTable),
+          eq(tradePartnerComplianceDocumentsTable.id, document.id),
+        ));
+      } else {
+        await objectStorage.deleteObject(objectPath).catch(() => undefined);
+      }
+      const statusCode = screening.reason === "content_mismatch" ? 415
+        : screening.reason === "malware_timeout" ? 504
+          : screening.reason === "malware_unavailable" ? 503
+            : 422;
+      const errorMessage = screening.reason === "malware_infected" || screening.reason === "malware_signature"
+        ? "Document was blocked by the security scan"
+        : screening.reason === "malware_timeout"
+          ? "Document security scan timed out; try again later"
+          : screening.reason === "malware_unavailable"
+            ? "Document security scan is temporarily unavailable; try again later"
+            : "Document failed upload safety screening";
+      res.status(statusCode).json({
+        error: errorMessage,
+        ...(scannerStatus ? { scanStatus: scannerStatus } : {}),
+      });
       return;
     }
     const previousObjectPath = document.objectPath;
@@ -529,6 +582,10 @@ router.post("/trade-partners/:tradePartnerId/compliance-documents/:documentId/co
       pendingOriginalName: null,
       pendingContentType: null,
       pendingFileSize: null,
+      malwareScanStatus: "clean",
+      malwareScannedAt: new Date(),
+      pendingMalwareScanStatus: "not_scanned",
+      pendingMalwareScannedAt: null,
       status: "submitted",
       uploadedByUserId: req.localUserId!,
       updatedAt: new Date(),
@@ -556,7 +613,13 @@ router.get("/trade-partners/:tradePartnerId/compliance-documents/:documentId/fil
     return;
   }
   const document = await getComplianceDocument(req, path.data.tradePartnerId, path.data.documentId);
-  if (!document?.objectPath || !document.originalName || !document.contentType) {
+  if (
+    !document?.objectPath
+    || !document.originalName
+    || !document.contentType
+    || !["submitted", "approved"].includes(document.status)
+    || document.malwareScanStatus !== "clean"
+  ) {
     res.status(404).json({ error: "Compliance document file not found" });
     return;
   }
@@ -592,6 +655,10 @@ router.patch("/trade-partners/:tradePartnerId/compliance-documents/:documentId",
     eq(tradePartnerComplianceDocumentsTable.tradePartnerId, path.data.tradePartnerId),
   ));
   if (!previous) { res.status(404).json({ error: "Compliance document not found" }); return; }
+  if (parsed.data.status === "approved" && (!previous.objectPath || previous.malwareScanStatus !== "clean")) {
+    res.status(409).json({ error: "Only documents that passed the security scan can be approved" });
+    return;
+  }
   const [updated] = await db.update(tradePartnerComplianceDocumentsTable).set({
     status: parsed.data.status,
     documentNumber: parsed.data.documentNumber === undefined ? undefined : parsed.data.documentNumber,

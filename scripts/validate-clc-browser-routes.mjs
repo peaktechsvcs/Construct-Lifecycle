@@ -58,6 +58,20 @@ const cases = [
     title: "Browser Test Customer · Construct Lifecycle",
   },
   {
+    name: "authenticated compliance scan status",
+    path: "/compliance?browserAuth=authenticated",
+    heading: "Trade partner compliance",
+    breadcrumb: "Trade Partner Compliance",
+    activeNav: null,
+    title: "Trade partner compliance · Construct Lifecycle",
+    requiredTexts: [
+      "Security scan passed.",
+      "Security scan unavailable. Try again later.",
+      "File blocked after a security scan.",
+      "Security scan timed out. Try again later.",
+    ],
+  },
+  {
     name: "authenticated active projects guidance",
     path: "/dashboard/drilldown/active-projects?browserAuth=authenticated",
     heading: "Active Projects",

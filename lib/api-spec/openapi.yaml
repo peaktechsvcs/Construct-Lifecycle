@@ -5411,7 +5411,7 @@ components:
         updatedAt: { type: string, format: date-time }
     SubmittalDocument:
       type: object
-      required: [id, itemId, originalName, contentType, size, pageCount, pageOrder, version, status, providerKey, externalId, sourceUrl, importStatus, failureReason, uploadedAt, createdAt, downloadUrl]
+      required: [id, itemId, originalName, contentType, size, pageCount, pageOrder, version, status, scanStatus, scanMessage, providerKey, externalId, sourceUrl, importStatus, failureReason, uploadedAt, createdAt, downloadUrl]
       properties:
         id: { type: integer }
         itemId: { type: integer }
@@ -5424,6 +5424,8 @@ components:
           items: { type: integer, minimum: 1 }
         version: { type: integer, minimum: 1 }
         status: { type: string, enum: [pending, uploaded, rejected] }
+        scanStatus: { type: string, enum: [not_scanned, scanning, clean, infected, unavailable, timeout] }
+        scanMessage: { type: string }
         providerKey: { type: ["string", "null"] }
         externalId: { type: ["string", "null"] }
         sourceUrl: { type: ["string", "null"], format: uri }
@@ -7671,7 +7673,7 @@ components:
         status: { type: string, enum: [active, archived] }
     ComplianceDocument:
       type: object
-      required: [id, tradePartnerId, projectId, documentType, title, documentNumber, issuer, expiresOn, status, objectPath, originalName, contentType, fileSize, reviewedAt, reviewNotes, createdAt, updatedAt]
+      required: [id, tradePartnerId, projectId, documentType, title, documentNumber, issuer, expiresOn, status, objectPath, originalName, contentType, fileSize, scanStatus, scanMessage, reviewedAt, reviewNotes, createdAt, updatedAt]
       properties:
         id: { type: integer }
         tradePartnerId: { type: integer }
@@ -7686,6 +7688,8 @@ components:
         originalName: { type: ["string", "null"] }
         contentType: { type: ["string", "null"] }
         fileSize: { type: ["integer", "null"] }
+        scanStatus: { type: string, enum: [not_scanned, scanning, clean, infected, unavailable, timeout] }
+        scanMessage: { type: string }
         reviewedAt: { type: ["string", "null"], format: date-time }
         reviewNotes: { type: ["string", "null"] }
         createdAt: { type: string, format: date-time }

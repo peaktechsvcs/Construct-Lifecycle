@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { configureProvisioningProvider, createProvisioningProviderFromEnv } from "./lib/provisioning";
 import { assertRuntimeProcessConfiguration, configureRuntimeReplayGuard } from "./middlewares/runtimeContext";
 import { startProvisioningRecoveryWorker } from "./workers/provisioning-recovery";
+import { ensureClamAvDatabase } from "./lib/clamav";
 
 const rawPort = process.env["PORT"];
 
@@ -20,6 +21,7 @@ if (Number.isNaN(port) || port <= 0) {
 
 configureProvisioningProvider(createProvisioningProviderFromEnv());
 assertRuntimeProcessConfiguration();
+await ensureClamAvDatabase();
 if (process.env.RUNTIME_ENVIRONMENT_ID) {
   configureRuntimeReplayGuard();
 }

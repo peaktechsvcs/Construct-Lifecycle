@@ -86,7 +86,7 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
-packages = ["tesseract"]
+packages = ["tesseract", "clamav"]
 
 [objectStorage]
 defaultBucketID = "replit-objstore-c4c0d7a4-d434-44a6-9397-626d1ab173cb"

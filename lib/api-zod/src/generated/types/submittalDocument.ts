@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SubmittalDocumentImportStatus } from './submittalDocumentImportStatus';
+import type { SubmittalDocumentScanStatus } from './submittalDocumentScanStatus';
 import type { SubmittalDocumentStatus } from './submittalDocumentStatus';
 
 export interface SubmittalDocument {
@@ -27,6 +28,8 @@ export interface SubmittalDocument {
   /** @minimum 1 */
   version: number;
   status: SubmittalDocumentStatus;
+  scanStatus: SubmittalDocumentScanStatus;
+  scanMessage: string;
   /** @nullable */
   providerKey: string | null;
   /** @nullable */

@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ComplianceDocumentScanStatus } from './complianceDocumentScanStatus';
 import type { ComplianceDocumentStatus } from './complianceDocumentStatus';
 
 export interface ComplianceDocument {
@@ -29,6 +30,8 @@ export interface ComplianceDocument {
   contentType: string | null;
   /** @nullable */
   fileSize: number | null;
+  scanStatus: ComplianceDocumentScanStatus;
+  scanMessage: string;
   /** @nullable */
   reviewedAt: Date | null;
   /** @nullable */

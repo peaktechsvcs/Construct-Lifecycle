@@ -13,6 +13,8 @@ export const submittalDocumentsTable = pgTable("submittal_documents", {
   pageOrder: text("page_order"),
   version: integer("version").notNull().default(1),
   status: text("status").notNull().default("pending"),
+  malwareScanStatus: text("malware_scan_status").notNull().default("not_scanned"),
+  malwareScannedAt: timestamp("malware_scanned_at", { withTimezone: true }),
   providerKey: text("provider_key"),
   externalId: text("external_id"),
   sourceUrl: text("source_url"),

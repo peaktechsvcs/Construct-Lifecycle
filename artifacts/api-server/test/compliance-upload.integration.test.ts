@@ -222,6 +222,47 @@ test("malware screening rejects a stored file before it becomes submitted", asyn
   assert.equal(row.status, "requested");
 });
 
+test("authenticated completion exposes scanner failures and never makes rejected bytes downloadable", async () => {
+  const cases = [
+    { marker: "MALWARE_TEST_INFECTED", scanStatus: "infected", responseStatus: 422 },
+    { marker: "MALWARE_TEST_TIMEOUT", scanStatus: "timeout", responseStatus: 504 },
+    { marker: "MALWARE_TEST_UNAVAILABLE", scanStatus: "unavailable", responseStatus: 503 },
+  ] as const;
+
+  for (const candidate of cases) {
+    const bytes = Buffer.from(`%PDF-1.7\n${candidate.marker}\n`, "utf8");
+    const upload = await request(`/trade-partners/${tradePartnerId}/compliance-documents/request-upload`, {
+      method: "POST",
+      body: JSON.stringify({
+        documentType: "insurance_certificate",
+        title: `Scanner ${candidate.scanStatus}`,
+        originalName: `${candidate.scanStatus}.pdf`,
+        contentType: "application/pdf",
+        size: bytes.length,
+      }),
+    });
+    assert.equal(upload.response.status, 201, JSON.stringify(upload.body));
+    const pending = upload.body as { id: number; uploadURL: string; objectPath: string };
+    uploadedObjectPaths.push(pending.objectPath);
+    await putFile(pending.uploadURL, bytes);
+
+    const completed = await request(`/trade-partners/${tradePartnerId}/compliance-documents/${pending.id}/complete`, { method: "POST" });
+    assert.equal(completed.response.status, candidate.responseStatus, JSON.stringify(completed.body));
+    assert.equal((completed.body as { scanStatus: string }).scanStatus, candidate.scanStatus);
+
+    const detail = await request(`/trade-partners/${tradePartnerId}`);
+    const document = (detail.body as { complianceDocuments: Array<{ id: number; status: string; scanStatus: string; scanMessage: string }> })
+      .complianceDocuments.find((item) => item.id === pending.id);
+    assert(document);
+    assert.equal(document.status, "requested");
+    assert.equal(document.scanStatus, candidate.scanStatus);
+    assert.match(document.scanMessage, /security scan/i);
+
+    const download = await request(`/trade-partners/${tradePartnerId}/compliance-documents/${pending.id}/file`);
+    assert.equal(download.response.status, 404);
+  }
+});
+
 test("failed replacement keeps the previously submitted file and partner scope is enforced", async () => {
   const current = await db.select().from(tradePartnerComplianceDocumentsTable)
     .where(eq(tradePartnerComplianceDocumentsTable.tradePartnerId, tradePartnerId));

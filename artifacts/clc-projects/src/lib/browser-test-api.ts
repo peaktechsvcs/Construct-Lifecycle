@@ -121,6 +121,110 @@ const businessCustomer = {
   updatedAt: new Date(0).toISOString(),
 };
 
+const browserTradePartner = {
+  id: 7,
+  companyName: 'Browser Test Trade Partner',
+  tradeCapabilities: ['Electrical'],
+  serviceAreas: ['Denver'],
+  primaryContact: 'Test Contact',
+  email: 'trade-partner@example.test',
+  phone: null,
+  qualificationStatus: 'approved',
+  qualificationReviewedAt: new Date(0).toISOString(),
+  status: 'active',
+  complianceCounts: { total: 4, approved: 1, pending: 3, expired: 0 },
+  gates: { award: true, mobilization: true, billing: true, closeout: true, blockers: [] },
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+};
+
+const browserComplianceDocuments = [
+  {
+    id: 701,
+    tradePartnerId: browserTradePartner.id,
+    projectId: 42,
+    documentType: 'insurance_certificate',
+    title: 'General liability certificate',
+    documentNumber: null,
+    issuer: 'Browser Test Insurance',
+    expiresOn: null,
+    status: 'submitted',
+    objectPath: '/objects/browser-clean-document',
+    originalName: 'liability.pdf',
+    contentType: 'application/pdf',
+    fileSize: 1024,
+    scanStatus: 'clean',
+    scanMessage: 'Security scan passed.',
+    reviewedAt: null,
+    reviewNotes: null,
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  },
+  {
+    id: 702,
+    tradePartnerId: browserTradePartner.id,
+    projectId: 42,
+    documentType: 'bond',
+    title: 'Replacement awaiting scan',
+    documentNumber: null,
+    issuer: null,
+    expiresOn: null,
+    status: 'requested',
+    objectPath: '/objects/browser-pending-document',
+    originalName: 'bond.pdf',
+    contentType: 'application/pdf',
+    fileSize: 2048,
+    scanStatus: 'unavailable',
+    scanMessage: 'Security scan unavailable. Try again later.',
+    reviewedAt: null,
+    reviewNotes: null,
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  },
+  {
+    id: 703,
+    tradePartnerId: browserTradePartner.id,
+    projectId: 42,
+    documentType: 'license',
+    title: 'License blocked by scan',
+    documentNumber: null,
+    issuer: null,
+    expiresOn: null,
+    status: 'requested',
+    objectPath: '/objects/browser-infected-document',
+    originalName: 'license.pdf',
+    contentType: 'application/pdf',
+    fileSize: 2048,
+    scanStatus: 'infected',
+    scanMessage: 'File blocked after a security scan.',
+    reviewedAt: null,
+    reviewNotes: null,
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  },
+  {
+    id: 704,
+    tradePartnerId: browserTradePartner.id,
+    projectId: 42,
+    documentType: 'safety_information',
+    title: 'Safety file scan timed out',
+    documentNumber: null,
+    issuer: null,
+    expiresOn: null,
+    status: 'requested',
+    objectPath: '/objects/browser-timeout-document',
+    originalName: 'safety.pdf',
+    contentType: 'application/pdf',
+    fileSize: 2048,
+    scanStatus: 'timeout',
+    scanMessage: 'Security scan timed out. Try again later.',
+    reviewedAt: null,
+    reviewNotes: null,
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  },
+];
+
 const dashboardSummary = {
   activeProjects: 0,
   pipelineValue: 0,
@@ -263,6 +367,13 @@ export function installBrowserTestApi() {
     }
     if (url.pathname === '/api/customers/42') return json(businessCustomer);
     if (url.pathname === '/api/customers') return json([]);
+    if (url.pathname === '/api/trade-partners') return json([browserTradePartner]);
+    if (url.pathname === `/api/trade-partners/${browserTradePartner.id}`) {
+      return json({ partner: browserTradePartner, complianceDocuments: browserComplianceDocuments, requirements: [], agreements: [] });
+    }
+    if (url.pathname === `/api/projects/${project.id}/compliance-requirements`) return json([]);
+    if (url.pathname === '/api/subcontract-agreements') return json([]);
+    if (url.pathname === '/api/subcontract-agreement-audit-events') return json([]);
     if (url.pathname === '/api/tenant/members') return json([]);
     if (url.pathname === '/api/tenant/invitations') return json([]);
     if (url.pathname === '/api/platform/customers') return json([platformCustomer]);

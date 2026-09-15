@@ -1579,6 +1579,18 @@ export const SubmittalDocumentStatus = {
   rejected: 'rejected',
 } as const;
 
+export type SubmittalDocumentScanStatus = typeof SubmittalDocumentScanStatus[keyof typeof SubmittalDocumentScanStatus];
+
+
+export const SubmittalDocumentScanStatus = {
+  not_scanned: 'not_scanned',
+  scanning: 'scanning',
+  clean: 'clean',
+  infected: 'infected',
+  unavailable: 'unavailable',
+  timeout: 'timeout',
+} as const;
+
 export type SubmittalDocumentImportStatus = typeof SubmittalDocumentImportStatus[keyof typeof SubmittalDocumentImportStatus];
 
 
@@ -1608,6 +1620,8 @@ export interface SubmittalDocument {
   /** @minimum 1 */
   version: number;
   status: SubmittalDocumentStatus;
+  scanStatus: SubmittalDocumentScanStatus;
+  scanMessage: string;
   /** @nullable */
   providerKey: string | null;
   /** @nullable */
@@ -5193,6 +5207,18 @@ export const ComplianceDocumentStatus = {
   expired: 'expired',
 } as const;
 
+export type ComplianceDocumentScanStatus = typeof ComplianceDocumentScanStatus[keyof typeof ComplianceDocumentScanStatus];
+
+
+export const ComplianceDocumentScanStatus = {
+  not_scanned: 'not_scanned',
+  scanning: 'scanning',
+  clean: 'clean',
+  infected: 'infected',
+  unavailable: 'unavailable',
+  timeout: 'timeout',
+} as const;
+
 export interface ComplianceDocument {
   id: number;
   tradePartnerId: number;
@@ -5215,6 +5241,8 @@ export interface ComplianceDocument {
   contentType: string | null;
   /** @nullable */
   fileSize: number | null;
+  scanStatus: ComplianceDocumentScanStatus;
+  scanMessage: string;
   /** @nullable */
   reviewedAt: string | null;
   /** @nullable */
