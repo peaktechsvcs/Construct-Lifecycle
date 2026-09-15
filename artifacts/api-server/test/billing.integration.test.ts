@@ -53,7 +53,12 @@ const clerkIds = {
 const customers = new Map<string, StripeCustomer>();
 const subscriptions = new Map<string, StripeSubscription>();
 const invoices = new Map<string, Array<Record<string, unknown>>>();
-const connectorCalls: Array<{ method: string; path: string; body: string }> = [];
+const connectorCalls: Array<{
+  method: string;
+  path: string;
+  body: string;
+  attributes: Record<string, string>;
+}> = [];
 let nextProduct = 1;
 let nextPrice = 1;
 let nextSession = 1;
@@ -108,7 +113,12 @@ globalThis.fetch = async (input, init) => {
   const path = stripePath(url);
   const method = init?.method ?? "GET";
   const body = decodeBody(init);
-  connectorCalls.push({ method, path, body: body.toString() });
+  connectorCalls.push({
+    method,
+    path,
+    body: body.toString(),
+    attributes: Object.fromEntries(body.entries()),
+  });
 
   if (method === "GET" && path === "/v1/products") {
     return jsonResponse({
@@ -446,8 +456,16 @@ describe("billing lifecycle", () => {
     assert.equal(created.status, 201);
     assert.equal(((created.body as Record<string, unknown>).priceIds as string[]).length, 2);
     const priceCalls = connectorCalls.filter((call) => call.path === "/v1/prices");
-    assert.match(priceCalls.at(-2)?.body ?? "", /recurring%5Binterval%5D=month/);
-    assert.match(priceCalls.at(-1)?.body ?? "", /recurring%5Binterval%5D=year/);
+    const monthlyPriceCall = priceCalls.find((call) =>
+      call.attributes["recurring[interval]"] === "month" &&
+      call.attributes.unit_amount === "7900");
+    const annualPriceCall = priceCalls.find((call) =>
+      call.attributes["recurring[interval]"] === "year" &&
+      call.attributes.unit_amount === "79000");
+    assert.ok(monthlyPriceCall, "monthly price request was not recorded");
+    assert.ok(annualPriceCall, "annual price request was not recorded");
+    assert.equal(monthlyPriceCall.attributes.nickname, "Growth monthly");
+    assert.equal(annualPriceCall.attributes.nickname, "Growth annual");
   });
 
   test("cancels at period end and reactivates without changing tenant data", async () => {
