@@ -87,6 +87,64 @@ function severityTone(s: DashboardDrilldownAttentionSeverity) {
   return 'neutral' as const;
 }
 
+function ActiveProjectStatusEmptyState({
+  status,
+  search,
+  returnUrl,
+}: {
+  status: { stableKey: string; displayName: string };
+  search: string;
+  returnUrl: string;
+}) {
+  const hasSearch = Boolean(search.trim());
+  const clearSearchUrl = (() => {
+    const [base, queryString] = returnUrl.split('?');
+    const params = new URLSearchParams(queryString ?? '');
+    params.delete('search');
+    const query = params.toString();
+    return query ? `${base}?${query}` : base;
+  })();
+  const statusName = status.displayName.toLowerCase();
+  const guidance = status.stableKey === 'active'
+    ? {
+      text: 'Create a project or move a waiting project into Active when work is ready.',
+      href: '/projects',
+      label: 'Open project book',
+    }
+    : status.stableKey === 'waiting'
+      ? {
+        text: 'Move a project to Waiting when progress is paused or your team is waiting on a decision.',
+        href: '/settings/administration/workflows',
+        label: 'Review workflow',
+      }
+      : {
+        text: `Create a project or update a project to the ${status.displayName} status.`,
+        href: '/projects',
+        label: 'Open project book',
+      };
+
+  return (
+    <EmptyState
+      icon={BriefcaseBusiness}
+      title={hasSearch ? `No ${statusName} projects match` : `No ${statusName} projects`}
+      text={
+        hasSearch
+          ? `Clear the search to view all ${statusName} projects.`
+          : guidance.text
+      }
+      action={
+        <Link
+          href={hasSearch ? clearSearchUrl : guidance.href}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {hasSearch ? 'Clear search' : guidance.label}
+          <ExternalLink size={12} />
+        </Link>
+      }
+    />
+  );
+}
+
 function stageBadgeTone(stage: string) {
   if (stage === 'financial' || stage === 'FINANCIAL' || stage === 'PRE_CONSTRUCTION') return 'violet' as const;
   if (stage === 'closeout' || stage === 'COMPLETED') return 'green' as const;
@@ -572,7 +630,7 @@ export function DashboardDrilldown() {
       {drillQuery.isError && <ErrorPanel onRetry={() => drillQuery.refetch()} />}
 
       {/* Empty */}
-      {isEmpty && (
+      {isEmpty && !isActiveProjects && (
         <EmptyState
           icon={Icon}
           title="No records found"
@@ -581,7 +639,7 @@ export function DashboardDrilldown() {
       )}
 
       {/* Projects table */}
-      {!drillQuery.isLoading && !drillQuery.isError && hasProjects && (
+      {!drillQuery.isLoading && !drillQuery.isError && data && (hasProjects || isActiveProjects) && (
         <>
           {isReceived && (
             <p className="mb-2 text-xs font-semibold text-muted-foreground">Project-level received contributions</p>
@@ -597,7 +655,15 @@ export function DashboardDrilldown() {
                     </div>
                     <span className="mono text-xs text-muted-foreground">{status.projects.length}</span>
                   </div>
-                  <ProjectsTable projects={status.projects} returnUrl={returnUrl} />
+                  {status.projects.length > 0 ? (
+                    <ProjectsTable projects={status.projects} returnUrl={returnUrl} />
+                  ) : (
+                    <ActiveProjectStatusEmptyState
+                      status={status}
+                      search={search}
+                      returnUrl={returnUrl}
+                    />
+                  )}
                 </section>
               ))}
             </div>
