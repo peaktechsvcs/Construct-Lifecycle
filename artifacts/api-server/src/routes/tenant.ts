@@ -321,7 +321,7 @@ const businessProfile = async (req: TenantRequest) => {
   const businessTypes = await getTenantBusinessTypes(req.tenantId!);
   return {
     businessTypes,
-    features: (await getFeatureAvailability(businessTypes)).map(serializeFeature),
+    features: (await getFeatureAvailability(req.tenantId!, businessTypes)).map(serializeFeature),
   };
 };
 

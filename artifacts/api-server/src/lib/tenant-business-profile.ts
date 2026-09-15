@@ -7,6 +7,7 @@ import {
   type TenantBusinessType,
 } from "@workspace/db";
 import { FEATURE_CATALOG, entitledFeatures } from "./feature-catalog";
+import { getEffectiveFeatureAccess } from "./billing-access";
 
 export const DEFAULT_TENANT_BUSINESS_TYPES: TenantBusinessType[] = ["general-contractor"];
 
@@ -29,12 +30,14 @@ export async function getTenantBusinessTypes(tenantId: number): Promise<TenantBu
   return businessTypes ?? DEFAULT_TENANT_BUSINESS_TYPES;
 }
 
-export async function getFeatureAvailability(businessTypes: TenantBusinessType[]) {
+export async function getFeatureAvailability(tenantId: number, businessTypes: TenantBusinessType[]) {
   const flags = await db.select().from(platformFeatureFlagsTable);
   const enabledKeys = new Set(flags.filter((flag) => flag.enabled).map((flag) => flag.key));
+  const effectiveAccess = await getEffectiveFeatureAccess(tenantId);
   return entitledFeatures(businessTypes).map((feature) => ({
     ...feature,
-    enabled: enabledKeys.has(feature.key),
+    enabled: enabledKeys.has(feature.key)
+      && (!effectiveAccess.billingConfigured || effectiveAccess.entitlements[feature.key] === true),
   }));
 }
 

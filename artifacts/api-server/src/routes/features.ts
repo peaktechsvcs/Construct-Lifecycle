@@ -19,6 +19,7 @@ import type { TenantRequest } from "../middlewares/tenantContext";
 import { FEATURE_CATALOG, entitledFeatures } from "../lib/feature-catalog";
 import { requirePlatformAdmin } from "../middlewares/platformAdmin";
 import { getTenantBusinessTypes } from "../lib/tenant-business-profile";
+import { getEffectiveFeatureAccess } from "../lib/billing-access";
 
 const router: IRouter = Router();
 
@@ -32,6 +33,9 @@ async function listFeedback(req: TenantRequest) {
   const enabledKeys = await enabledFeatureKeys();
   const businessTypes = await getTenantBusinessTypes(req.tenantId);
   const entitledKeys = new Set(entitledFeatures(businessTypes).map((feature) => feature.key));
+  const effectiveAccess = await getEffectiveFeatureAccess(req.tenantId);
+  const canUseFeature = (featureKey: string) =>
+    !effectiveAccess.billingConfigured || effectiveAccess.entitlements[featureKey] === true;
   const voteCounts = await db
     .select({
       featureKey: featureFeedbackVotesTable.featureKey,
@@ -50,7 +54,7 @@ async function listFeedback(req: TenantRequest) {
   const counts = new Map(voteCounts.map((vote) => [vote.featureKey, Number(vote.voteCount)]));
 
   return FEATURE_CATALOG
-    .filter((feature) => entitledKeys.has(feature.key) && !enabledKeys.has(feature.key))
+    .filter((feature) => entitledKeys.has(feature.key) && canUseFeature(feature.key) && !enabledKeys.has(feature.key))
     .map((feature) => ({
       key: feature.key,
       label: feature.label,
@@ -63,12 +67,19 @@ async function listFeedback(req: TenantRequest) {
 
 router.get("/features", async (req: TenantRequest, res): Promise<void> => {
   const enabledKeys = await enabledFeatureKeys();
+  const effectiveAccess = req.isPlatformAdmin
+    ? null
+    : await getEffectiveFeatureAccess(req.tenantId!);
   const businessTypes = req.isPlatformAdmin
     ? [...TENANT_BUSINESS_TYPES]
     : await getTenantBusinessTypes(req.tenantId!);
   const entitledKeys = new Set(entitledFeatures(businessTypes).map((feature) => feature.key));
   const visible = FEATURE_CATALOG
-    .filter((feature) => req.isPlatformAdmin || (enabledKeys.has(feature.key) && entitledKeys.has(feature.key)))
+    .filter((feature) => req.isPlatformAdmin || (
+      enabledKeys.has(feature.key)
+      && entitledKeys.has(feature.key)
+      && (!effectiveAccess?.billingConfigured || effectiveAccess.entitlements[feature.key] === true)
+    ))
     .map(({ businessTypes: _businessTypes, ...feature }) => ({
       ...feature,
       enabled: enabledKeys.has(feature.key),
@@ -122,10 +133,17 @@ router.post("/feedback/vote", async (req: TenantRequest, res): Promise<void> => 
   const enabledKeys = await enabledFeatureKeys();
   const businessTypes = await getTenantBusinessTypes(req.tenantId);
   const entitledKeys = new Set(entitledFeatures(businessTypes).map((feature) => feature.key));
+  const effectiveAccess = await getEffectiveFeatureAccess(req.tenantId);
   const feature = parsed.success
     ? FEATURE_CATALOG.find((item) => item.key === parsed.data.featureKey)
     : undefined;
-  if (!parsed.success || !feature || !entitledKeys.has(feature.key) || enabledKeys.has(feature.key)) {
+  if (
+    !parsed.success
+    || !feature
+    || !entitledKeys.has(feature.key)
+    || (effectiveAccess.billingConfigured && effectiveAccess.entitlements[feature.key] !== true)
+    || enabledKeys.has(feature.key)
+  ) {
     res.status(400).json({ error: "That feature is not available for voting" });
     return;
   }

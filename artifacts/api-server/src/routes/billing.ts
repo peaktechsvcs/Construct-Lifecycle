@@ -11,83 +11,13 @@ import { requireTenantContext, type TenantRequest } from "../middlewares/tenantC
 import { requirePlatformAdmin } from "../middlewares/platformAdmin";
 import { requireRole } from "../middlewares/rbac";
 import { getUncachableStripeClient } from "../stripeClient";
+import { readBillingAccount, readPlans } from "../lib/billing-access";
 
 const router: IRouter = Router();
 const stripePriceId = z.string().min(5).max(100);
 const capabilityKey = z.string().regex(/^[a-z][a-z0-9_.-]{1,80}$/);
 
 router.use("/billing", requireTenantContext);
-
-type Row = Record<string, unknown>;
-const jsonObject = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
-
-async function readPlans() {
-  try {
-    const result = await db.execute(sql`
-      select
-        p.id as "productId",
-        p.name,
-        p.description,
-        p.active,
-        p.metadata,
-        coalesce(json_agg(json_build_object(
-          'id', pr.id,
-          'active', pr.active,
-          'currency', pr.currency,
-          'unitAmount', pr.unit_amount,
-          'type', pr.type,
-          'recurring', pr.recurring,
-          'nickname', pr.nickname
-        ) order by pr.unit_amount nulls last) filter (where pr.id is not null), '[]'::json) as prices
-      from stripe.products p
-      left join stripe.prices pr on pr.product = p.id
-      group by p.id
-      order by p.active desc, p.name asc
-    `);
-    const syncedPlans = result.rows.map((row) => {
-      const metadata = jsonObject(row.metadata);
-      return {
-        productId: String(row.productId),
-        name: String(row.name ?? "Untitled plan"),
-        description: row.description ? String(row.description) : null,
-        active: Boolean(row.active),
-        entitlements: metadata.entitlements ? JSON.parse(String(metadata.entitlements)) : {},
-        limits: metadata.limits ? JSON.parse(String(metadata.limits)) : {},
-        prices: row.prices ?? [],
-      };
-    });
-    if (syncedPlans.length > 0) return syncedPlans;
-  } catch {
-    console.warn("[stripe] synced plans unavailable; using connector proxy", { operation: "readPlans" });
-  }
-
-  const stripe = getUncachableStripeClient();
-  const [products, prices] = await Promise.all([
-    stripe.products.list({ active: "true", limit: "100" }),
-    stripe.prices.list({ active: "true", type: "recurring", limit: "100" }),
-  ]);
-  return products.data.map((product) => {
-    const metadata = jsonObject(product.metadata);
-    return {
-      productId: product.id,
-      name: String(product.name ?? "Untitled plan"),
-      description: product.description ? String(product.description) : null,
-      active: Boolean(product.active),
-      entitlements: metadata.entitlements ? JSON.parse(String(metadata.entitlements)) : {},
-      limits: metadata.limits ? JSON.parse(String(metadata.limits)) : {},
-      prices: prices.data.filter((price) => String(price.product) === product.id).map((price) => ({
-        id: price.id,
-        active: Boolean(price.active),
-        currency: String(price.currency ?? "usd"),
-        unitAmount: typeof price.unit_amount === "number" ? price.unit_amount : null,
-        type: String(price.type ?? "recurring"),
-        recurring: price.recurring ?? null,
-        nickname: price.nickname ? String(price.nickname) : null,
-      })),
-    };
-  });
-}
 
 async function ensureBillingAccount(req: TenantRequest) {
   const [existing] = await db.select().from(tenantBillingAccountsTable)
@@ -105,99 +35,21 @@ async function ensureBillingAccount(req: TenantRequest) {
   return created;
 }
 
-async function readBillingAccount(tenantId: number) {
-  const [account] = await db.select().from(tenantBillingAccountsTable)
-    .where(eq(tenantBillingAccountsTable.tenantId, tenantId)).limit(1);
-  if (!account) return null;
-
-  let row: Row | undefined;
-  let directSubscription: unknown = row?.subscription ?? null;
-  let directPaymentMethod: unknown = row?.paymentMethod ?? null;
-  try {
-    const result = await db.execute(sql`
-      select
-        c.id as "customerId",
-        c.email,
-        c.name,
-        c.delinquent,
-        (
-          select json_build_object(
-            'id', s.id,
-            'status', s.status,
-            'priceId', (s.items->'data'->0->'price'->>'id'),
-            'currentPeriodEnd', s.current_period_end,
-            'currentPeriodStart', s.current_period_start,
-            'cancelAtPeriodEnd', s.cancel_at_period_end,
-            'trialEnd', s.trial_end
-          )
-          from stripe.subscriptions s
-          where s.customer = c.id
-            and s.status not in ('canceled', 'incomplete_expired')
-          order by s.created desc
-          limit 1
-        ) as subscription,
-        (
-          select json_build_object('brand', pm.card->>'brand', 'last4', pm.card->>'last4', 'expMonth', pm.card->>'exp_month', 'expYear', pm.card->>'exp_year')
-          from stripe.payment_methods pm
-          where pm.customer = c.id and pm.type = 'card'
-          order by pm.created desc
-          limit 1
-        ) as "paymentMethod"
-      from stripe.customers c
-      where c.id = ${account.externalCustomerId}
-      limit 1
-    `);
-    row = result.rows[0] as Row | undefined;
-    directSubscription = row?.subscription ?? null;
-    directPaymentMethod = row?.paymentMethod ?? null;
-  } catch {
-    console.warn("[stripe] synced billing account unavailable; using connector proxy", { operation: "readBillingAccount" });
-  }
-  if (!row) {
-    const stripe = getUncachableStripeClient();
-    const [customer, subscriptions, paymentMethods] = await Promise.all([
-      stripe.customers.retrieve(account.externalCustomerId),
-      stripe.subscriptions.list({ customer: account.externalCustomerId, status: "all", limit: "10" }),
-      stripe.paymentMethods.list({ customer: account.externalCustomerId, type: "card", limit: "10" }),
-    ]);
-    const active = subscriptions.data.find((subscription) => !["canceled", "incomplete_expired"].includes(String(subscription.status)));
-    const card = paymentMethods.data[0];
-    row = customer;
-    directSubscription = active ? {
-      id: active.id,
-      status: active.status,
-      priceId: (active.items as { data?: Array<{ price?: { id?: string } }> } | undefined)?.data?.[0]?.price?.id ?? null,
-      cancelAtPeriodEnd: Boolean(active.cancel_at_period_end),
-    } : null;
-    directPaymentMethod = card ? {
-      brand: (card.card as Record<string, unknown> | undefined)?.brand,
-      last4: (card.card as Record<string, unknown> | undefined)?.last4,
-    } : null;
-  }
-  const overrides = await db.select({
-    capabilityKey: tenantEntitlementOverridesTable.capabilityKey,
-    enabled: tenantEntitlementOverridesTable.enabled,
-  }).from(tenantEntitlementOverridesTable)
-    .where(eq(tenantEntitlementOverridesTable.tenantId, tenantId));
-
-  return {
-    provider: account.provider,
-    customerId: account.externalCustomerId,
-    email: row?.email ?? account.billingContactEmail,
-    name: row?.name ?? null,
-    delinquent: Boolean(row?.delinquent),
-    subscription: directSubscription,
-    paymentMethod: directPaymentMethod,
-    overrides,
-  };
-}
-
-async function audit(req: TenantRequest, action: string, details: Record<string, unknown>, providerReference?: string) {
+async function audit(
+  req: TenantRequest,
+  action: string,
+  details: Record<string, unknown>,
+  providerReference?: string,
+  previousState?: Record<string, unknown>,
+  newState?: Record<string, unknown>,
+) {
   await db.insert(subscriptionAuditEventsTable).values({
     tenantId: req.tenantId!,
     actorUserId: req.localUserId ?? null,
     action,
     providerReference,
+    previousState: previousState ? JSON.stringify(previousState) : undefined,
+    newState: newState ? JSON.stringify(newState) : undefined,
     details: JSON.stringify(details),
   });
 }
@@ -395,6 +247,13 @@ router.patch("/platform/billing/entitlements/:tenantId", requirePlatformAdmin, a
     res.status(400).json({ error: "Invalid entitlement override" });
     return;
   }
+  const [previous] = await db.select({
+    capabilityKey: tenantEntitlementOverridesTable.capabilityKey,
+    enabled: tenantEntitlementOverridesTable.enabled,
+  }).from(tenantEntitlementOverridesTable).where(and(
+    eq(tenantEntitlementOverridesTable.tenantId, tenantId),
+    eq(tenantEntitlementOverridesTable.capabilityKey, parsed.data.capabilityKey),
+  )).limit(1);
   const [override] = await db.insert(tenantEntitlementOverridesTable).values({
     tenantId,
     capabilityKey: parsed.data.capabilityKey,
@@ -404,7 +263,14 @@ router.patch("/platform/billing/entitlements/:tenantId", requirePlatformAdmin, a
     target: [tenantEntitlementOverridesTable.tenantId, tenantEntitlementOverridesTable.capabilityKey],
     set: { enabled: parsed.data.enabled, updatedByUserId: req.localUserId!, updatedAt: new Date() },
   }).returning();
-  await audit({ ...req, tenantId } as TenantRequest, "entitlement_override_changed", parsed.data);
+  await audit(
+    { ...req, tenantId } as TenantRequest,
+    "entitlement_override_changed",
+    parsed.data,
+    undefined,
+    previous ? { capabilityKey: previous.capabilityKey, enabled: previous.enabled } : undefined,
+    { capabilityKey: override.capabilityKey, enabled: override.enabled },
+  );
   res.json(override);
 });
 

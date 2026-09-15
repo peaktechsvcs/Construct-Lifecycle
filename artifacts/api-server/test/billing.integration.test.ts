@@ -12,6 +12,7 @@ const {
   environmentsTable,
   membershipsTable,
   pool,
+  platformFeatureFlagsTable,
   tenantBillingAccountsTable,
   tenantEntitlementOverridesTable,
   tenantsTable,
@@ -20,6 +21,10 @@ const {
 } = await import("@workspace/db");
 const { default: app } = await import("../src/app.ts");
 const { WebhookHandlers } = await import("../src/webhookHandlers.ts");
+const {
+  resolveEffectiveEntitlements,
+  subscriptionAccessState,
+} = await import("../src/lib/feature-catalog.ts");
 
 type Json = Record<string, unknown> | unknown[];
 type StripeCustomer = {
@@ -60,6 +65,7 @@ let customerAId: string;
 let customerBId: string;
 let environmentAId: number;
 let environmentBId: number;
+let originalBillingFlag: typeof platformFeatureFlagsTable.$inferSelect | undefined;
 
 const nativeFetch = globalThis.fetch;
 
@@ -110,7 +116,7 @@ globalThis.fetch = async (input, init) => {
           name: "Standard",
           description: "Standard workspace",
           active: true,
-          metadata: { entitlements: JSON.stringify({ projects: true }) },
+           metadata: { entitlements: JSON.stringify({ projects: true, billing: true }) },
         },
       ],
     });
@@ -281,6 +287,14 @@ before(async () => {
     enabled: true,
     updatedByUserId: userId[clerkIds.ownerA],
   });
+  [originalBillingFlag] = await db.select().from(platformFeatureFlagsTable)
+    .where(eq(platformFeatureFlagsTable.key, "billing")).limit(1);
+  await db.delete(platformFeatureFlagsTable).where(eq(platformFeatureFlagsTable.key, "billing"));
+  await db.insert(platformFeatureFlagsTable).values({
+    key: "billing",
+    enabled: true,
+    updatedByUserId: userId[clerkIds.platformAdmin],
+  });
 
   server = app.listen(0, "127.0.0.1");
   await new Promise<void>((resolve, reject) => {
@@ -297,6 +311,8 @@ after(async () => {
   if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   if (tenantAId) await db.delete(tenantsTable).where(eq(tenantsTable.id, tenantAId));
   if (tenantBId) await db.delete(tenantsTable).where(eq(tenantsTable.id, tenantBId));
+  await db.delete(platformFeatureFlagsTable).where(eq(platformFeatureFlagsTable.key, "billing"));
+  if (originalBillingFlag) await db.insert(platformFeatureFlagsTable).values(originalBillingFlag);
   globalThis.fetch = nativeFetch;
   await pool.end();
 });
@@ -350,6 +366,61 @@ describe("billing tenant boundaries", () => {
     assert.equal(foreignCheckout.status, 200);
     const checkoutCalls = connectorCalls.filter((call) => call.path === "/v1/checkout/sessions");
     assert.match(checkoutCalls.at(-1)?.body ?? "", /customer=cus-billing-b/);
+  });
+});
+
+describe("effective subscription access policy", () => {
+  test("documents access for every supported Stripe subscription state", () => {
+    assert.equal(subscriptionAccessState("active"), "active");
+    assert.equal(subscriptionAccessState("trialing"), "active");
+    assert.equal(subscriptionAccessState("past_due"), "grace_period");
+    assert.equal(subscriptionAccessState("unpaid"), "suspended");
+    assert.equal(subscriptionAccessState("canceled"), "suspended");
+    assert.equal(subscriptionAccessState("active", true), "scheduled_cancellation");
+    assert.equal(subscriptionAccessState("trialing", true), "scheduled_cancellation");
+    assert.equal(subscriptionAccessState(null), "not_subscribed");
+  });
+
+  test("keeps plan access in grace and at scheduled cancellation, but not after suspension", () => {
+    const input = {
+      planEntitlements: { contracts: true, billing: true },
+      overrides: [],
+    };
+    assert.deepEqual(resolveEffectiveEntitlements({ ...input, status: "active" }).entitlements, {
+      contracts: true,
+      billing: true,
+    });
+    assert.deepEqual(resolveEffectiveEntitlements({ ...input, status: "past_due" }).entitlements, {
+      contracts: true,
+      billing: true,
+    });
+    assert.deepEqual(resolveEffectiveEntitlements({ ...input, status: "active", cancelAtPeriodEnd: true }).entitlements, {
+      contracts: true,
+      billing: true,
+    });
+    assert.deepEqual(resolveEffectiveEntitlements({ ...input, status: "unpaid" }).entitlements, {
+      contracts: false,
+      billing: false,
+    });
+    assert.deepEqual(resolveEffectiveEntitlements({ ...input, status: "canceled" }).entitlements, {
+      contracts: false,
+      billing: false,
+    });
+  });
+
+  test("applies tenant-scoped overrides after subscription policy", () => {
+    const resolved = resolveEffectiveEntitlements({
+      status: "unpaid",
+      planEntitlements: { contracts: true },
+      overrides: [
+        { capabilityKey: "contracts", enabled: true },
+        { capabilityKey: "reports", enabled: false },
+      ],
+    });
+    assert.deepEqual(resolved.entitlements, {
+      contracts: true,
+      reports: false,
+    });
   });
 });
 
@@ -413,6 +484,20 @@ describe("billing lifecycle", () => {
     assert.deepEqual(((accountA.body as Record<string, unknown>).billing as Record<string, unknown>).overrides, [
       { capabilityKey: "projects", enabled: true },
     ]);
+
+    const tenantAFeatures = await request(clerkIds.ownerA, "/features");
+    assert.equal(tenantAFeatures.status, 200);
+    assert.equal(
+      (tenantAFeatures.body as Array<Record<string, unknown>>).some((feature) => feature.key === "billing"),
+      true,
+    );
+
+    const tenantBFeatures = await request(clerkIds.ownerB, "/features");
+    assert.equal(tenantBFeatures.status, 200);
+    assert.equal(
+      (tenantBFeatures.body as Array<Record<string, unknown>>).some((feature) => feature.key === "billing"),
+      false,
+    );
   });
 });
 

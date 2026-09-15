@@ -9,6 +9,59 @@ export type FeatureCatalogEntry = {
   businessTypes: TenantBusinessType[];
 };
 
+export type SubscriptionAccessState =
+  | "active"
+  | "grace_period"
+  | "scheduled_cancellation"
+  | "suspended"
+  | "not_subscribed";
+
+export type EffectiveEntitlementOverride = {
+  capabilityKey: string;
+  enabled: boolean;
+};
+
+export function subscriptionAccessState(
+  status: string | null | undefined,
+  cancelAtPeriodEnd = false,
+): SubscriptionAccessState {
+  if (!status) return "not_subscribed";
+  if (status === "active" || status === "trialing") {
+    return cancelAtPeriodEnd ? "scheduled_cancellation" : "active";
+  }
+  if (status === "past_due") return "grace_period";
+  return "suspended";
+}
+
+/**
+ * Access policy: active and trialing subscriptions receive plan features,
+ * past_due keeps access during Stripe's retry grace period, and unpaid or
+ * canceled subscriptions lose plan features. A platform override is explicit
+ * and wins for that tenant/capability, including a support grant during a
+ * billing recovery period.
+ */
+export function resolveEffectiveEntitlements({
+  status,
+  cancelAtPeriodEnd = false,
+  planEntitlements,
+  overrides,
+}: {
+  status: string | null | undefined;
+  cancelAtPeriodEnd?: boolean;
+  planEntitlements: Record<string, unknown>;
+  overrides: readonly EffectiveEntitlementOverride[];
+}) {
+  const state = subscriptionAccessState(status, cancelAtPeriodEnd);
+  const planAccess = ["active", "grace_period", "scheduled_cancellation"].includes(state);
+  const entitlements = Object.fromEntries(
+    Object.entries(planEntitlements).map(([key, value]) => [key, planAccess && value === true]),
+  );
+  for (const override of overrides) {
+    entitlements[override.capabilityKey] = override.enabled;
+  }
+  return { state, entitlements };
+}
+
 export const FEATURE_CATALOG: FeatureCatalogEntry[] = [
   { key: "contracts", label: "Contracts", section: "Projects", description: "Manage contract records, commitments, dates, and executed documents.", route: "/coming-soon/contracts", businessTypes: ["general-contractor", "subcontractor"] },
   { key: "milestones", label: "Milestones", section: "Projects", description: "Track dates and decisions that keep projects on plan.", route: "/coming-soon/milestones", businessTypes: ["general-contractor", "subcontractor"] },
