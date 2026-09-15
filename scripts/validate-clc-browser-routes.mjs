@@ -113,13 +113,16 @@ const cases = [
     activeNav: null,
     title: "Construct Lifecycle — From Bid to Closeout",
     requiredTexts: [
-      "No active projects",
-      "Create a project or move a waiting project into Active when work is ready.",
-      "Start a project",
-      "Waiting projects",
-      "Projects currently carrying the Waiting status.",
+      "No in flight projects",
+      "Create a project or move a paused project into In Flight when work is ready.",
+      "Paused projects",
+      "Projects currently carrying the Paused status.",
+      "In Flight projects",
+      "Projects currently carrying the In Flight status.",
       "Browser Test Waiting Project",
+      "Start a project",
     ],
+    orderedTexts: ["Paused projects", "In Flight projects"],
     requiredLinks: ["/projects?create=1&return=", "/projects/42?return="],
   },
   {
@@ -130,11 +133,12 @@ const cases = [
     activeNav: null,
     title: "Construct Lifecycle — From Bid to Closeout",
     requiredTexts: [
-      "No active projects match",
-      "Clear the search to view all active projects.",
-      "No waiting projects match",
-      "Clear the search to view all waiting projects.",
+      "No paused projects match",
+      "Clear the search to view all paused projects.",
+      "No in flight projects match",
+      "Clear the search to view all in flight projects.",
     ],
+    orderedTexts: ["Paused projects", "In Flight projects"],
     requiredLinks: [
       "/dashboard/drilldown/active-projects?browserAuth=authenticated&sort=value_desc",
     ],
@@ -324,6 +328,16 @@ async function visit(routeCase) {
   }
   for (const requiredText of routeCase.requiredTexts ?? []) {
     if (!pageText.includes(requiredText)) failures.push(`required text "${requiredText}" missing`);
+  }
+  let previousTextIndex = -1;
+  for (const orderedText of routeCase.orderedTexts ?? []) {
+    const textIndex = pageText.indexOf(orderedText);
+    if (textIndex < 0) {
+      failures.push(`ordered text "${orderedText}" missing`);
+    } else if (textIndex < previousTextIndex) {
+      failures.push(`ordered text "${orderedText}" appears before the preceding section`);
+    }
+    previousTextIndex = textIndex;
   }
   for (const requiredLink of routeCase.requiredLinks ?? []) {
     if (!decodeEntities(html).includes(`href="${requiredLink}`)) failures.push(`required link "${requiredLink}" missing`);

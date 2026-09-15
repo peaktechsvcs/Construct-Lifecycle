@@ -71,12 +71,15 @@ const cases = [
     actions: ['a[href^="/projects?create=1"]'],
     requiredSelectors: ['a[data-testid="link-drilldown-project-42"]'],
     requiredTexts: [
-      "No active projects",
-      "Create a project or move a waiting project into Active when work is ready.",
-      "Waiting projects",
-      "Projects currently carrying the Waiting status.",
+      "No in flight projects",
+      "Create a project or move a paused project into In Flight when work is ready.",
+      "Paused projects",
+      "Projects currently carrying the Paused status.",
+      "In Flight projects",
+      "Projects currently carrying the In Flight status.",
       "Browser Test Waiting Project",
     ],
+    orderedTexts: ["Paused projects", "In Flight projects"],
     shell: true,
   },
   {
@@ -86,11 +89,12 @@ const cases = [
     heading: "Active Projects",
     actions: ['a[href^="/dashboard/drilldown/active-projects?browserAuth=authenticated&sort=value_desc"]'],
     requiredTexts: [
-      "No active projects match",
-      "Clear the search to view all active projects.",
-      "No waiting projects match",
-      "Clear the search to view all waiting projects.",
+      "No paused projects match",
+      "Clear the search to view all paused projects.",
+      "No in flight projects match",
+      "Clear the search to view all in flight projects.",
     ],
+    orderedTexts: ["Paused projects", "In Flight projects"],
     shell: true,
   },
 ];
@@ -604,10 +608,16 @@ async function inspect(client, routeCase, viewport) {
       .filter((selector) => !document.querySelector(selector));
     const requiredTexts = ${JSON.stringify(routeCase.requiredTexts ?? [])}
       .filter((text) => !document.body.innerText.includes(text));
+    const orderedTexts = ${JSON.stringify(routeCase.orderedTexts ?? [])};
+    const orderedTextFailures = orderedTexts.filter((text, index) => {
+      const current = document.body.innerText.indexOf(text);
+      const previous = index === 0 ? -1 : document.body.innerText.indexOf(orderedTexts[index - 1]);
+      return current < 0 || (previous >= 0 && current < previous);
+    });
     const navigationVisible = ${routeCase.shell}
       ? visible('a[data-testid="link-nav-all-projects"]')
       : true;
-    return { rootOverflow, effectiveOverflow, overflowing, actions, requiredSelectors, requiredTexts, navigationVisible };
+    return { rootOverflow, effectiveOverflow, overflowing, actions, requiredSelectors, requiredTexts, orderedTextFailures, navigationVisible };
   })()`);
 }
 
@@ -702,6 +712,7 @@ async function visit(routeCase, viewport) {
     if (result.actions.length) failures.push(`missing primary actions: ${result.actions.join(", ")}`);
     if (result.requiredSelectors.length) failures.push(`missing required elements: ${result.requiredSelectors.join(", ")}`);
     if (result.requiredTexts.length) failures.push(`missing required text: ${result.requiredTexts.join(", ")}`);
+    if (result.orderedTextFailures.length) failures.push(`incorrect section order: ${result.orderedTextFailures.join(", ")}`);
     if (failures.length) throw new Error(`${routeCase.name} (${viewport.name}): ${failures.join("; ")}`);
     await captureAndCompareVisual(client, routeCase, viewport);
     console.log(`✔ ${routeCase.name} at ${viewport.width}×${viewport.height}`);

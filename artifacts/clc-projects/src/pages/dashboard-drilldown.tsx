@@ -103,11 +103,13 @@ function ActiveProjectStatusEmptyState({
   search,
   returnUrl,
   canCreateProject,
+  waitingStatusName,
 }: {
   status: { stableKey: string; displayName: string };
   search: string;
   returnUrl: string;
   canCreateProject: boolean;
+  waitingStatusName: string;
 }) {
   const hasSearch = Boolean(search.trim());
   const clearSearchUrl = (() => {
@@ -120,13 +122,13 @@ function ActiveProjectStatusEmptyState({
   const statusName = status.displayName.toLowerCase();
   const guidance = status.stableKey === 'active'
     ? {
-      text: 'Create a project or move a waiting project into Active when work is ready.',
+      text: `Create a project or move a ${waitingStatusName.toLowerCase()} project into ${status.displayName} when work is ready.`,
       href: '/projects',
       label: 'Open project book',
     }
     : status.stableKey === 'waiting'
       ? {
-        text: 'Move a project to Waiting when progress is paused or your team is waiting on a decision.',
+        text: `Move a project to ${status.displayName} when progress is paused or your team is waiting on a decision.`,
         href: '/settings/administration/workflows',
         label: 'Review workflow',
       }
@@ -687,6 +689,7 @@ export function DashboardDrilldown() {
                       search={search}
                       returnUrl={returnUrl}
                       canCreateProject={activeRole === 'owner' || activeRole === 'admin' || activeRole === 'member'}
+                      waitingStatusName={activeProjectStatuses.find((candidate) => candidate.stableKey === 'waiting')?.displayName ?? 'Waiting'}
                     />
                   )}
                 </section>

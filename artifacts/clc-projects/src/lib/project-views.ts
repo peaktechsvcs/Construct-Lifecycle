@@ -26,13 +26,7 @@ export function groupActiveProjectStatusSections<T extends ProjectWithStatus>(
   statuses: readonly ProjectStatusDefinition[],
 ) {
   return [...statuses]
-    .sort((a, b) => {
-      const preferredOrder = (key: string) => (
-        key === 'active' ? 0 : key === 'waiting' ? 1 : 2
-      );
-      return preferredOrder(a.stableKey) - preferredOrder(b.stableKey)
-        || a.displayOrder - b.displayOrder;
-    })
+    .sort((a, b) => a.displayOrder - b.displayOrder)
     .map((status) => ({
       ...status,
       projects: projects.filter(
