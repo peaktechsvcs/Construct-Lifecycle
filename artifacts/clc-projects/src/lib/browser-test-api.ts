@@ -165,6 +165,12 @@ const businessCustomer = {
   updatedAt: new Date(0).toISOString(),
 };
 
+const alternateBusinessCustomer = {
+  ...businessCustomer,
+  id: 43,
+  companyName: 'Browser Alternate Customer',
+};
+
 const browserTradePartner = {
   id: 7,
   companyName: 'Browser Test Trade Partner',
@@ -464,7 +470,7 @@ export function installBrowserTestApi() {
       });
     }
     if (url.pathname === '/api/customers/42') return json(businessCustomer);
-    if (url.pathname === '/api/customers') return json([businessCustomer]);
+    if (url.pathname === '/api/customers') return json([businessCustomer, alternateBusinessCustomer]);
     if (url.pathname === '/api/trade-partners') return json([browserTradePartner]);
     if (url.pathname === `/api/trade-partners/${browserTradePartner.id}`) {
       return json({ partner: browserTradePartner, complianceDocuments: browserComplianceDocuments, requirements: [], agreements: [] });

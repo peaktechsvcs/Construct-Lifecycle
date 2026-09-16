@@ -131,7 +131,7 @@ function CustomerSelector({
           className="w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-10 text-sm outline-none ring-primary/20 placeholder:text-muted-foreground/55 focus:ring-4"
         />
         {(selectedId || draft) && (
-          <button type="button" className="absolute right-3 top-2.5 text-muted-foreground" onClick={() => { onSelect(undefined); onDraftChange(undefined); setSearch(''); }}>
+           <button type="button" aria-label="Clear selected customer" className="absolute right-3 top-2.5 text-muted-foreground" onClick={() => { onSelect(undefined); onDraftChange(undefined); setSearch(''); }}>
             <X size={15} />
           </button>
         )}

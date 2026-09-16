@@ -30,6 +30,7 @@ export function CustomerDetail() {
   const qc = useQueryClient();
   const { activeRole } = useTenant();
   const canManage = activeRole === 'owner' || activeRole === 'admin';
+  const canCreateProject = activeRole === 'owner' || activeRole === 'admin' || activeRole === 'member';
   const customer = query.data;
   const workflow = useWorkflow();
 
@@ -48,7 +49,7 @@ export function CustomerDetail() {
         eyebrow="Business customer"
         title={customer.companyName}
         description={`${customer.projectCount} connected project${customer.projectCount === 1 ? '' : 's'} in this environment.`}
-         action={canManage ? <div className="flex gap-2"><Button variant="outline" onClick={() => setShowEdit(true)}><Pencil size={15} /> Edit</Button><DesignButton asChild><Link href={`/projects?customerId=${customer.id}`}><Plus size={15} /> New project</Link></DesignButton></div> : <DesignButton asChild><Link href={`/projects?customerId=${customer.id}`}><Plus size={15} /> New project</Link></DesignButton>}
+         action={canManage ? <div className="flex gap-2"><Button variant="outline" onClick={() => setShowEdit(true)}><Pencil size={15} /> Edit</Button>{canCreateProject && <DesignButton asChild><Link href={`/projects?customerId=${customer.id}`}><Plus size={15} /> New project</Link></DesignButton>}</div> : canCreateProject ? <DesignButton asChild><Link href={`/projects?customerId=${customer.id}`}><Plus size={15} /> New project</Link></DesignButton> : undefined}
       />
       <div className="grid gap-5 xl:grid-cols-[.8fr_1.2fr]">
         <section className="rounded-xl border border-border bg-card p-5 md:p-6">
