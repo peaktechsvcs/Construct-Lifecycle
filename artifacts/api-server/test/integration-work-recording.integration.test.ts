@@ -59,10 +59,21 @@ ReplitConnectors.prototype.proxy = async function (provider, path) {
     };
   }
   const isConcurrentMessage = path.includes("/threads/thread-concurrent") || path.includes("/messages/message-concurrent");
+  const isCrossScopeMessage = path.includes("/threads/thread-cross-scope") || path.includes("/messages/message-cross-scope");
   const isPersistenceFailureMessage = path.includes("/threads/thread-persistence-failure") || path.includes("/messages/message-persistence-failure");
-  const messageId = isConcurrentMessage ? "message-concurrent" : isPersistenceFailureMessage ? "message-persistence-failure" : "message-1";
-  const attachmentId = isPersistenceFailureMessage ? "attachment-duplicate" : "attachment-1";
-  if (path.includes(`/messages/${messageId}/attachments/${attachmentId}`)) {
+  const messageId = isConcurrentMessage
+    ? "message-concurrent"
+    : isCrossScopeMessage
+      ? "message-cross-scope"
+      : isPersistenceFailureMessage
+        ? "message-persistence-failure"
+        : "message-1";
+  const attachmentId = isPersistenceFailureMessage
+    ? "attachment-duplicate"
+    : isCrossScopeMessage
+      ? "attachment-cross-scope"
+      : "attachment-1";
+  if (provider !== "outlook" && path.includes(`/messages/${messageId}/attachments/${attachmentId}`)) {
     return {
       ok: true,
       status: 200,
@@ -70,18 +81,40 @@ ReplitConnectors.prototype.proxy = async function (provider, path) {
     };
   }
   if (provider === "outlook") {
+    if (path.includes(`/messages/${messageId}/attachments?$top=20`)) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          value: [{
+            id: attachmentId,
+            name: "outlook-plans.pdf",
+            contentType: "application/pdf",
+            size: 27,
+            isInline: false,
+          }],
+        }),
+      };
+    }
+    if (path.includes(`/messages/${messageId}/attachments/${attachmentId}`)) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ contentBytes: Buffer.from("protected-mailbox-attachment", "utf8").toString("base64") }),
+      };
+    }
     return {
       ok: true,
       status: 200,
       json: async () => ({
-        id: "message-1",
-        conversationId: "conversation-1",
+        id: messageId,
+        conversationId: `conversation-${messageId}`,
         subject: "Outlook ITB North Campus",
         from: { emailAddress: { name: "Outlook Bids", address: "outlook-bids@example.com" } },
         receivedDateTime: "2026-09-14T11:00:00Z",
         body: { contentType: "html", content: "<p>Project: North Campus</p><p>Bid due: September 30, 2026</p>" },
         bodyPreview: "Project: North Campus",
-        hasAttachments: false,
+        hasAttachments: isCrossScopeMessage,
       }),
     };
   }
@@ -137,6 +170,7 @@ type Json = Record<string, unknown> | unknown[];
 
 const runId = `${Date.now()}-${process.pid}`;
 const clerkUserId = `integration-work-owner-${runId}`;
+const productionClerkUserId = `integration-work-production-${runId}`;
 const otherClerkUserId = `integration-work-other-${runId}`;
 let server: Server;
 let baseUrl = "";
@@ -146,6 +180,7 @@ let otherEnvironmentId: number;
 let otherTenantId: number;
 let otherTenantEnvironmentId: number;
 let userId: number;
+let productionUserId: number;
 let otherUserId: number;
 let integrationId: number;
 
@@ -225,6 +260,29 @@ before(async () => {
     userId,
     activeTenantId: tenantId,
     activeEnvironmentId: environmentId,
+  });
+  const [productionUser] = await db.insert(usersTable).values({
+    clerkUserId: productionClerkUserId,
+    email: `${productionClerkUserId}@integration.test`,
+    displayName: "Integration Work Production Owner",
+  }).returning();
+  productionUserId = productionUser.id;
+  await db.insert(membershipsTable).values({
+    tenantId,
+    userId: productionUserId,
+    role: "owner",
+    environmentAccessConfigured: true,
+  });
+  await db.insert(tenantEnvironmentAccessTable).values({
+    tenantId,
+    environmentId: otherEnvironmentId,
+    userId: productionUserId,
+    grantedByUserId: userId,
+  });
+  await db.insert(userTenantContextTable).values({
+    userId: productionUserId,
+    activeTenantId: tenantId,
+    activeEnvironmentId: otherEnvironmentId,
   });
   await db.insert(integrationEntitlementsTable).values({
     tenantId,
@@ -336,6 +394,7 @@ after(async () => {
   if (otherTenantId) await db.delete(platformAuditEventsTable).where(eq(platformAuditEventsTable.tenantId, otherTenantId));
   if (otherTenantId) await db.delete(tenantsTable).where(eq(tenantsTable.id, otherTenantId));
   await db.delete(usersTable).where(eq(usersTable.id, userId));
+  await db.delete(usersTable).where(eq(usersTable.id, productionUserId));
   await db.delete(usersTable).where(eq(usersTable.id, otherUserId));
   await pool.end();
 });
@@ -472,6 +531,69 @@ test("serializes concurrent mailbox imports before storing attachments", async (
     assert.equal(intakes.length, 1);
     const attachments = await db.select().from(itbIntakeAttachmentsTable).where(eq(itbIntakeAttachmentsTable.intakeId, intakes[0].id));
     assert.equal(attachments.length, 1);
+  } finally {
+    attachmentStoreDelayMs = 0;
+  }
+});
+
+test("keeps simultaneous mailbox imports isolated by provider, environment, and tenant", async () => {
+  connectorMode = "success";
+  const attachmentCountBefore = storedAttachmentCount;
+  attachmentStoreDelayMs = 50;
+  try {
+    const requests = await Promise.all([
+      request("/itb-intakes/mailbox/import", {
+        method: "POST",
+        body: JSON.stringify({ provider: "google-mail", threadId: "thread-cross-scope", messageId: "message-cross-scope" }),
+      }),
+      request("/itb-intakes/mailbox/import", {
+        method: "POST",
+        body: JSON.stringify({ provider: "outlook", threadId: "thread-cross-scope", messageId: "message-cross-scope" }),
+      }),
+      request("/itb-intakes/mailbox/import", {
+        method: "POST",
+        body: JSON.stringify({ provider: "google-mail", threadId: "thread-cross-scope", messageId: "message-cross-scope" }),
+      }, productionClerkUserId),
+      request("/itb-intakes/mailbox/import", {
+        method: "POST",
+        body: JSON.stringify({ provider: "google-mail", threadId: "thread-cross-scope", messageId: "message-cross-scope" }),
+      }, otherClerkUserId),
+    ]);
+
+    assert.equal(requests.every(({ status }) => status === 201), true, JSON.stringify(requests));
+    const imported = requests.map(({ body }) => body as {
+      id: number;
+      tenantId: number;
+      environmentId: number;
+      sourceProvider: string;
+      attachments: Array<{ sourceAttachmentId: string }>;
+    });
+    assert.equal(new Set(imported.map(({ id }) => id)).size, 4);
+    assert.deepEqual(imported.map(({ sourceProvider, attachments }) => [sourceProvider, attachments.length]).sort(), [
+      ["google-mail", 1],
+      ["google-mail", 1],
+      ["google-mail", 1],
+      ["outlook", 1],
+    ]);
+    assert.equal(storedAttachmentCount, attachmentCountBefore + 4);
+
+    const intakes = await db.select().from(itbIntakesTable).where(eq(itbIntakesTable.sourceMessageId, "message-cross-scope"));
+    assert.equal(intakes.length, 4);
+    assert.deepEqual(intakes.map(({ tenantId: rowTenantId, environmentId: rowEnvironmentId, sourceProvider }) => [
+      rowTenantId,
+      rowEnvironmentId,
+      sourceProvider,
+    ]).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))), [
+      [tenantId, environmentId, "google-mail"],
+      [tenantId, environmentId, "outlook"],
+      [tenantId, otherEnvironmentId, "google-mail"],
+      [otherTenantId, otherTenantEnvironmentId, "google-mail"],
+    ].sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))));
+
+    const attachments = await db.select().from(itbIntakeAttachmentsTable)
+      .where(inArray(itbIntakeAttachmentsTable.intakeId, intakes.map(({ id }) => id)));
+    assert.equal(attachments.length, 4);
+    assert.equal(new Set(attachments.map(({ intakeId }) => intakeId)).size, 4);
   } finally {
     attachmentStoreDelayMs = 0;
   }
