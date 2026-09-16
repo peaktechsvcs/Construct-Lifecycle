@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useParams, useLocation, Link } from 'wouter';
+import { useParams, useLocation, useSearch, Link } from 'wouter';
 import {
   ArrowLeft,
   Search,
@@ -48,11 +48,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 function useSearchParam(key: string): [string, (val: string) => void] {
   const [location, setLocation] = useLocation();
+  const routerSearch = useSearch();
   const queryString = location.includes('?')
     ? location.split('?')[1]
-    : typeof window !== 'undefined'
-      ? window.location.search.slice(1)
-      : '';
+    : routerSearch.slice(1) || (typeof window !== 'undefined' ? window.location.search.slice(1) : '');
   const params = new URLSearchParams(queryString);
   const value = params.get(key) ?? '';
 
@@ -61,9 +60,7 @@ function useSearchParam(key: string): [string, (val: string) => void] {
       const base = location.split('?')[0];
       const currentQueryString = location.includes('?')
         ? location.split('?')[1]
-        : typeof window !== 'undefined'
-          ? window.location.search.slice(1)
-          : '';
+        : routerSearch.slice(1) || (typeof window !== 'undefined' ? window.location.search.slice(1) : '');
       const next = new URLSearchParams(currentQueryString);
       if (val) {
         next.set(key, val);
@@ -73,7 +70,7 @@ function useSearchParam(key: string): [string, (val: string) => void] {
       const qs = next.toString();
       setLocation(qs ? `${base}?${qs}` : base, { replace: true });
     },
-    [key, location, setLocation],
+    [key, location, routerSearch, setLocation],
   );
 
   return [value, setValue];

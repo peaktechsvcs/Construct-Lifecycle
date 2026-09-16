@@ -474,6 +474,77 @@ async function visit(routeCase) {
   if (failures.length) throw new Error(`${routeCase.name}: ${failures.join("; ")}`);
 }
 
+async function checkActiveProjectsClearSearch() {
+  const { target, client } = await openTarget(
+    "/dashboard/drilldown/active-projects?browserAuth=authenticated&search=does-not-match&sort=value_desc",
+  );
+  try {
+    await waitFor(
+      client,
+      "filtered active projects guidance",
+      `(() => {
+        const params = new URLSearchParams(window.location.search);
+        return {
+          ready: document.body?.innerText?.includes("No paused projects match") === true
+            && document.body?.innerText?.includes("Clear the search to view all paused projects.") === true
+            && params.get("search") === "does-not-match"
+            && params.get("sort") === "value_desc",
+        };
+      })()`,
+    );
+
+    const clicked = await evaluate(client, `(() => {
+      const link = [...document.querySelectorAll("a")]
+        .find((candidate) => candidate.textContent?.trim() === "Clear search");
+      if (!(link instanceof HTMLElement)) return false;
+      link.click();
+      return true;
+    })()`);
+    if (!clicked) throw new Error("active projects clear-search link could not be clicked");
+
+    const restored = await waitFor(
+      client,
+      "active projects after clearing search",
+      `(() => {
+        const params = new URLSearchParams(window.location.search);
+        const text = document.body?.innerText ?? "";
+        const hasPaused = text.includes("Paused projects");
+        const hasInFlight = text.includes("In Flight projects");
+        const hasFieldWork = text.includes("Field Work projects");
+        const hasWaitingProject = text.includes("Browser Test Waiting Project");
+        const hasFilteredCopy = text.includes("No paused projects match");
+        return {
+          ready: window.location.pathname === "/dashboard/drilldown/active-projects"
+            && !params.has("search")
+            && params.get("browserAuth") === "authenticated"
+            && params.get("sort") === "value_desc"
+            && hasPaused
+            && hasInFlight
+            && hasFieldWork
+            && hasWaitingProject
+            && !hasFilteredCopy,
+          pathname: window.location.pathname,
+          search: window.location.search,
+          hasPaused,
+          hasInFlight,
+          hasFieldWork,
+          hasWaitingProject,
+          hasFilteredCopy,
+        };
+      })()`,
+    );
+    if (restored.pathname !== "/dashboard/drilldown/active-projects") {
+      throw new Error(`clear search changed the drilldown route to ${restored.pathname}`);
+    }
+    if (restored.search !== "?browserAuth=authenticated&sort=value_desc") {
+      throw new Error(`clear search changed unrelated query parameters: ${restored.search}`);
+    }
+    console.log("✔ Active Projects clear search restores the unfiltered guidance");
+  } finally {
+    await closeTarget(target, client);
+  }
+}
+
 async function checkFailedOwnerInvitationRecovery() {
   const { target, client } = await openTarget(
     "/administration/platform/customers?browserAuth=platform&browserCustomerOnboarding=failed",
@@ -626,6 +697,7 @@ try {
       console.log(`✔ ${routeCase.name}`);
     }
   }
+  await checkActiveProjectsClearSearch();
   await checkFailedOwnerInvitationRecovery();
   console.log(
     process.env.CLC_BROWSER_TEST_SKIP_ROUTE_MATRIX === "1"
