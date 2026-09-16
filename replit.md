@@ -83,7 +83,6 @@ Do not generate speculative task drafts. Propose work only when asked.
 ## Where things live
 
 - `artifacts/clc-projects` — Construct Lifecycle responsive React/Vite application
-- `artifacts/cabinet-projects` — legacy rollback copy, served only at `/legacy-cabinet-projects/`
 - `artifacts/api-server/src/routes/projects.ts` — tenant-scoped project, activity, follow-up, and dashboard routes
 - `artifacts/api-server/src/routes/tenant.ts` — active workspace and branding lifecycle routes
 - `artifacts/api-server/src/middlewares/tenantContext.ts` — authenticated user and tenant authorization boundary
