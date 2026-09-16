@@ -19,22 +19,11 @@ import { stageLabels } from '@/lib/stage-config';
 import { ProjectFormModal } from '@/components/project-form-modal';
 import { ProjectControlsPanel } from '@/components/project-controls-panel';
 import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
+import { getInternalReturnPath } from '@/lib/internal-return-path';
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
 import { Textarea } from '@workspace/construct-lifecycle-design-system/components/ui/textarea';
 
 // ─── Back navigation: respects ?return= drilldown URL ─────────────────────────
-
-function getInternalReturnPath(value: string | null): string | null {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\') || /[\u0000-\u001F\u007F]/.test(value)) return null;
-  try {
-    decodeURIComponent(value);
-    const candidate = new URL(value, window.location.origin);
-    if (candidate.origin !== window.location.origin) return null;
-    return `${candidate.pathname}${candidate.search}${candidate.hash}`;
-  } catch {
-    return null;
-  }
-}
 
 function BackNav() {
   const [location] = useLocation();
