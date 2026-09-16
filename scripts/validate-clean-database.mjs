@@ -87,10 +87,20 @@ try {
   ]);
   created = true;
 
-  await run("pnpm", ["--filter", "@workspace/db", "run", "push-force"], {
+  await run("pnpm", [
+    "--filter",
+    "@workspace/db",
+    "exec",
+    "drizzle-kit",
+    "push",
+    "--config",
+    "./drizzle.config.ts",
+    "--force",
+  ], {
     ...process.env,
     APP_ENV: "development",
     DATABASE_URL: temporaryDatabaseUrl,
+    DIRECT_URL: temporaryDatabaseUrl,
   });
 
   for (const migration of migrations) {
