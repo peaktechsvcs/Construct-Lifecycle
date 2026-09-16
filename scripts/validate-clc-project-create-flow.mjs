@@ -4,6 +4,12 @@ const appPort = Number(process.env.CLC_PROJECT_CREATE_TEST_PORT ?? 22784);
 const debuggingPort = Number(process.env.CLC_PROJECT_CREATE_DEBUG_PORT ?? 22785);
 const baseUrl = `http://127.0.0.1:${appPort}`;
 const chromium = process.env.CHROMIUM_PATH ?? "/repl/tools/bin/chromium";
+const mobileViewport = {
+  width: 390,
+  height: 844,
+  deviceScaleFactor: 1,
+  mobile: true,
+};
 
 class CdpClient {
   constructor(socket) {
@@ -93,7 +99,7 @@ async function waitFor(client, description, predicate) {
   throw new Error(`${description} did not become ready: ${JSON.stringify(state)}`);
 }
 
-async function openTarget(path) {
+async function openTarget(path, viewport) {
   const response = await fetch(
     `http://127.0.0.1:${debuggingPort}/json/new?${encodeURIComponent(`${baseUrl}${path}`)}`,
     { method: "PUT" },
@@ -102,6 +108,7 @@ async function openTarget(path) {
   const target = await response.json();
   const client = await CdpClient.connect(target.webSocketDebuggerUrl);
   await Promise.all([client.command("Page.enable"), client.command("Runtime.enable")]);
+  if (viewport) await client.command("Emulation.setDeviceMetricsOverride", viewport);
   await client.command("Page.navigate", { url: `${baseUrl}${path}` });
   return { target, client };
 }
@@ -424,6 +431,127 @@ async function checkDirectProjectBookCreation() {
     console.log("✔ direct project-book creation stays on the project book");
   } finally {
     await closeTarget(target, client);
+  }
+}
+
+async function checkMobileCancellation() {
+  const activeProjectsPath =
+    "/dashboard/drilldown/active-projects?browserAuth=authenticated&browserRole=owner&sort=value_desc";
+  const activeProjects = await openTarget(activeProjectsPath, mobileViewport);
+  try {
+    await waitFor(
+      activeProjects.client,
+      "mobile Active Projects empty-state action",
+      `(() => ({
+        ready: window.innerWidth === 390
+          && document.body?.innerText?.includes("No in flight projects") === true
+          && document.querySelector('a[href^="/projects?create=1"]') !== null,
+        width: window.innerWidth,
+      }))()`,
+    );
+
+    const clicked = await evaluate(activeProjects.client, `(() => {
+      const action = document.querySelector('a[href^="/projects?create=1"]');
+      if (!(action instanceof HTMLElement)) return false;
+      action.click();
+      return true;
+    })()`);
+    if (!clicked) throw new Error("mobile Active Projects could not open the project form");
+
+    const createIntent = await evaluate(activeProjects.client, `(() => {
+      const url = new URL(window.location.href);
+      return {
+        create: url.searchParams.get("create"),
+        returnPath: url.searchParams.get("return"),
+      };
+    })()`);
+    if (createIntent.create !== "1" || createIntent.returnPath !== activeProjectsPath) {
+      throw new Error(`mobile Active Projects lost its exact return context: ${JSON.stringify(createIntent)}`);
+    }
+
+    await waitFor(
+      activeProjects.client,
+      "mobile Active Projects project form",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
+      }))()`,
+    );
+    const closed = await evaluate(activeProjects.client, `(() => {
+      const button = document.querySelector('[role="dialog"] button[aria-label="Close modal"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!closed) throw new Error("mobile Active Projects form could not be closed");
+
+    await waitFor(
+      activeProjects.client,
+      "mobile Active Projects return after cancel",
+      `(() => ({
+        ready: window.innerWidth === 390
+          && window.location.pathname === "/dashboard/drilldown/active-projects"
+          && window.location.search === "?browserAuth=authenticated&browserRole=owner&sort=value_desc"
+          && document.querySelector('[role="dialog"]') === null
+          && new URL(window.location.href).searchParams.get("create") === null
+          && new URL(window.location.href).searchParams.get("return") === null,
+        url: window.location.href,
+      }))()`,
+    );
+    console.log("✔ mobile Active Projects cancel returns to its exact origin");
+  } finally {
+    await closeTarget(activeProjects.target, activeProjects.client);
+  }
+
+  const projectBookPath = "/projects?browserAuth=authenticated&browserRole=owner";
+  const projectBook = await openTarget(projectBookPath, mobileViewport);
+  try {
+    await waitFor(
+      projectBook.client,
+      "mobile direct project-book page",
+      `(() => ({
+        ready: window.innerWidth === 390
+          && document.querySelector('[data-testid="button-new-project"]') !== null,
+      }))()`,
+    );
+    const opened = await evaluate(projectBook.client, `(() => {
+      const button = document.querySelector('[data-testid="button-new-project"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!opened) throw new Error("mobile direct project-book create action was unavailable");
+
+    await waitFor(
+      projectBook.client,
+      "mobile direct project-book modal",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
+      }))()`,
+    );
+    const cancelled = await evaluate(projectBook.client, `(() => {
+      const button = document.querySelector('[data-testid="button-cancel-project"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!cancelled) throw new Error("mobile direct project-book form could not be canceled");
+
+    await waitFor(
+      projectBook.client,
+      "mobile direct project-book cancel",
+      `(() => ({
+        ready: window.innerWidth === 390
+          && window.location.pathname === "/projects"
+          && window.location.search === "?browserAuth=authenticated&browserRole=owner"
+          && document.querySelector('[role="dialog"]') === null
+          && new URL(window.location.href).searchParams.get("create") === null
+          && new URL(window.location.href).searchParams.get("return") === null,
+        url: window.location.href,
+      }))()`,
+    );
+    console.log("✔ mobile direct project-book cancel stays usable");
+  } finally {
+    await closeTarget(projectBook.target, projectBook.client);
   }
 }
 
@@ -828,6 +956,7 @@ try {
   await checkCustomerDetailProjectShortcut("viewer", false);
   await checkRestrictedRole();
   await checkDirectProjectBookCreation();
+  await checkMobileCancellation();
   await checkPermittedQueryCleanup();
   await checkReturnPathSafety();
   console.log("Validated empty-state project creation for all project roles.");
