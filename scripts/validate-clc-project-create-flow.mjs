@@ -184,6 +184,42 @@ async function checkPermittedRole(role) {
       }))()`,
     );
 
+    const cancelled = await evaluate(client, `(() => {
+      const button = document.querySelector('[role="dialog"] button[aria-label="Close modal"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!cancelled) throw new Error(`${role} could not cancel the project form`);
+    await waitFor(
+      client,
+      `${role} Active Projects after cancel`,
+      `(() => ({
+        ready: window.location.pathname === "/dashboard/drilldown/active-projects"
+          && window.location.search === "?browserAuth=authenticated&browserRole=${role}&sort=value_desc"
+          && document.querySelector('[role="dialog"]') === null
+          && new URL(window.location.href).searchParams.get("create") === null
+          && new URL(window.location.href).searchParams.get("return") === null,
+      }))()`,
+    );
+
+    const reopenedAfterCancel = await evaluate(client, `(() => {
+      const action = document.querySelector('a[href^="/projects?create=1"]');
+      if (!(action instanceof HTMLElement)) return false;
+      action.click();
+      return true;
+    })()`);
+    if (!reopenedAfterCancel) throw new Error(`${role} could not reopen the project form after cancel`);
+    await waitFor(
+      client,
+      `${role} project form after cancel reopen`,
+      `(() => ({
+        ready: window.location.pathname === "/projects"
+          && new URL(window.location.href).searchParams.get("create") === "1"
+          && document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
+      }))()`,
+    );
+
     const defaults = await evaluate(client, `(() => {
       const dialog = document.querySelector('[role="dialog"]');
       return {
@@ -293,6 +329,38 @@ async function checkDirectProjectBookCreation() {
     await waitFor(
       client,
       "direct project-book modal",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
+      }))()`,
+    );
+    const cancelled = await evaluate(client, `(() => {
+      const button = document.querySelector('[role="dialog"] button[aria-label="Close modal"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!cancelled) throw new Error("direct project-book form could not be canceled");
+    await waitFor(
+      client,
+      "direct project-book cancel",
+      `(() => ({
+        ready: window.location.pathname === "/projects"
+          && window.location.search === "?browserAuth=authenticated&browserRole=owner"
+          && document.querySelector('[role="dialog"]') === null
+          && new URL(window.location.href).searchParams.get("create") === null
+          && new URL(window.location.href).searchParams.get("return") === null,
+      }))()`,
+    );
+    const reopened = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-new-project"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!reopened) throw new Error("direct project-book form could not be reopened after cancel");
+    await waitFor(
+      client,
+      "direct project-book modal after cancel",
       `(() => ({
         ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
       }))()`,
