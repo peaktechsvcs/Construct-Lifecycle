@@ -24,10 +24,27 @@ import { Textarea } from '@workspace/construct-lifecycle-design-system/component
 
 // ─── Back navigation: respects ?return= drilldown URL ─────────────────────────
 
+function getInternalReturnPath(value: string | null): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\') || /[\u0000-\u001F\u007F]/.test(value)) return null;
+  try {
+    decodeURIComponent(value);
+    const candidate = new URL(value, window.location.origin);
+    if (candidate.origin !== window.location.origin) return null;
+    return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+  } catch {
+    return null;
+  }
+}
+
 function BackNav() {
   const [location] = useLocation();
-  const urlParams = new URLSearchParams(location.includes('?') ? location.split('?')[1] : '');
-  const returnUrl = urlParams.get('return');
+  const queryString = location.includes('?')
+    ? location.split('?')[1]
+    : typeof window !== 'undefined'
+      ? window.location.search.slice(1)
+      : '';
+  const urlParams = new URLSearchParams(queryString);
+  const returnUrl = getInternalReturnPath(urlParams.get('return'));
 
   if (returnUrl) {
     return (

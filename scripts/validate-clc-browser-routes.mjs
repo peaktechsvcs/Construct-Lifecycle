@@ -474,6 +474,86 @@ async function visit(routeCase) {
   if (failures.length) throw new Error(`${routeCase.name}: ${failures.join("; ")}`);
 }
 
+async function checkProjectDetailReturnSafety() {
+  const unsafeReturns = [
+    { label: "external", value: "https://outside.example/projects" },
+    { label: "protocol-relative", value: "//outside.example/projects" },
+    { label: "malformed", value: "/projects/%ZZ" },
+  ];
+
+  for (const unsafeReturn of unsafeReturns) {
+    const returnQuery = encodeURIComponent(unsafeReturn.value);
+    const { target, client } = await openTarget(
+      `/projects/42?browserAuth=authenticated&browserRole=owner&return=${returnQuery}`,
+    );
+    try {
+      await waitFor(
+        client,
+        `${unsafeReturn.label} project detail`,
+        `(() => ({
+          ready: document.querySelector('h1')?.textContent?.trim() === "Browser Test Project"
+            && document.querySelector('[data-testid="link-back-projects"]')?.getAttribute("href") === "/projects",
+        }))()`,
+      );
+      const clicked = await evaluate(client, `(() => {
+        const link = document.querySelector('[data-testid="link-back-projects"]');
+        if (!(link instanceof HTMLElement)) return false;
+        link.click();
+        return true;
+      })()`);
+      if (!clicked) throw new Error(`${unsafeReturn.label} project detail fallback could not be clicked`);
+      await waitFor(
+        client,
+        `${unsafeReturn.label} project detail fallback`,
+        `(() => ({
+          ready: window.location.origin === ${JSON.stringify(baseUrl)}
+            && window.location.pathname === "/projects"
+            && document.querySelector('[role="dialog"]') === null,
+          url: window.location.href,
+        }))()`,
+      );
+    } finally {
+      await closeTarget(target, client);
+    }
+  }
+  console.log("✔ project detail rejects external, protocol-relative, and malformed returns");
+
+  const validReturn = "/dashboard/drilldown/active-projects?browserAuth=authenticated&sort=value_desc&search=alpha";
+  const validTarget = await openTarget(
+    `/projects/42?browserAuth=authenticated&browserRole=owner&return=${encodeURIComponent(validReturn)}`,
+  );
+  try {
+    await waitFor(
+      validTarget.client,
+      "valid project detail return",
+      `(() => ({
+        ready: document.querySelector('h1')?.textContent?.trim() === "Browser Test Project"
+          && document.querySelector('[data-testid="link-back-drilldown"]')?.getAttribute("href") === ${JSON.stringify(validReturn)},
+      }))()`,
+    );
+    const clicked = await evaluate(validTarget.client, `(() => {
+      const link = document.querySelector('[data-testid="link-back-drilldown"]');
+      if (!(link instanceof HTMLElement)) return false;
+      link.click();
+      return true;
+    })()`);
+    if (!clicked) throw new Error("valid project detail return could not be clicked");
+    await waitFor(
+      validTarget.client,
+      "valid project detail return navigation",
+      `(() => ({
+        ready: window.location.origin === ${JSON.stringify(baseUrl)}
+          && window.location.pathname === "/dashboard/drilldown/active-projects"
+          && window.location.search === "?browserAuth=authenticated&sort=value_desc&search=alpha",
+        url: window.location.href,
+      }))()`,
+    );
+  } finally {
+    await closeTarget(validTarget.target, validTarget.client);
+  }
+  console.log("✔ project detail preserves valid internal return query parameters");
+}
+
 async function checkActiveProjectsClearSearch() {
   const { target, client } = await openTarget(
     "/dashboard/drilldown/active-projects?browserAuth=authenticated&search=does-not-match&sort=value_desc",
@@ -697,6 +777,7 @@ try {
       console.log(`✔ ${routeCase.name}`);
     }
   }
+  await checkProjectDetailReturnSafety();
   await checkActiveProjectsClearSearch();
   await checkFailedOwnerInvitationRecovery();
   console.log(
