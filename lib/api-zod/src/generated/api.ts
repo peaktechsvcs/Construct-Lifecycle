@@ -11635,6 +11635,8 @@ export const CreatePlatformCustomerBody = zod.object({
 })
 
 
+export const createPlatformCustomerResponseOwnerEmailMax = 254;
+
 
 
 export const CreatePlatformCustomerResponse = zod.object({
@@ -11667,6 +11669,7 @@ export const CreatePlatformCustomerResponse = zod.object({
   "createdAt": zod.coerce.date()
 }),zod.null()]),
   "invitationToken": zod.string().nullable(),
+  "ownerEmail": zod.string().email().max(createPlatformCustomerResponseOwnerEmailMax).nullable(),
   "invitationStatus": zod.enum(['not_requested', 'created', 'failed']),
   "invitationError": zod.string().nullable(),
   "invitationDelivery": zod.union([zod.enum(['sent', 'failed', 'not_configured']),zod.null()])

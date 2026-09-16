@@ -66,9 +66,11 @@ export function PlatformCustomers() {
     id: number;
     name: string;
     invitationToken: string | null;
+    ownerEmail: string | null;
     invitationStatus: CreatedPlatformCustomerInvitationStatus;
     invitationDelivery: InvitationDeliveryOutcome | null;
   } | null>(null);
+  const [ownerInvitationRetry, setOwnerInvitationRetry] = useState<{ tenantId: number; email: string } | null>(null);
 
   if (customers.isLoading) return <><PageTitle eyebrow="Platform" title="Customers" description="Onboard and control customer workspaces." /><LoadingPanel lines={6} /></>;
   if (customers.isError) {
@@ -99,6 +101,10 @@ export function PlatformCustomers() {
     });
   };
   const refreshPlans = () => qc.invalidateQueries({ queryKey: getListPlatformBillingPlansQueryKey() });
+  const openCustomerAccess = (tenantId: number, retryEmail?: string | null) => {
+    setOwnerInvitationRetry(retryEmail ? { tenantId, email: retryEmail } : null);
+    setSelectedCustomerId(tenantId);
+  };
   const toggleBusinessType = (businessType: BusinessType) => {
     setBusinessTypes((current) =>
       current.includes(businessType)
@@ -117,11 +123,11 @@ export function PlatformCustomers() {
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <section className="rounded-xl border border-border bg-card p-5">
           <h2 className="mb-4 text-base font-bold">Customer workspaces</h2>
-          {(customers.data ?? []).length === 0 ? <EmptyState icon={Building2} title="No customers yet" text="Create a customer workspace to get started." /> : <div className="space-y-3">{(customers.data ?? []).map((customer) => <div key={customer.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-4"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{customer.name}</p><p className="mono truncate text-[10px] text-muted-foreground">{customer.slug} · {customer.memberCount} members · {customer.pendingInvitationCount} pending · {customer.environments.length} environments</p><div className="mt-2 flex flex-wrap gap-1.5">{customer.businessTypes.map((businessType) => <Badge key={businessType} tone="teal">{businessTypeLabel(businessType)}</Badge>)}</div></div><Badge tone={customer.status === PlatformCustomerStatus.active ? 'green' : 'red'}>{customer.status}</Badge><Button variant="outline" onClick={() => setSelectedCustomerId(customer.id)}><Eye size={14} /> Inspect</Button><Button variant="outline" disabled={customer.status !== 'active' || switchTenant.isPending} onClick={() => openWorkflowManager(customer.id)}><Workflow size={14} /> Manage workflow</Button><Button variant="outline" disabled={update.isPending} onClick={() => update.mutate({ tenantId: customer.id, data: { status: customer.status === 'active' ? UpdatePlatformCustomerInputStatus.suspended : UpdatePlatformCustomerInputStatus.active } }, { onSuccess: refresh })}>{customer.status === 'active' ? <><Pause size={14} /> Suspend</> : <><Play size={14} /> Reactivate</>}</Button></div>)}</div>}
+          {(customers.data ?? []).length === 0 ? <EmptyState icon={Building2} title="No customers yet" text="Create a customer workspace to get started." /> : <div className="space-y-3">{(customers.data ?? []).map((customer) => <div key={customer.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-4"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{customer.name}</p><p className="mono truncate text-[10px] text-muted-foreground">{customer.slug} · {customer.memberCount} members · {customer.pendingInvitationCount} pending · {customer.environments.length} environments</p><div className="mt-2 flex flex-wrap gap-1.5">{customer.businessTypes.map((businessType) => <Badge key={businessType} tone="teal">{businessTypeLabel(businessType)}</Badge>)}</div></div><Badge tone={customer.status === PlatformCustomerStatus.active ? 'green' : 'red'}>{customer.status}</Badge><Button variant="outline" onClick={() => openCustomerAccess(customer.id)}><Eye size={14} /> Inspect</Button><Button variant="outline" disabled={customer.status !== 'active' || switchTenant.isPending} onClick={() => openWorkflowManager(customer.id)}><Workflow size={14} /> Manage workflow</Button><Button variant="outline" disabled={update.isPending} onClick={() => update.mutate({ tenantId: customer.id, data: { status: customer.status === 'active' ? UpdatePlatformCustomerInputStatus.suspended : UpdatePlatformCustomerInputStatus.active } }, { onSuccess: refresh })}>{customer.status === 'active' ? <><Pause size={14} /> Suspend</> : <><Play size={14} /> Reactivate</>}</Button></div>)}</div>}
         </section>
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="mb-5 flex items-center gap-3 border-b border-border pb-4"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary"><Plus size={16} /></span><h2 className="text-base font-bold">Create customer</h2></div>
-          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (businessTypes.length === 0) return; setLink(null); setCopied(false); setOnboardedCustomer(null); create.mutate({ data: { name, slug, ownerEmail: ownerEmail || null, businessTypes } }, { onSuccess: (result) => { setName(''); setSlug(''); setOwnerEmail(''); setBusinessTypes([BusinessType['general-contractor']]); setOnboardedCustomer({ id: result.customer.id, name: result.customer.name, invitationToken: result.invitationToken, invitationStatus: result.invitationStatus, invitationDelivery: result.invitationDelivery }); refresh(); if (result.invitationToken) setLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${result.invitationToken}`); } }); }}>
+          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (businessTypes.length === 0) return; setLink(null); setCopied(false); setOnboardedCustomer(null); setOwnerInvitationRetry(null); create.mutate({ data: { name, slug, ownerEmail: ownerEmail || null, businessTypes } }, { onSuccess: (result) => { setName(''); setSlug(''); setOwnerEmail(''); setBusinessTypes([BusinessType['general-contractor']]); setOnboardedCustomer({ id: result.customer.id, name: result.customer.name, invitationToken: result.invitationToken, ownerEmail: result.ownerEmail, invitationStatus: result.invitationStatus, invitationDelivery: result.invitationDelivery }); refresh(); if (result.invitationToken) setLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${result.invitationToken}`); } }); }}>
             <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Customer name</span><input required minLength={2} value={name} onChange={(event) => setName(event.target.value)} className={inputClass} /></label>
             <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Slug</span><input required pattern="[a-z0-9][a-z0-9-]{2,62}" value={slug} onChange={(event) => setSlug(event.target.value.toLowerCase())} className={inputClass} placeholder="acme-builders" /></label>
             <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Owner email <span className="font-normal text-muted-foreground">(optional)</span></span><input type="email" value={ownerEmail} onChange={(event) => setOwnerEmail(event.target.value)} className={inputClass} /></label>
@@ -152,7 +158,12 @@ export function PlatformCustomers() {
       {selectedCustomerId !== null && selectedCustomer.isLoading && <section className="mt-6 rounded-xl border border-border bg-card p-5"><LoadingPanel lines={5} /></section>}
       {selectedCustomerId !== null && selectedCustomer.isError && <section className="mt-6 rounded-xl border border-border bg-card p-5"><ErrorPanel onRetry={() => selectedCustomer.refetch()} /></section>}
       {selectedCustomerId !== null && selectedCustomer.data && (
-        <PlatformCustomerAccess tenantId={selectedCustomerId} details={selectedCustomer.data} />
+        <PlatformCustomerAccess
+          tenantId={selectedCustomerId}
+          details={selectedCustomer.data}
+          initialOwnerEmail={ownerInvitationRetry?.tenantId === selectedCustomerId ? ownerInvitationRetry.email : null}
+          onInvitationCreated={() => setOwnerInvitationRetry(null)}
+        />
       )}
       {onboardedCustomer && (
         <section className={`mt-6 rounded-xl border p-5 ${needsOwnerInvitationRetry(onboardedCustomer.invitationStatus) ? 'border-status-warning/40 bg-status-warning/10' : 'border-primary/25 bg-primary/5'}`}>
@@ -168,7 +179,7 @@ export function PlatformCustomers() {
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
                     {onboardedCustomer.name} is ready for setup, but the owner invitation was not saved. Open customer access to create a new owner invitation.
                   </p>
-                  <Button className="mt-5" onClick={() => setSelectedCustomerId(onboardedCustomer.id)}>
+                  <Button className="mt-5" onClick={() => openCustomerAccess(onboardedCustomer.id, onboardedCustomer.ownerEmail)}>
                     <Mail size={14} /> Open customer access <ArrowRight size={14} />
                   </Button>
                 </div>
@@ -188,7 +199,7 @@ export function PlatformCustomers() {
                   <div className="mt-5 flex flex-wrap gap-2">
                     <Button onClick={() => openWorkflowManager(onboardedCustomer.id)} disabled={switchTenant.isPending}><Workflow size={14} /> Review workflow <ArrowRight size={14} /></Button>
                     {onboardedCustomer.invitationToken && <Button variant="outline" onClick={() => setLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${onboardedCustomer.invitationToken}`)}>View owner invite</Button>}
-                    <Button variant="outline" onClick={() => setSelectedCustomerId(onboardedCustomer.id)}><Mail size={14} /> Open customer access</Button>
+                    <Button variant="outline" onClick={() => openCustomerAccess(onboardedCustomer.id)}><Mail size={14} /> Open customer access</Button>
                   </div>
                 </>
               )}

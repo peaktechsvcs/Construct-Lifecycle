@@ -22,9 +22,13 @@ type CustomerRole = 'owner' | 'admin' | 'member' | 'viewer';
 export function PlatformCustomerAccess({
   tenantId,
   details,
+  initialOwnerEmail = null,
+  onInvitationCreated,
 }: {
   tenantId: number;
   details: PlatformCustomerDetails;
+  initialOwnerEmail?: string | null;
+  onInvitationCreated?: () => void;
 }) {
   const qc = useQueryClient();
   const invite = useCreatePlatformCustomerInvitation();
@@ -33,11 +37,30 @@ export function PlatformCustomerAccess({
   const audit = useListPlatformCustomerAuditEvents(tenantId, {
     query: { queryKey: getListPlatformCustomerAuditEventsQueryKey(tenantId) },
   });
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState<CustomerRole>('member');
+  const [email, setEmail] = useState(initialOwnerEmail ?? '');
+  const [role, setRole] = useState<CustomerRole>(initialOwnerEmail ? 'owner' : 'member');
+  const [retryingOwnerInvitation, setRetryingOwnerInvitation] = useState(Boolean(initialOwnerEmail));
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const customer = details.customer;
+
+  useEffect(() => {
+    if (initialOwnerEmail) {
+      setEmail(initialOwnerEmail);
+      setRole('owner');
+      setRetryingOwnerInvitation(true);
+      setInviteLink(null);
+      setCopied(false);
+    } else {
+      if (retryingOwnerInvitation) {
+        setEmail('');
+        setRole('member');
+        setInviteLink(null);
+        setCopied(false);
+      }
+      setRetryingOwnerInvitation(false);
+    }
+  }, [initialOwnerEmail, retryingOwnerInvitation, tenantId]);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: getGetPlatformCustomerQueryKey(tenantId) });
@@ -51,7 +74,10 @@ export function PlatformCustomerAccess({
       {
         onSuccess: (result) => {
           setEmail('');
+          setRole('member');
+          setRetryingOwnerInvitation(false);
           setInviteLink(`${window.location.origin}${import.meta.env.BASE_URL}accept-invitation/${result.token}`);
+          onInvitationCreated?.();
           refresh();
         },
       },
@@ -110,22 +136,23 @@ export function PlatformCustomerAccess({
         <form className="h-fit space-y-4 rounded-lg border border-border bg-background p-4" onSubmit={submitInvitation}>
           <div className="flex items-center gap-2">
             <Mail size={15} className="text-primary" />
-            <h3 className="text-sm font-bold">Invite a user</h3>
+            <h3 className="text-sm font-bold">{retryingOwnerInvitation ? 'Retry owner invitation' : 'Invite a user'}</h3>
           </div>
+          {retryingOwnerInvitation && <p className="text-xs leading-5 text-muted-foreground">Retry the original owner invitation for this customer. The address and owner role are locked for this retry.</p>}
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Email</span>
-            <input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} />
+            <input required readOnly={retryingOwnerInvitation} type="email" value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} />
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Role</span>
-            <select value={role} onChange={(event) => setRole(event.target.value as CustomerRole)} className={inputClass}>
+            <select disabled={retryingOwnerInvitation} value={role} onChange={(event) => setRole(event.target.value as CustomerRole)} className={inputClass}>
               <option value="owner">Owner</option>
               <option value="admin">Admin</option>
               <option value="member">Member</option>
               <option value="viewer">Viewer</option>
             </select>
           </label>
-          <Button type="submit" disabled={invite.isPending}><Mail size={14} /> {invite.isPending ? 'Creating…' : 'Create invitation'}</Button>
+          <Button type="submit" disabled={invite.isPending}><Mail size={14} /> {invite.isPending ? 'Creating…' : retryingOwnerInvitation ? 'Retry owner invitation' : 'Create invitation'}</Button>
           {invite.isError && <p role="alert" className="text-xs text-destructive">The invitation could not be created.</p>}
           {inviteLink && (
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">

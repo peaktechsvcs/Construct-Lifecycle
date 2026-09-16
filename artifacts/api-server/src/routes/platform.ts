@@ -733,6 +733,7 @@ export async function createPlatformCustomerHandler(
     customer: await serializeCustomer(tenant),
     invitation,
     invitationToken,
+    ownerEmail: invitationStatus === "failed" ? ownerEmail : null,
     invitationStatus,
     invitationError,
     invitationDelivery,

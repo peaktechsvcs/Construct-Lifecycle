@@ -4265,6 +4265,11 @@ export interface CreatedPlatformCustomer {
   invitation: TenantInvitation | null;
   /** @nullable */
   invitationToken: string | null;
+  /**
+     * @maxLength 254
+     * @nullable
+     */
+  ownerEmail: string | null;
   invitationStatus: CreatedPlatformCustomerInvitationStatus;
   /** @nullable */
   invitationError: string | null;
