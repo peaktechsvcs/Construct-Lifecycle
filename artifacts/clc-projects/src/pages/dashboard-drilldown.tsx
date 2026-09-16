@@ -35,7 +35,10 @@ import {
   Badge,
 } from '@/components/app-ui';
 import { stageLabels } from '@/lib/stage-config';
-import { groupActiveProjectStatusSections } from '@/lib/project-views';
+import {
+  getActiveProjectStatusEmptyGuidance,
+  groupActiveProjectStatusSections,
+} from '@/lib/project-views';
 import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
 import { useTenant } from '@/providers/tenant-provider';
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
@@ -120,31 +123,13 @@ function ActiveProjectStatusEmptyState({
     return query ? `${base}?${query}` : base;
   })();
   const statusName = status.displayName.toLowerCase();
-  const guidance = status.stableKey === 'active'
-    ? {
-      text: `Create a project or move a ${waitingStatusName.toLowerCase()} project into ${status.displayName} when work is ready.`,
-      href: '/projects',
-      label: 'Open project book',
-    }
-    : status.stableKey === 'waiting'
-      ? {
-        text: `Move a project to ${status.displayName} when progress is paused or your team is waiting on a decision.`,
-        href: '/settings/administration/workflows',
-        label: 'Review workflow',
-      }
-      : {
-        text: `Create a project or update a project to the ${status.displayName} status.`,
-        href: '/projects',
-        label: 'Open project book',
-      };
+  const guidance = getActiveProjectStatusEmptyGuidance(status, waitingStatusName);
   const canStartProject = !hasSearch && canCreateProject && status.stableKey !== 'waiting';
   const action = hasSearch
     ? { href: clearSearchUrl, label: 'Clear search' }
     : canStartProject
       ? { href: `/projects?create=1&return=${encodeURIComponent(returnUrl)}`, label: 'Start a project' }
-      : status.stableKey === 'waiting'
-        ? { href: guidance.href, label: guidance.label }
-        : undefined;
+      : { href: guidance.href, label: guidance.label };
 
   return (
     <EmptyState

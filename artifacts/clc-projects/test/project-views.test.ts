@@ -1,9 +1,38 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  getActiveProjectStatusEmptyGuidance,
   getAllProjectsTableRows,
   groupActiveProjectStatusSections,
 } from '../src/lib/project-views.ts';
+
+test('empty custom Active Projects status uses its configured label and project destination', () => {
+  assert.deepEqual(
+    getActiveProjectStatusEmptyGuidance(
+      { stableKey: 'field_active', displayName: 'Field Work' },
+      'Paused',
+    ),
+    {
+      text: 'Create a project or update a project to the Field Work status.',
+      href: '/projects',
+      label: 'Open project book',
+    },
+  );
+});
+
+test('empty waiting status points teams to workflow configuration without replacing its label', () => {
+  assert.deepEqual(
+    getActiveProjectStatusEmptyGuidance(
+      { stableKey: 'waiting', displayName: 'Paused' },
+      'Paused',
+    ),
+    {
+      text: 'Move a project to Paused when progress is paused or your team is waiting on a decision.',
+      href: '/settings/administration/workflows',
+      label: 'Review workflow',
+    },
+  );
+});
 
 test('Active Projects keeps every configured status in display order', () => {
   const sections = groupActiveProjectStatusSections(
