@@ -594,6 +594,150 @@ async function checkCustomerDetailProjectShortcut(role, expectedShortcut) {
   }
 }
 
+async function checkReturnPathSafety() {
+  const unsafeReturns = [
+    { label: "external", value: "https://outside.example/projects" },
+    { label: "protocol-relative", value: "//outside.example/projects" },
+    { label: "malformed", value: "/projects/%ZZ" },
+  ];
+
+  for (const unsafeReturn of unsafeReturns) {
+    const returnQuery = encodeURIComponent(unsafeReturn.value);
+    const { target, client } = await openTarget(
+      `/projects?browserAuth=authenticated&browserRole=owner&create=1&return=${returnQuery}`,
+    );
+    try {
+      await waitFor(
+        client,
+        `${unsafeReturn.label} return project form`,
+        `(() => ({
+          ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
+        }))()`,
+      );
+      const closed = await evaluate(client, `(() => {
+        const button = document.querySelector('[role="dialog"] button[aria-label="Close modal"]');
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()`);
+      if (!closed) throw new Error(`${unsafeReturn.label} return form could not be closed`);
+      await waitFor(
+        client,
+        `${unsafeReturn.label} return fallback`,
+        `(() => ({
+          ready: window.location.origin === ${JSON.stringify(baseUrl)}
+            && window.location.pathname === "/projects"
+            && window.location.search === "?browserAuth=authenticated&browserRole=owner"
+            && document.querySelector('[role="dialog"]') === null,
+        }))()`,
+      );
+    } finally {
+      await closeTarget(target, client);
+    }
+  }
+  console.log("✔ external, protocol-relative, and malformed returns fall back to the project book on close");
+
+  const unsafeReturn = encodeURIComponent("//outside.example/projects");
+  const { target, client } = await openTarget(
+    `/projects?browserAuth=authenticated&browserRole=owner&create=1&return=${unsafeReturn}`,
+  );
+  try {
+    await waitFor(
+      client,
+      "unsafe return submit form",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
+      }))()`,
+    );
+    const customerInputFocused = await evaluate(client, `(() => {
+      const input = document.querySelector('[data-testid="input-project-customer"]');
+      if (!(input instanceof HTMLInputElement)) return false;
+      input.focus();
+      input.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+      return true;
+    })()`);
+    if (!customerInputFocused) throw new Error("unsafe return form could not open the customer selector");
+    await waitFor(
+      client,
+      "unsafe return customer option",
+      `(() => ({
+        ready: [...document.querySelectorAll('[role="option"]')]
+          .some((option) => option.textContent?.includes("Browser Test Customer")),
+      }))()`,
+    );
+    const customerSelected = await evaluate(client, `(() => {
+      const option = [...document.querySelectorAll('[role="option"]')]
+        .find((candidate) => candidate.textContent?.includes("Browser Test Customer"));
+      if (!(option instanceof HTMLElement)) return false;
+      option.click();
+      return true;
+    })()`);
+    if (!customerSelected) throw new Error("unsafe return form could not select the customer");
+    const projectNameFocused = await evaluate(client, `(() => {
+      const input = document.querySelector('[data-testid="input-project-projectName"]');
+      if (!(input instanceof HTMLInputElement)) return false;
+      input.focus();
+      return true;
+    })()`);
+    if (!projectNameFocused) throw new Error("unsafe return form could not focus the project name");
+    await client.command("Input.insertText", { text: "Browser Unsafe Return Project" });
+    const submitted = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-save-project"]');
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!submitted) throw new Error("unsafe return form could not submit");
+    await waitFor(
+      client,
+      "unsafe return submit fallback",
+      `(() => ({
+        ready: window.location.origin === ${JSON.stringify(baseUrl)}
+          && window.location.pathname === "/projects"
+          && window.location.search === "?browserAuth=authenticated&browserRole=owner"
+          && document.querySelector('[role="dialog"]') === null,
+      }))()`,
+    );
+  } finally {
+    await closeTarget(target, client);
+  }
+  console.log("✔ completing with an unsafe return stays on the project book");
+
+  const validReturn = encodeURIComponent("/dashboard/drilldown/active-projects?sort=value_desc&search=alpha");
+  const validTarget = await openTarget(
+    `/projects?browserAuth=authenticated&browserRole=owner&create=1&return=${validReturn}`,
+  );
+  try {
+    await waitFor(
+      validTarget.client,
+      "valid internal return form",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
+      }))()`,
+    );
+    const closed = await evaluate(validTarget.client, `(() => {
+      const button = document.querySelector('[role="dialog"] button[aria-label="Close modal"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!closed) throw new Error("valid internal return form could not be closed");
+    await waitFor(
+      validTarget.client,
+      "valid internal return navigation",
+      `(() => ({
+        ready: window.location.origin === ${JSON.stringify(baseUrl)}
+          && window.location.pathname === "/dashboard/drilldown/active-projects"
+          && window.location.search === "?sort=value_desc&search=alpha"
+          && document.querySelector('[role="dialog"]') === null,
+      }))()`,
+    );
+  } finally {
+    await closeTarget(validTarget.target, validTarget.client);
+  }
+  console.log("✔ valid internal returns preserve their path and query parameters");
+}
+
 async function checkRestrictedRole() {
   const { target, client } = await openTarget(
     "/dashboard/drilldown/active-projects?browserAuth=authenticated&browserRole=viewer",
@@ -685,6 +829,7 @@ try {
   await checkRestrictedRole();
   await checkDirectProjectBookCreation();
   await checkPermittedQueryCleanup();
+  await checkReturnPathSafety();
   console.log("Validated empty-state project creation for all project roles.");
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
