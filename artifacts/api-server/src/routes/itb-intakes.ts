@@ -233,6 +233,15 @@ const privatePrefix = () => {
   return `/objects/${objectPrefix ? `${objectPrefix}/` : ""}itb-intakes/`;
 };
 const isOwnedItbObject = (path: string) => path.startsWith(privatePrefix()) && path.length > privatePrefix().length;
+const cleanupMailboxObjects = async (req: TenantRequest, objectPaths: string[]) => {
+  await Promise.all(objectPaths.map(async (objectPath) => {
+    try {
+      await objectStorage.deleteObject(objectPath);
+    } catch (error) {
+      req.log.error({ err: error, objectPath }, "ITB mailbox attachment cleanup failed");
+    }
+  }));
+};
 
 const validateCustomer = async (req: TenantRequest, customerId: number) => {
   const [customer] = await db.select({ id: businessCustomersTable.id }).from(businessCustomersTable).where(and(
@@ -474,6 +483,8 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
     res.status(409).json({ error: "Mailbox integration is not connected for this environment" });
     return;
   }
+  const storedObjectPaths: string[] = [];
+  let persistenceCommitted = false;
   try {
     const requestedMessageId = parsed.data.messageId?.trim();
     if (requestedMessageId) {
@@ -501,6 +512,7 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
       for (const attachment of message.attachments) {
         try {
           const stored = await objectStorage.storeBytes("itb-intakes", attachment.bytes, attachment.contentType);
+          storedObjectPaths.push(stored.objectPath);
           storedAttachments.push({
             originalName: attachment.originalName,
             contentType: attachment.contentType,
@@ -545,9 +557,11 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
       res.status(409).json({ error: "This mailbox message was already imported", intakeId: result.existingId });
       return;
     }
+    persistenceCommitted = true;
     await markIntegrationJobSucceeded(mailboxJob.scope, mailboxJob.job);
     res.status(201).json(serialize(result.created, result.attachments));
   } catch (error) {
+    if (!persistenceCommitted) await cleanupMailboxObjects(req, storedObjectPaths);
     await markIntegrationJobFailed(mailboxJob.scope, mailboxJob.job, error);
     const status = (error as { status?: number }).status;
     req.log.warn({ err: error, connectorStatus: status }, "ITB mailbox import unavailable");

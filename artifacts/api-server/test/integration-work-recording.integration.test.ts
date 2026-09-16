@@ -14,13 +14,19 @@ process.env.APP_ENV = "test";
 let connectorMode: "success" | "failure" = "success";
 let storedAttachmentCount = 0;
 let attachmentStoreDelayMs = 0;
+const deletedObjectPaths: string[] = [];
 
 const originalStoreBytes = ObjectStorageService.prototype.storeBytes;
+const originalDeleteObject = ObjectStorageService.prototype.deleteObject;
 ObjectStorageService.prototype.storeBytes = async function (prefix, bytes, contentType) {
   if (attachmentStoreDelayMs) await new Promise((resolve) => setTimeout(resolve, attachmentStoreDelayMs));
   const stored = await originalStoreBytes.call(this, prefix, bytes, contentType);
   storedAttachmentCount += 1;
   return stored;
+};
+ObjectStorageService.prototype.deleteObject = async function (objectPath) {
+  deletedObjectPaths.push(objectPath);
+  return originalDeleteObject.call(this, objectPath);
 };
 
 const base64Url = (value: string) => Buffer.from(value, "utf8").toString("base64url");
@@ -53,8 +59,10 @@ ReplitConnectors.prototype.proxy = async function (provider, path) {
     };
   }
   const isConcurrentMessage = path.includes("/threads/thread-concurrent") || path.includes("/messages/message-concurrent");
-  const messageId = isConcurrentMessage ? "message-concurrent" : "message-1";
-  if (path.includes(`/messages/${messageId}/attachments/attachment-1`)) {
+  const isPersistenceFailureMessage = path.includes("/threads/thread-persistence-failure") || path.includes("/messages/message-persistence-failure");
+  const messageId = isConcurrentMessage ? "message-concurrent" : isPersistenceFailureMessage ? "message-persistence-failure" : "message-1";
+  const attachmentId = isPersistenceFailureMessage ? "attachment-duplicate" : "attachment-1";
+  if (path.includes(`/messages/${messageId}/attachments/${attachmentId}`)) {
     return {
       ok: true,
       status: 200,
@@ -92,9 +100,14 @@ ReplitConnectors.prototype.proxy = async function (provider, path) {
           ],
           mimeType: "text/plain",
           body: { data: base64Url("Project: North Campus\nBid due: September 30, 2026") },
-          parts: [
-            { filename: "plans.pdf", mimeType: "application/pdf", body: { attachmentId: "attachment-1", size: 27 } },
-          ],
+          parts: isPersistenceFailureMessage
+            ? [
+              { filename: "plans-a.pdf", mimeType: "application/pdf", body: { attachmentId, size: 27 } },
+              { filename: "plans-b.pdf", mimeType: "application/pdf", body: { attachmentId, size: 27 } },
+            ]
+            : [
+              { filename: "plans.pdf", mimeType: "application/pdf", body: { attachmentId, size: 27 } },
+            ],
         },
       }],
     }),
@@ -462,6 +475,28 @@ test("serializes concurrent mailbox imports before storing attachments", async (
   } finally {
     attachmentStoreDelayMs = 0;
   }
+});
+
+test("cleans stored mailbox objects when intake persistence fails", async () => {
+  connectorMode = "success";
+  const attachmentCountBefore = storedAttachmentCount;
+  const deletedObjectCountBefore = deletedObjectPaths.length;
+  const failed = await request("/itb-intakes/mailbox/import", {
+    method: "POST",
+    body: JSON.stringify({ provider: "google-mail", threadId: "thread-persistence-failure", messageId: "message-persistence-failure" }),
+  });
+  assert.equal(failed.status, 424, JSON.stringify(failed.body));
+  assert.equal(storedAttachmentCount, attachmentCountBefore + 2);
+  assert.equal(deletedObjectPaths.length, deletedObjectCountBefore + 2);
+  assert.equal(deletedObjectPaths.slice(deletedObjectCountBefore).every((path) => path.startsWith("/objects/")), true);
+
+  const intakes = await db.select().from(itbIntakesTable).where(and(
+    eq(itbIntakesTable.tenantId, tenantId),
+    eq(itbIntakesTable.environmentId, environmentId),
+    eq(itbIntakesTable.sourceProvider, "google-mail"),
+    eq(itbIntakesTable.sourceMessageId, "message-persistence-failure"),
+  ));
+  assert.equal(intakes.length, 0);
 });
 
 test("records mailbox failures for retry and keeps connector errors bounded", async () => {
