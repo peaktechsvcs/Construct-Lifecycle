@@ -434,6 +434,136 @@ async function checkDirectProjectBookCreation() {
   }
 }
 
+async function checkFailedActiveProjectSaveCancellation() {
+  const activeProjectsPath =
+    "/dashboard/drilldown/active-projects?browserAuth=authenticated&browserRole=owner&sort=value_desc";
+  const { target, client } = await openTarget(activeProjectsPath);
+  try {
+    await waitFor(
+      client,
+      "failed-save Active Projects empty-state action",
+      `(() => ({
+        ready: document.body?.innerText?.includes("No in flight projects") === true
+          && document.querySelector('a[href^="/projects?create=1"]') !== null,
+      }))()`,
+    );
+
+    const opened = await evaluate(client, `(() => {
+      const action = document.querySelector('a[href^="/projects?create=1"]');
+      if (!(action instanceof HTMLElement)) return false;
+      action.click();
+      return true;
+    })()`);
+    if (!opened) throw new Error("failed-save Active Projects could not open the project form");
+    await waitFor(
+      client,
+      "failed-save Active Projects project form",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
+      }))()`,
+    );
+
+    const failureInstalled = await evaluate(client, `(() => {
+      const originalFetch = window.fetch;
+      window.fetch = async (input, init = {}) => {
+        const requestUrl = typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+        const requestMethod = String(
+          init.method
+            ?? (typeof input === "string" || input instanceof URL ? "GET" : input.method),
+        ).toUpperCase();
+        const requestPath = new URL(requestUrl, window.location.origin).pathname;
+        if (requestPath === "/api/projects" && requestMethod === "POST") {
+          return new Response(
+            JSON.stringify({ error: "Browser test forced project save failure" }),
+            { status: 500, headers: { "content-type": "application/json" } },
+          );
+        }
+        return originalFetch(input, init);
+      };
+      return true;
+    })()`);
+    if (!failureInstalled) throw new Error("failed-save browser response could not be installed");
+
+    const customerFocused = await evaluate(client, `(() => {
+      const input = document.querySelector('[data-testid="input-project-customer"]');
+      if (!(input instanceof HTMLInputElement)) return false;
+      input.focus();
+      input.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+      return true;
+    })()`);
+    if (!customerFocused) throw new Error("failed-save flow could not focus the customer selector");
+    await waitFor(
+      client,
+      "failed-save customer selector",
+      `(() => ({
+        ready: [...document.querySelectorAll('[role="option"]')]
+          .some((option) => option.textContent?.includes("Browser Test Customer")),
+      }))()`,
+    );
+    const customerSelected = await evaluate(client, `(() => {
+      const option = [...document.querySelectorAll('[role="option"]')]
+        .find((candidate) => candidate.textContent?.includes("Browser Test Customer"));
+      if (!(option instanceof HTMLElement)) return false;
+      option.click();
+      return true;
+    })()`);
+    if (!customerSelected) throw new Error("failed-save flow could not select the customer");
+
+    const projectNameFocused = await evaluate(client, `(() => {
+      const input = document.querySelector('[data-testid="input-project-projectName"]');
+      if (!(input instanceof HTMLInputElement)) return false;
+      input.focus();
+      return true;
+    })()`);
+    if (!projectNameFocused) throw new Error("failed-save flow could not focus the project name");
+    await client.command("Input.insertText", { text: "Browser Failed Save Project" });
+
+    const submitted = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-save-project"]');
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!submitted) throw new Error("failed-save flow could not submit the project form");
+    await waitFor(
+      client,
+      "failed-save error state",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project"
+          && document.querySelector('[role="dialog"] [role="alert"]')?.textContent?.includes("This project could not be saved.") === true
+          && document.querySelector('[role="dialog"] [data-testid="button-cancel-project"]') !== null,
+      }))()`,
+    );
+
+    const cancelled = await evaluate(client, `(() => {
+      const button = document.querySelector('[role="dialog"] [data-testid="button-cancel-project"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!cancelled) throw new Error("failed-save project form could not be canceled");
+    await waitFor(
+      client,
+      "failed-save Active Projects return after cancel",
+      `(() => ({
+        ready: window.location.pathname === "/dashboard/drilldown/active-projects"
+          && window.location.search === "?browserAuth=authenticated&browserRole=owner&sort=value_desc"
+          && document.querySelector('[role="dialog"]') === null
+          && new URL(window.location.href).searchParams.get("create") === null
+          && new URL(window.location.href).searchParams.get("return") === null,
+        url: window.location.href,
+      }))()`,
+    );
+    console.log("✔ failed project saves remain cancelable and return to Active Projects");
+  } finally {
+    await closeTarget(target, client);
+  }
+}
+
 async function checkMobileCancellation() {
   const activeProjectsPath =
     "/dashboard/drilldown/active-projects?browserAuth=authenticated&browserRole=owner&sort=value_desc";
@@ -956,6 +1086,7 @@ try {
   await checkCustomerDetailProjectShortcut("viewer", false);
   await checkRestrictedRole();
   await checkDirectProjectBookCreation();
+  await checkFailedActiveProjectSaveCancellation();
   await checkMobileCancellation();
   await checkPermittedQueryCleanup();
   await checkReturnPathSafety();
