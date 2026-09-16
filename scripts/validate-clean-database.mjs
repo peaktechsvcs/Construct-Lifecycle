@@ -49,7 +49,6 @@ if (!/^clc_migration_validation_\d+_\d+$/.test(databaseName)) {
 function databaseUrlFor(name) {
   const url = new URL(sourceDatabaseUrl);
   url.pathname = `/${name}`;
-  url.search = "";
   url.hash = "";
   return url.toString();
 }
