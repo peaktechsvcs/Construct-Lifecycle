@@ -2,6 +2,66 @@
 
 Construct Lifecycle — The Construction Lifecycle Platform is a responsive, multi-tenant workspace for construction suppliers and teams managing work from opportunity through closeout.
 
+## Scope boundaries — read before making any change
+
+This project is developed across two surfaces. Replit Agent handles new
+surfaces and exploratory work. Claude Code handles shared packages,
+data, auth, and infrastructure. Once an area moves to Claude Code it
+does not move back.
+
+### Do not modify these paths
+
+Agent must not create, edit, delete, or refactor anything under:
+
+- `lib/db/**` — Drizzle schema, migrations, and database client
+- `lib/db/migrations/**` — hand-written SQL, applied in version order.
+  Never add, edit, renumber, or delete a migration file
+- `lib/db/drizzle.config.ts`
+- `artifacts/api-server/src/middlewares/**` — authentication, tenant
+  context, and the runtime signing boundary
+- The shared design-system package
+- The generated API client under `lib/`
+- `scripts/*.mjs` — release gates and clean-database validation
+- `replit.md` itself
+
+If a requested change requires touching any of these, stop and say so
+rather than proceeding. Describe what would need to change and wait.
+
+### Do not touch configuration
+
+- Never modify `DATABASE_URL` or `DIRECT_URL`. The database is external
+  (Neon). `DATABASE_URL` is a pooled endpoint; `DIRECT_URL` is direct and
+  is required for DDL
+- Never re-add a Replit-managed database, or suggest one
+- Never add new `@replit/*` packages or Replit connectors. Existing ones
+  are being removed, not extended
+- Never run `push-force`. It is used only by
+  `scripts/validate-clean-database.mjs`
+- Never modify Secrets
+
+### Schema changes
+
+The schema is `drizzle-kit push` plus hand-written SQL migrations applied
+in order. Both are required for a correct database. Agent does not make
+schema changes. If a feature needs one, describe the change and stop.
+
+### Drafts
+
+Do not generate speculative task drafts. Propose work only when asked.
+
+### Architecture facts, so they are not re-derived
+
+- Multi-tenant. Nearly every table carries `tenant_id` and
+  `environment_id`. New tables follow the same pattern
+- Each tenant has exactly one `production` and one `dtd` customer
+  environment. These are database rows, not deployments
+- Clerk provides authentication only. No Clerk Organizations. All
+  tenancy, roles, and access live in Postgres, keyed to
+  `local_users.clerk_user_id`
+- `APP_ENV` describes where the process runs and is unrelated to
+  customer environments
+- Brand and UI conventions live in `/docs` and are authoritative
+
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
