@@ -15,6 +15,8 @@ const updateBaselines = process.env.CLC_UPDATE_VISUAL_BASELINES === "1";
 const visualChannelTolerance = Number(process.env.CLC_VISUAL_CHANNEL_TOLERANCE ?? 8);
 const visualMaxDiffRatio = Number(process.env.CLC_VISUAL_MAX_DIFF_RATIO ?? 0.0025);
 const visualMaxMeanError = Number(process.env.CLC_VISUAL_MAX_MEAN_ERROR ?? 1.5);
+const includeSearchTransitionCase = process.env.CLC_RESPONSIVE_TEST_SEARCH_TRANSITION === "1";
+const skipVisualComparison = process.env.CLC_RESPONSIVE_TEST_SKIP_VISUAL === "1";
 const viewports = [
   { name: "mobile", width: 390, height: 844 },
   { name: "desktop", width: 1440, height: 1000 },
@@ -103,6 +105,19 @@ const cases = [
     orderedTexts: ["Paused projects", "In Flight projects", "Field Work projects"],
     shell: true,
   },
+  ...(includeSearchTransitionCase ? [{
+    id: "active-projects-search-transition",
+    name: "active projects search transition",
+    path: "/dashboard/drilldown/active-projects?browserAuth=authenticated&browserSearchDelay=1",
+    heading: "Active Projects",
+    searchTransition: true,
+    skipVisual: true,
+    actions: [],
+    requiredSelectors: [],
+    requiredTexts: [],
+    orderedTexts: [],
+    shell: true,
+  }] : []),
 ];
 
 function waitForServer(child) {
@@ -409,6 +424,17 @@ async function waitForRenderedPage(client, routeCase) {
   throw new Error(`${routeCase.name}: page did not finish rendering (${JSON.stringify(state)})`);
 }
 
+async function waitFor(client, description, expression) {
+  const deadline = Date.now() + 12_000;
+  let state;
+  while (Date.now() < deadline) {
+    state = await evaluate(client, expression);
+    if (state?.ready) return state;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`${description} did not complete (${JSON.stringify(state)})`);
+}
+
 async function stabilize(client) {
   await evaluate(client, `(() => {
     const style = document.createElement("style");
@@ -558,6 +584,57 @@ async function inspectDialog(client, routeCase, viewport) {
   throw new Error(`${routeCase.name} (${viewport.name}): dialog close control did not close the dialog`);
 }
 
+async function inspectSearchTransition(client, routeCase, viewport) {
+  if (!routeCase.searchTransition) return;
+
+  const changed = await evaluate(client, `(() => {
+    const input = document.querySelector('[data-testid="input-drilldown-search"]');
+    if (!(input instanceof HTMLInputElement)) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) return false;
+    setter.call(input, "does-not-match");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  })()`);
+  if (!changed) {
+    throw new Error(`${routeCase.name} (${viewport.name}): search input missing`);
+  }
+
+  const pending = await evaluate(client, `(() => ({
+    status: document.querySelector('[data-testid="drilldown-search-status"]')?.textContent?.trim() ?? "",
+    hasStaleFilteredGuidance: document.body.innerText.includes("No paused projects match"),
+    urlSearch: new URLSearchParams(window.location.search).get("search"),
+  }))()`);
+  if (pending.status !== "Updating Active Projects results…") {
+    throw new Error(`${routeCase.name} (${viewport.name}): missing accessible pending-search status`);
+  }
+  if (pending.hasStaleFilteredGuidance) {
+    throw new Error(`${routeCase.name} (${viewport.name}): stale filtered guidance remained during debounce`);
+  }
+  if (pending.urlSearch !== "does-not-match") {
+    throw new Error(`${routeCase.name} (${viewport.name}): URL did not reflect the latest search term`);
+  }
+
+  const settled = await waitFor(
+    client,
+    `${routeCase.name} final response`,
+    `(() => {
+      const text = document.body.innerText;
+      const searches = window.__clcBrowserTestDrilldownSearches ?? [];
+      return {
+        ready: text.includes("No paused projects match")
+          && searches.at(-1) === "does-not-match"
+          && !document.querySelector('[data-testid="drilldown-search-status"]'),
+        searches,
+      };
+    })()`,
+  );
+  if (settled.searches.at(-1) !== "does-not-match") {
+    throw new Error(`${routeCase.name} (${viewport.name}): API did not receive the latest search term`);
+  }
+}
+
 async function inspect(client, routeCase, viewport) {
   if (routeCase.shell && viewport.name === "mobile") {
     const opened = await evaluate(client, `(() => {
@@ -571,6 +648,7 @@ async function inspect(client, routeCase, viewport) {
   }
 
   await inspectDialog(client, routeCase, viewport);
+  await inspectSearchTransition(client, routeCase, viewport);
 
   return evaluate(client, `(() => {
     const visible = (selector) => {
@@ -720,7 +798,7 @@ async function visit(routeCase, viewport) {
     if (result.requiredTexts.length) failures.push(`missing required text: ${result.requiredTexts.join(", ")}`);
     if (result.orderedTextFailures.length) failures.push(`incorrect section order: ${result.orderedTextFailures.join(", ")}`);
     if (failures.length) throw new Error(`${routeCase.name} (${viewport.name}): ${failures.join("; ")}`);
-    await captureAndCompareVisual(client, routeCase, viewport);
+    if (!routeCase.skipVisual && !skipVisualComparison) await captureAndCompareVisual(client, routeCase, viewport);
     console.log(`✔ ${routeCase.name} at ${viewport.width}×${viewport.height}`);
   } finally {
     client.close();

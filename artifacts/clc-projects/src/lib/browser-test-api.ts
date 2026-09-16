@@ -356,6 +356,14 @@ const projectDetailControls = {
 
 export function installBrowserTestApi() {
   const originalFetch = window.fetch.bind(window);
+  const browserSearchDelay = new URLSearchParams(window.location.search).get('browserSearchDelay') === '1'
+    ? 600
+    : 0;
+  const browserTestWindow = window as Window & {
+    __clcBrowserTestDrilldownSearches?: string[];
+  };
+  browserTestWindow.__clcBrowserTestDrilldownSearches = [];
+
   window.fetch = async (input, init) => {
     const requestUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
     const url = new URL(requestUrl, window.location.origin);
@@ -434,6 +442,10 @@ export function installBrowserTestApi() {
     if (url.pathname === '/api/dashboard/summary') return json(dashboardSummary);
     if (url.pathname === '/api/dashboard/project-controls') return json(projectControls);
     if (url.pathname === '/api/dashboard/drilldown' && url.searchParams.get('type') === 'active-projects') {
+      browserTestWindow.__clcBrowserTestDrilldownSearches?.push(url.searchParams.get('search') ?? '');
+      if (browserSearchDelay > 0 && url.searchParams.get('search')?.trim()) {
+        await new Promise((resolve) => setTimeout(resolve, browserSearchDelay));
+      }
       if (url.searchParams.get('search')?.trim()) {
         return json({
           title: 'Active Projects',

@@ -537,11 +537,15 @@ export function DashboardDrilldown() {
   const isAttention = type === 'needs-attention';
   const isReceived = type === 'received-to-date';
   const isActiveProjects = type === 'active-projects';
+  const isSearchDebouncing = isActiveProjects && search !== debouncedSearch;
+  const isSearchRequestPending = isActiveProjects && drillQuery.isFetching && data !== undefined;
+  const isSearchTransitionPending = isSearchDebouncing || isSearchRequestPending;
+  const isLoadingState = drillQuery.isLoading || isSearchTransitionPending;
 
   const hasProjects = (data?.projects?.length ?? 0) > 0;
   const hasFollowUps = (data?.followups?.length ?? 0) > 0;
   const hasAttention = (data?.attention?.length ?? 0) > 0;
-  const isEmpty = !drillQuery.isLoading && data && data.count === 0;
+  const isEmpty = !isLoadingState && data && data.count === 0;
 
   const showSort = !isFollowUps && !isAttention;
   const showSearch = !isAttention;
@@ -633,6 +637,16 @@ export function DashboardDrilldown() {
 
       {/* Loading */}
       {drillQuery.isLoading && <LoadingPanel lines={8} />}
+      {isSearchTransitionPending && (
+        <div
+          data-testid="drilldown-search-status"
+          role="status"
+          aria-live="polite"
+          className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-xs font-semibold text-primary"
+        >
+          Updating Active Projects results…
+        </div>
+      )}
 
       {/* Error */}
       {drillQuery.isError && <ErrorPanel onRetry={() => drillQuery.refetch()} />}
@@ -647,7 +661,7 @@ export function DashboardDrilldown() {
       )}
 
       {/* Projects table */}
-      {!drillQuery.isLoading && !drillQuery.isError && data && (hasProjects || isActiveProjects) && (
+      {!isLoadingState && !drillQuery.isError && data && (hasProjects || isActiveProjects) && (
         <>
           {isReceived && (
             <p className="mb-2 text-xs font-semibold text-muted-foreground">Project-level received contributions</p>
@@ -697,12 +711,12 @@ export function DashboardDrilldown() {
       )}
 
       {/* Follow-ups table */}
-      {!drillQuery.isLoading && !drillQuery.isError && hasFollowUps && (
+      {!isLoadingState && !drillQuery.isError && hasFollowUps && (
         <FollowUpsTable followups={data!.followups!} returnUrl={returnUrl} />
       )}
 
       {/* Attention cards */}
-      {!drillQuery.isLoading && !drillQuery.isError && hasAttention && (
+      {!isLoadingState && !drillQuery.isError && hasAttention && (
         <AttentionTable items={data!.attention!} returnUrl={returnUrl} />
       )}
     </div>
