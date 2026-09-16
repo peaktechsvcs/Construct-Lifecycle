@@ -477,6 +477,8 @@ export interface ItbMailboxMessage {
   receivedAt: string;
   snippet: string;
   imported: boolean;
+  /** @nullable */
+  intakeId: number | null;
 }
 
 export interface ItbMailboxImportInput {

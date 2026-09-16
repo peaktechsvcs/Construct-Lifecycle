@@ -435,6 +435,19 @@ test("records scoped mailbox preview and import work and updates successful heal
   assert.equal((duplicate.body as { intakeId: number }).intakeId, importedBody.id);
   assert.equal(storedAttachmentCount, 1);
 
+  const refreshedPreview = await request("/itb-intakes/mailbox/preview?provider=google-mail&q=newer_than%3A30d%20bid");
+  assert.equal(refreshedPreview.status, 200, JSON.stringify(refreshedPreview.body));
+  const previewMessage = (refreshedPreview.body as Array<{ messageId: string; imported: boolean; intakeId: number | null }>)
+    .find((message) => message.messageId === "message-1");
+  assert.deepEqual(
+    previewMessage && {
+      messageId: previewMessage.messageId,
+      imported: previewMessage.imported,
+      intakeId: previewMessage.intakeId,
+    },
+    { messageId: "message-1", imported: true, intakeId: importedBody.id },
+  );
+
   const jobs = await db.select().from(integrationJobsTable)
     .where(and(
       eq(integrationJobsTable.tenantId, tenantId),
@@ -446,6 +459,7 @@ test("records scoped mailbox preview and import work and updates successful heal
     ["mailbox_preview", "succeeded", 1],
     ["mailbox_import", "succeeded", 1],
     ["mailbox_import", "succeeded", 1],
+    ["mailbox_preview", "succeeded", 1],
   ]);
   assert.equal(jobs.every((job) => job.integrationId === integrationId), true);
 

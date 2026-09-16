@@ -449,17 +449,24 @@ router.get("/itb-intakes/mailbox/preview", requireRole("owner", "admin"), async 
         updatedAt: new Date(),
       },
     });
-     const previews = mailboxResult.previews;
+    const previews = mailboxResult.previews;
     const sourceIds: string[] = previews.map((preview: { messageId: string }) => preview.messageId);
     if (sourceIds.length) {
-      const imported = await db.select({ sourceMessageId: itbIntakesTable.sourceMessageId }).from(itbIntakesTable).where(and(
+      const imported = await db.select({
+        sourceMessageId: itbIntakesTable.sourceMessageId,
+        intakeId: itbIntakesTable.id,
+      }).from(itbIntakesTable).where(and(
         eq(itbIntakesTable.tenantId, req.tenantId!),
         eq(itbIntakesTable.environmentId, req.environmentId!),
         eq(itbIntakesTable.sourceProvider, provider),
         sql`${itbIntakesTable.sourceMessageId} in (${sql.join(sourceIds.map((id) => sql`${id}`), sql`, `)})`,
       ));
-      const importedIds = new Set(imported.map((row) => row.sourceMessageId));
-      for (const preview of previews) preview.imported = importedIds.has(preview.messageId);
+      const importedIds = new Map(imported.map((row) => [row.sourceMessageId, row.intakeId]));
+      for (const preview of previews) {
+        const intakeId = importedIds.get(preview.messageId) ?? null;
+        preview.imported = intakeId !== null;
+        preview.intakeId = intakeId;
+      }
     }
     await markIntegrationJobSucceeded(mailboxJob.scope, mailboxJob.job);
     res.json(previews);

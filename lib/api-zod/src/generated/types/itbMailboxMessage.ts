@@ -16,4 +16,6 @@ export interface ItbMailboxMessage {
   receivedAt: Date;
   snippet: string;
   imported: boolean;
+  /** @nullable */
+  intakeId: number | null;
 }

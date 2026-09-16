@@ -4687,7 +4687,8 @@ export const PreviewItbMailboxResponseItem = zod.object({
   "sender": zod.string(),
   "receivedAt": zod.coerce.date(),
   "snippet": zod.string(),
-  "imported": zod.boolean()
+  "imported": zod.boolean(),
+  "intakeId": zod.number().int().nullable()
 })
 export const PreviewItbMailboxResponse = zod.array(PreviewItbMailboxResponseItem)
 

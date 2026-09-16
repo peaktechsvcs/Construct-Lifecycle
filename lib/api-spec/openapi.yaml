@@ -4861,7 +4861,7 @@ components:
         objectPath: { type: string, pattern: "^/objects/.+" }
     ItbMailboxMessage:
       type: object
-      required: [provider, threadId, messageId, subject, sender, receivedAt, snippet, imported]
+      required: [provider, threadId, messageId, subject, sender, receivedAt, snippet, imported, intakeId]
       properties:
         provider: { $ref: "#/components/schemas/ItbMailboxProvider" }
         threadId: { type: string }
@@ -4871,6 +4871,7 @@ components:
         receivedAt: { type: string, format: date-time }
         snippet: { type: string }
         imported: { type: boolean }
+        intakeId: { type: ["integer", "null"] }
     ItbMailboxImportInput:
       type: object
       required: [threadId]

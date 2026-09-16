@@ -21,6 +21,7 @@ export type MailboxPreview = {
   receivedAt: string;
   snippet: string;
   imported: boolean;
+  intakeId: number | null;
 };
 
 export type MailboxAttachment = {
@@ -146,6 +147,7 @@ export const createItbMailboxClient = (connector: MailboxConnector) => {
         receivedAt: message.date ?? new Date().toISOString(),
         snippet: clean(message.snippet, 500) ?? "",
         imported: false,
+         intakeId: null,
       })));
       return { previews, nextPageToken: result.nextPageToken ?? null };
     }
@@ -167,6 +169,7 @@ export const createItbMailboxClient = (connector: MailboxConnector) => {
       receivedAt: message.receivedDateTime ?? new Date().toISOString(),
       snippet: clean(message.bodyPreview, 500) ?? "",
       imported: false,
+       intakeId: null,
     }));
     return { previews, nextPageToken: result["@odata.nextLink"] ?? null };
   };

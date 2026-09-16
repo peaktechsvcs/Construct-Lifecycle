@@ -64,11 +64,24 @@ function ManualIntake({ onClose, onCreated }: { onClose: () => void; onCreated: 
 type MailboxProvider = 'google-mail' | 'outlook';
 const mailboxProviderLabel = (provider: MailboxProvider) => provider === 'outlook' ? 'Microsoft 365 / Outlook' : 'Google Workspace / Gmail';
 const mailboxQueryPlaceholder = (provider: MailboxProvider) => provider === 'outlook' ? 'Search Outlook, for example: newer_than:30d bid tender invitation' : 'Search Gmail, for example: newer_than:30d (bid OR tender OR invitation)';
+type MailboxImportError = { kind: 'duplicate'; intakeId: number } | { kind: 'provider' };
+
+function getMailboxImportError(error: unknown): MailboxImportError {
+  if (error && typeof error === 'object') {
+    const apiError = error as { status?: unknown; data?: unknown };
+    const data = apiError.data && typeof apiError.data === 'object' ? apiError.data as { intakeId?: unknown } : undefined;
+    if (apiError.status === 409 && typeof data?.intakeId === 'number' && Number.isInteger(data.intakeId) && data.intakeId > 0) {
+      return { kind: 'duplicate', intakeId: data.intakeId };
+    }
+  }
+  return { kind: 'provider' };
+}
 
 function Mailbox({ onImported }: { onImported: (id: number) => void }) {
   const [provider, setProvider] = useState<MailboxProvider>('google-mail');
   const [q, setQ] = useState('newer_than:30d (bid OR tender OR invitation)');
   const [run, setRun] = useState(false);
+  const [importError, setImportError] = useState<MailboxImportError>();
   const previewParams = { q, pageSize: 20, provider };
   const preview = usePreviewItbMailbox(previewParams, { query: { queryKey: getPreviewItbMailboxQueryKey(previewParams), enabled: run } });
   const importMessage = useImportItbMailboxMessage();
@@ -77,7 +90,7 @@ function Mailbox({ onImported }: { onImported: (id: number) => void }) {
       <div className="flex items-center gap-2 text-xs font-semibold"><ShieldCheck size={15} className="text-accent" /> Bounded mailbox query</div>
       <p className="mt-1 text-[11px] text-muted-foreground">Only matching messages are shown. Nothing is imported until you choose a message.</p>
       <div className="mt-3 grid gap-2 sm:grid-cols-[220px_minmax(0,1fr)_auto]">
-        <Select value={provider} onValueChange={(value) => { const next = value as MailboxProvider; setProvider(next); setQ(next === 'outlook' ? 'newer_than:30d bid tender invitation' : 'newer_than:30d (bid OR tender OR invitation)'); setRun(false); }}>
+        <Select value={provider} onValueChange={(value) => { const next = value as MailboxProvider; setProvider(next); setQ(next === 'outlook' ? 'newer_than:30d bid tender invitation' : 'newer_than:30d (bid OR tender OR invitation)'); setRun(false); setImportError(undefined); }}>
           <SelectTrigger aria-label="Mailbox provider"><SelectValue /></SelectTrigger>
           <SelectContent className="bg-popover">
             <SelectItem value="google-mail">Google Workspace / Gmail</SelectItem>
@@ -88,7 +101,12 @@ function Mailbox({ onImported }: { onImported: (id: number) => void }) {
         <Button onClick={() => setRun(true)} disabled={!q.trim() || preview.isFetching}><Search size={15} /> Preview</Button>
       </div>
     </div>
-    {preview.isLoading ? <LoadingPanel lines={4} /> : preview.isError ? <ErrorPanel onRetry={() => preview.refetch()} /> : run && (preview.data ?? []).length === 0 ? <EmptyState icon={Mail} title="No messages found" text={`Try a narrower or more recent ${mailboxProviderLabel(provider)} query.`} /> : <div className="divide-y divide-border rounded-lg border border-border">{(preview.data ?? []).map((message) => <div key={`${message.provider}-${message.messageId}`} className="flex items-start gap-3 p-3"><Mail size={16} className="mt-1 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{message.subject || '(No subject)'}</p><p className="text-xs text-muted-foreground">{message.sender} · {new Date(message.receivedAt).toLocaleDateString()}</p><p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{message.snippet}</p></div><Button variant="outline" disabled={message.imported || importMessage.isPending} onClick={() => importMessage.mutate({ data: { provider, threadId: message.threadId, messageId: message.messageId } }, { onSuccess: (intake) => onImported(intake.id) })}>{message.imported ? 'Imported' : 'Import'}</Button></div>)}</div>}
+    {importError?.kind === 'duplicate' && <div data-testid="mailbox-import-duplicate" role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent/30 bg-accent/5 p-3">
+      <div className="flex items-start gap-2"><CheckCircle2 size={16} className="mt-0.5 shrink-0 text-accent" /><div><p className="text-xs font-semibold">This message is already in the review queue.</p><p className="mt-1 text-[11px] text-muted-foreground">Open the existing intake instead of downloading the mailbox message again.</p></div></div>
+      <Button type="button" variant="outline" data-testid="mailbox-open-existing-intake" onClick={() => onImported(importError.intakeId)}>Open existing intake</Button>
+    </div>}
+    {importError?.kind === 'provider' && <p data-testid="mailbox-import-error" role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">The mailbox provider could not import this message. Check the connection and try again.</p>}
+    {preview.isLoading ? <LoadingPanel lines={4} /> : preview.isError ? <ErrorPanel onRetry={() => preview.refetch()} /> : run && (preview.data ?? []).length === 0 ? <EmptyState icon={Mail} title="No messages found" text={`Try a narrower or more recent ${mailboxProviderLabel(provider)} query.`} /> : <div className="divide-y divide-border rounded-lg border border-border">{(preview.data ?? []).map((message) => <div key={`${message.provider}-${message.messageId}`} className="flex items-start gap-3 p-3"><Mail size={16} className="mt-1 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{message.subject || '(No subject)'}</p><p className="text-xs text-muted-foreground">{message.sender} · {new Date(message.receivedAt).toLocaleDateString()}</p><p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{message.snippet}</p></div><Button variant="outline" disabled={(message.imported && !message.intakeId) || importMessage.isPending} onClick={() => { if (message.imported && message.intakeId) { onImported(message.intakeId); return; } setImportError(undefined); importMessage.mutate({ data: { provider, threadId: message.threadId, messageId: message.messageId } }, { onSuccess: (intake) => onImported(intake.id), onError: (error) => setImportError(getMailboxImportError(error)) }); }}>{message.imported ? message.intakeId ? 'Open existing intake' : 'Imported' : 'Import'}</Button></div>)}</div>}
   </div></Modal>;
 }
 
