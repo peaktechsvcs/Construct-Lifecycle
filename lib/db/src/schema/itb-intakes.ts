@@ -1,4 +1,5 @@
 import { index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { bidsTable } from "./bids";
 import { businessCustomersTable } from "./business-customers";
 import { environmentsTable, tenantsTable, usersTable } from "./tenants";
@@ -35,6 +36,9 @@ export const itbIntakesTable = pgTable("itb_intakes", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
   uniqueIndex("itb_intakes_scope_fingerprint_idx").on(table.tenantId, table.environmentId, table.sourceFingerprint),
+  uniqueIndex("itb_intakes_mailbox_source_idx")
+    .on(table.tenantId, table.environmentId, table.sourceProvider, table.sourceMessageId)
+    .where(sql`${table.sourceMessageId} is not null`),
   index("itb_intakes_scope_status_idx").on(table.tenantId, table.environmentId, table.status),
   index("itb_intakes_scope_received_idx").on(table.tenantId, table.environmentId, table.sourceReceivedAt),
 ]);

@@ -485,56 +485,68 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
       }
     }
     const message = await mailboxClient.importMessage(provider, parsed.data.threadId, parsed.data.messageId);
-    const attachments: Array<{ originalName: string; contentType: string; size: number; objectPath: string; sourceAttachmentId: string }> = [];
-    for (const attachment of message.attachments) {
-      try {
-        const stored = await objectStorage.storeBytes("itb-intakes", attachment.bytes, attachment.contentType);
-        attachments.push({
-          originalName: attachment.originalName,
-          contentType: attachment.contentType,
-          size: attachment.size,
-          objectPath: stored.objectPath,
-          sourceAttachmentId: attachment.sourceAttachmentId,
-        });
-      } catch (error) {
-        req.log.warn({ err: error, attachmentName: attachment.originalName }, "ITB mailbox attachment could not be stored");
+    const result = await db.transaction(async (tx) => {
+      const lockKey = `${req.tenantId}:${req.environmentId}:${message.sourceProvider}:${message.sourceMessageId}`;
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
+      const existing = await tx.select({ id: itbIntakesTable.id }).from(itbIntakesTable).where(and(
+        eq(itbIntakesTable.tenantId, req.tenantId!),
+        eq(itbIntakesTable.environmentId, req.environmentId!),
+        eq(itbIntakesTable.sourceProvider, message.sourceProvider),
+        eq(itbIntakesTable.sourceMessageId, message.sourceMessageId),
+      )).limit(1);
+      if (existing.length) return { existingId: existing[0].id };
+
+      const { extraction, warnings } = extractItbFromSource(message.sourceSubject, message.sourceBody);
+      const storedAttachments: Array<{ originalName: string; contentType: string; size: number; objectPath: string; sourceAttachmentId: string }> = [];
+      for (const attachment of message.attachments) {
+        try {
+          const stored = await objectStorage.storeBytes("itb-intakes", attachment.bytes, attachment.contentType);
+          storedAttachments.push({
+            originalName: attachment.originalName,
+            contentType: attachment.contentType,
+            size: attachment.size,
+            objectPath: stored.objectPath,
+            sourceAttachmentId: attachment.sourceAttachmentId,
+          });
+        } catch (error) {
+          req.log.warn({ err: error, attachmentName: attachment.originalName }, "ITB mailbox attachment could not be stored");
+        }
       }
-    }
-    const existing = await findMailboxImport(req, message.sourceProvider, message.sourceMessageId);
-    if (existing.length) {
+      const [created] = await tx.insert(itbIntakesTable).values({
+        tenantId: req.tenantId!,
+        environmentId: req.environmentId!,
+        sourceType: message.sourceType,
+        sourceProvider: message.sourceProvider,
+        sourceMessageId: message.sourceMessageId,
+        sourceThreadId: message.sourceThreadId,
+        sourceFingerprint: fingerprint([message.sourceProvider, message.sourceMessageId]),
+        sourceSender: message.sourceSender,
+        sourceSenderEmail: message.sourceSenderEmail,
+        sourceSubject: message.sourceSubject,
+        sourceReceivedAt: new Date(message.sourceReceivedAt),
+        sourceBody: message.sourceBody,
+        extractionJson: JSON.stringify(extraction),
+        extractionWarningsJson: JSON.stringify(warnings),
+        createdByUserId: req.localUserId!,
+      }).returning();
+      if (storedAttachments.length) {
+        await tx.insert(itbIntakeAttachmentsTable).values(storedAttachments.map((attachment) => ({ ...attachment, intakeId: created.id })));
+      }
+      await tx.insert(platformAuditEventsTable).values({
+        actorUserId: req.localUserId!,
+        tenantId: req.tenantId!,
+        action: "itb_mailbox_message_imported",
+        details: JSON.stringify({ intakeId: created.id, messageId: message.sourceMessageId, provider: message.sourceProvider, environmentId: req.environmentId }),
+      });
+      return { created, attachments: await tx.select().from(itbIntakeAttachmentsTable).where(eq(itbIntakeAttachmentsTable.intakeId, created.id)) };
+    });
+    if ("existingId" in result) {
       await markIntegrationJobSucceeded(mailboxJob.scope, mailboxJob.job);
-      res.status(409).json({ error: "This mailbox message was already imported", intakeId: existing[0].id });
+      res.status(409).json({ error: "This mailbox message was already imported", intakeId: result.existingId });
       return;
     }
-    const { extraction, warnings } = extractItbFromSource(message.sourceSubject, message.sourceBody);
-    const [created] = await db.insert(itbIntakesTable).values({
-      tenantId: req.tenantId!,
-      environmentId: req.environmentId!,
-      sourceType: message.sourceType,
-      sourceProvider: message.sourceProvider,
-      sourceMessageId: message.sourceMessageId,
-      sourceThreadId: message.sourceThreadId,
-      sourceFingerprint: fingerprint([message.sourceProvider, message.sourceMessageId]),
-      sourceSender: message.sourceSender,
-      sourceSenderEmail: message.sourceSenderEmail,
-      sourceSubject: message.sourceSubject,
-      sourceReceivedAt: new Date(message.sourceReceivedAt),
-      sourceBody: message.sourceBody,
-      extractionJson: JSON.stringify(extraction),
-      extractionWarningsJson: JSON.stringify(warnings),
-      createdByUserId: req.localUserId!,
-    }).returning();
-    if (attachments.length) {
-      await db.insert(itbIntakeAttachmentsTable).values(attachments.map((attachment) => ({ ...attachment, intakeId: created.id })));
-    }
-    await db.insert(platformAuditEventsTable).values({
-      actorUserId: req.localUserId!,
-      tenantId: req.tenantId!,
-      action: "itb_mailbox_message_imported",
-      details: JSON.stringify({ intakeId: created.id, messageId: message.sourceMessageId, provider: message.sourceProvider, environmentId: req.environmentId }),
-    });
     await markIntegrationJobSucceeded(mailboxJob.scope, mailboxJob.job);
-    res.status(201).json(serialize(created, await getAttachments(created.id)));
+    res.status(201).json(serialize(result.created, result.attachments));
   } catch (error) {
     await markIntegrationJobFailed(mailboxJob.scope, mailboxJob.job, error);
     const status = (error as { status?: number }).status;

@@ -13,11 +13,14 @@ process.env.APP_ENV = "test";
 
 let connectorMode: "success" | "failure" = "success";
 let storedAttachmentCount = 0;
+let attachmentStoreDelayMs = 0;
 
 const originalStoreBytes = ObjectStorageService.prototype.storeBytes;
 ObjectStorageService.prototype.storeBytes = async function (prefix, bytes, contentType) {
+  if (attachmentStoreDelayMs) await new Promise((resolve) => setTimeout(resolve, attachmentStoreDelayMs));
+  const stored = await originalStoreBytes.call(this, prefix, bytes, contentType);
   storedAttachmentCount += 1;
-  return originalStoreBytes.call(this, prefix, bytes, contentType);
+  return stored;
 };
 
 const base64Url = (value: string) => Buffer.from(value, "utf8").toString("base64url");
@@ -49,7 +52,9 @@ ReplitConnectors.prototype.proxy = async function (provider, path) {
       }),
     };
   }
-  if (path.includes("/messages/message-1/attachments/attachment-1")) {
+  const isConcurrentMessage = path.includes("/threads/thread-concurrent") || path.includes("/messages/message-concurrent");
+  const messageId = isConcurrentMessage ? "message-concurrent" : "message-1";
+  if (path.includes(`/messages/${messageId}/attachments/attachment-1`)) {
     return {
       ok: true,
       status: 200,
@@ -77,7 +82,7 @@ ReplitConnectors.prototype.proxy = async function (provider, path) {
     status: 200,
     json: async () => ({
       messages: [{
-        id: "message-1",
+          id: messageId,
         snippet: "Project: North Campus\nBid due: September 30, 2026",
         date: "2026-09-14T10:00:00Z",
         payload: {
@@ -109,6 +114,7 @@ const {
   tenantEnvironmentAccessTable,
   tenantsTable,
   itbIntakesTable,
+  itbIntakeAttachmentsTable,
   userTenantContextTable,
   usersTable,
 } = await import("@workspace/db");
@@ -420,6 +426,42 @@ test("keeps mailbox duplicate detection scoped by provider, environment, and ten
     body: JSON.stringify({ provider: "google-mail", threadId: "thread-1", messageId: "message-1" }),
   }, otherClerkUserId);
   assert.equal(otherTenantImport.status, 201, JSON.stringify(otherTenantImport.body));
+});
+
+test("serializes concurrent mailbox imports before storing attachments", async () => {
+  connectorMode = "success";
+  const attachmentCountBefore = storedAttachmentCount;
+  attachmentStoreDelayMs = 50;
+  try {
+    const requests = await Promise.all([
+      request("/itb-intakes/mailbox/import", {
+        method: "POST",
+        body: JSON.stringify({ provider: "google-mail", threadId: "thread-concurrent", messageId: "message-concurrent" }),
+      }),
+      request("/itb-intakes/mailbox/import", {
+        method: "POST",
+        body: JSON.stringify({ provider: "google-mail", threadId: "thread-concurrent", messageId: "message-concurrent" }),
+      }),
+    ]);
+    const statuses = requests.map(({ status }) => status).sort((left, right) => left - right);
+    assert.deepEqual(statuses, [201, 409], JSON.stringify(requests));
+    const createdBody = requests.find(({ status }) => status === 201)!.body as { id: number };
+    const conflictBody = requests.find(({ status }) => status === 409)!.body as { intakeId: number };
+    assert.equal(conflictBody.intakeId, createdBody.id);
+    assert.equal(storedAttachmentCount, attachmentCountBefore + 1);
+
+    const intakes = await db.select().from(itbIntakesTable).where(and(
+      eq(itbIntakesTable.tenantId, tenantId),
+      eq(itbIntakesTable.environmentId, environmentId),
+      eq(itbIntakesTable.sourceProvider, "google-mail"),
+      eq(itbIntakesTable.sourceMessageId, "message-concurrent"),
+    ));
+    assert.equal(intakes.length, 1);
+    const attachments = await db.select().from(itbIntakeAttachmentsTable).where(eq(itbIntakeAttachmentsTable.intakeId, intakes[0].id));
+    assert.equal(attachments.length, 1);
+  } finally {
+    attachmentStoreDelayMs = 0;
+  }
 });
 
 test("records mailbox failures for retry and keeps connector errors bounded", async () => {
