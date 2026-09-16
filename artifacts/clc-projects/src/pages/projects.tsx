@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, Filter, BriefcaseBusiness, Pencil, Trash2 } from 'lucide-react';
@@ -117,7 +117,11 @@ function ProjectTable({
 export function Projects() {
   const [location, setLocation] = useLocation();
   const [showForm, setShowForm] = useState(false);
+  const [manualFormOpen, setManualFormOpen] = useState(false);
   const [editing, setEditing] = useState<Project>();
+  const [browserNavigationVersion, setBrowserNavigationVersion] = useState(0);
+  const browserNavigationRef = useRef(false);
+  const dismissedUrlFormIntentRef = useRef<string | null>(null);
 
   // Persist search and stage in URL query state
   const queryString = location.includes('?')
@@ -137,16 +141,36 @@ export function Projects() {
   const [stage, setStage] = useState(urlStage);
   const [ownerUserId, setOwnerUserId] = useState(urlOwnerUserId);
 
+  useEffect(() => {
+    const handlePopState = () => {
+      browserNavigationRef.current = true;
+      dismissedUrlFormIntentRef.current = null;
+      setBrowserNavigationVersion((current) => current + 1);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    setSearch(urlSearch);
+    setStage(urlStage);
+    setOwnerUserId(urlOwnerUserId);
+  }, [browserNavigationVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Sync to URL
   useEffect(() => {
+    if (browserNavigationRef.current) {
+      browserNavigationRef.current = false;
+      return;
+    }
     const base = location.split('?')[0];
-    const next = new URLSearchParams();
+    const next = new URLSearchParams(queryString);
     if (search) next.set('search', search);
+    else next.delete('search');
     if (stage) next.set('stage', stage);
+    else next.delete('stage');
     if (ownerUserId) next.set('ownerUserId', ownerUserId);
-    if (urlParams.get('customerId')) next.set('customerId', urlParams.get('customerId')!);
-     if (urlParams.get('create') === '1') next.set('create', '1');
-      if (returnPath) next.set('return', returnPath);
+    else next.delete('ownerUserId');
     const qs = next.toString();
     const newPath = qs ? `${base}?${qs}` : base;
     // Only update if the query part actually changed to avoid loops
@@ -181,10 +205,22 @@ export function Projects() {
   const initialCustomer = customerQuery.data?.find((customer) => customer.id === urlCustomerId);
 
   useEffect(() => {
-    if (canManage && (urlCreate || (Number.isFinite(urlCustomerId) && urlCustomerId > 0 && initialCustomer))) {
+    const customerFormIntent = Number.isFinite(urlCustomerId) && urlCustomerId > 0 && Boolean(initialCustomer);
+    const urlFormIntent = urlCreate || customerFormIntent;
+    const formIntentKey = urlCreate
+      ? `create:${urlCustomerId > 0 ? urlCustomerId : ''}`
+      : customerFormIntent
+        ? `customer:${urlCustomerId}`
+        : '';
+    if (canManage && urlFormIntent && dismissedUrlFormIntentRef.current !== formIntentKey) {
       setShowForm(true);
+      return;
     }
-  }, [canManage, initialCustomer, urlCreate, urlCustomerId]);
+    if (!manualFormOpen) {
+      setShowForm(false);
+      setEditing(undefined);
+    }
+  }, [canManage, initialCustomer, manualFormOpen, urlCreate, urlCustomerId]);
 
   const clear = () => {
     setSearch('');
@@ -193,7 +229,9 @@ export function Projects() {
   };
   const closeForm = () => {
     setShowForm(false);
+    setManualFormOpen(false);
     setEditing(undefined);
+    dismissedUrlFormIntentRef.current = urlCustomerId > 0 ? `customer:${urlCustomerId}` : '';
     if (returnPath) {
       setLocation(returnPath, { replace: true });
       return;
@@ -214,6 +252,7 @@ export function Projects() {
   };
   const handleCreated = () => {
     setShowForm(false);
+    setManualFormOpen(false);
     setEditing(undefined);
     if (returnPath) {
       setLocation(returnPath, { replace: true });
@@ -251,6 +290,7 @@ export function Projects() {
             data-testid="button-new-project"
             onClick={() => {
               setEditing(undefined);
+              setManualFormOpen(true);
               setShowForm(true);
             }}
           >
@@ -322,7 +362,10 @@ export function Projects() {
               : 'Start your project book with the first live opportunity.'
           }
             action={canManage ? (
-            <Button data-testid="button-empty-new-project" onClick={() => setShowForm(true)}>
+            <Button data-testid="button-empty-new-project" onClick={() => {
+              setManualFormOpen(true);
+              setShowForm(true);
+            }}>
               <Plus size={15} /> Add project
             </Button>
             ) : undefined}
@@ -331,7 +374,7 @@ export function Projects() {
         <ProjectTable
           projects={getAllProjectsTableRows(projects)}
           workflow={workflow}
-          onEdit={(project) => { setEditing(project); setShowForm(true); }}
+           onEdit={(project) => { setEditing(project); setManualFormOpen(true); setShowForm(true); }}
           onDelete={handleDelete}
           canManage={canManage}
         />

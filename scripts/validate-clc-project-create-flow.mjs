@@ -120,7 +120,7 @@ async function checkPermittedRole(role) {
       client,
       `${role} empty-state action`,
       `(() => ({
-        ready: document.body?.innerText?.includes("No active projects") === true
+        ready: document.body?.innerText?.includes("No in flight projects") === true
           && document.querySelector('a[href^="/projects?create=1"]') !== null,
       }))()`,
     );
@@ -133,6 +133,17 @@ async function checkPermittedRole(role) {
     })()`);
     if (!clicked) throw new Error(`${role} could not activate the empty-state create action`);
 
+    const createIntent = await evaluate(client, `(() => {
+      const url = new URL(window.location.href);
+      return {
+        create: url.searchParams.get("create"),
+        returnPath: url.searchParams.get("return"),
+      };
+    })()`);
+    if (createIntent.create !== "1" || !createIntent.returnPath?.includes("sort=value_desc")) {
+      throw new Error(`${role} lost create intent or return filters: ${JSON.stringify(createIntent)}`);
+    }
+
     await waitFor(
       client,
       `${role} project form modal`,
@@ -141,6 +152,35 @@ async function checkPermittedRole(role) {
         url: window.location.href,
         body: document.body?.innerText?.slice(-1000) ?? "",
         newProjectButton: document.querySelector('[data-testid="button-new-project"]') !== null,
+      }))()`,
+    );
+
+    const wentBack = await evaluate(client, `(() => {
+      window.history.back();
+      return true;
+    })()`);
+    if (!wentBack) throw new Error(`${role} could not navigate back from the project form`);
+    await waitFor(
+      client,
+      `${role} Active Projects after back`,
+      `(() => ({
+        ready: window.location.pathname === "/dashboard/drilldown/active-projects"
+          && document.querySelector('[role="dialog"]') === null,
+      }))()`,
+    );
+
+    const wentForward = await evaluate(client, `(() => {
+      window.history.forward();
+      return true;
+    })()`);
+    if (!wentForward) throw new Error(`${role} could not navigate forward to the project form`);
+    await waitFor(
+      client,
+      `${role} project form after forward`,
+      `(() => ({
+        ready: window.location.pathname === "/projects"
+          && new URL(window.location.href).searchParams.get("create") === "1"
+          && document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
       }))()`,
     );
 
@@ -308,12 +348,88 @@ async function checkDirectProjectBookCreation() {
       "direct project-book return",
       `(() => ({
         ready: window.location.pathname === "/projects"
-          && window.location.search === ""
+          && window.location.search === "?browserAuth=authenticated&browserRole=owner"
           && document.querySelector('[role="dialog"]') === null,
         url: window.location.href,
       }))()`,
     );
     console.log("✔ direct project-book creation stays on the project book");
+  } finally {
+    await closeTarget(target, client);
+  }
+}
+
+async function checkPermittedQueryCleanup() {
+  const { target, client } = await openTarget(
+    "/projects?browserAuth=authenticated&browserRole=owner&search=alpha&stage=opportunity&ownerUserId=unassigned&customerId=42&create=1",
+  );
+  try {
+    await waitFor(
+      client,
+      "owner direct create intent modal",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
+      }))()`,
+    );
+    const initialQuery = await evaluate(client, `(() => {
+      const params = new URL(window.location.href).searchParams;
+      return {
+        search: params.get("search"),
+        stage: params.get("stage"),
+        ownerUserId: params.get("ownerUserId"),
+        customerId: params.get("customerId"),
+        create: params.get("create"),
+      };
+    })()`);
+    if (JSON.stringify(initialQuery) !== JSON.stringify({
+      search: "alpha",
+      stage: "opportunity",
+      ownerUserId: "unassigned",
+      customerId: "42",
+      create: "1",
+    })) {
+      throw new Error(`owner direct create intent changed query state: ${JSON.stringify(initialQuery)}`);
+    }
+
+    const closed = await evaluate(client, `(() => {
+      const button = document.querySelector('[role="dialog"] button[aria-label="Close modal"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!closed) throw new Error("owner could not close the direct create form");
+    await waitFor(
+      client,
+      "owner direct create cleanup",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"]') === null
+          && new URL(window.location.href).searchParams.get("create") === null,
+      }))()`,
+    );
+    const cleanedQuery = await evaluate(client, `(() => {
+      const params = new URL(window.location.href).searchParams;
+      return {
+        browserAuth: params.get("browserAuth"),
+        browserRole: params.get("browserRole"),
+        search: params.get("search"),
+        stage: params.get("stage"),
+        ownerUserId: params.get("ownerUserId"),
+        customerId: params.get("customerId"),
+        create: params.get("create"),
+      };
+    })()`);
+    if (JSON.stringify(cleanedQuery) !== JSON.stringify({
+      browserAuth: "authenticated",
+      browserRole: "owner",
+      search: "alpha",
+      stage: "opportunity",
+      ownerUserId: "unassigned",
+      customerId: "42",
+      create: null,
+    })) {
+      throw new Error(`owner close changed unrelated query state: ${JSON.stringify(cleanedQuery)}`);
+    }
+    console.log("✔ permitted close removes only the create flag");
   } finally {
     await closeTarget(target, client);
   }
@@ -328,13 +444,49 @@ async function checkRestrictedRole() {
       client,
       "viewer empty-state guidance",
       `(() => ({
-        ready: document.body?.innerText?.includes("No active projects") === true
+        ready: document.body?.innerText?.includes("No in flight projects") === true
           && document.querySelector('a[href^="/projects?create=1"]') === null,
       }))()`,
     );
     console.log("✔ viewer does not receive the project create action");
   } finally {
     await closeTarget(target, client);
+  }
+
+  const directCreate = await openTarget(
+    "/projects?browserAuth=authenticated&browserRole=viewer&search=alpha&stage=opportunity&ownerUserId=unassigned&customerId=42&create=1",
+  );
+  try {
+    await waitFor(
+      directCreate.client,
+      "viewer direct create intent",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"]') === null
+          && new URL(window.location.href).searchParams.get("create") === "1",
+      }))()`,
+    );
+    const queryState = await evaluate(directCreate.client, `(() => {
+      const params = new URL(window.location.href).searchParams;
+      return {
+        search: params.get("search"),
+        stage: params.get("stage"),
+        ownerUserId: params.get("ownerUserId"),
+        customerId: params.get("customerId"),
+        create: params.get("create"),
+      };
+    })()`);
+    if (JSON.stringify(queryState) !== JSON.stringify({
+      search: "alpha",
+      stage: "opportunity",
+      ownerUserId: "unassigned",
+      customerId: "42",
+      create: "1",
+    })) {
+      throw new Error(`viewer direct create intent changed query state: ${JSON.stringify(queryState)}`);
+    }
+    console.log("✔ viewer keeps the create intent URL without opening a restricted form");
+  } finally {
+    await closeTarget(directCreate.target, directCreate.client);
   }
 }
 
@@ -371,6 +523,7 @@ try {
   for (const role of ["owner", "admin", "member"]) await checkPermittedRole(role);
   await checkRestrictedRole();
   await checkDirectProjectBookCreation();
+  await checkPermittedQueryCleanup();
   console.log("Validated empty-state project creation for all project roles.");
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
