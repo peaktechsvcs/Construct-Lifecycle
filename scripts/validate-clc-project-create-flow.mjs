@@ -503,6 +503,97 @@ async function checkPermittedQueryCleanup() {
   }
 }
 
+async function checkCustomerDetailProjectShortcut(role, expectedShortcut) {
+  const { target, client } = await openTarget(
+    `/customers/42?browserAuth=authenticated&browserRole=${role}`,
+  );
+  try {
+    await waitFor(
+      client,
+      `${role} customer detail project shortcut`,
+      `(() => ({
+        ready: document.body?.innerText?.includes("Browser Test Customer") === true
+          && Boolean(document.querySelector('a[href="/projects?customerId=42"]')) === ${expectedShortcut},
+      }))()`,
+    );
+    if (!expectedShortcut) {
+      console.log("✔ viewer does not receive the customer-detail project create action");
+      return;
+    }
+
+    const clicked = await evaluate(client, `(() => {
+      const action = document.querySelector('a[href="/projects?customerId=42"]');
+      if (!(action instanceof HTMLElement)) return false;
+      action.click();
+      return true;
+    })()`);
+    if (!clicked) throw new Error(`${role} could not activate the customer-detail project shortcut`);
+
+    await waitFor(
+      client,
+      `${role} customer-preselected project form`,
+      `(() => ({
+        ready: window.location.pathname === "/projects"
+          && new URL(window.location.href).searchParams.get("customerId") === "42"
+          && document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project"
+          && document.querySelector('[data-testid="input-project-customer"]')?.value === "Browser Test Customer",
+      }))()`,
+    );
+
+    const cleared = await evaluate(client, `(() => {
+      const button = document.querySelector('[role="dialog"] button[aria-label="Clear selected customer"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!cleared) throw new Error(`${role} could not clear the preselected customer`);
+    await waitFor(
+      client,
+      `${role} cleared customer selection`,
+      `(() => ({
+        ready: document.querySelector('[data-testid="input-project-customer"]')?.value === ""
+          && document.querySelector('[role="dialog"] button[aria-label="Clear selected customer"]') === null,
+      }))()`,
+    );
+
+    const focused = await evaluate(client, `(() => {
+      const input = document.querySelector('[data-testid="input-project-customer"]');
+      if (!(input instanceof HTMLInputElement)) return false;
+      input.focus();
+      return true;
+    })()`);
+    if (!focused) throw new Error(`${role} could not focus the customer selector after clearing`);
+    await client.command("Input.insertText", { text: "Browser Alternate Customer" });
+    await waitFor(
+      client,
+      `${role} alternate customer option`,
+      `(() => ({
+        ready: [...document.querySelectorAll('[role="option"]')]
+          .some((option) => option.textContent?.includes("Browser Alternate Customer")),
+      }))()`,
+    );
+    const changed = await evaluate(client, `(() => {
+      const option = [...document.querySelectorAll('[role="option"]')]
+        .find((candidate) => candidate.textContent?.includes("Browser Alternate Customer"));
+      if (!(option instanceof HTMLElement)) return false;
+      option.click();
+      return true;
+    })()`);
+    if (!changed) throw new Error(`${role} could not change the selected customer`);
+    await waitFor(
+      client,
+      `${role} changed customer selection`,
+      `(() => ({
+        ready: document.querySelector('[data-testid="input-project-customer"]')?.value === "Browser Alternate Customer"
+          && document.querySelector('[role="dialog"] button[aria-label="Clear selected customer"]') !== null,
+      }))()`,
+    );
+    console.log(`✔ ${role} customer detail preselects and allows changing the project customer`);
+  } finally {
+    await closeTarget(target, client);
+  }
+}
+
 async function checkRestrictedRole() {
   const { target, client } = await openTarget(
     "/dashboard/drilldown/active-projects?browserAuth=authenticated&browserRole=viewer",
@@ -589,6 +680,8 @@ browser.stderr.on("data", (chunk) => { output += chunk; });
 try {
   await Promise.all([waitForServer(server), waitForDevTools()]);
   for (const role of ["owner", "admin", "member"]) await checkPermittedRole(role);
+  await checkCustomerDetailProjectShortcut("member", true);
+  await checkCustomerDetailProjectShortcut("viewer", false);
   await checkRestrictedRole();
   await checkDirectProjectBookCreation();
   await checkPermittedQueryCleanup();
