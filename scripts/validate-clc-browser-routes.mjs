@@ -4,8 +4,101 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const port = Number(process.env.CLC_BROWSER_TEST_PORT ?? 22781);
+const debuggingPort = Number(process.env.CLC_BROWSER_TEST_DEBUG_PORT ?? 22782);
 const baseUrl = `http://127.0.0.1:${port}`;
 const chromium = process.env.CHROMIUM_PATH ?? "/repl/tools/bin/chromium";
+
+class CdpClient {
+  constructor(socket) {
+    this.socket = socket;
+    this.nextId = 1;
+    this.pending = new Map();
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(String(event.data));
+      const pending = this.pending.get(message.id);
+      if (!pending) return;
+      this.pending.delete(message.id);
+      if (message.error) pending.reject(new Error(message.error.message));
+      else pending.resolve(message.result);
+    });
+  }
+
+  static async connect(url) {
+    const socket = new WebSocket(url);
+    await new Promise((resolve, reject) => {
+      socket.addEventListener("open", resolve, { once: true });
+      socket.addEventListener("error", () => reject(new Error("Could not connect to Chromium DevTools")), { once: true });
+    });
+    return new CdpClient(socket);
+  }
+
+  command(method, params = {}) {
+    const id = this.nextId++;
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.socket.send(JSON.stringify({ id, method, params }));
+    });
+  }
+
+  close() {
+    this.socket.close();
+  }
+}
+
+async function evaluate(client, expression) {
+  const result = await client.command("Runtime.evaluate", {
+    expression,
+    returnByValue: true,
+    awaitPromise: true,
+  });
+  if (result.exceptionDetails) {
+    throw new Error(result.exceptionDetails.exception?.description ?? "Browser evaluation failed");
+  }
+  return result.result.value;
+}
+
+async function waitForDevTools() {
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${debuggingPort}/json/version`);
+      if (response.ok) return;
+    } catch {
+      // Chromium is still starting.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error("Timed out waiting for Chromium DevTools");
+}
+
+async function waitFor(client, description, predicate) {
+  const deadline = Date.now() + 12_000;
+  let state;
+  while (Date.now() < deadline) {
+    state = await evaluate(client, predicate);
+    if (state?.ready) return state;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`${description} did not become ready: ${JSON.stringify(state)}`);
+}
+
+async function openTarget(path) {
+  const response = await fetch(
+    `http://127.0.0.1:${debuggingPort}/json/new?${encodeURIComponent(`${baseUrl}${path}`)}`,
+    { method: "PUT" },
+  );
+  if (!response.ok) throw new Error(`Could not create Chromium target: ${response.status}`);
+  const target = await response.json();
+  const client = await CdpClient.connect(target.webSocketDebuggerUrl);
+  await Promise.all([client.command("Page.enable"), client.command("Runtime.enable")]);
+  await client.command("Page.navigate", { url: `${baseUrl}${path}` });
+  return { target, client };
+}
+
+async function closeTarget(target, client) {
+  client.close();
+  await fetch(`http://127.0.0.1:${debuggingPort}/json/close/${target.id}`);
+}
 
 const cases = [
   {
@@ -381,6 +474,119 @@ async function visit(routeCase) {
   if (failures.length) throw new Error(`${routeCase.name}: ${failures.join("; ")}`);
 }
 
+async function checkFailedOwnerInvitationRecovery() {
+  const { target, client } = await openTarget(
+    "/administration/platform/customers?browserAuth=platform&browserCustomerOnboarding=failed",
+  );
+  try {
+    await waitFor(
+      client,
+      "failed owner invitation customer form",
+      `(() => ({
+        ready: document.querySelector("h1")?.textContent?.trim() === "Customers"
+          && [...document.querySelectorAll("form")].some((form) => form.querySelector('input[type="email"]')),
+      }))()`,
+    );
+
+    const filled = await evaluate(client, `(() => {
+      const form = [...document.querySelectorAll("form")]
+        .find((candidate) => candidate.querySelector('input[type="email"]'));
+      if (!(form instanceof HTMLFormElement)) return false;
+      const setValue = (input, value) => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+        if (!setter) return false;
+        setter.call(input, value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      };
+      const textInputs = [...form.querySelectorAll('input:not([type]), input[type="text"]')];
+      const emailInput = form.querySelector('input[type="email"]');
+      return textInputs.length >= 2
+        && emailInput instanceof HTMLInputElement
+        && setValue(textInputs[0], "Failed Invitation Browser Customer")
+        && setValue(textInputs[1], "failed-invitation-browser-customer")
+        && setValue(emailInput, "owner-retry@example.test");
+    })()`);
+    if (!filled) throw new Error("failed owner invitation fixture could not fill the customer form");
+
+    await waitFor(
+      client,
+      "failed owner invitation customer form values",
+      `(() => {
+        const form = [...document.querySelectorAll("form")]
+          .find((candidate) => candidate.querySelector('input[type="email"]'));
+        const inputs = form ? [...form.querySelectorAll('input:not([type]), input[type="text"]')] : [];
+        return {
+          ready: inputs[0]?.value === "Failed Invitation Browser Customer"
+            && inputs[1]?.value === "failed-invitation-browser-customer"
+            && form?.querySelector('input[type="email"]')?.value === "owner-retry@example.test",
+        };
+      })()`,
+    );
+
+    const submitted = await evaluate(client, `(() => {
+      const form = [...document.querySelectorAll("form")]
+        .find((candidate) => candidate.querySelector('input[type="email"]'));
+      const button = form?.querySelector('button[type="submit"]');
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!submitted) throw new Error("failed owner invitation fixture could not submit the customer form");
+
+    await waitFor(
+      client,
+      "failed owner invitation recovery warning",
+      `(() => ({
+        ready: document.body?.innerText?.includes("Owner invitation needs a retry") === true,
+        tokenLink: document.body?.innerText?.includes("One-time owner invitation link") === true,
+        accessAction: [...document.querySelectorAll("button")]
+          .some((button) => button.textContent?.includes("Open customer access")),
+      }))()`,
+    );
+    const warning = await evaluate(client, `(() => ({
+      tokenLink: document.body?.innerText?.includes("One-time owner invitation link") === true,
+      accessAction: [...document.querySelectorAll("button")]
+        .some((button) => button.textContent?.includes("Open customer access")),
+    }))()`);
+    if (warning.tokenLink) throw new Error("failed owner invitation warning exposed a one-time token link");
+    if (!warning.accessAction) throw new Error("failed owner invitation warning did not expose customer access");
+
+    const opened = await evaluate(client, `(() => {
+      const button = [...document.querySelectorAll("button")]
+        .find((candidate) => candidate.textContent?.includes("Open customer access"));
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!opened) throw new Error("failed owner invitation recovery action could not open customer access");
+
+    await waitFor(
+      client,
+      "owner invitation retry access form",
+      `(() => {
+        const form = [...document.querySelectorAll("form")]
+          .find((candidate) => candidate.querySelector("h3")?.textContent?.trim() === "Retry owner invitation");
+        const email = form?.querySelector('input[type="email"]');
+        const role = form?.querySelector("select");
+        const submit = form?.querySelector('button[type="submit"]');
+        return {
+          ready: document.querySelector("#customer-access-heading") !== null
+            && form !== undefined
+            && email?.value === "owner-retry@example.test"
+            && email?.readOnly === true
+            && role?.value === "owner"
+            && submit?.textContent?.includes("Retry owner invitation") === true,
+        };
+      })()`,
+    );
+    console.log("✔ failed owner invitation recovery opens the locked owner retry form");
+  } finally {
+    await closeTarget(target, client);
+  }
+}
+
 const server = spawn("pnpm", ["--filter", "@workspace/clc-projects", "run", "dev"], {
   env: {
     ...process.env,
@@ -392,21 +598,44 @@ const server = spawn("pnpm", ["--filter", "@workspace/clc-projects", "run", "dev
   stdio: ["ignore", "pipe", "pipe"],
   detached: true,
 });
+const browser = spawn(chromium, [
+  "--headless=new",
+  "--no-sandbox",
+  "--disable-gpu",
+  "--disable-dev-shm-usage",
+  `--remote-debugging-port=${debuggingPort}`,
+  `--user-data-dir=/tmp/clc-browser-routes-chromium-${process.pid}`,
+  "about:blank",
+], {
+  stdio: ["ignore", "pipe", "pipe"],
+});
 
 let serverOutput = "";
 server.stdout.on("data", (chunk) => { serverOutput += chunk; });
 server.stderr.on("data", (chunk) => { serverOutput += chunk; });
+let browserOutput = "";
+browser.stdout.on("data", (chunk) => { browserOutput += chunk; });
+browser.stderr.on("data", (chunk) => { browserOutput += chunk; });
 
 try {
   await waitForServer(server);
-  for (const routeCase of cases) {
-    await visit(routeCase);
-    console.log(`✔ ${routeCase.name}`);
+  await waitForDevTools();
+  if (process.env.CLC_BROWSER_TEST_SKIP_ROUTE_MATRIX !== "1") {
+    for (const routeCase of cases) {
+      await visit(routeCase);
+      console.log(`✔ ${routeCase.name}`);
+    }
   }
-  console.log(`Validated ${cases.length} authenticated and protected browser routes.`);
+  await checkFailedOwnerInvitationRecovery();
+  console.log(
+    process.env.CLC_BROWSER_TEST_SKIP_ROUTE_MATRIX === "1"
+      ? "Validated failed owner invitation recovery."
+      : `Validated ${cases.length} authenticated and protected browser routes plus failed owner invitation recovery.`,
+  );
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   if (serverOutput) console.error(serverOutput);
+  if (browserOutput) console.error(browserOutput);
   process.exitCode = 1;
 } finally {
   if (server.exitCode === null && server.signalCode === null && server.pid) {
@@ -419,5 +648,13 @@ try {
       once(server, "exit"),
       new Promise((resolve) => setTimeout(resolve, 2_000)),
     ]);
+  }
+  if (browser.exitCode === null && browser.signalCode === null) {
+    browser.kill("SIGTERM");
+    await Promise.race([once(browser, "exit"), new Promise((resolve) => setTimeout(resolve, 2_000))]);
+    if (browser.exitCode === null && browser.signalCode === null) {
+      browser.kill("SIGKILL");
+      await once(browser, "exit");
+    }
   }
 }

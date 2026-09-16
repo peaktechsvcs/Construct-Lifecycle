@@ -23,6 +23,10 @@ function brandingMode(): BrowserBrandingMode {
     : 'default';
 }
 
+function failedOwnerInvitationMode(): boolean {
+  return new URLSearchParams(window.location.search).get('browserCustomerOnboarding') === 'failed';
+}
+
 function browserRole(): BrowserRole {
   const value = new URLSearchParams(window.location.search).get('browserRole');
   if (value === 'owner' || value === 'admin' || value === 'member' || value === 'viewer') {
@@ -71,6 +75,13 @@ const platformCustomer = {
   environments,
   createdAt: new Date(0).toISOString(),
   updatedAt: new Date(0).toISOString(),
+};
+
+const failedOnboardingCustomer = {
+  ...platformCustomer,
+  id: 2,
+  name: 'Failed Invitation Browser Customer',
+  slug: 'failed-invitation-browser-customer',
 };
 
 const platformResources = ['runtime', 'database', 'storage', 'queue', 'secrets', 'jobs', 'logs'].map(
@@ -463,7 +474,38 @@ export function installBrowserTestApi() {
     if (url.pathname === '/api/subcontract-agreement-audit-events') return json([]);
     if (url.pathname === '/api/tenant/members') return json([]);
     if (url.pathname === '/api/tenant/invitations') return json([]);
+    if (url.pathname === '/api/platform/customers' && String(init?.method ?? 'GET').toUpperCase() === 'POST') {
+      if (!failedOwnerInvitationMode()) return json({ error: 'Unsupported browser fixture mutation' }, 400);
+      let requestBody: { name?: unknown; slug?: unknown } = {};
+      try {
+        requestBody = JSON.parse(String(init?.body ?? '{}')) as typeof requestBody;
+      } catch {
+        // The production form already validates the request before submitting.
+      }
+      const customer = {
+        ...failedOnboardingCustomer,
+        name: typeof requestBody.name === 'string' ? requestBody.name.trim() : failedOnboardingCustomer.name,
+        slug: typeof requestBody.slug === 'string' ? requestBody.slug.trim().toLowerCase() : failedOnboardingCustomer.slug,
+      };
+      return json({
+        customer,
+        invitation: null,
+        invitationToken: null,
+        ownerEmail: 'owner-retry@example.test',
+        invitationStatus: 'failed',
+        invitationError: 'Workspace created, but the owner invitation could not be created. Retry it from customer access.',
+        invitationDelivery: null,
+      }, 201);
+    }
     if (url.pathname === '/api/platform/customers') return json([platformCustomer]);
+    if (url.pathname === `/api/platform/customers/${failedOnboardingCustomer.id}`) {
+      return json({
+        customer: failedOnboardingCustomer,
+        members: [],
+        invitations: [],
+      });
+    }
+    if (url.pathname === `/api/platform/customers/${failedOnboardingCustomer.id}/audit-events`) return json([]);
     if (url.pathname === '/api/platform/billing/plans') return json([]);
     if (url.pathname === '/api/platform/releases') return json([]);
     if (url.pathname === '/api/platform/environments/1/resources') {
