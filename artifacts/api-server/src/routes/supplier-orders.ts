@@ -1202,7 +1202,7 @@ router.post("/supplier-deliveries/:deliveryId/proof-upload", requireRole("owner"
   if (!delivery) { notFound(res, "Supplier delivery not found"); return; }
   if (delivery.proofObjectPath) {
     try {
-      await objectStorage.getObjectFile(delivery.proofObjectPath);
+      await objectStorage.assertExists(delivery.proofObjectPath);
       res.status(409).json({ error: "This delivery already has proof of delivery attached" });
       return;
     } catch (error) {
@@ -1250,8 +1250,7 @@ router.post("/supplier-deliveries/:deliveryId/proof-upload/complete", requireRol
     return;
   }
   try {
-    const file = await objectStorage.getObjectFile(delivery.proofObjectPath);
-    const [metadata] = await file.getMetadata();
+    const metadata = await objectStorage.getMetadata(delivery.proofObjectPath);
     const storedSize = Number(metadata.size ?? 0);
     const storedContentType = typeof metadata.contentType === "string" ? metadata.contentType : null;
     if (storedSize <= 0 || storedSize > delivery.proofFileSize || storedSize > maxDeliveryProofSize) {
@@ -1278,7 +1277,7 @@ router.post("/supplier-deliveries/:deliveryId/proof-upload/complete", requireRol
       res.status(415).json({ error: "Uploaded proof content type does not match its declared type" });
       return;
     }
-    const screening = await screenStoredDocument(file, delivery.proofContentType, storedSize);
+    const screening = await screenStoredDocument(objectStorage.getStoredObject(delivery.proofObjectPath), delivery.proofContentType, storedSize);
     if (screening.status === "rejected") {
       await objectStorage.deleteObject(delivery.proofObjectPath).catch(() => undefined);
       await db.update(supplierDeliveriesTable).set({
@@ -1319,17 +1318,18 @@ router.get("/supplier-deliveries/:deliveryId/proof", requireRole("owner", "admin
     return;
   }
   try {
-    const file = await objectStorage.getObjectFile(delivery.proofObjectPath);
-    const [metadata] = await file.getMetadata();
+    const metadata = await objectStorage.getMetadata(delivery.proofObjectPath);
     res.setHeader("Content-Type", metadata.contentType || delivery.proofContentType);
     res.setHeader("Content-Length", String(metadata.size ?? delivery.proofFileSize ?? 0));
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Content-Disposition", `attachment; filename="${sanitizeFileName(delivery.proofFileName)}"`);
-    file.createReadStream().on("error", (error) => {
+    const stream = await objectStorage.openReadStream(delivery.proofObjectPath);
+    stream.on("error", (error) => {
       req.log.error({ err: error, deliveryId: delivery.id }, "Failed to stream proof of delivery");
       if (!res.headersSent) res.status(500).json({ error: "Failed to read proof of delivery" });
-    }).pipe(res);
+    });
+    stream.pipe(res);
   } catch (error) {
     if (error instanceof ObjectNotFoundError) {
       res.status(404).json({ error: "Stored proof of delivery not found" });

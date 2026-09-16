@@ -934,8 +934,7 @@ const processDocument = async (req: TenantRequest, intakeId: number, attachmentI
   if (existing && !["failed", "needs_review"].includes(existing.document.status)) {
     throw new Error("This attachment has already been processed");
   }
-  const file = await objectStorage.getObjectFile(attachmentRow.attachment.objectPath);
-  const [bytes] = await file.download();
+  const bytes = await objectStorage.downloadBytes(attachmentRow.attachment.objectPath);
   if (bytes.length > DOCUMENT_MAX_BYTES) {
     throw new Error("Document exceeds the protected parsing limit");
   }
@@ -1361,10 +1360,11 @@ router.get("/itb-intakes/:intakeId/attachments/:attachmentId", async (req: Tenan
     return;
   }
   try {
-    const file = await objectStorage.getObjectFile(row.attachment.objectPath);
+    const stream = await objectStorage.openReadStream(row.attachment.objectPath);
     res.setHeader("Content-Type", row.attachment.contentType);
     res.setHeader("Content-Disposition", `inline; filename="${row.attachment.originalName.replace(/["\r\n]/g, "")}"`);
-    file.createReadStream().on("error", (error) => req.log.error({ err: error, attachmentId }, "ITB attachment stream failed")).pipe(res);
+    stream.on("error", (error) => req.log.error({ err: error, attachmentId }, "ITB attachment stream failed"));
+    stream.pipe(res);
   } catch (error) {
     if (error instanceof ObjectNotFoundError) res.status(404).json({ error: "Attachment object not found" });
     else {

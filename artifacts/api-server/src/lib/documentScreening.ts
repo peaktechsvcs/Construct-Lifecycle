@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
-import type { File } from "@google-cloud/storage";
+import type { StoredObject } from "./objectStorage";
 
 export type MalwareScanStatus = "clean" | "infected" | "unavailable" | "timeout";
 
 export type DocumentMalwareScanner = {
-  scan: (file: File, timeoutMs: number) => Promise<MalwareScanStatus>;
+  scan: (document: StoredObject, timeoutMs: number) => Promise<MalwareScanStatus>;
 };
 
 export type DocumentScreeningResult =
@@ -20,18 +20,15 @@ const EICAR_TEST_SIGNATURE = Buffer.from(
   "utf8",
 );
 
-const readPrefix = async (file: File, maxBytes: number) => {
+const readPrefix = async (document: StoredObject, maxBytes: number) => {
+  const stream = await document.openStream({ start: 0, end: maxBytes - 1 });
   const chunks: Buffer[] = [];
-  let total = 0;
   return new Promise<Buffer>((resolve, reject) => {
-    const stream = file.createReadStream({ start: 0, end: maxBytes - 1 });
     const timeout = setTimeout(() => {
       stream.destroy(new Error("Document screening timed out"));
     }, 10_000);
     stream.on("data", (chunk: Buffer | string) => {
-      const value = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      total += value.length;
-      chunks.push(value);
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     });
     stream.on("end", () => {
       clearTimeout(timeout);
@@ -54,63 +51,65 @@ const scannerTimeoutMs = () => {
   return Number.isFinite(configured) ? Math.max(1_000, Math.min(configured, 60_000)) : 15_000;
 };
 
-const scanWithClamScan = (file: File, timeoutMs: number): Promise<MalwareScanStatus> => new Promise((resolve) => {
-  const executable = process.env.CLAMSCAN_PATH?.trim() || "clamscan";
-  const args = [
-    ...(process.env.CLAMAV_DATABASE_DIR ? ["--database", process.env.CLAMAV_DATABASE_DIR] : []),
-    "--no-summary",
-    "--infected",
-    "--stdout",
-    "-",
-  ];
-  const command = executable.endsWith(".mjs") ? process.execPath : executable;
-  const commandArgs = executable.endsWith(".mjs") ? [executable, ...args] : args;
-  const child = spawn(command, commandArgs, {
-    stdio: ["pipe", "ignore", "ignore"],
-  });
-  let settled = false;
-  let timedOut = false;
-  let inputEnded = false;
-  const input = file.createReadStream();
-  const finish = (status: MalwareScanStatus) => {
-    if (settled) return;
-    settled = true;
-    clearTimeout(timeout);
-    input.destroy();
-    if (!child.killed) child.kill("SIGKILL");
-    resolve(status);
-  };
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    input.destroy();
-    child.kill("SIGKILL");
-  }, timeoutMs);
+const scanWithClamScan = async (document: StoredObject, timeoutMs: number): Promise<MalwareScanStatus> => {
+  const input = await document.openStream();
+  return new Promise((resolve) => {
+    const executable = process.env.CLAMSCAN_PATH?.trim() || "clamscan";
+    const args = [
+      ...(process.env.CLAMAV_DATABASE_DIR ? ["--database", process.env.CLAMAV_DATABASE_DIR] : []),
+      "--no-summary",
+      "--infected",
+      "--stdout",
+      "-",
+    ];
+    const command = executable.endsWith(".mjs") ? process.execPath : executable;
+    const commandArgs = executable.endsWith(".mjs") ? [executable, ...args] : args;
+    const child = spawn(command, commandArgs, {
+      stdio: ["pipe", "ignore", "ignore"],
+    });
+    let settled = false;
+    let timedOut = false;
+    let inputEnded = false;
+    const finish = (status: MalwareScanStatus) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      input.destroy();
+      if (!child.killed) child.kill("SIGKILL");
+      resolve(status);
+    };
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      input.destroy();
+      child.kill("SIGKILL");
+    }, timeoutMs);
 
-  child.once("error", () => finish("unavailable"));
-  child.once("close", (code) => {
-    if (timedOut) {
-      finish("timeout");
-    } else if (code === 0) {
-      finish("clean");
-    } else if (code === 1) {
-      finish("infected");
-    } else {
-      finish("unavailable");
-    }
+    child.once("error", () => finish("unavailable"));
+    child.once("close", (code) => {
+      if (timedOut) {
+        finish("timeout");
+      } else if (code === 0) {
+        finish("clean");
+      } else if (code === 1) {
+        finish("infected");
+      } else {
+        finish("unavailable");
+      }
+    });
+    input.on("data", (chunk: Buffer | string) => {
+      if (settled || inputEnded) return;
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      if (!child.stdin.write(bytes)) input.pause();
+    });
+    child.stdin.on("drain", () => input.resume());
+    input.once("end", () => {
+      inputEnded = true;
+      child.stdin.end();
+    });
+    input.once("error", () => finish("unavailable"));
+    child.stdin.once("error", () => finish("unavailable"));
   });
-  input.on("data", (chunk: Buffer | string) => {
-    if (settled || inputEnded) return;
-    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    if (!child.stdin.write(bytes)) input.pause();
-  });
-  child.stdin.on("drain", () => input.resume());
-  input.once("end", () => {
-    inputEnded = true;
-    child.stdin.end();
-  });
-  input.once("error", () => finish("unavailable"));
-  child.stdin.once("error", () => finish("unavailable"));
-});
+};
 
 const defaultScanner: DocumentMalwareScanner = { scan: scanWithClamScan };
 let configuredScanner: DocumentMalwareScanner | undefined;
@@ -134,11 +133,11 @@ export function configureDocumentMalwareScanner(scanner: DocumentMalwareScanner 
  * scanner output is never returned to callers or persisted.
  */
 export async function screenStoredDocument(
-  file: File,
+  document: StoredObject,
   contentType: string,
   size: number,
 ): Promise<DocumentScreeningResult> {
-  const prefix = await readPrefix(file, 8192);
+  const prefix = await readPrefix(document, 8192);
   if (size <= 0 || prefix.length === 0) return { status: "rejected", reason: "empty" };
   if (hasEicarSignature(prefix)) return { status: "rejected", reason: "malware_signature", scanStatus: "infected" };
 
@@ -160,7 +159,7 @@ export async function screenStoredDocument(
 
   if (!matchesExpectedSignature) return { status: "rejected", reason: "content_mismatch" };
 
-  const scanStatus = await (configuredScanner ?? defaultScanner).scan(file, scannerTimeoutMs());
+  const scanStatus = await (configuredScanner ?? defaultScanner).scan(document, scannerTimeoutMs());
   if (scanStatus === "clean") return { status: "accepted", scanStatus };
   if (scanStatus === "infected") return { status: "rejected", reason: "malware_infected", scanStatus };
   if (scanStatus === "timeout") return { status: "rejected", reason: "malware_timeout", scanStatus };

@@ -1247,7 +1247,7 @@ router.post("/submittal-items/:itemId/documents/import", requireRole("owner", "a
     const imported = await documentProvider.importFile(parsed.data.providerKey, parsed.data.externalId);
     const stored = await objectStorage.storeBytes("submittals", imported.bytes, imported.contentType);
     objectPath = stored.objectPath;
-    const storedFile = await objectStorage.getObjectFile(stored.objectPath);
+    const storedFile = objectStorage.getStoredObject(stored.objectPath);
     const screening = await screenStoredDocument(storedFile, imported.contentType, imported.bytes.length);
     if (screening.status === "rejected") {
       await objectStorage.deleteObject(stored.objectPath).catch(() => undefined);
@@ -1359,8 +1359,7 @@ router.post("/submittal-documents/:documentId/complete", requireRole("owner", "a
     return;
   }
   try {
-    const file = await objectStorage.getObjectFile(document.objectPath);
-    const [metadata] = await file.getMetadata();
+    const metadata = await objectStorage.getMetadata(document.objectPath);
     const storedSize = Number(metadata.size ?? 0);
     const storedContentType = typeof metadata.contentType === "string" ? metadata.contentType : null;
     if (storedSize <= 0 || storedSize > document.size) {
@@ -1383,7 +1382,7 @@ router.post("/submittal-documents/:documentId/complete", requireRole("owner", "a
       res.status(415).json({ error: "Uploaded document content type does not match its declared type" });
       return;
     }
-    const screening = await screenStoredDocument(file, document.contentType, storedSize);
+    const screening = await screenStoredDocument(objectStorage.getStoredObject(document.objectPath), document.contentType, storedSize);
     if (screening.status === "rejected") {
       await objectStorage.deleteObject(document.objectPath).catch(() => undefined);
       await db.update(submittalDocumentsTable).set({
@@ -1406,7 +1405,7 @@ router.post("/submittal-documents/:documentId/complete", requireRole("owner", "a
       return;
     }
     const pageCount = document.contentType === "application/pdf"
-      ? (await PDFDocument.load((await file.download())[0])).getPageCount()
+     ? (await PDFDocument.load(await objectStorage.downloadBytes(document.objectPath))).getPageCount()
       : null;
     const [updated] = await db.update(submittalDocumentsTable).set({
       status: "uploaded",
@@ -1451,8 +1450,7 @@ router.get("/submittal-documents/:documentId", async (req: TenantRequest, res) =
     return;
   }
   try {
-    const file = await objectStorage.getObjectFile(document.objectPath);
-    const [metadata] = await file.getMetadata();
+    const metadata = await objectStorage.getMetadata(document.objectPath);
     const responseContentType = metadata.contentType || document.contentType;
     const canPreviewInline = responseContentType === "application/pdf" || responseContentType.startsWith("image/");
     res.setHeader("Content-Type", responseContentType);
@@ -1460,10 +1458,12 @@ router.get("/submittal-documents/:documentId", async (req: TenantRequest, res) =
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Content-Disposition", `${canPreviewInline ? "inline" : "attachment"}; filename="${document.originalName.replace(/["\r\n]/g, "")}"`);
-    file.createReadStream().on("error", (error) => {
+    const stream = await objectStorage.openReadStream(document.objectPath);
+    stream.on("error", (error) => {
       req.log.error({ err: error, documentId }, "Failed to stream submittal document");
       if (!res.headersSent) res.status(500).json({ error: "Failed to read document" });
-    }).pipe(res);
+    });
+    stream.pipe(res);
   } catch (error) {
     if (error instanceof ObjectNotFoundError) {
       res.status(404).json({ error: "Stored document not found" });
@@ -1584,7 +1584,7 @@ router.post("/submittals/:submittalId/assemblies", requireRole("owner", "admin",
       if (row.document.status !== "uploaded" || row.document.contentType !== "application/pdf") {
         throw new Error("Only uploaded PDF documents can be assembled");
       }
-      const [sourceBytes] = await (await objectStorage.getObjectFile(row.document.objectPath)).download();
+      const sourceBytes = await objectStorage.downloadBytes(row.document.objectPath);
       const source = await PDFDocument.load(sourceBytes);
       const pageCount = source.getPageCount();
       const pageOrder = entry.pageOrder ?? (row.document.pageOrder ? JSON.parse(row.document.pageOrder) as number[] : Array.from({ length: pageCount }, (_, index) => index + 1));
@@ -1651,13 +1651,13 @@ router.get("/submittal-assemblies/:assemblyId", async (req: TenantRequest, res) 
     return;
   }
   try {
-    const file = await objectStorage.getObjectFile(assembly.objectPath);
+    const stream = await objectStorage.openReadStream(assembly.objectPath);
     res.setHeader("Content-Type", assembly.contentType);
     res.setHeader("Content-Length", String(assembly.size));
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Content-Disposition", `attachment; filename="${assembly.originalFileName.replace(/["\r\n]/g, "")}"`);
-    file.createReadStream().pipe(res);
+      stream.pipe(res);
   } catch (error) {
     if (error instanceof ObjectNotFoundError) {
       res.status(404).json({ error: "Assembled package file not found" });
@@ -1929,8 +1929,7 @@ router.post("/submittal-signature-requests/:requestId/send", requireRole("owner"
 
   let sent: Awaited<ReturnType<typeof provider.send>>;
   try {
-    const file = await objectStorage.getObjectFile(assembly.objectPath);
-    const [documentBytes] = await file.download();
+    const documentBytes = await objectStorage.downloadBytes(assembly.objectPath);
     sent = await provider.send({
       tenantId: req.tenantId!,
       environmentId: req.environmentId!,
@@ -2209,12 +2208,12 @@ router.get("/submittal-signature-requests/:requestId/signed-document", async (re
       });
     }
     if (typeof objectPath !== "string") throw new Error("Signed document path is unavailable");
-    const file = await objectStorage.getObjectFile(objectPath);
+    const stream = await objectStorage.openReadStream(objectPath);
     res.setHeader("Content-Type", typeof contentType === "string" ? contentType : "application/pdf");
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Content-Disposition", `attachment; filename="${sanitizeFileName(typeof fileName === "string" ? fileName : "signed-document.pdf")}"`);
-    file.createReadStream().pipe(res);
+      stream.pipe(res);
   } catch (error) {
     if (error instanceof ObjectNotFoundError) {
       res.status(404).json({ error: "Signed document is no longer available" });

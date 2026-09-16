@@ -518,8 +518,8 @@ router.post("/trade-partners/:tradePartnerId/compliance-documents/:documentId/co
     return;
   }
   try {
-    const file = await objectStorage.getObjectFile(objectPath);
-    const [metadata] = await file.getMetadata();
+    const storedDocument = objectStorage.getStoredObject(objectPath);
+    const metadata = await objectStorage.getMetadata(objectPath);
     const storedSize = Number(metadata.size ?? 0);
     const storedContentType = typeof metadata.contentType === "string" ? metadata.contentType : null;
     if (storedSize <= 0 || storedSize > fileSize) {
@@ -540,7 +540,7 @@ router.post("/trade-partners/:tradePartnerId/compliance-documents/:documentId/co
       scope(req, tradePartnerComplianceDocumentsTable),
       eq(tradePartnerComplianceDocumentsTable.id, document.id),
     ));
-    const screening = await screenStoredDocument(file, contentType, storedSize);
+      const screening = await screenStoredDocument(storedDocument, contentType, storedSize);
     if (screening.status === "rejected") {
       const scannerStatus = screening.scanStatus;
       if (scannerStatus) {
@@ -624,17 +624,18 @@ router.get("/trade-partners/:tradePartnerId/compliance-documents/:documentId/fil
     return;
   }
   try {
-    const file = await objectStorage.getObjectFile(document.objectPath);
-    const [metadata] = await file.getMetadata();
+        const metadata = await objectStorage.getMetadata(document.objectPath);
     res.setHeader("Content-Type", metadata.contentType || document.contentType);
     res.setHeader("Content-Length", String(metadata.size ?? document.fileSize ?? 0));
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Content-Disposition", `attachment; filename="${document.originalName.replace(/["\r\n]/g, "_")}"`);
-    file.createReadStream().on("error", (error) => {
+        const stream = await objectStorage.openReadStream(document.objectPath);
+    stream.on("error", (error) => {
       req.log.error({ err: error, documentId: document.id }, "Failed to stream compliance document");
       if (!res.headersSent) res.status(500).json({ error: "Failed to read document" });
-    }).pipe(res);
+    });
+    stream.pipe(res);
   } catch (error) {
     if (error instanceof ObjectNotFoundError) {
       res.status(404).json({ error: "Stored compliance document not found" });
