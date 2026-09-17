@@ -14,6 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTenant } from '@/providers/tenant-provider';
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
 import { Checkbox } from '@workspace/construct-lifecycle-design-system/components/ui/checkbox';
+import { CUSTOMER_TYPE_OPTIONS } from '@/lib/customer-type-options';
 
 const inputClass = 'w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring';
 
@@ -21,7 +22,7 @@ export function Customers() {
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [includeArchived, setIncludeArchived] = useState(false);
-  const [form, setForm] = useState<BusinessCustomerInput>({ companyName: '' });
+  const [form, setForm] = useState<BusinessCustomerInput>({ companyName: '', customerType: 'business' });
   const qc = useQueryClient();
   const { activeRole } = useTenant();
   const canManage = activeRole === 'owner' || activeRole === 'admin';
@@ -35,7 +36,7 @@ export function Customers() {
     event.preventDefault();
     create.mutate({ data: form }, {
       onSuccess: () => {
-        setForm({ companyName: '' });
+        setForm({ companyName: '', customerType: 'business' });
         setShowCreate(false);
         refresh();
       },
@@ -97,7 +98,7 @@ export function Customers() {
           <form onSubmit={save} className="space-y-4">
             <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Company name</span><input autoFocus required minLength={1} value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} className={inputClass} /></label>
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Customer type</span><input value={form.customerType ?? ''} onChange={(e) => setForm({ ...form, customerType: e.target.value })} placeholder="Builder, designer, homeowner" className={inputClass} /></label>
+              <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Customer type</span><select aria-label="Customer type" value={form.customerType ?? 'business'} onChange={(e) => setForm({ ...form, customerType: e.target.value })} className={inputClass}>{CUSTOMER_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
               <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Primary contact</span><input value={form.primaryContact ?? ''} onChange={(e) => setForm({ ...form, primaryContact: e.target.value })} className={inputClass} /></label>
               <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Email</span><input type="email" value={form.email ?? ''} onChange={(e) => setForm({ ...form, email: e.target.value })} className={inputClass} /></label>
               <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Phone</span><input value={form.phone ?? ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={inputClass} /></label>

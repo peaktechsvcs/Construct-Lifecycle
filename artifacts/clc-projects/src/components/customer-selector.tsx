@@ -6,6 +6,7 @@ import {
   getListBusinessCustomersQueryKey,
 } from '@workspace/api-client-react';
 import { useTenant } from '@/providers/tenant-provider';
+import { CUSTOMER_TYPE_OPTIONS } from '@/lib/customer-type-options';
 
 type CustomerOption = {
   id: number;
@@ -103,7 +104,7 @@ export function CustomerSelector({
               className="flex w-full items-center gap-2 rounded-md border-t border-border px-3 py-2.5 text-left text-sm font-semibold text-primary hover:bg-primary/5"
               onClick={() => {
                 onSelect(undefined);
-                onDraftChange({ companyName: search.trim() });
+                onDraftChange({ companyName: search.trim(), customerType: 'business' });
                 setOpen(false);
               }}
             >
@@ -123,6 +124,12 @@ export function CustomerSelector({
             <button type="button" aria-label="Remove new customer draft" onClick={() => onDraftChange(undefined)}><X size={14} /></button>
           </div>
           <div className="grid gap-2 md:grid-cols-3">
+            <label className="grid gap-1 text-[11px] font-semibold text-muted-foreground">
+              Customer type
+              <select aria-label="Customer type" value={draft.customerType ?? 'business'} onChange={(event) => onDraftChange({ ...draft, customerType: event.target.value })} className="rounded-md border border-input bg-background px-2.5 py-2 text-xs">
+                {CUSTOMER_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
             <label className="grid gap-1 text-[11px] font-semibold text-muted-foreground">
               Primary contact
               <input aria-label="Primary contact" value={draft.primaryContact ?? ''} onChange={(event) => onDraftChange({ ...draft, primaryContact: event.target.value })} placeholder="Primary contact" className="rounded-md border border-input bg-background px-2.5 py-2 text-xs" />
