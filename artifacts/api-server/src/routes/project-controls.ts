@@ -64,6 +64,8 @@ import { canApproveProjectChange } from "../lib/project-control-policy";
 import { AccountingSyncError, syncProjectAccounting } from "../lib/accounting/sync";
 
 const router: IRouter = Router();
+type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type DatabaseClient = typeof db | DatabaseTransaction;
 
 const scope = (req: TenantRequest, table: { tenantId: any; environmentId: any }) =>
   and(eq(table.tenantId, req.tenantId!), eq(table.environmentId, req.environmentId!));
@@ -173,8 +175,8 @@ async function getProject(req: TenantRequest, projectId: number) {
   return project;
 }
 
-async function appendEvent(req: TenantRequest, projectId: number, entityType: string, entityId: number, action: string, details?: string, fromStatus?: string | null, toStatus?: string | null) {
-  await db.insert(projectControlEventsTable).values({
+async function appendEvent(req: TenantRequest, projectId: number, entityType: string, entityId: number, action: string, details?: string, fromStatus?: string | null, toStatus?: string | null, database: DatabaseClient = db) {
+  await database.insert(projectControlEventsTable).values({
     projectId,
     entityType,
     entityId,
@@ -340,7 +342,6 @@ router.put("/projects/:projectId/controls/contract", requireRole("owner", "admin
     res.status(400).json({ error: "Contract document URL must use HTTP or HTTPS" });
     return;
   }
-  const [existing] = await db.select().from(projectContractsTable).where(and(scope(req, projectContractsTable), eq(projectContractsTable.projectId, params.data.projectId))).limit(1);
   const contractValues = {
     projectId: params.data.projectId,
     contractNumber: data.contractNumber,
@@ -360,24 +361,30 @@ router.put("/projects/:projectId/controls/contract", requireRole("owner", "admin
     environmentId: req.environmentId!,
     updatedAt: new Date(),
   };
-  const [row] = existing
-    ? await db.update(projectContractsTable).set(contractValues).where(and(eq(projectContractsTable.id, existing.id), scope(req, projectContractsTable))).returning()
-    : await db.insert(projectContractsTable).values(contractValues).returning();
-  if (data.participants) {
-    await db.delete(contractParticipantsTable).where(and(scope(req, contractParticipantsTable), eq(contractParticipantsTable.contractId, row.id)));
-    if (data.participants.length) {
-      await db.insert(contractParticipantsTable).values(data.participants.map((participant) => ({
-        ...participant,
-        contactName: participant.contactName ?? null,
-        contactEmail: participant.contactEmail ?? null,
-        role: participant.role ?? null,
-        contractId: row.id,
-        tenantId: req.tenantId!,
-        environmentId: req.environmentId!,
-      })));
+  const { row } = await db.transaction(async (tx) => {
+    const [existing] = await tx.select().from(projectContractsTable).where(and(scope(req, projectContractsTable), eq(projectContractsTable.projectId, params.data.projectId))).limit(1);
+    const [savedRow] = existing
+      ? await tx.update(projectContractsTable).set(contractValues).where(and(eq(projectContractsTable.id, existing.id), scope(req, projectContractsTable))).returning()
+      : await tx.insert(projectContractsTable).values(contractValues).returning();
+    if (!savedRow) throw new Error("Project contract was not saved");
+
+    if (data.participants) {
+      await tx.delete(contractParticipantsTable).where(and(scope(req, contractParticipantsTable), eq(contractParticipantsTable.contractId, savedRow.id)));
+      if (data.participants.length) {
+        await tx.insert(contractParticipantsTable).values(data.participants.map((participant) => ({
+          ...participant,
+          contactName: participant.contactName ?? null,
+          contactEmail: participant.contactEmail ?? null,
+          role: participant.role ?? null,
+          contractId: savedRow.id,
+          tenantId: req.tenantId!,
+          environmentId: req.environmentId!,
+        })));
+      }
     }
-  }
-  await appendEvent(req, params.data.projectId, "contract", row.id, existing ? "contract_updated" : "contract_created", JSON.stringify({ approvalStatus: row.approvalStatus }));
+    await appendEvent(req, params.data.projectId, "contract", savedRow.id, existing ? "contract_updated" : "contract_created", JSON.stringify({ approvalStatus: savedRow.approvalStatus }), undefined, undefined, tx);
+    return { row: savedRow };
+  });
   const participants = await db.select().from(contractParticipantsTable).where(and(scope(req, contractParticipantsTable), eq(contractParticipantsTable.contractId, row.id)));
   res.json({ ...row, originalValue: money(row.originalValue), currentValue: money(row.currentValue), retainagePercent: money(row.retainagePercent), retainageCap: row.retainageCap == null ? null : money(row.retainageCap), participants });
 });

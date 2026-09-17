@@ -1,15 +1,18 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { Server } from "node:http";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 process.env.APP_ENV = "test";
 
 const {
   db,
+  contractParticipantsTable,
   environmentsTable,
   membershipsTable,
   pool,
+  projectContractsTable,
+  projectControlEventsTable,
   projectsTable,
   tenantEnvironmentAccessTable,
   tenantsTable,
@@ -35,6 +38,9 @@ let environmentADtdId: number;
 let environmentAProductionId: number;
 let environmentBDtdId: number;
 let projectADtdId: number;
+const rollbackParticipantMarker = "__project_controls_forced_failure__";
+const rollbackConstraintName = `project_controls_rollback_${runId.replace(/[^a-zA-Z0-9_]/g, "_")}`;
+let rollbackConstraintInstalled = false;
 
 async function request(clerkUserId: string, path: string, init: RequestInit = {}) {
   const response = await fetch(`${baseUrl}/api${path}`, {
@@ -136,6 +142,12 @@ before(async () => {
     },
   ]);
   projectADtdId = projectA.id;
+  await pool.query(`
+    ALTER TABLE contract_participants
+    ADD CONSTRAINT "${rollbackConstraintName}"
+    CHECK (organization_name <> '${rollbackParticipantMarker}')
+  `);
+  rollbackConstraintInstalled = true;
 
   server = app.listen(0, "127.0.0.1");
   await new Promise<void>((resolve, reject) => {
@@ -149,6 +161,9 @@ before(async () => {
 
 after(async () => {
   if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
+  if (rollbackConstraintInstalled) {
+    await pool.query(`ALTER TABLE contract_participants DROP CONSTRAINT "${rollbackConstraintName}"`);
+  }
   if (tenantAId) await db.delete(tenantsTable).where(eq(tenantsTable.id, tenantAId));
   if (tenantBId) await db.delete(tenantsTable).where(eq(tenantsTable.id, tenantBId));
   await pool.end();
@@ -330,4 +345,54 @@ test("contract and milestone controls reject cross-tenant and cross-environment 
   const scheduleItems = controls.scheduleItems as Array<Record<string, unknown>>;
   assert.equal(scheduleItems.some((item) => item.name === "Should Not Exist"), false);
   assert.equal(bodyObject(controls.contract).contractNumber, `CON-${runId}-UPDATED`);
+});
+
+test("failed participant replacement rolls back the contract and control event", async () => {
+  const contractPath = `/projects/${projectADtdId}/controls/contract`;
+  const eventsBefore = await db.select().from(projectControlEventsTable).where(and(
+    eq(projectControlEventsTable.projectId, projectADtdId),
+    eq(projectControlEventsTable.entityType, "contract"),
+  ));
+
+  const failedSave = await request(clerkIds.ownerA, contractPath, jsonBody({
+    contractNumber: `CON-${runId}-FAILED`,
+    deliveryMethod: "design_bid_build",
+    originalValue: 999999,
+    currentValue: 999999,
+    approvalStatus: "rejected",
+    participants: [{
+      participantType: "owner",
+      organizationName: rollbackParticipantMarker,
+    }],
+  }));
+  assert.equal(failedSave.status, 500, JSON.stringify(failedSave.body));
+
+  const reloaded = await request(clerkIds.ownerA, `/projects/${projectADtdId}/controls`);
+  assert.equal(reloaded.status, 200, JSON.stringify(reloaded.body));
+  const controls = bodyObject(reloaded.body);
+  const contract = bodyObject(controls.contract);
+  assert.equal(contract.contractNumber, `CON-${runId}-UPDATED`);
+  assert.equal(contract.currentValue, 140000);
+  const participants = contract.participants as Array<Record<string, unknown>>;
+  assert.equal(participants.length, 1);
+  assert.equal(participants[0]?.organizationName, "Persistence Builder Updated");
+
+  const eventsAfter = await db.select().from(projectControlEventsTable).where(and(
+    eq(projectControlEventsTable.projectId, projectADtdId),
+    eq(projectControlEventsTable.entityType, "contract"),
+  ));
+  assert.equal(eventsAfter.length, eventsBefore.length);
+  assert.equal(eventsAfter.some((event) => event.action === "contract_updated" && event.details?.includes("rejected")), false);
+
+  const persistedContract = await db.select().from(projectContractsTable).where(and(
+    eq(projectContractsTable.id, contract.id as number),
+    eq(projectContractsTable.projectId, projectADtdId),
+  ));
+  assert.equal(persistedContract[0]?.contractNumber, `CON-${runId}-UPDATED`);
+  const persistedParticipants = await db.select().from(contractParticipantsTable).where(eq(
+    contractParticipantsTable.contractId,
+    contract.id as number,
+  ));
+  assert.equal(persistedParticipants.length, 1);
+  assert.equal(persistedParticipants[0]?.organizationName, "Persistence Builder Updated");
 });
