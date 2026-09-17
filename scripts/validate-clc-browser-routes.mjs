@@ -554,6 +554,247 @@ async function checkProjectDetailReturnSafety() {
   console.log("✔ project detail preserves valid internal return query parameters");
 }
 
+async function checkProjectDetailActionsPreserveReturnContext() {
+  const validReturn = "/dashboard/drilldown/active-projects?browserAuth=authenticated&sort=value_desc&search=alpha";
+  const actionPath = `/projects/42?browserAuth=authenticated&browserRole=owner&return=${encodeURIComponent(validReturn)}`;
+  const assertProjectDetailRoute = (description) => waitFor(
+    client,
+    description,
+    `(() => {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        ready: window.location.origin === ${JSON.stringify(baseUrl)}
+          && window.location.pathname === "/projects/42"
+          && params.get("browserAuth") === "authenticated"
+          && params.get("browserRole") === "owner"
+          && params.get("return") === ${JSON.stringify(validReturn)}
+          && document.querySelector("h1")?.textContent?.trim() === "Browser Test Project"
+          && document.querySelector('[role="dialog"]') === null,
+        url: window.location.href,
+      };
+    })()`,
+  );
+
+  const { target, client } = await openTarget(actionPath);
+  try {
+    await waitFor(
+      client,
+      "project detail action return context",
+      `(() => {
+        const params = new URLSearchParams(window.location.search);
+        return {
+          ready: document.querySelector("h1")?.textContent?.trim() === "Browser Test Project"
+            && document.querySelector('[data-testid="link-back-drilldown"]')?.getAttribute("href") === ${JSON.stringify(validReturn)}
+            && params.get("return") === ${JSON.stringify(validReturn)},
+        };
+      })()`,
+    );
+
+    const editOpened = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-edit-project-detail"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!editOpened) throw new Error("project detail edit action could not be opened");
+    await waitFor(
+      client,
+      "project detail edit modal",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Edit P-0042"
+          && new URLSearchParams(window.location.search).get("return") === ${JSON.stringify(validReturn)},
+      }))()`,
+    );
+
+    const editCanceled = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-cancel-project"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!editCanceled) throw new Error("project detail edit cancel action missing");
+    await assertProjectDetailRoute("project detail after edit cancel");
+
+    const editReopened = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-edit-project-detail"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!editReopened) throw new Error("project detail edit action could not be reopened");
+    await waitFor(
+      client,
+      "project detail edit modal before save",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Edit P-0042",
+      }))()`,
+    );
+    const editSaved = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-save-project"]');
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!editSaved) throw new Error("project detail edit save action missing");
+    await assertProjectDetailRoute("project detail after edit save");
+
+    const followUpOpened = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-add-followup-detail"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!followUpOpened) throw new Error("project detail follow-up action could not be opened");
+    await waitFor(
+      client,
+      "project detail follow-up modal",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Schedule a follow-up"
+          && new URLSearchParams(window.location.search).get("return") === ${JSON.stringify(validReturn)},
+      }))()`,
+    );
+
+    const followUpCanceled = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-cancel-followup-detail"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!followUpCanceled) throw new Error("project detail follow-up cancel action missing");
+    await assertProjectDetailRoute("project detail after follow-up cancel");
+
+    const followUpReopened = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-add-followup-detail"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!followUpReopened) throw new Error("project detail follow-up action could not be reopened");
+    await waitFor(
+      client,
+      "project detail follow-up modal before save",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Schedule a follow-up",
+      }))()`,
+    );
+    const followUpFilled = await evaluate(client, `(() => {
+      const setValue = (selector, value) => {
+        const field = document.querySelector(selector);
+        const prototype = field instanceof HTMLInputElement
+          ? HTMLInputElement.prototype
+          : field instanceof HTMLTextAreaElement
+            ? HTMLTextAreaElement.prototype
+            : null;
+        if (!prototype) return false;
+        const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+        if (!setter) return false;
+        setter.call(field, value);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      };
+      return setValue('[data-testid="input-followup-date-detail"]', "2026-12-15")
+        && setValue('[data-testid="textarea-followup-note-detail"]', "Confirm the next client decision.");
+    })()`);
+    if (!followUpFilled) throw new Error("project detail follow-up form could not be filled");
+    const followUpSaved = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-save-followup-detail"]');
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!followUpSaved) throw new Error("project detail follow-up save action missing");
+    await assertProjectDetailRoute("project detail after follow-up save");
+  } finally {
+    await closeTarget(target, client);
+  }
+
+  const unsafeReturns = [
+    { label: "external", value: "https://outside.example/projects" },
+    { label: "malformed", value: "/projects/%ZZ" },
+  ];
+  for (const unsafeReturn of unsafeReturns) {
+    const { target: unsafeTarget, client: unsafeClient } = await openTarget(
+      `/projects/42?browserAuth=authenticated&browserRole=owner&return=${encodeURIComponent(unsafeReturn.value)}`,
+    );
+    try {
+      await waitFor(
+        unsafeClient,
+        `${unsafeReturn.label} project detail action context`,
+        `(() => ({
+          ready: document.querySelector("h1")?.textContent?.trim() === "Browser Test Project"
+            && document.querySelector('[data-testid="link-back-projects"]')?.getAttribute("href") === "/projects",
+        }))()`,
+      );
+
+      const editOpened = await evaluate(unsafeClient, `(() => {
+        const button = document.querySelector('[data-testid="button-edit-project-detail"]');
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()`);
+      if (!editOpened) throw new Error(`${unsafeReturn.label} project detail edit could not be opened`);
+      await waitFor(
+        unsafeClient,
+        `${unsafeReturn.label} project detail edit modal`,
+        `(() => ({
+          ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Edit P-0042",
+        }))()`,
+      );
+      const editCanceled = await evaluate(unsafeClient, `(() => {
+        const button = document.querySelector('[data-testid="button-cancel-project"]');
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()`);
+      if (!editCanceled) throw new Error(`${unsafeReturn.label} project detail edit cancel action missing`);
+      await waitFor(
+        unsafeClient,
+        `${unsafeReturn.label} project detail after edit cancel`,
+        `(() => ({
+          ready: window.location.pathname === "/projects/42"
+            && document.querySelector("h1")?.textContent?.trim() === "Browser Test Project"
+            && document.querySelector('[role="dialog"]') === null,
+        }))()`,
+      );
+
+      const followUpOpened = await evaluate(unsafeClient, `(() => {
+        const button = document.querySelector('[data-testid="button-add-followup-detail"]');
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()`);
+      if (!followUpOpened) throw new Error(`${unsafeReturn.label} project detail follow-up could not be opened`);
+      await waitFor(
+        unsafeClient,
+        `${unsafeReturn.label} project detail follow-up modal`,
+        `(() => ({
+          ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Schedule a follow-up",
+        }))()`,
+      );
+      const followUpCanceled = await evaluate(unsafeClient, `(() => {
+        const button = document.querySelector('[data-testid="button-cancel-followup-detail"]');
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()`);
+      if (!followUpCanceled) throw new Error(`${unsafeReturn.label} project detail follow-up cancel action missing`);
+      await waitFor(
+        unsafeClient,
+        `${unsafeReturn.label} project detail after follow-up cancel`,
+        `(() => ({
+          ready: window.location.pathname === "/projects/42"
+            && document.querySelector("h1")?.textContent?.trim() === "Browser Test Project"
+            && document.querySelector('[role="dialog"]') === null,
+        }))()`,
+      );
+    } finally {
+      await closeTarget(unsafeTarget, unsafeClient);
+    }
+  }
+  console.log("✔ project detail edit and follow-up actions preserve internal workspace context");
+}
+
 async function checkActiveProjectsClearSearch() {
   const { target, client } = await openTarget(
     "/dashboard/drilldown/active-projects?browserAuth=authenticated&search=does-not-match&sort=value_desc",
@@ -917,6 +1158,7 @@ try {
     }
   }
   await checkProjectDetailReturnSafety();
+  await checkProjectDetailActionsPreserveReturnContext();
   await checkActiveProjectsClearSearch();
   await checkFailedOwnerInvitationRecovery();
   await checkMailboxRecoveryFlows();
