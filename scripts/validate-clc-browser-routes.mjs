@@ -82,7 +82,7 @@ async function waitFor(client, description, predicate) {
   throw new Error(`${description} did not become ready: ${JSON.stringify(state)}`);
 }
 
-async function openTarget(path) {
+async function openTarget(path, viewport) {
   const response = await fetch(
     `http://127.0.0.1:${debuggingPort}/json/new?${encodeURIComponent(`${baseUrl}${path}`)}`,
     { method: "PUT" },
@@ -91,6 +91,14 @@ async function openTarget(path) {
   const target = await response.json();
   const client = await CdpClient.connect(target.webSocketDebuggerUrl);
   await Promise.all([client.command("Page.enable"), client.command("Runtime.enable")]);
+  if (viewport) {
+    await client.command("Emulation.setDeviceMetricsOverride", {
+      width: viewport.width,
+      height: viewport.height,
+      deviceScaleFactor: 1,
+      mobile: true,
+    });
+  }
   await client.command("Page.navigate", { url: `${baseUrl}${path}` });
   return { target, client };
 }
@@ -552,6 +560,88 @@ async function checkProjectDetailReturnSafety() {
     await closeTarget(validTarget.target, validTarget.client);
   }
   console.log("✔ project detail preserves valid internal return query parameters");
+
+  const mobileViewport = { width: 390, height: 844 };
+  for (const unsafeReturn of unsafeReturns) {
+    const returnQuery = encodeURIComponent(unsafeReturn.value);
+    const { target, client } = await openTarget(
+      `/projects/42?browserAuth=authenticated&browserRole=owner&return=${returnQuery}`,
+      mobileViewport,
+    );
+    try {
+      await waitFor(
+        client,
+        `mobile ${unsafeReturn.label} project detail`,
+        `(() => ({
+          ready: window.innerWidth === ${mobileViewport.width}
+            && window.innerHeight === ${mobileViewport.height}
+            && document.querySelector('h1')?.textContent?.trim() === "Browser Test Project"
+            && document.querySelector('[data-testid="link-back-projects"]')?.getAttribute("href") === "/projects",
+          viewport: [window.innerWidth, window.innerHeight],
+        }))()`,
+      );
+      const clicked = await evaluate(client, `(() => {
+        const link = document.querySelector('[data-testid="link-back-projects"]');
+        if (!(link instanceof HTMLElement)) return false;
+        link.click();
+        return true;
+      })()`);
+      if (!clicked) throw new Error(`mobile ${unsafeReturn.label} project detail fallback could not be clicked`);
+      await waitFor(
+        client,
+        `mobile ${unsafeReturn.label} project detail fallback`,
+        `(() => ({
+          ready: window.innerWidth === ${mobileViewport.width}
+            && window.innerHeight === ${mobileViewport.height}
+            && window.location.origin === ${JSON.stringify(baseUrl)}
+            && window.location.pathname === "/projects"
+            && document.querySelector('[role="dialog"]') === null,
+          url: window.location.href,
+        }))()`,
+      );
+    } finally {
+      await closeTarget(target, client);
+    }
+  }
+
+  const mobileValidTarget = await openTarget(
+    `/projects/42?browserAuth=authenticated&browserRole=owner&return=${encodeURIComponent(validReturn)}`,
+    mobileViewport,
+  );
+  try {
+    await waitFor(
+      mobileValidTarget.client,
+      "mobile valid project detail return",
+      `(() => ({
+        ready: window.innerWidth === ${mobileViewport.width}
+          && window.innerHeight === ${mobileViewport.height}
+          && document.querySelector('h1')?.textContent?.trim() === "Browser Test Project"
+          && document.querySelector('[data-testid="link-back-drilldown"]')?.getAttribute("href") === ${JSON.stringify(validReturn)},
+      }))()`,
+    );
+    const clicked = await evaluate(mobileValidTarget.client, `(() => {
+      const link = document.querySelector('[data-testid="link-back-drilldown"]');
+      if (!(link instanceof HTMLElement)) return false;
+      link.click();
+      return true;
+    })()`);
+    if (!clicked) throw new Error("mobile valid project detail return could not be clicked");
+    await waitFor(
+      mobileValidTarget.client,
+      "mobile valid project detail return navigation",
+      `(() => ({
+        ready: window.innerWidth === ${mobileViewport.width}
+          && window.innerHeight === ${mobileViewport.height}
+          && window.location.origin === ${JSON.stringify(baseUrl)}
+          && window.location.pathname === "/dashboard/drilldown/active-projects"
+          && window.location.search === "?browserAuth=authenticated&sort=value_desc&search=alpha",
+        url: window.location.href,
+      }))()`,
+    );
+  } finally {
+    await closeTarget(mobileValidTarget.target, mobileValidTarget.client);
+  }
+  console.log("✔ project detail return safety preserves valid queries on mobile");
 }
 
 async function checkProjectDetailActionsPreserveReturnContext() {
