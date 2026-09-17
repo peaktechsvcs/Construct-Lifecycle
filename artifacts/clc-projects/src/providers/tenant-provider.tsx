@@ -74,7 +74,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const environmentLabel = tenantQuery.data?.environmentLabel;
   const effectiveAccess = tenantQuery.data?.effectiveAccess;
   const isPlatformAdmin = tenantQuery.data?.isPlatformAdmin ?? false;
-  const activeRole = memberships.find((membership) => membership.id === activeTenant?.id)?.role;
+  const activeRole = activeTenant?.role ?? memberships.find((membership) => membership.id === activeTenant?.id)?.role;
   const branding = brandingQuery.data;
 
   // Apply published branding to CSS variables globally
