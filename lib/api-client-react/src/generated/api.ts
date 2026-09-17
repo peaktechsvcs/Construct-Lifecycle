@@ -245,6 +245,10 @@ import type {
   SupplierPriceListItem,
   SupplierPriceListItemInput,
   SupplierProduct,
+  SupplierProductBulkInput,
+  SupplierProductBulkResponse,
+  SupplierProductImportInput,
+  SupplierProductImportResponse,
   SupplierProductInput,
   SupplierProductUpdate,
   SupplierQuote,
@@ -4300,6 +4304,148 @@ export const useUpdateSupplierProduct = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateSupplierProductMutationOptions(options));
+    }
+
+export const getBulkCreateSupplierProductsUrl = () => {
+
+
+
+
+  return `/api/supplier-products/bulk`
+}
+
+/**
+ * @summary Add multiple supplier products or materials at once
+ */
+export const bulkCreateSupplierProducts = async (supplierProductBulkInput: SupplierProductBulkInput, options?: Parameters<typeof customFetch>[1]): Promise<SupplierProductBulkResponse> => {
+
+  return customFetch<SupplierProductBulkResponse>(getBulkCreateSupplierProductsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(supplierProductBulkInput)
+  }
+);}
+
+
+
+
+
+export const getBulkCreateSupplierProductsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkCreateSupplierProducts>>, TError,{data: BodyType<SupplierProductBulkInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkCreateSupplierProducts>>, TError,{data: BodyType<SupplierProductBulkInput>}, TContext> => {
+
+const mutationKey = ['bulkCreateSupplierProducts'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkCreateSupplierProducts>>, {data: BodyType<SupplierProductBulkInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkCreateSupplierProducts(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkCreateSupplierProductsMutationResult = NonNullable<Awaited<ReturnType<typeof bulkCreateSupplierProducts>>>
+    export type BulkCreateSupplierProductsMutationBody = BodyType<SupplierProductBulkInput>
+    export type BulkCreateSupplierProductsMutationError = ErrorType<void>
+
+    /**
+ * @summary Add multiple supplier products or materials at once
+ */
+export const useBulkCreateSupplierProducts = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkCreateSupplierProducts>>, TError,{data: BodyType<SupplierProductBulkInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkCreateSupplierProducts>>,
+        TError,
+        {data: BodyType<SupplierProductBulkInput>},
+        TContext
+      > => {
+      return useMutation(getBulkCreateSupplierProductsMutationOptions(options));
+    }
+
+export const getImportSupplierProductsUrl = () => {
+
+
+
+
+  return `/api/supplier-products/import`
+}
+
+/**
+ * @summary Import supplier products from an Excel workbook or CSV file
+ */
+export const importSupplierProducts = async (supplierProductImportInput: SupplierProductImportInput, options?: Parameters<typeof customFetch>[1]): Promise<SupplierProductImportResponse> => {
+
+  return customFetch<SupplierProductImportResponse>(getImportSupplierProductsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(supplierProductImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportSupplierProductsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importSupplierProducts>>, TError,{data: BodyType<SupplierProductImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importSupplierProducts>>, TError,{data: BodyType<SupplierProductImportInput>}, TContext> => {
+
+const mutationKey = ['importSupplierProducts'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importSupplierProducts>>, {data: BodyType<SupplierProductImportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importSupplierProducts(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportSupplierProductsMutationResult = NonNullable<Awaited<ReturnType<typeof importSupplierProducts>>>
+    export type ImportSupplierProductsMutationBody = BodyType<SupplierProductImportInput>
+    export type ImportSupplierProductsMutationError = ErrorType<void>
+
+    /**
+ * @summary Import supplier products from an Excel workbook or CSV file
+ */
+export const useImportSupplierProducts = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importSupplierProducts>>, TError,{data: BodyType<SupplierProductImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importSupplierProducts>>,
+        TError,
+        {data: BodyType<SupplierProductImportInput>},
+        TContext
+      > => {
+      return useMutation(getImportSupplierProductsMutationOptions(options));
     }
 
 export const getListSupplierVendorsUrl = () => {

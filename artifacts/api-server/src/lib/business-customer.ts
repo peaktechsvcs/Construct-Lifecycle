@@ -21,6 +21,8 @@ type ScopedCustomer = {
   status: string;
 };
 
+export type DatabaseExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export const normalizeBusinessCustomerName = (value: string) =>
   value
     .trim()
@@ -29,8 +31,8 @@ export const normalizeBusinessCustomerName = (value: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const loadScopedCustomerByName = async (req: TenantRequest, normalizedName: string): Promise<ScopedCustomer | undefined> => {
-  const [customer] = await db
+const loadScopedCustomerByName = async (executor: DatabaseExecutor, req: TenantRequest, normalizedName: string): Promise<ScopedCustomer | undefined> => {
+  const [customer] = await executor
     .select({
       id: businessCustomersTable.id,
       companyName: businessCustomersTable.companyName,
@@ -46,20 +48,13 @@ const loadScopedCustomerByName = async (req: TenantRequest, normalizedName: stri
   return customer;
 };
 
-const isScopedCustomerNameConflict = (error: unknown) =>
-  typeof error === "object"
-  && error !== null
-  && "code" in error
-  && error.code === "23505"
-  && "constraint" in error
-  && error.constraint === "business_customers_tenant_environment_name_idx";
-
 export const resolveBusinessCustomer = async (
   req: TenantRequest,
   input: {
     businessCustomerId?: number | null;
     newCustomer?: NewBusinessCustomerInput | null;
   },
+  executor: DatabaseExecutor = db,
 ): Promise<CustomerResolution> => {
   if (input.businessCustomerId && input.newCustomer) {
     return { status: 400, error: "Choose an existing customer or create a new one, not both" };
@@ -77,7 +72,7 @@ export const resolveBusinessCustomer = async (
       return { status: 400, error: "Customer company name is required" };
     }
 
-    const existing = await loadScopedCustomerByName(req, normalizedName);
+    const existing = await loadScopedCustomerByName(executor, req, normalizedName);
 
     if (existing?.status === "archived") {
       return { status: 400, error: "An archived customer with this name already exists" };
@@ -86,33 +81,38 @@ export const resolveBusinessCustomer = async (
       return { customerId: existing.id, customerName: existing.companyName };
     }
 
-    let created: { id: number; companyName: string } | undefined;
-    try {
-      [created] = await db.insert(businessCustomersTable).values({
-        tenantId: req.tenantId!,
-        environmentId: req.environmentId!,
-        companyName,
-        normalizedName,
-        customerType: input.newCustomer.customerType?.trim() || "business",
-        primaryContact: input.newCustomer.primaryContact?.trim() || null,
-        email: input.newCustomer.email?.trim().toLowerCase() || null,
-        phone: input.newCustomer.phone?.trim() || null,
-      }).returning({
-        id: businessCustomersTable.id,
-        companyName: businessCustomersTable.companyName,
-      });
-    } catch (error) {
-      if (!isScopedCustomerNameConflict(error)) throw error;
-      const concurrentCustomer = await loadScopedCustomerByName(req, normalizedName);
-      if (!concurrentCustomer) throw error;
+    const [created] = await executor.insert(businessCustomersTable).values({
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+      companyName,
+      normalizedName,
+      customerType: input.newCustomer.customerType?.trim() || "business",
+      primaryContact: input.newCustomer.primaryContact?.trim() || null,
+      email: input.newCustomer.email?.trim().toLowerCase() || null,
+      phone: input.newCustomer.phone?.trim() || null,
+    }).onConflictDoNothing({
+      target: [
+        businessCustomersTable.tenantId,
+        businessCustomersTable.environmentId,
+        businessCustomersTable.normalizedName,
+      ],
+    }).returning({
+      id: businessCustomersTable.id,
+      companyName: businessCustomersTable.companyName,
+    });
+
+    if (!created) {
+      const concurrentCustomer = await loadScopedCustomerByName(executor, req, normalizedName);
+      if (!concurrentCustomer) {
+        throw new Error("Business customer insert conflicted but the existing customer could not be loaded");
+      }
       if (concurrentCustomer.status === "archived") {
         return { status: 400, error: "An archived customer with this name already exists" };
       }
       return { customerId: concurrentCustomer.id, customerName: concurrentCustomer.companyName };
     }
 
-    if (!created) throw new Error("Business customer was not created");
-    await db.insert(platformAuditEventsTable).values({
+    await executor.insert(platformAuditEventsTable).values({
       actorUserId: req.localUserId!,
       tenantId: req.tenantId!,
       action: "business_customer_created",
@@ -125,7 +125,7 @@ export const resolveBusinessCustomer = async (
     return { status: 400, error: "A business customer is required" };
   }
 
-  const [customer] = await db
+  const [customer] = await executor
     .select({
       id: businessCustomersTable.id,
       companyName: businessCustomersTable.companyName,

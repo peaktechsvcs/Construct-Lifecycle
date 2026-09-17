@@ -14,6 +14,7 @@ const {
   membershipsTable,
   opportunitiesTable,
   pool,
+  platformAuditEventsTable,
   proposalsTable,
   tenantsTable,
   userTenantContextTable,
@@ -265,6 +266,57 @@ test("creates inline customers for opportunities, bids, estimates, and proposals
     assert.equal(record.environmentId, environmentADtdId);
     assert.equal(record.businessCustomerId, customer.id);
   }
+});
+
+test("rolls back newly created customers when a downstream pipeline insert fails", async () => {
+  const oversizedValue = 999999999999;
+  const cases = [
+    {
+      path: "/opportunities",
+      companyName: `Rolled Back Opportunity Customer ${runId}`,
+      body: { name: `Rolled Back Opportunity ${runId}`, estimatedValue: oversizedValue },
+    },
+    {
+      path: "/bids",
+      companyName: `Rolled Back Bid Customer ${runId}`,
+      body: { name: `Rolled Back Bid ${runId}`, estimatedValue: oversizedValue },
+    },
+    {
+      path: "/estimates",
+      companyName: `Rolled Back Estimate Customer ${runId}`,
+      body: { name: `Rolled Back Estimate ${runId}`, laborValue: oversizedValue },
+    },
+    {
+      path: "/proposals",
+      companyName: `Rolled Back Proposal Customer ${runId}`,
+      body: { name: `Rolled Back Proposal ${runId}`, proposalValue: oversizedValue },
+    },
+  ] as const;
+  const auditBefore = await db
+    .select({ id: platformAuditEventsTable.id })
+    .from(platformAuditEventsTable)
+    .where(and(
+      eq(platformAuditEventsTable.tenantId, tenantAId),
+      eq(platformAuditEventsTable.action, "business_customer_created"),
+    ));
+
+  for (const item of cases) {
+    const result = await request(clerkIds.ownerA, item.path, {
+      newCustomer: { companyName: item.companyName },
+      ...item.body,
+    });
+    assert.equal(result.status, 500, `${item.path}: ${JSON.stringify(result.body)}`);
+    assert.equal(await customerByName(item.companyName), undefined);
+  }
+
+  const auditAfter = await db
+    .select({ id: platformAuditEventsTable.id })
+    .from(platformAuditEventsTable)
+    .where(and(
+      eq(platformAuditEventsTable.tenantId, tenantAId),
+      eq(platformAuditEventsTable.action, "business_customer_created"),
+    ));
+  assert.equal(auditAfter.length, auditBefore.length);
 });
 
 test("resolves concurrent inline customer creation to one scoped customer", async () => {

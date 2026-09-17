@@ -19,7 +19,7 @@ import {
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
-import { resolveBusinessCustomer } from "../lib/business-customer";
+import { resolveBusinessCustomer, type DatabaseExecutor } from "../lib/business-customer";
 
 const router: IRouter = Router();
 const stages = ["draft", "takeoff", "estimating", "review", "approved", "rejected"] as const;
@@ -112,8 +112,9 @@ const validateRelationships = async (
   req: TenantRequest,
   businessCustomerId: number,
   bidId: number | null | undefined,
+  executor: DatabaseExecutor = db,
 ) => {
-  const [customer] = await db
+  const [customer] = await executor
     .select({ id: businessCustomersTable.id })
     .from(businessCustomersTable)
     .where(and(
@@ -126,7 +127,7 @@ const validateRelationships = async (
   if (!customer) return "Active business customer not found in this environment";
 
   if (bidId !== undefined && bidId !== null) {
-    const [bid] = await db
+    const [bid] = await executor
       .select({ id: bidsTable.id, businessCustomerId: bidsTable.businessCustomerId })
       .from(bidsTable)
       .where(and(
@@ -238,55 +239,61 @@ router.post("/estimates", requireRole("owner", "admin", "member"), async (req: T
     res.status(400).json({ error: "A new customer cannot be linked to an existing bid" });
     return;
   }
-  const customer = await resolveBusinessCustomer(req, parsed.data);
-  if ("status" in customer) {
-    res.status(customer.status).json({ error: customer.error, ...(customer.existingCustomerId ? { existingCustomerId: customer.existingCustomerId } : {}) });
-    return;
-  }
-  const relationshipError = await validateRelationships(req, customer.customerId, parsed.data.bidId);
-  if (relationshipError) {
-    res.status(400).json({ error: relationshipError });
-    return;
-  }
+  const transactionResult = await db.transaction(async (tx) => {
+    const customer = await resolveBusinessCustomer(req, parsed.data, tx);
+    if ("status" in customer) return { customer, createdId: null };
+    const relationshipError = await validateRelationships(req, customer.customerId, parsed.data.bidId, tx);
+    if (relationshipError) return { customer: { status: 400, error: relationshipError }, createdId: null };
 
-  const [{ count }] = await db.select({ count: sql<number>`count(*)::int` })
-    .from(estimatesTable)
-    .where(and(eq(estimatesTable.tenantId, req.tenantId!), eq(estimatesTable.environmentId, req.environmentId!)));
-  const estimateNumber = `EST-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
-  const laborValue = parsed.data.laborValue ?? 0;
-  const materialValue = parsed.data.materialValue ?? 0;
-  const subcontractValue = parsed.data.subcontractValue ?? 0;
-  const otherValue = parsed.data.otherValue ?? 0;
-  const contingencyValue = parsed.data.contingencyValue ?? 0;
-  const [created] = await db.insert(estimatesTable).values({
-    estimateNumber,
-    businessCustomerId: customer.customerId,
-    bidId: parsed.data.bidId ?? null,
-    name: parsed.data.name.trim(),
-    description: parsed.data.description?.trim() || null,
-    stage: parsed.data.stage ?? stages[0],
-    laborValue: laborValue.toFixed(2),
-    materialValue: materialValue.toFixed(2),
-    subcontractValue: subcontractValue.toFixed(2),
-    otherValue: otherValue.toFixed(2),
-    contingencyValue: contingencyValue.toFixed(2),
-    totalValue: totalValue([laborValue, materialValue, subcontractValue, otherValue, contingencyValue]),
-    dueDate: dateString(parsed.data.dueDate),
-    ownerUserId: parsed.data.ownerUserId ?? null,
-    integrationProviderKey: parsed.data.integrationProviderKey?.trim() || null,
-    integrationKind: parsed.data.integrationKind ?? null,
-    integrationStatus: parsed.data.integrationStatus ?? "manual",
-    externalReference: parsed.data.externalReference?.trim() || null,
-    tenantId: req.tenantId!,
-    environmentId: req.environmentId!,
-  }).returning();
-  await db.insert(platformAuditEventsTable).values({
-    actorUserId: req.localUserId!,
-    tenantId: req.tenantId!,
-    action: "estimate_created",
-    details: JSON.stringify({ estimateId: created.id, environmentId: req.environmentId }),
+    const [{ count }] = await tx.select({ count: sql<number>`count(*)::int` })
+      .from(estimatesTable)
+      .where(and(eq(estimatesTable.tenantId, req.tenantId!), eq(estimatesTable.environmentId, req.environmentId!)));
+    const estimateNumber = `EST-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
+    const laborValue = parsed.data.laborValue ?? 0;
+    const materialValue = parsed.data.materialValue ?? 0;
+    const subcontractValue = parsed.data.subcontractValue ?? 0;
+    const otherValue = parsed.data.otherValue ?? 0;
+    const contingencyValue = parsed.data.contingencyValue ?? 0;
+    const [created] = await tx.insert(estimatesTable).values({
+      estimateNumber,
+      businessCustomerId: customer.customerId,
+      bidId: parsed.data.bidId ?? null,
+      name: parsed.data.name.trim(),
+      description: parsed.data.description?.trim() || null,
+      stage: parsed.data.stage ?? stages[0],
+      laborValue: laborValue.toFixed(2),
+      materialValue: materialValue.toFixed(2),
+      subcontractValue: subcontractValue.toFixed(2),
+      otherValue: otherValue.toFixed(2),
+      contingencyValue: contingencyValue.toFixed(2),
+      totalValue: totalValue([laborValue, materialValue, subcontractValue, otherValue, contingencyValue]),
+      dueDate: dateString(parsed.data.dueDate),
+      ownerUserId: parsed.data.ownerUserId ?? null,
+      integrationProviderKey: parsed.data.integrationProviderKey?.trim() || null,
+      integrationKind: parsed.data.integrationKind ?? null,
+      integrationStatus: parsed.data.integrationStatus ?? "manual",
+      externalReference: parsed.data.externalReference?.trim() || null,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    }).returning();
+    await tx.insert(platformAuditEventsTable).values({
+      actorUserId: req.localUserId!,
+      tenantId: req.tenantId!,
+      action: "estimate_created",
+      details: JSON.stringify({ estimateId: created.id, environmentId: req.environmentId }),
+    });
+    return { customer, createdId: created.id };
   });
-  const row = await getEstimateInContext(req, created.id);
+  if ("status" in transactionResult.customer) {
+    res.status(transactionResult.customer.status).json({
+      error: transactionResult.customer.error,
+      ...(transactionResult.customer.existingCustomerId ? { existingCustomerId: transactionResult.customer.existingCustomerId } : {}),
+    });
+    return;
+  }
+  const createdId = transactionResult.createdId;
+  if (createdId === null) throw new Error("Estimate transaction completed without a created record");
+  const row = await getEstimateInContext(req, createdId);
   res.status(201).json(serializeEstimate(row!));
 });
 

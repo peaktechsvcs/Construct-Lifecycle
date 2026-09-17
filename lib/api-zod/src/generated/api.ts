@@ -2953,6 +2953,109 @@ export const UpdateSupplierProductResponse = zod.object({
 
 
 /**
+ * @summary Add multiple supplier products or materials at once
+ */
+export const bulkCreateSupplierProductsBodyProductsItemSkuMax = 80;
+
+export const bulkCreateSupplierProductsBodyProductsItemNameMax = 240;
+
+export const bulkCreateSupplierProductsBodyProductsItemDescriptionMax = 5000;
+
+export const bulkCreateSupplierProductsBodyProductsItemCategoryMax = 80;
+
+export const bulkCreateSupplierProductsBodyProductsItemUnitMax = 40;
+
+export const bulkCreateSupplierProductsBodyProductsItemLeadTimeDaysMin = 0;
+export const bulkCreateSupplierProductsBodyProductsItemLeadTimeDaysMax = 3650;
+
+export const bulkCreateSupplierProductsBodyProductsItemUnitCostMin = 0;
+
+export const bulkCreateSupplierProductsBodyProductsItemListPriceMin = 0;
+
+export const bulkCreateSupplierProductsBodyProductsItemAvailableQuantityMin = 0;
+
+export const bulkCreateSupplierProductsBodyProductsItemBackorderedQuantityMin = 0;
+
+export const bulkCreateSupplierProductsBodyProductsMax = 500;
+
+
+
+export const BulkCreateSupplierProductsBody = zod.object({
+  "products": zod.array(zod.object({
+  "sku": zod.string().min(1).max(bulkCreateSupplierProductsBodyProductsItemSkuMax),
+  "name": zod.string().min(1).max(bulkCreateSupplierProductsBodyProductsItemNameMax),
+  "description": zod.string().max(bulkCreateSupplierProductsBodyProductsItemDescriptionMax).optional(),
+  "category": zod.string().max(bulkCreateSupplierProductsBodyProductsItemCategoryMax).optional(),
+  "unit": zod.string().max(bulkCreateSupplierProductsBodyProductsItemUnitMax).optional(),
+  "defaultVendorId": zod.number().int().optional(),
+  "leadTimeDays": zod.number().int().min(bulkCreateSupplierProductsBodyProductsItemLeadTimeDaysMin).max(bulkCreateSupplierProductsBodyProductsItemLeadTimeDaysMax).optional(),
+  "unitCost": zod.number().min(bulkCreateSupplierProductsBodyProductsItemUnitCostMin).optional(),
+  "listPrice": zod.number().min(bulkCreateSupplierProductsBodyProductsItemListPriceMin).optional(),
+  "availableQuantity": zod.number().min(bulkCreateSupplierProductsBodyProductsItemAvailableQuantityMin).optional(),
+  "backorderedQuantity": zod.number().min(bulkCreateSupplierProductsBodyProductsItemBackorderedQuantityMin).optional()
+})).min(1).max(bulkCreateSupplierProductsBodyProductsMax)
+})
+
+export const BulkCreateSupplierProductsResponse = zod.object({
+  "createdCount": zod.number().int(),
+  "products": zod.array(zod.object({
+  "id": zod.number().int(),
+  "sku": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "category": zod.string(),
+  "unit": zod.string(),
+  "defaultVendorId": zod.number().int().nullable(),
+  "leadTimeDays": zod.number().int(),
+  "unitCost": zod.number(),
+  "listPrice": zod.number(),
+  "availableQuantity": zod.number(),
+  "backorderedQuantity": zod.number(),
+  "status": zod.enum(['active', 'archived']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Import supplier products from an Excel workbook or CSV file
+ */
+export const importSupplierProductsBodyFileNameMax = 255;
+
+export const importSupplierProductsBodyFileDataMax = 12000000;
+
+
+
+export const ImportSupplierProductsBody = zod.object({
+  "fileName": zod.string().min(1).max(importSupplierProductsBodyFileNameMax),
+  "fileData": zod.string().min(1).max(importSupplierProductsBodyFileDataMax)
+})
+
+export const ImportSupplierProductsResponse = zod.object({
+  "fileName": zod.string(),
+  "createdCount": zod.number().int(),
+  "products": zod.array(zod.object({
+  "id": zod.number().int(),
+  "sku": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "category": zod.string(),
+  "unit": zod.string(),
+  "defaultVendorId": zod.number().int().nullable(),
+  "leadTimeDays": zod.number().int(),
+  "unitCost": zod.number(),
+  "listPrice": zod.number(),
+  "availableQuantity": zod.number(),
+  "backorderedQuantity": zod.number(),
+  "status": zod.enum(['active', 'archived']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary List supplier vendors
  */
 export const ListSupplierVendorsResponseItem = zod.object({

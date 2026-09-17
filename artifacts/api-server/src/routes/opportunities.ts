@@ -204,46 +204,55 @@ router.post("/opportunities", requireRole("owner", "admin", "member"), async (re
     res.status(400).json({ error: "Opportunity owner must be a member of this workspace" });
     return;
   }
-  const customer = await resolveBusinessCustomer(req, parsed.data);
-  if ("status" in customer) {
-    res.status(customer.status).json({ error: customer.error, ...(customer.existingCustomerId ? { existingCustomerId: customer.existingCustomerId } : {}) });
+  const transactionResult = await db.transaction(async (tx) => {
+    const customer = await resolveBusinessCustomer(req, parsed.data, tx);
+    if ("status" in customer) return { customer, createdId: null };
+
+    const [{ count }] = await tx.select({ count: sql<number>`count(*)::int` })
+      .from(opportunitiesTable)
+      .where(and(eq(opportunitiesTable.tenantId, req.tenantId!), eq(opportunitiesTable.environmentId, req.environmentId!)));
+    const opportunityNumber = `OP-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
+    const [created] = await tx.insert(opportunitiesTable).values({
+      opportunityNumber,
+      businessCustomerId: customer.customerId,
+      name: parsed.data.name.trim(),
+      description: parsed.data.description?.trim() || null,
+      stage: parsed.data.stage ?? stages[0],
+      estimatedValue: String(parsed.data.estimatedValue ?? 0),
+      expectedCloseDate: dateString(parsed.data.expectedCloseDate),
+      ownerUserId: parsed.data.ownerUserId ?? null,
+      leadSource: parsed.data.leadSource?.trim() || null,
+      contactName: parsed.data.contactName?.trim() || null,
+      contactEmail: parsed.data.contactEmail?.trim().toLowerCase() || null,
+      contactPhone: parsed.data.contactPhone?.trim() || null,
+      qualification: parsed.data.qualification ?? "unqualified",
+      nextAction: parsed.data.nextAction?.trim() || null,
+      nextActionDate: dateString(parsed.data.nextActionDate),
+      lastContactedAt: parsed.data.lastContactedAt ? new Date(parsed.data.lastContactedAt) : null,
+      crmProviderKey: parsed.data.crmProviderKey?.trim() || null,
+      crmIntegrationStatus: parsed.data.crmIntegrationStatus ?? "manual",
+      crmExternalReference: parsed.data.crmExternalReference?.trim() || null,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    }).returning();
+    await tx.insert(platformAuditEventsTable).values({
+      actorUserId: req.localUserId!,
+      tenantId: req.tenantId!,
+      action: "opportunity_created",
+      details: JSON.stringify({ opportunityId: created.id, environmentId: req.environmentId }),
+    });
+    return { customer, createdId: created.id };
+  });
+  if ("status" in transactionResult.customer) {
+    res.status(transactionResult.customer.status).json({
+      error: transactionResult.customer.error,
+      ...(transactionResult.customer.existingCustomerId ? { existingCustomerId: transactionResult.customer.existingCustomerId } : {}),
+    });
     return;
   }
-
-  const [{ count }] = await db.select({ count: sql<number>`count(*)::int` })
-    .from(opportunitiesTable)
-    .where(and(eq(opportunitiesTable.tenantId, req.tenantId!), eq(opportunitiesTable.environmentId, req.environmentId!)));
-  const opportunityNumber = `OP-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
-  const [created] = await db.insert(opportunitiesTable).values({
-    opportunityNumber,
-    businessCustomerId: customer.customerId,
-    name: parsed.data.name.trim(),
-    description: parsed.data.description?.trim() || null,
-    stage: parsed.data.stage ?? stages[0],
-    estimatedValue: String(parsed.data.estimatedValue ?? 0),
-    expectedCloseDate: dateString(parsed.data.expectedCloseDate),
-    ownerUserId: parsed.data.ownerUserId ?? null,
-    leadSource: parsed.data.leadSource?.trim() || null,
-    contactName: parsed.data.contactName?.trim() || null,
-    contactEmail: parsed.data.contactEmail?.trim().toLowerCase() || null,
-    contactPhone: parsed.data.contactPhone?.trim() || null,
-    qualification: parsed.data.qualification ?? "unqualified",
-    nextAction: parsed.data.nextAction?.trim() || null,
-    nextActionDate: dateString(parsed.data.nextActionDate),
-    lastContactedAt: parsed.data.lastContactedAt ? new Date(parsed.data.lastContactedAt) : null,
-    crmProviderKey: parsed.data.crmProviderKey?.trim() || null,
-    crmIntegrationStatus: parsed.data.crmIntegrationStatus ?? "manual",
-    crmExternalReference: parsed.data.crmExternalReference?.trim() || null,
-    tenantId: req.tenantId!,
-    environmentId: req.environmentId!,
-  }).returning();
-  await db.insert(platformAuditEventsTable).values({
-    actorUserId: req.localUserId!,
-    tenantId: req.tenantId!,
-    action: "opportunity_created",
-    details: JSON.stringify({ opportunityId: created.id, environmentId: req.environmentId }),
-  });
-  const row = await getOpportunityInContext(req, created.id);
+  const createdId = transactionResult.createdId;
+  if (createdId === null) throw new Error("Opportunity transaction completed without a created record");
+  const row = await getOpportunityInContext(req, createdId);
   res.status(201).json(serializeOpportunity(row!));
 });
 

@@ -992,6 +992,42 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SupplierProduct" }
+  /supplier-products/bulk:
+    post:
+      operationId: bulkCreateSupplierProducts
+      tags: [supplier-orders]
+      summary: Add multiple supplier products or materials at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierProductBulkInput" }
+      responses:
+        "201":
+          description: Supplier products created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierProductBulkResponse" }
+        "400": { description: Invalid product rows or duplicate SKUs }
+        "409": { description: A product SKU was added by another request }
+  /supplier-products/import:
+    post:
+      operationId: importSupplierProducts
+      tags: [supplier-orders]
+      summary: Import supplier products from an Excel workbook or CSV file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierProductImportInput" }
+      responses:
+        "201":
+          description: Supplier products imported
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierProductImportResponse" }
+        "400": { description: Invalid or unsupported spreadsheet }
+        "409": { description: A product SKU was added by another request }
   /supplier-vendors:
     get:
       operationId: listSupplierVendors
@@ -8108,6 +8144,38 @@ components:
         availableQuantity: { type: number, minimum: 0 }
         backorderedQuantity: { type: number, minimum: 0 }
         status: { type: string, enum: [active, archived] }
+    SupplierProductBulkInput:
+      type: object
+      required: [products]
+      properties:
+        products:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items: { $ref: "#/components/schemas/SupplierProductInput" }
+    SupplierProductImportInput:
+      type: object
+      required: [fileName, fileData]
+      properties:
+        fileName: { type: string, minLength: 1, maxLength: 255 }
+        fileData: { type: string, minLength: 1, maxLength: 12000000 }
+    SupplierProductBulkResponse:
+      type: object
+      required: [createdCount, products]
+      properties:
+        createdCount: { type: integer }
+        products:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierProduct" }
+    SupplierProductImportResponse:
+      type: object
+      required: [createdCount, products, fileName]
+      properties:
+        fileName: { type: string }
+        createdCount: { type: integer }
+        products:
+          type: array
+          items: { $ref: "#/components/schemas/SupplierProduct" }
     SupplierCustomerTerms:
       type: object
       required: [id, businessCustomerId, paymentTerms, creditLimit, discountPercent, retainageRequired, waiverRequired, status, createdAt, updatedAt]

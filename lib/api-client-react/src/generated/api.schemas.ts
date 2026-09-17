@@ -6191,6 +6191,38 @@ export interface SupplierProductUpdate {
   status?: SupplierProductUpdateStatus;
 }
 
+export interface SupplierProductBulkInput {
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  products: SupplierProductInput[];
+}
+
+export interface SupplierProductImportInput {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  fileName: string;
+  /**
+     * @minLength 1
+     * @maxLength 12000000
+     */
+  fileData: string;
+}
+
+export interface SupplierProductBulkResponse {
+  createdCount: number;
+  products: SupplierProduct[];
+}
+
+export interface SupplierProductImportResponse {
+  fileName: string;
+  createdCount: number;
+  products: SupplierProduct[];
+}
+
 export type SupplierCustomerTermsStatus = typeof SupplierCustomerTermsStatus[keyof typeof SupplierCustomerTermsStatus];
 
 

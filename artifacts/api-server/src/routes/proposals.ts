@@ -20,7 +20,7 @@ import {
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
-import { resolveBusinessCustomer } from "../lib/business-customer";
+import { resolveBusinessCustomer, type DatabaseExecutor } from "../lib/business-customer";
 
 const router: IRouter = Router();
 const stages = ["draft", "internal_review", "ready", "sent", "viewed", "accepted", "declined", "expired"] as const;
@@ -117,8 +117,9 @@ const validateRelationships = async (
   businessCustomerId: number,
   estimateId: number | null | undefined,
   bidId: number | null | undefined,
+  executor: DatabaseExecutor = db,
 ) => {
-  const [customer] = await db.select({ id: businessCustomersTable.id }).from(businessCustomersTable).where(and(
+  const [customer] = await executor.select({ id: businessCustomersTable.id }).from(businessCustomersTable).where(and(
     eq(businessCustomersTable.id, businessCustomerId),
     eq(businessCustomersTable.tenantId, req.tenantId!),
     eq(businessCustomersTable.environmentId, req.environmentId!),
@@ -127,7 +128,7 @@ const validateRelationships = async (
   if (!customer) return "Active business customer not found in this environment";
 
   if (estimateId !== undefined && estimateId !== null) {
-    const [estimate] = await db.select({ id: estimatesTable.id, businessCustomerId: estimatesTable.businessCustomerId })
+    const [estimate] = await executor.select({ id: estimatesTable.id, businessCustomerId: estimatesTable.businessCustomerId })
       .from(estimatesTable).where(and(
         eq(estimatesTable.id, estimateId),
         eq(estimatesTable.tenantId, req.tenantId!),
@@ -138,7 +139,7 @@ const validateRelationships = async (
   }
 
   if (bidId !== undefined && bidId !== null) {
-    const [bid] = await db.select({ id: bidsTable.id, businessCustomerId: bidsTable.businessCustomerId })
+    const [bid] = await executor.select({ id: bidsTable.id, businessCustomerId: bidsTable.businessCustomerId })
       .from(bidsTable).where(and(
         eq(bidsTable.id, bidId),
         eq(bidsTable.tenantId, req.tenantId!),
@@ -245,49 +246,55 @@ router.post("/proposals", requireRole("owner", "admin", "member"), async (req: T
     res.status(400).json({ error: "A new customer cannot be linked to existing pipeline records" });
     return;
   }
-  const customer = await resolveBusinessCustomer(req, parsed.data);
-  if ("status" in customer) {
-    res.status(customer.status).json({ error: customer.error, ...(customer.existingCustomerId ? { existingCustomerId: customer.existingCustomerId } : {}) });
-    return;
-  }
-  const relationshipError = await validateRelationships(req, customer.customerId, parsed.data.estimateId, parsed.data.bidId);
-  if (relationshipError) {
-    res.status(400).json({ error: relationshipError });
-    return;
-  }
-  const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(proposalsTable)
-    .where(and(eq(proposalsTable.tenantId, req.tenantId!), eq(proposalsTable.environmentId, req.environmentId!)));
-  const proposalNumber = `PROP-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
-  const stage = parsed.data.stage ?? stages[0];
-  const [created] = await db.insert(proposalsTable).values({
-    proposalNumber,
-    businessCustomerId: customer.customerId,
-    estimateId: parsed.data.estimateId ?? null,
-    bidId: parsed.data.bidId ?? null,
-    name: parsed.data.name.trim(),
-    description: parsed.data.description?.trim() || null,
-    stage,
-    proposalValue: String(parsed.data.proposalValue ?? 0),
-    validUntil: dateString(parsed.data.validUntil),
-    recipientName: parsed.data.recipientName?.trim() || null,
-    recipientEmail: parsed.data.recipientEmail?.trim().toLowerCase() || null,
-    ownerUserId: parsed.data.ownerUserId ?? null,
-    integrationProviderKey: parsed.data.integrationProviderKey?.trim() || null,
-    integrationKind: parsed.data.integrationKind ?? null,
-    integrationStatus: parsed.data.integrationStatus ?? "manual",
-    externalReference: parsed.data.externalReference?.trim() || null,
-    sentAt: stage === "sent" || stage === "viewed" || stage === "accepted" || stage === "declined" ? new Date() : null,
-    respondedAt: stage === "accepted" || stage === "declined" ? new Date() : null,
-    tenantId: req.tenantId!,
-    environmentId: req.environmentId!,
-  }).returning();
-  await db.insert(platformAuditEventsTable).values({
-    actorUserId: req.localUserId!,
-    tenantId: req.tenantId!,
-    action: "proposal_created",
-    details: JSON.stringify({ proposalId: created.id, environmentId: req.environmentId }),
+  const transactionResult = await db.transaction(async (tx) => {
+    const customer = await resolveBusinessCustomer(req, parsed.data, tx);
+    if ("status" in customer) return { customer, createdId: null };
+    const relationshipError = await validateRelationships(req, customer.customerId, parsed.data.estimateId, parsed.data.bidId, tx);
+    if (relationshipError) return { customer: { status: 400, error: relationshipError }, createdId: null };
+    const [{ count }] = await tx.select({ count: sql<number>`count(*)::int` }).from(proposalsTable)
+      .where(and(eq(proposalsTable.tenantId, req.tenantId!), eq(proposalsTable.environmentId, req.environmentId!)));
+    const proposalNumber = `PROP-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
+    const stage = parsed.data.stage ?? stages[0];
+    const [created] = await tx.insert(proposalsTable).values({
+      proposalNumber,
+      businessCustomerId: customer.customerId,
+      estimateId: parsed.data.estimateId ?? null,
+      bidId: parsed.data.bidId ?? null,
+      name: parsed.data.name.trim(),
+      description: parsed.data.description?.trim() || null,
+      stage,
+      proposalValue: String(parsed.data.proposalValue ?? 0),
+      validUntil: dateString(parsed.data.validUntil),
+      recipientName: parsed.data.recipientName?.trim() || null,
+      recipientEmail: parsed.data.recipientEmail?.trim().toLowerCase() || null,
+      ownerUserId: parsed.data.ownerUserId ?? null,
+      integrationProviderKey: parsed.data.integrationProviderKey?.trim() || null,
+      integrationKind: parsed.data.integrationKind ?? null,
+      integrationStatus: parsed.data.integrationStatus ?? "manual",
+      externalReference: parsed.data.externalReference?.trim() || null,
+      sentAt: stage === "sent" || stage === "viewed" || stage === "accepted" || stage === "declined" ? new Date() : null,
+      respondedAt: stage === "accepted" || stage === "declined" ? new Date() : null,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    }).returning();
+    await tx.insert(platformAuditEventsTable).values({
+      actorUserId: req.localUserId!,
+      tenantId: req.tenantId!,
+      action: "proposal_created",
+      details: JSON.stringify({ proposalId: created.id, environmentId: req.environmentId }),
+    });
+    return { customer, createdId: created.id };
   });
-  const row = await getProposalInContext(req, created.id);
+  if ("status" in transactionResult.customer) {
+    res.status(transactionResult.customer.status).json({
+      error: transactionResult.customer.error,
+      ...(transactionResult.customer.existingCustomerId ? { existingCustomerId: transactionResult.customer.existingCustomerId } : {}),
+    });
+    return;
+  }
+  const createdId = transactionResult.createdId;
+  if (createdId === null) throw new Error("Proposal transaction completed without a created record");
+  const row = await getProposalInContext(req, createdId);
   res.status(201).json(serializeProposal(row!));
 });
 

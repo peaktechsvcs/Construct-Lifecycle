@@ -26,7 +26,7 @@ import {
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
-import { resolveBusinessCustomer } from "../lib/business-customer";
+import { resolveBusinessCustomer, type DatabaseExecutor } from "../lib/business-customer";
 
 const router: IRouter = Router();
 const stages = ["invited", "qualifying", "takeoff", "estimating", "review", "submitted", "awarded", "lost"] as const;
@@ -202,8 +202,9 @@ const validateRelationships = async (
   req: TenantRequest,
   businessCustomerId: number,
   opportunityId: number | null | undefined,
+  executor: DatabaseExecutor = db,
 ) => {
-  const [customer] = await db
+  const [customer] = await executor
     .select({ id: businessCustomersTable.id })
     .from(businessCustomersTable)
     .where(and(
@@ -216,7 +217,7 @@ const validateRelationships = async (
   if (!customer) return "Active business customer not found in this environment";
 
   if (opportunityId !== undefined && opportunityId !== null) {
-    const [opportunity] = await db
+    const [opportunity] = await executor
       .select({ id: opportunitiesTable.id, businessCustomerId: opportunitiesTable.businessCustomerId })
       .from(opportunitiesTable)
       .where(and(
@@ -362,48 +363,54 @@ router.post("/bids", requireRole("owner", "admin", "member"), async (req: Tenant
     res.status(400).json({ error: "A new customer cannot be linked to an existing opportunity" });
     return;
   }
-  const customer = await resolveBusinessCustomer(req, parsed.data);
-  if ("status" in customer) {
-    res.status(customer.status).json({ error: customer.error, ...(customer.existingCustomerId ? { existingCustomerId: customer.existingCustomerId } : {}) });
-    return;
-  }
-  const relationshipError = await validateRelationships(req, customer.customerId, parsed.data.opportunityId);
-  if (relationshipError) {
-    res.status(400).json({ error: relationshipError });
-    return;
-  }
+  const transactionResult = await db.transaction(async (tx) => {
+    const customer = await resolveBusinessCustomer(req, parsed.data, tx);
+    if ("status" in customer) return { customer, createdId: null };
+    const relationshipError = await validateRelationships(req, customer.customerId, parsed.data.opportunityId, tx);
+    if (relationshipError) return { customer: { status: 400, error: relationshipError }, createdId: null };
 
-  const [{ count }] = await db.select({ count: sql<number>`count(*)::int` })
-    .from(bidsTable)
-    .where(and(eq(bidsTable.tenantId, req.tenantId!), eq(bidsTable.environmentId, req.environmentId!)));
-  const bidNumber = `BID-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
-  const [created] = await db.insert(bidsTable).values({
-    bidNumber,
-    businessCustomerId: customer.customerId,
-    opportunityId: parsed.data.opportunityId ?? null,
-    name: parsed.data.name.trim(),
-    description: parsed.data.description?.trim() || null,
-    stage: parsed.data.stage ?? stages[0],
-    bidType: parsed.data.bidType ?? "general",
-    scopeMode: parsed.data.scopeMode ?? "full",
-    specialty: parsed.data.specialty?.trim() || null,
-    estimatedValue: String(parsed.data.estimatedValue ?? 0),
-    dueDate: dateString(parsed.data.dueDate),
-    ownerUserId: parsed.data.ownerUserId ?? null,
-    takeoffProvider: parsed.data.takeoffProvider?.trim() || null,
-    takeoffCoverage: parsed.data.takeoffCoverage ?? "none",
-    estimatingProvider: parsed.data.estimatingProvider?.trim() || null,
-    estimatingCoverage: parsed.data.estimatingCoverage ?? "none",
-    tenantId: req.tenantId!,
-    environmentId: req.environmentId!,
-  }).returning();
-  await db.insert(platformAuditEventsTable).values({
-    actorUserId: req.localUserId!,
-    tenantId: req.tenantId!,
-    action: "bid_created",
-    details: JSON.stringify({ bidId: created.id, environmentId: req.environmentId }),
+    const [{ count }] = await tx.select({ count: sql<number>`count(*)::int` })
+      .from(bidsTable)
+      .where(and(eq(bidsTable.tenantId, req.tenantId!), eq(bidsTable.environmentId, req.environmentId!)));
+    const bidNumber = `BID-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
+    const [created] = await tx.insert(bidsTable).values({
+      bidNumber,
+      businessCustomerId: customer.customerId,
+      opportunityId: parsed.data.opportunityId ?? null,
+      name: parsed.data.name.trim(),
+      description: parsed.data.description?.trim() || null,
+      stage: parsed.data.stage ?? stages[0],
+      bidType: parsed.data.bidType ?? "general",
+      scopeMode: parsed.data.scopeMode ?? "full",
+      specialty: parsed.data.specialty?.trim() || null,
+      estimatedValue: String(parsed.data.estimatedValue ?? 0),
+      dueDate: dateString(parsed.data.dueDate),
+      ownerUserId: parsed.data.ownerUserId ?? null,
+      takeoffProvider: parsed.data.takeoffProvider?.trim() || null,
+      takeoffCoverage: parsed.data.takeoffCoverage ?? "none",
+      estimatingProvider: parsed.data.estimatingProvider?.trim() || null,
+      estimatingCoverage: parsed.data.estimatingCoverage ?? "none",
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    }).returning();
+    await tx.insert(platformAuditEventsTable).values({
+      actorUserId: req.localUserId!,
+      tenantId: req.tenantId!,
+      action: "bid_created",
+      details: JSON.stringify({ bidId: created.id, environmentId: req.environmentId }),
+    });
+    return { customer, createdId: created.id };
   });
-  const row = await getBidInContext(req, created.id);
+  if ("status" in transactionResult.customer) {
+    res.status(transactionResult.customer.status).json({
+      error: transactionResult.customer.error,
+      ...(transactionResult.customer.existingCustomerId ? { existingCustomerId: transactionResult.customer.existingCustomerId } : {}),
+    });
+    return;
+  }
+  const createdId = transactionResult.createdId;
+  if (createdId === null) throw new Error("Bid transaction completed without a created record");
+  const row = await getBidInContext(req, createdId);
   res.status(201).json(serializeBid(row!, []));
 });
 
