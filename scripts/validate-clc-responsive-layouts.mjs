@@ -17,6 +17,10 @@ const visualMaxDiffRatio = Number(process.env.CLC_VISUAL_MAX_DIFF_RATIO ?? 0.002
 const visualMaxMeanError = Number(process.env.CLC_VISUAL_MAX_MEAN_ERROR ?? 1.5);
 const includeSearchTransitionCase = process.env.CLC_RESPONSIVE_TEST_SEARCH_TRANSITION === "1";
 const skipVisualComparison = process.env.CLC_RESPONSIVE_TEST_SKIP_VISUAL === "1";
+const requestedCaseIds = (process.env.CLC_RESPONSIVE_TEST_CASES ?? "")
+  .split(",")
+  .map((id) => id.trim())
+  .filter(Boolean);
 const viewports = [
   { name: "mobile", width: 390, height: 844 },
   { name: "desktop", width: 1440, height: 1000 },
@@ -97,7 +101,6 @@ const cases = [
       fieldValue: "CNT-0042-UPDATED",
     },
     shell: true,
-    skipVisual: true,
   },
   {
     id: "milestones-workspace",
@@ -126,7 +129,6 @@ const cases = [
       ],
     },
     shell: true,
-    skipVisual: true,
   },
   {
     id: "procurement-workspace",
@@ -1563,10 +1565,13 @@ browser.stderr.on("data", (chunk) => { output += chunk; });
 
 try {
   await Promise.all([waitForServer(server), waitForDevTools()]);
-  for (const routeCase of cases) {
+  const selectedCases = requestedCaseIds.length
+    ? cases.filter((routeCase) => requestedCaseIds.includes(routeCase.id))
+    : cases;
+  for (const routeCase of selectedCases) {
     for (const viewport of viewports) await visit(routeCase, viewport);
   }
-  console.log(`Validated ${cases.length} representative views at mobile and desktop widths.`);
+  console.log(`Validated ${selectedCases.length} representative views at mobile and desktop widths.`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   if (output) console.error(output);
