@@ -1107,6 +1107,16 @@ async function inspectSearchTransition(client, routeCase, viewport) {
 async function inspectProcurementNavigation(client, routeCase, viewport) {
   if (!routeCase.procurementNavigation) return;
 
+  const resetLoaded = client.event("Page.loadEventFired");
+  await client.command("Page.navigate", { url: `${baseUrl}/procurement?tab=overview&browserAuth=authenticated` });
+  await resetLoaded;
+  await waitForRenderedPage(client, routeCase);
+  await waitFor(
+    client,
+    `${routeCase.name} navigation reset`,
+    `(() => ({ ready: document.body.innerText.includes("Latest supplier orders") }))()`,
+  );
+
   const quotesTab = await evaluate(client, `(() => {
     const button = document.querySelector('[data-testid="button-supplier-tab-quotes"]');
     if (!(button instanceof HTMLElement)) return false;
@@ -1141,6 +1151,44 @@ async function inspectProcurementNavigation(client, routeCase, viewport) {
     }))()`,
   );
 
+  const goBack = async (label, ready) => {
+    const navigated = await evaluate(client, `(() => {
+      window.history.back();
+      return true;
+    })()`);
+    if (!navigated) throw new Error(`${routeCase.name} (${viewport.name}): could not navigate back from ${label}`);
+    await waitFor(client, `${routeCase.name} ${label} after back`, ready);
+  };
+
+  const goForward = async (label, ready) => {
+    const navigated = await evaluate(client, `(() => {
+      window.history.forward();
+      return true;
+    })()`);
+    if (!navigated) throw new Error(`${routeCase.name} (${viewport.name}): could not navigate forward to ${label}`);
+    await waitFor(client, `${routeCase.name} ${label} after forward`, ready);
+  };
+
+  await goBack(
+    "quote queue",
+    `(() => ({
+      ready: window.location.pathname === "/procurement"
+        && new URLSearchParams(window.location.search).get("tab") === "quotes"
+        && !new URLSearchParams(window.location.search).get("quote")
+        && document.querySelector('[data-testid="row-supplier-quote-8101"]') !== null,
+    }))()`,
+  );
+  await goForward(
+    "selected quote",
+    `(() => ({
+      ready: window.location.pathname === "/procurement"
+        && new URLSearchParams(window.location.search).get("tab") === "quotes"
+        && new URLSearchParams(window.location.search).get("quote") === "8101"
+        && document.body.innerText.includes("SQ-8101")
+        && document.body.innerText.includes("Browser Test Customer"),
+    }))()`,
+  );
+
   const converted = await evaluate(client, `(() => {
     const button = [...document.querySelectorAll("button")]
       .find((candidate) => candidate.textContent?.includes("Convert to purchase order"));
@@ -1161,6 +1209,25 @@ async function inspectProcurementNavigation(client, routeCase, viewport) {
     }))()`,
   );
 
+  await goBack(
+    "selected quote after conversion",
+    `(() => ({
+      ready: window.location.pathname === "/procurement"
+        && new URLSearchParams(window.location.search).get("tab") === "quotes"
+        && new URLSearchParams(window.location.search).get("quote") === "8101"
+        && document.body.innerText.includes("SQ-8101")
+        && document.body.innerText.includes("Browser Test Customer"),
+    }))()`,
+  );
+  await goForward(
+    "converted order",
+    `(() => ({
+      ready: window.location.pathname === "/procurement"
+        && new URLSearchParams(window.location.search).get("order") === "8202"
+        && document.body.innerText.includes("PO-8202"),
+    }))()`,
+  );
+
   const navigate = async (path, heading, requiredText) => {
     const loaded = client.event("Page.loadEventFired");
     await client.command("Page.navigate", { url: `${baseUrl}${path}` });
@@ -1177,7 +1244,23 @@ async function inspectProcurementNavigation(client, routeCase, viewport) {
     );
   };
 
-  await navigate("/deliveries?browserAuth=authenticated&order=8202", "Delivery control", "Delivery evidence");
+  await navigate("/deliveries?browserAuth=authenticated", "Delivery control", "Delivery evidence");
+  await goBack(
+    "converted order after automatic queue selection",
+    `(() => ({
+      ready: window.location.pathname === "/procurement"
+        && new URLSearchParams(window.location.search).get("order") === "8202"
+        && document.body.innerText.includes("PO-8202"),
+    }))()`,
+  );
+  await goForward(
+    "delivery queue after automatic queue selection",
+    `(() => ({
+      ready: window.location.pathname === "/deliveries"
+        && new URLSearchParams(window.location.search).get("order") === "8202"
+        && document.body.innerText.includes("DEL-8202"),
+    }))()`,
+  );
   await navigate("/receiving?browserAuth=authenticated&order=8202", "Receiving queue", "Receiving closeout");
   const returnLoaded = client.event("Page.loadEventFired");
   await client.command("Page.navigate", { url: `${baseUrl}/procurement?tab=overview&browserAuth=authenticated` });
@@ -1494,7 +1577,10 @@ async function visit(routeCase, viewport) {
   });
   const removeLogListener = client.on("Log.entryAdded", (params) => {
     if (params.entry?.level === "error") {
-      browserErrors.push(`browser log: ${describeBrowserError("browser log", params)}`);
+      const message = describeBrowserError("browser log", params);
+      if (!message.includes("Page entered Back-Forward Cache.")) {
+        browserErrors.push(`browser log: ${message}`);
+      }
     }
   });
   try {

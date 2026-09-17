@@ -126,8 +126,9 @@ function positiveInteger(value: string | null) {
 export function SupplierOrders() {
   const qc = useQueryClient();
   const [location, setLocation] = useLocation();
+  const [historyVersion, setHistoryVersion] = useState(0);
   const pathname = useMemo(() => location.split('?')[0] || '/procurement', [location]);
-  const routeParams = useMemo(() => new URLSearchParams(location.split('?')[1] ?? ''), [location]);
+  const routeParams = useMemo(() => new URLSearchParams(window.location.search), [location, historyVersion]);
   const routeMode = useMemo<RouteMode>(() => {
     if (pathname === '/purchase-orders') return 'purchase-orders';
     if (pathname === '/deliveries') return 'deliveries';
@@ -159,6 +160,22 @@ export function SupplierOrders() {
   const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', totalAmount: '', dueDate: '', status: 'submitted', paidAmount: '', paymentReference: '', waiverStatus: 'not_required', waiverReference: '' });
   const [termsForm, setTermsForm] = useState({ customerId: '', paymentTerms: 'Net 30', creditLimit: '0', discountPercent: '0', retainageRequired: '0', waiverRequired: false });
   const [orderStatus, setOrderStatus] = useState<SupplierOrderStatus>('approved');
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const currentPath = window.location.pathname;
+      const nextTab = ['/purchase-orders', '/deliveries', '/receiving'].some((alias) => currentPath.endsWith(alias))
+        ? 'orders'
+        : tabs.some((item) => item.value === params.get('tab')) ? params.get('tab') as Tab : 'overview';
+      setHistoryVersion((version) => version + 1);
+      setTab(nextTab);
+      setSelectedQuoteId(positiveInteger(params.get('quote')));
+      setSelectedOrderId(positiveInteger(params.get('order')));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const products = useListSupplierProducts({ search: search || undefined }, { query: { retry: false, queryKey: getListSupplierProductsQueryKey({ search: search || undefined }) } });
   const vendors = useListSupplierVendors({ query: { retry: false, queryKey: getListSupplierVendorsQueryKey() } });
@@ -242,7 +259,7 @@ export function SupplierOrders() {
   function navigateTab(nextTab: Tab) {
     setTab(nextTab);
     if (routeMode !== 'procurement' && nextTab !== 'orders') {
-      setLocation(`/procurement?tab=${nextTab}`, { replace: true });
+      setLocation(`/procurement?tab=${nextTab}`);
       return;
     }
     const params = new URLSearchParams();
@@ -250,7 +267,7 @@ export function SupplierOrders() {
     if (nextTab === 'quotes' && selectedQuoteId) params.set('quote', String(selectedQuoteId));
     if (nextTab === 'orders' && selectedOrderId) params.set('order', String(selectedOrderId));
     const query = params.toString();
-    setLocation(`${pathname}${query ? `?${query}` : ''}`, { replace: true });
+    setLocation(`${pathname}${query ? `?${query}` : ''}`);
   }
 
   function resetQuoteForm() {
@@ -266,7 +283,7 @@ export function SupplierOrders() {
     setSelectedQuoteId(id);
     setSelectedOrderId(undefined);
     setTab('quotes');
-    setLocation(`/procurement?tab=quotes&quote=${id}`, { replace: true });
+    setLocation(`/procurement?tab=quotes&quote=${id}`);
   }
 
   function selectOrder(id: number) {
@@ -278,7 +295,7 @@ export function SupplierOrders() {
     if (routeMode === 'procurement') params.set('tab', 'orders');
     params.set('order', String(id));
     const query = params.toString();
-    setLocation(`${pathname}${query ? `?${query}` : ''}`, { replace: true });
+    setLocation(`${pathname}${query ? `?${query}` : ''}`);
   }
 
   const metrics = useMemo(() => {
