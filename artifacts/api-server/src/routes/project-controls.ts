@@ -71,6 +71,15 @@ const scope = (req: TenantRequest, table: { tenantId: any; environmentId: any })
 const money = (value: string | number | null | undefined) => Number(value ?? 0);
 const nullableDate = (value: Date | string | null | undefined) =>
   value == null ? null : value instanceof Date ? value.toISOString().slice(0, 10) : value;
+const safeDocumentUrl = (value: string | undefined) => {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? value : null;
+  } catch {
+    return null;
+  }
+};
 
 async function allocateIssueNumber(req: TenantRequest, projectId: number, issueType: string) {
   const [sequence] = await db.insert(projectIssueNumberSequencesTable).values({
@@ -327,6 +336,10 @@ router.put("/projects/:projectId/controls/contract", requireRole("owner", "admin
   if (!params.success || !parsed.success) { res.status(400).json({ error: "Invalid contract details" }); return; }
   if (!await getProject(req, params.data.projectId)) { res.status(404).json({ error: "Project not found" }); return; }
   const data = parsed.data;
+  if (data.documentUrl && !safeDocumentUrl(data.documentUrl)) {
+    res.status(400).json({ error: "Contract document URL must use HTTP or HTTPS" });
+    return;
+  }
   const [existing] = await db.select().from(projectContractsTable).where(and(scope(req, projectContractsTable), eq(projectContractsTable.projectId, params.data.projectId))).limit(1);
   const contractValues = {
     projectId: params.data.projectId,
@@ -342,7 +355,7 @@ router.put("/projects/:projectId/controls/contract", requireRole("owner", "admin
     retainageCap: data.retainageCap == null ? null : String(data.retainageCap),
     approvalStatus: data.approvalStatus ?? "draft",
     status: data.status ?? "active",
-    documentUrl: data.documentUrl ?? null,
+    documentUrl: safeDocumentUrl(data.documentUrl),
     tenantId: req.tenantId!,
     environmentId: req.environmentId!,
     updatedAt: new Date(),
