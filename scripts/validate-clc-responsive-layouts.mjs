@@ -139,6 +139,7 @@ const cases = [
     ],
     requiredSelectors: ['button[data-testid="button-supplier-tab-orders"]'],
     requiredTexts: ["Latest supplier orders", "PO-8202", "Browser Test Customer"],
+    supplierQuoteCreation: true,
     procurementNavigation: true,
     shell: true,
     skipVisual: true,
@@ -1107,6 +1108,86 @@ async function inspectProcurementNavigation(client, routeCase, viewport) {
   );
 }
 
+async function inspectSupplierQuoteCreation(client, routeCase, viewport) {
+  if (!routeCase.supplierQuoteCreation) return;
+
+  const quotesTab = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-supplier-tab-quotes"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!quotesTab) throw new Error(`${routeCase.name} (${viewport.name}): quotes tab missing for quote creation`);
+
+  const newQuote = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-new-supplier-quote-tab"]')
+      ?? [...document.querySelectorAll("button")].find((candidate) => candidate.textContent?.includes("New quote"));
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!newQuote) throw new Error(`${routeCase.name} (${viewport.name}): quote creation action missing`);
+
+  await waitFor(
+    client,
+    `${routeCase.name} quote editor`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="select-supplier-quote-customer"]') !== null,
+    }))()`,
+  );
+
+  const filled = await evaluate(client, `(() => {
+    const fields = [
+      { selector: '[data-testid="select-supplier-quote-customer"]', value: "42" },
+      { selector: '[data-testid="input-supplier-quote-description"]', value: "Updated browser quote line" },
+      { selector: '[data-testid="input-supplier-quote-quantity"]', value: "7" },
+      { selector: '[data-testid="input-supplier-quote-promised-date"]', value: "2026-11-20" },
+      { selector: '[data-testid="input-supplier-quote-unit-cost"]', value: "125" },
+      { selector: '[data-testid="input-supplier-quote-unit-price"]', value: "225" },
+    ];
+    for (const fieldCase of fields) {
+      const field = document.querySelector(fieldCase.selector);
+      if (!(field instanceof HTMLInputElement) && !(field instanceof HTMLSelectElement)) return false;
+      const prototype = field instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+      if (!setter) return false;
+      setter.call(field, fieldCase.value);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    return true;
+  })()`);
+  if (!filled) throw new Error(`${routeCase.name} (${viewport.name}): quote editor field missing`);
+
+  const submitted = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-create-supplier-quote"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!submitted) throw new Error(`${routeCase.name} (${viewport.name}): quote editor submit action missing`);
+
+  await waitFor(
+    client,
+    `${routeCase.name} created quote detail`,
+    `(() => {
+      const text = document.body.innerText;
+      const normalizedText = text.toLowerCase();
+      return {
+        ready: new URLSearchParams(window.location.search).get("quote") === "8301"
+          && normalizedText.includes("sq-8301")
+          && normalizedText.includes("updated browser quote line")
+          && normalizedText.includes("browser test supplier")
+          && normalizedText.includes("7 each")
+          && text.includes("$1,575")
+          && text.includes("$875")
+          && text.includes("$700")
+          && normalizedText.includes("nov 20"),
+      };
+    })()`,
+  );
+}
+
 async function inspect(client, routeCase, viewport) {
   if (routeCase.shell && viewport.name === "mobile") {
     const opened = await evaluate(client, `(() => {
@@ -1123,6 +1204,7 @@ async function inspect(client, routeCase, viewport) {
   await inspectProjectControlsPersistence(client, routeCase, viewport);
   await inspectInlineEditor(client, routeCase, viewport);
   await inspectSearchTransition(client, routeCase, viewport);
+  await inspectSupplierQuoteCreation(client, routeCase, viewport);
   await inspectProcurementNavigation(client, routeCase, viewport);
 
   return evaluate(client, `(() => {

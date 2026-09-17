@@ -424,6 +424,9 @@ const browserSupplierQuote = {
   updatedAt: new Date(0).toISOString(),
 };
 
+let browserSupplierQuotes: Array<Record<string, unknown>> = [browserSupplierQuote];
+let browserCreatedSupplierQuoteDetail: Record<string, unknown> | null = null;
+
 const browserSupplierOrderLine = {
   id: 8203,
   orderId: 8202,
@@ -879,9 +882,65 @@ export function installBrowserTestApi() {
     if (url.pathname === '/api/supplier-products') return json([browserSupplierProduct]);
     if (url.pathname === '/api/supplier-vendors') return json([browserSupplierVendor]);
     if (url.pathname === '/api/supplier-customer-terms') return json([]);
-    if (url.pathname === '/api/supplier-quotes') return json([browserSupplierQuote]);
+    if (url.pathname === '/api/supplier-quotes' && requestMethod === 'GET') return json(browserSupplierQuotes);
+    if (url.pathname === '/api/supplier-quotes' && requestMethod === 'POST') {
+      let requestBody: Record<string, unknown> = {};
+      try {
+        requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      } catch {
+        // The production form already validates the request before submitting.
+      }
+      const requestLines = Array.isArray(requestBody.lines) ? requestBody.lines as Array<Record<string, unknown>> : [];
+      const requestLine = requestLines[0] ?? {};
+      const quantity = Number(requestLine.quantity ?? 0);
+      const unitCost = Number(requestLine.unitCost ?? 0);
+      const unitPrice = Number(requestLine.unitPrice ?? 0);
+      const createdQuote = {
+        id: 8301,
+        quoteNumber: 'SQ-8301',
+        businessCustomerId: Number(requestBody.businessCustomerId ?? businessCustomer.id),
+        customerName: businessCustomer.companyName,
+        projectId: null,
+        bidId: null,
+        estimateId: null,
+        proposalId: null,
+        status: 'draft',
+        quoteDate: '2026-09-17',
+        validUntil: null,
+        notes: null,
+        subtotal: quantity * unitPrice,
+        totalCost: quantity * unitCost,
+        totalSell: quantity * unitPrice,
+        grossMargin: quantity * (unitPrice - unitCost),
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+      };
+      const createdDetail = {
+        ...createdQuote,
+        lines: [{
+          id: 8302,
+          quoteId: createdQuote.id,
+          productId: browserSupplierProduct.id,
+          vendorId: browserSupplierVendor.id,
+          description: String(requestLine.description ?? browserSupplierProduct.name),
+          quantity,
+          unit: String(requestLine.unit ?? browserSupplierProduct.unit),
+          unitCost,
+          unitPrice,
+          approvedSubstitution: null,
+          promisedDate: requestLine.promisedDate ? String(requestLine.promisedDate) : null,
+          scopeReference: null,
+        }],
+      };
+      browserCreatedSupplierQuoteDetail = createdDetail;
+      browserSupplierQuotes = [...browserSupplierQuotes, createdQuote];
+      return json(createdDetail, 201);
+    }
     if (url.pathname === `/api/supplier-quotes/${browserSupplierQuote.id}`) {
       return json({ ...browserSupplierQuote, lines: [browserSupplierQuoteLine] });
+    }
+    if (url.pathname === `/api/supplier-quotes/${browserCreatedSupplierQuoteDetail?.id}` && browserCreatedSupplierQuoteDetail) {
+      return json(browserCreatedSupplierQuoteDetail);
     }
     if (url.pathname === `/api/supplier-quotes/${browserSupplierQuote.id}/convert` && requestMethod === 'POST') {
       browserSupplierQuote.status = 'converted';
