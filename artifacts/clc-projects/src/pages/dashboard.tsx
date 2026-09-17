@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'wouter';
 import { Plus, ArrowRight, TrendingUp, Receipt, CalendarDays, BriefcaseBusiness, Activity as ActivityIcon, AlertTriangle } from 'lucide-react';
 import {
@@ -11,9 +12,11 @@ import {
   currency, shortDate,
   PageTitle, LoadingPanel, ErrorPanel, EmptyState, ActivityList,
 } from '@/components/app-ui';
+import { ProjectFormModal } from '@/components/project-form-modal';
 import { stageLabels } from '@/lib/stage-config';
 import { Badge } from '@/components/app-ui';
 import { useWorkflow, workflowStageColor } from '@/hooks/use-workflow';
+import { useTenant } from '@/providers/tenant-provider';
 
 // ─── Clickable stat card with drilldown link ──────────────────────────────────
 
@@ -64,11 +67,14 @@ function DrillStatCard({
 }
 
 export function Dashboard() {
+  const [showProjectForm, setShowProjectForm] = useState(false);
   const summaryQuery = useGetDashboardSummary({ query: { queryKey: getGetDashboardSummaryQueryKey() } });
   const controlsQuery = useGetProjectControlsDashboard({ query: { queryKey: getGetProjectControlsDashboardQueryKey(), staleTime: 60000 } });
   const activityQuery = useListRecentActivity({ query: { queryKey: getListRecentActivityQueryKey(), staleTime: 60000 } });
   const followQuery = useListFollowUps({ query: { queryKey: getListFollowUpsQueryKey(), staleTime: 60000 } });
   const workflow = useWorkflow();
+  const { activeRole } = useTenant();
+  const canManage = activeRole === 'owner' || activeRole === 'admin' || activeRole === 'member';
 
   const summary = summaryQuery.data;
   const activity = activityQuery.data ?? [];
@@ -99,8 +105,14 @@ export function Dashboard() {
         description="Your operational view of every job, handoff, and dollar in motion."
         action={
           <Link
-            href="/projects?create=1"
+            href={canManage ? '/projects?create=1' : '/projects'}
             data-testid="link-dashboard-projects"
+            onClick={(event) => {
+              if (canManage) {
+                event.preventDefault();
+                setShowProjectForm(true);
+              }
+            }}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-sm hover:opacity-90"
           >
             <Plus size={16} /> New project
@@ -307,6 +319,13 @@ export function Dashboard() {
             <div className="rounded-lg bg-primary/8 p-3"><p className="mono text-[9px] uppercase text-primary">Closeout ready</p><p className="mt-2 text-lg font-bold text-primary">{controls.closeoutReadyProjects}</p><p className="text-[10px] text-muted-foreground">Projects ready to close</p></div>
           </div>
         </section>
+      )}
+
+      {showProjectForm && (
+        <ProjectFormModal
+          onClose={() => setShowProjectForm(false)}
+          onCreated={() => setShowProjectForm(false)}
+        />
       )}
     </div>
   );
