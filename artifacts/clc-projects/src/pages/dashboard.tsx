@@ -99,7 +99,7 @@ export function Dashboard() {
         description="Your operational view of every job, handoff, and dollar in motion."
         action={
           <Link
-            href="/projects"
+            href="/projects?create=1"
             data-testid="link-dashboard-projects"
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-sm hover:opacity-90"
           >
