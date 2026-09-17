@@ -23,6 +23,8 @@ import { Estimates } from '@/pages/estimates';
 import { Proposals } from '@/pages/proposals';
 import { Submittals } from '@/pages/submittals';
 import { ProjectDetail } from '@/pages/project-detail';
+import { Contracts } from '@/pages/contracts';
+import { Milestones } from '@/pages/milestones';
 import { Customers } from '@/pages/customers';
 import { CustomerDetail } from '@/pages/customer-detail';
 import { Compliance } from '@/pages/compliance';
@@ -273,6 +275,12 @@ function AppRouter() {
         <Route path="/projects/:id">
           <Shell><ProtectedRoute component={ProjectDetail} /></Shell>
         </Route>
+        <Route path="/contracts">
+          <Shell><ProtectedRoute component={Contracts} /></Shell>
+        </Route>
+        <Route path="/milestones">
+          <Shell><ProtectedRoute component={Milestones} /></Shell>
+        </Route>
         <Route path="/opportunities">
           <Shell><ProtectedRoute component={Opportunities} /></Shell>
         </Route>
@@ -362,6 +370,12 @@ function AppRouter() {
         </Route>
         <Route path="/coming-soon/settings">
           <Redirect to="/settings" />
+        </Route>
+        <Route path="/coming-soon/contracts">
+          <Redirect to="/contracts" />
+        </Route>
+        <Route path="/coming-soon/milestones">
+          <Redirect to="/milestones" />
         </Route>
         <Route path="/administration/platform/customers">
           <Shell><PlatformAdminRoute component={PlatformCustomers} /></Shell>
