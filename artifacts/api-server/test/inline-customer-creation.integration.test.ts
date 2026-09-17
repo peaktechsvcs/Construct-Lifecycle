@@ -75,14 +75,19 @@ function bodyObject(body: JsonBody | string | undefined) {
   return body as Record<string, unknown>;
 }
 
-async function customerByName(companyName: string) {
+async function customerByName(
+  companyName: string,
+  tenantId = tenantAId,
+  environmentId = environmentADtdId,
+) {
   const normalizedName = normalizeBusinessCustomerName(companyName);
   const [customer] = await db
     .select()
     .from(businessCustomersTable)
     .where(and(
       eq(businessCustomersTable.normalizedName, normalizedName),
-      eq(businessCustomersTable.tenantId, tenantAId),
+      eq(businessCustomersTable.tenantId, tenantId),
+      eq(businessCustomersTable.environmentId, environmentId),
     ))
     .limit(1);
   return customer;
@@ -260,6 +265,59 @@ test("creates inline customers for opportunities, bids, estimates, and proposals
     assert.equal(record.environmentId, environmentADtdId);
     assert.equal(record.businessCustomerId, customer.id);
   }
+});
+
+test("resolves concurrent inline customer creation to one scoped customer", async () => {
+  const companyName = `Concurrent Inline Customer ${runId}`;
+  const [first, second] = await Promise.all([
+    request(clerkIds.ownerA, "/opportunities", {
+      newCustomer: { companyName },
+      name: `Concurrent Opportunity One ${runId}`,
+    }),
+    request(clerkIds.ownerA, "/opportunities", {
+      newCustomer: { companyName: `  ${companyName.toUpperCase()}  ` },
+      name: `Concurrent Opportunity Two ${runId}`,
+    }),
+  ]);
+
+  assert.equal(first.status, 201, JSON.stringify(first.body));
+  assert.equal(second.status, 201, JSON.stringify(second.body));
+  const firstBody = bodyObject(first.body);
+  const secondBody = bodyObject(second.body);
+  assert.equal(firstBody.businessCustomerId, secondBody.businessCustomerId);
+
+  const dtdCustomer = await customerByName(companyName, tenantAId, environmentADtdId);
+  assert(dtdCustomer);
+  assert.equal(firstBody.businessCustomerId, dtdCustomer.id);
+  const dtdCustomers = await db
+    .select({ id: businessCustomersTable.id })
+    .from(businessCustomersTable)
+    .where(and(
+      eq(businessCustomersTable.tenantId, tenantAId),
+      eq(businessCustomersTable.environmentId, environmentADtdId),
+      eq(businessCustomersTable.normalizedName, normalizeBusinessCustomerName(companyName)),
+    ));
+  assert.equal(dtdCustomers.length, 1);
+
+  const [production, otherTenant] = await Promise.all([
+    request(clerkIds.ownerAProduction, "/opportunities", {
+      newCustomer: { companyName },
+      name: `Concurrent Production Opportunity ${runId}`,
+    }),
+    request(clerkIds.ownerB, "/opportunities", {
+      newCustomer: { companyName },
+      name: `Concurrent Other Tenant Opportunity ${runId}`,
+    }),
+  ]);
+  assert.equal(production.status, 201, JSON.stringify(production.body));
+  assert.equal(otherTenant.status, 201, JSON.stringify(otherTenant.body));
+  const productionBody = bodyObject(production.body);
+  const otherTenantBody = bodyObject(otherTenant.body);
+  assert.notEqual(productionBody.businessCustomerId, dtdCustomer.id);
+  assert.notEqual(otherTenantBody.businessCustomerId, dtdCustomer.id);
+  assert.notEqual(productionBody.businessCustomerId, otherTenantBody.businessCustomerId);
+  assert(await customerByName(companyName, tenantAId, environmentAProductionId));
+  assert(await customerByName(companyName, tenantBId, environmentBDtdId));
 });
 
 test("members cannot create inline customers", async () => {
