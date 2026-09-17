@@ -253,6 +253,15 @@ export function SupplierOrders() {
     setLocation(`${pathname}${query ? `?${query}` : ''}`, { replace: true });
   }
 
+  function resetQuoteForm() {
+    setQuoteForm({ customerId: '', description: '', quantity: '1', unitCost: '', unitPrice: '', promisedDate: '' });
+  }
+
+  function openQuoteForm() {
+    setShowQuoteForm(true);
+    navigateTab('quotes');
+  }
+
   function selectQuote(id: number) {
     setSelectedQuoteId(id);
     setSelectedOrderId(undefined);
@@ -336,7 +345,7 @@ export function SupplierOrders() {
           promisedDate: quoteForm.promisedDate || undefined,
         }],
       },
-    }, { onSuccess: (quote) => { setShowQuoteForm(false); selectQuote(quote.id); refresh(); } });
+    }, { onSuccess: (quote) => { setShowQuoteForm(false); resetQuoteForm(); selectQuote(quote.id); refresh(); } });
   }
 
   function convertSelectedQuote() {
@@ -457,7 +466,7 @@ export function SupplierOrders() {
             : routeMode === 'receiving'
               ? 'Reconcile delivered quantities, damage, shortages, returns, and receiving proof before payment moves forward.'
               : 'Move supplier quotes into controlled orders, track margin and promised dates, and keep delivery, receiving, and payment history connected to the customer workspace.'}
-        action={routeMode === 'procurement' ? <Button data-testid="button-new-supplier-quote" onClick={() => setShowQuoteForm((value) => !value)}><Plus size={16} /> New supplier quote</Button> : <Button variant="outline" data-testid="button-open-procurement" onClick={() => setLocation('/procurement')}>Open procurement</Button>}
+        action={routeMode === 'procurement' ? <Button data-testid="button-new-supplier-quote" onClick={openQuoteForm}><Plus size={16} /> New supplier quote</Button> : <Button variant="outline" data-testid="button-open-procurement" onClick={() => setLocation('/procurement')}>Open procurement</Button>}
       />
 
       <nav className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 sm:grid-cols-4" aria-label="Supplier operations sections">
@@ -561,7 +570,8 @@ export function SupplierOrders() {
                <Field label="Promised date"><Input data-testid="input-supplier-quote-promised-date" type="date" value={quoteForm.promisedDate} onChange={(event) => setQuoteForm({ ...quoteForm, promisedDate: event.target.value })} className={inputClass} /></Field>
                <Field label="Unit cost"><Input required data-testid="input-supplier-quote-unit-cost" type="number" min="0" step="0.01" value={quoteForm.unitCost} onChange={(event) => setQuoteForm({ ...quoteForm, unitCost: event.target.value })} className={inputClass} /></Field>
                <Field label="Unit sell price"><Input required data-testid="input-supplier-quote-unit-price" type="number" min="0" step="0.01" value={quoteForm.unitPrice} onChange={(event) => setQuoteForm({ ...quoteForm, unitPrice: event.target.value })} className={inputClass} /></Field>
-               <div className="flex gap-2 sm:col-span-2"><Button type="submit" data-testid="button-create-supplier-quote">Create quote</Button><Button type="button" variant="ghost" onClick={() => setShowQuoteForm(false)}>Cancel</Button></div>
+                {createQuote.isError && <p role="alert" className="text-xs text-destructive sm:col-span-2">This supplier quote could not be created. Check the customer, description, quantity, and pricing, then try again.</p>}
+                <div className="flex gap-2 sm:col-span-2"><Button type="submit" data-testid="button-create-supplier-quote" disabled={createQuote.isPending}>{createQuote.isPending ? 'Creating…' : 'Create quote'}</Button><Button type="button" variant="ghost" onClick={() => { setShowQuoteForm(false); resetQuoteForm(); }}>Cancel</Button></div>
             </form>}
             {quotes.isLoading ? <LoadingPanel lines={5} /> : quotes.data?.length ? <QuoteTable quotes={quotes.data} selectedQuoteId={selectedQuoteId} onSelect={selectQuote} /> : <EmptyState icon={Receipt} title="No supplier quotes yet" text="Create a quote from catalog pricing, then convert accepted work into an order." />}
           </Section>

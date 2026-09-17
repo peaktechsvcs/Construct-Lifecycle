@@ -1197,30 +1197,23 @@ async function inspectProcurementNavigation(client, routeCase, viewport) {
 async function inspectSupplierQuoteCreation(client, routeCase, viewport) {
   if (!routeCase.supplierQuoteCreation) return;
 
-  const quotesTab = await evaluate(client, `(() => {
-    const button = document.querySelector('[data-testid="button-supplier-tab-quotes"]');
-    if (!(button instanceof HTMLElement)) return false;
-    button.click();
-    return true;
-  })()`);
-  if (!quotesTab) throw new Error(`${routeCase.name} (${viewport.name}): quotes tab missing for quote creation`);
-
   const newQuote = await evaluate(client, `(() => {
-    const button = document.querySelector('[data-testid="button-new-supplier-quote-tab"]')
-      ?? [...document.querySelectorAll("button")].find((candidate) => candidate.textContent?.includes("New quote"));
+    const button = document.querySelector('[data-testid="button-new-supplier-quote"]');
     if (!(button instanceof HTMLElement)) return false;
     button.click();
     return true;
   })()`);
   if (!newQuote) throw new Error(`${routeCase.name} (${viewport.name}): quote creation action missing`);
 
-  await waitFor(
+  const editor = await waitFor(
     client,
     `${routeCase.name} quote editor`,
     `(() => ({
       ready: document.querySelector('[data-testid="select-supplier-quote-customer"]') !== null,
+      tab: new URLSearchParams(window.location.search).get("tab"),
     }))()`,
   );
+  if (editor.tab !== "quotes") throw new Error(`${routeCase.name} (${viewport.name}): new quote action did not open the quotes tab`);
 
   const filled = await evaluate(client, `(() => {
     const fields = [
