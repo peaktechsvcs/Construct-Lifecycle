@@ -155,7 +155,52 @@ const cases = [
     ],
     requiredSelectors: ['button[data-testid="button-supplier-tab-orders"]'],
     requiredTexts: ["Latest supplier orders", "PO-8202", "Browser Test Customer"],
-    procurementFailureRecovery: true,
+    procurementFailureRecovery: { text: "PO-8202" },
+    shell: true,
+    skipVisual: true,
+  },
+  {
+    id: "procurement-products-failure",
+    name: "procurement products failure recovery",
+    path: "/procurement?browserAuth=authenticated&browserProcurementFailure=products",
+    heading: "Supplier operations",
+    actions: [
+      'button[data-testid="button-new-supplier-quote"]',
+      'button[data-testid="button-supplier-tab-quotes"]',
+    ],
+    requiredSelectors: ['button[data-testid="button-supplier-tab-orders"]'],
+    requiredTexts: ["Products and materials", "Browser Test Concrete", "Supplier vendors"],
+    procurementFailureRecovery: { tab: "catalog", text: "Browser Test Concrete" },
+    shell: true,
+    skipVisual: true,
+  },
+  {
+    id: "procurement-vendors-failure",
+    name: "procurement vendors failure recovery",
+    path: "/procurement?browserAuth=authenticated&browserProcurementFailure=vendors",
+    heading: "Supplier operations",
+    actions: [
+      'button[data-testid="button-new-supplier-quote"]',
+      'button[data-testid="button-supplier-tab-quotes"]',
+    ],
+    requiredSelectors: ['button[data-testid="button-supplier-tab-orders"]'],
+    requiredTexts: ["Products and materials", "Browser Test Concrete", "Browser Test Supplier"],
+    procurementFailureRecovery: { tab: "catalog", text: "Browser Test Supplier" },
+    shell: true,
+    skipVisual: true,
+  },
+  {
+    id: "procurement-quotes-failure",
+    name: "procurement quotes failure recovery",
+    path: "/procurement?browserAuth=authenticated&browserProcurementFailure=quotes",
+    heading: "Supplier operations",
+    actions: [
+      'button[data-testid="button-new-supplier-quote"]',
+      'button[data-testid="button-supplier-tab-quotes"]',
+    ],
+    requiredSelectors: ['button[data-testid="button-supplier-tab-orders"]'],
+    requiredTexts: ["Quotes and proposals", "SQ-8101", "Browser Test Customer"],
+    procurementFailureRecovery: { tab: "quotes", text: "SQ-8101" },
     shell: true,
     skipVisual: true,
   },
@@ -182,6 +227,18 @@ const cases = [
     skipVisual: true,
   },
   {
+    id: "deliveries-api-failure",
+    name: "deliveries API failure recovery",
+    path: "/deliveries?browserAuth=authenticated&order=8202&browserProcurementFailure=deliveries",
+    heading: "Delivery control",
+    actions: ['button[data-testid="button-open-procurement"]'],
+    requiredSelectors: ['[data-testid="row-supplier-order-8202"]'],
+    requiredTexts: ["Delivery schedule", "DEL-8202", "DELIVERY EVIDENCE", "Record delivery"],
+    procurementFailureRecovery: { text: "DEL-8202" },
+    shell: true,
+    skipVisual: true,
+  },
+  {
     id: "receiving-workspace",
     name: "receiving workspace",
     path: "/receiving?browserAuth=authenticated&order=8202",
@@ -189,6 +246,18 @@ const cases = [
     actions: ['button[data-testid="button-open-procurement"]'],
     requiredSelectors: ['[data-testid="row-supplier-order-8202"]'],
     requiredTexts: ["Receiving dispositions", "DEL-8202", "RECEIVING CLOSEOUT", "Save receiving"],
+    shell: true,
+    skipVisual: true,
+  },
+  {
+    id: "receiving-api-failure",
+    name: "receiving API failure recovery",
+    path: "/receiving?browserAuth=authenticated&order=8202&browserProcurementFailure=receiving",
+    heading: "Receiving queue",
+    actions: ['button[data-testid="button-open-procurement"]'],
+    requiredSelectors: ['[data-testid="row-supplier-order-8202"]'],
+    requiredTexts: ["Receiving dispositions", "DEL-8202", "RECEIVING CLOSEOUT", "Save receiving"],
+    procurementFailureRecovery: { text: "DEL-8202" },
     shell: true,
     skipVisual: true,
   },
@@ -1205,6 +1274,7 @@ async function inspectSupplierQuoteCreation(client, routeCase, viewport) {
 
 async function inspectProcurementFailureRecovery(client, routeCase, viewport) {
   if (!routeCase.procurementFailureRecovery) return;
+  const recovery = routeCase.procurementFailureRecovery;
 
   await waitFor(
     client,
@@ -1227,11 +1297,27 @@ async function inspectProcurementFailureRecovery(client, routeCase, viewport) {
 
   await waitFor(
     client,
-    `${routeCase.name} recovered queue`,
+    `${routeCase.name} cleared error`,
     `(() => ({
       ready: document.querySelector('[data-testid="supplier-workspace-error"]') === null
-        && document.querySelector('[data-testid="row-supplier-order-8202"]') !== null
-        && document.body.innerText.includes("PO-8202"),
+    }))()`,
+  );
+
+  if (recovery.tab) {
+    const selectedTab = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-supplier-tab-${recovery.tab}"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!selectedTab) throw new Error(`${routeCase.name} (${viewport.name}): recovered ${recovery.tab} tab missing`);
+  }
+
+  await waitFor(
+    client,
+    `${routeCase.name} recovered queue`,
+    `(() => ({
+      ready: document.body.innerText.toLowerCase().includes(${JSON.stringify(recovery.text.toLowerCase())}),
     }))()`,
   );
 }

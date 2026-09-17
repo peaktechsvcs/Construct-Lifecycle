@@ -160,11 +160,11 @@ export function SupplierOrders() {
   const [termsForm, setTermsForm] = useState({ customerId: '', paymentTerms: 'Net 30', creditLimit: '0', discountPercent: '0', retainageRequired: '0', waiverRequired: false });
   const [orderStatus, setOrderStatus] = useState<SupplierOrderStatus>('approved');
 
-  const products = useListSupplierProducts({ search: search || undefined }, { query: { queryKey: getListSupplierProductsQueryKey({ search: search || undefined }) } });
-  const vendors = useListSupplierVendors({ query: { queryKey: getListSupplierVendorsQueryKey() } });
+  const products = useListSupplierProducts({ search: search || undefined }, { query: { retry: false, queryKey: getListSupplierProductsQueryKey({ search: search || undefined }) } });
+  const vendors = useListSupplierVendors({ query: { retry: false, queryKey: getListSupplierVendorsQueryKey() } });
   const customers = useListBusinessCustomers({ includeArchived: false }, { query: { queryKey: getListBusinessCustomersQueryKey({ includeArchived: false }) } });
   const terms = useListSupplierCustomerTerms({ query: { queryKey: getListSupplierCustomerTermsQueryKey() } });
-  const quotes = useListSupplierQuotes(undefined, { query: { queryKey: getListSupplierQuotesQueryKey() } });
+  const quotes = useListSupplierQuotes(undefined, { query: { retry: false, queryKey: getListSupplierQuotesQueryKey() } });
   const orders = useListSupplierOrders(undefined, { query: { retry: false, queryKey: getListSupplierOrdersQueryKey() } });
   const selectedQuote = useGetSupplierQuote(selectedQuoteId ?? 0, { query: { enabled: Boolean(selectedQuoteId), queryKey: getGetSupplierQuoteQueryKey(selectedQuoteId ?? 0) } });
   const selectedOrder = useGetSupplierOrder(selectedOrderId ?? 0, { query: { enabled: Boolean(selectedOrderId), queryKey: getGetSupplierOrderQueryKey(selectedOrderId ?? 0) } });

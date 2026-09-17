@@ -1,7 +1,7 @@
 type BrowserAuthMode = 'authenticated' | 'platform' | 'signed-out' | 'no-tenant';
 type BrowserBrandingMode = 'default' | 'valid' | 'empty' | 'broken' | 'invalid-draft' | 'unreachable-draft';
 type BrowserRole = 'owner' | 'admin' | 'member' | 'viewer';
-type BrowserProcurementFailure = 'orders' | null;
+type BrowserProcurementFailure = 'products' | 'vendors' | 'quotes' | 'orders' | 'deliveries' | 'receiving' | null;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -29,8 +29,9 @@ function failedOwnerInvitationMode(): boolean {
 }
 
 function browserProcurementFailure(): BrowserProcurementFailure {
-  return new URLSearchParams(window.location.search).get('browserProcurementFailure') === 'orders'
-    ? 'orders'
+  const value = new URLSearchParams(window.location.search).get('browserProcurementFailure');
+  return value === 'products' || value === 'vendors' || value === 'quotes' || value === 'orders' || value === 'deliveries' || value === 'receiving'
+    ? value
     : null;
 }
 
@@ -887,10 +888,28 @@ export function installBrowserTestApi() {
     }
     if (url.pathname === '/api/customers/42') return json(businessCustomer);
     if (url.pathname === '/api/customers') return json([businessCustomer, alternateBusinessCustomer]);
-    if (url.pathname === '/api/supplier-products') return json([browserSupplierProduct]);
-    if (url.pathname === '/api/supplier-vendors') return json([browserSupplierVendor]);
+    if (url.pathname === '/api/supplier-products') {
+      if (browserProcurementFailure() === 'products' && !browserProcurementFailureUsed) {
+        browserProcurementFailureUsed = true;
+        return json({ error: 'Supplier product catalog is temporarily unavailable' }, 503);
+      }
+      return json([browserSupplierProduct]);
+    }
+    if (url.pathname === '/api/supplier-vendors') {
+      if (browserProcurementFailure() === 'vendors' && !browserProcurementFailureUsed) {
+        browserProcurementFailureUsed = true;
+        return json({ error: 'Supplier vendor directory is temporarily unavailable' }, 503);
+      }
+      return json([browserSupplierVendor]);
+    }
     if (url.pathname === '/api/supplier-customer-terms') return json([]);
-    if (url.pathname === '/api/supplier-quotes' && requestMethod === 'GET') return json(browserSupplierQuotes);
+    if (url.pathname === '/api/supplier-quotes' && requestMethod === 'GET') {
+      if (browserProcurementFailure() === 'quotes' && !browserProcurementFailureUsed) {
+        browserProcurementFailureUsed = true;
+        return json({ error: 'Supplier quote queue is temporarily unavailable' }, 503);
+      }
+      return json(browserSupplierQuotes);
+    }
     if (url.pathname === '/api/supplier-quotes' && requestMethod === 'POST') {
       let requestBody: Record<string, unknown> = {};
       try {
@@ -955,7 +974,7 @@ export function installBrowserTestApi() {
       return json(browserSupplierOrderDetail);
     }
     if (url.pathname === '/api/supplier-orders' && requestMethod === 'GET') {
-      if (browserProcurementFailure() === 'orders' && !browserProcurementFailureUsed) {
+      if (['orders', 'deliveries', 'receiving'].includes(browserProcurementFailure() ?? '') && !browserProcurementFailureUsed) {
         browserProcurementFailureUsed = true;
         return json({ error: 'Supplier order queue is temporarily unavailable' }, 503);
       }
