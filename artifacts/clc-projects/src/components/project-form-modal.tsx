@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, Plus } from 'lucide-react';
+import { Check, ChevronDown, Plus } from 'lucide-react';
 import {
   BusinessCustomerInput, Project, ProjectInput, ProjectStage, ProposalStatus, BidOutcome,
   ContractStatus, BillingStatus, CloseoutStatus,
@@ -13,10 +13,17 @@ import { Modal, Button } from '@/components/app-ui';
 import { useTenant } from '@/providers/tenant-provider';
 import { useWorkflow } from '@/hooks/use-workflow';
 import { CustomerSelector } from '@/components/customer-selector';
+import { Popover, PopoverContent, PopoverTrigger } from '@workspace/construct-lifecycle-design-system/components/ui/popover';
+import {
+  PRODUCT_CATEGORY_OPTIONS,
+  PROJECT_CATEGORY_OPTIONS,
+  optionsWithCurrentValue,
+  productOptionsWithCurrentValues,
+} from '@/lib/project-category-options';
 
 type ProjectForm = {
   customerName: string; businessCustomerId?: number; newCustomer?: BusinessCustomerInput; projectName: string; address: string; category: string;
-  productCategories: string; ownerUserId: string; stage: string; proposalStatus: string;
+  productCategories: string[]; ownerUserId: string; stage: string; proposalStatus: string;
   proposalDetails: string; bidOutcome: string; contractStatus: string; contractValue: string;
   contractDetails: string; contractStart: string; contractEnd: string; deliveryPercent: string;
   requirementsSummary: string; billingStatus: string; invoicedAmount: string;
@@ -26,7 +33,7 @@ type ProjectForm = {
 
 const emptyProjectForm: ProjectForm = {
   customerName: '', projectName: '', address: '', category: 'Residential',
-  productCategories: '', ownerUserId: '', stage: 'opportunity', proposalStatus: 'not_started',
+  productCategories: [], ownerUserId: '', stage: 'opportunity', proposalStatus: 'not_started',
   proposalDetails: '', bidOutcome: 'pending', contractStatus: 'none', contractValue: '0',
   contractDetails: '', contractStart: '', contractEnd: '', deliveryPercent: '0',
   requirementsSummary: '', billingStatus: 'not_started', invoicedAmount: '0',
@@ -40,7 +47,7 @@ const formFromProject = (project: Project): ProjectForm => ({
   projectName: project.projectName,
   address: project.address || '',
   category: project.category,
-  productCategories: project.productCategories?.join(', ') || '',
+  productCategories: project.productCategories ?? [],
   ownerUserId: project.ownerUserId ? String(project.ownerUserId) : '',
   stage: project.stage,
   proposalStatus: project.proposalStatus,
@@ -69,7 +76,7 @@ const projectPayload = (form: ProjectForm): ProjectInput => ({
   projectName: form.projectName,
   address: form.address || undefined,
   category: form.category,
-  productCategories: form.productCategories.split(',').map((s) => s.trim()).filter(Boolean),
+  productCategories: form.productCategories,
   ownerUserId: form.ownerUserId ? Number(form.ownerUserId) : null,
   stage: form.stage as ProjectStage,
   proposalStatus: form.proposalStatus as ProposalStatus,
@@ -120,7 +127,8 @@ export function ProjectFormModal({
   });
   const stageOptions = workflow.states.map((state) => ({ value: state.stableKey, label: state.displayName }));
 
-  const set = (key: keyof ProjectForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const set = <Key extends keyof ProjectForm>(key: Key, value: ProjectForm[Key]) =>
+    setForm((current) => ({ ...current, [key]: value }));
   const setCustomer = (customer?: { id: number; companyName: string }) =>
     setForm((current) => ({
       ...current,
@@ -188,7 +196,7 @@ export function ProjectFormModal({
     </label>
   );
 
-  const select = (key: keyof ProjectForm, label: string, options: { value: string; label: string }[]) => (
+  const select = (key: keyof ProjectForm, label: string, options: readonly { value: string; label: string }[]) => (
     <label className="block">
       <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{label}</span>
       <div className="relative">
@@ -206,6 +214,57 @@ export function ProjectFormModal({
         </select>
         <ChevronDown size={15} className="pointer-events-none absolute right-3 top-3.5 text-muted-foreground" />
       </div>
+    </label>
+  );
+
+  const productCategoryOptions = productOptionsWithCurrentValues(form.productCategories);
+  const productCategoryLabels = new Map(productCategoryOptions.map((option) => [option.value, option.label]));
+  const productCategoryPicker = (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Product categories</span>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label="Product categories"
+            className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-input bg-background px-3 py-2.5 text-left text-sm outline-none focus-visible:ring-4 focus-visible:ring-primary/20"
+          >
+            <span className={form.productCategories.length ? 'flex flex-wrap gap-1.5' : 'text-muted-foreground'}>
+              {form.productCategories.length
+                ? form.productCategories.map((value) => (
+                  <span key={value} className="rounded-md bg-secondary px-2 py-0.5 text-xs font-semibold">
+                    {productCategoryLabels.get(value) ?? value}
+                  </span>
+                ))
+                : 'Select product categories'}
+            </span>
+            <ChevronDown size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-[min(360px,calc(100vw-2rem))] border-border bg-popover p-1 text-popover-foreground shadow-lg">
+          <div className="max-h-64 overflow-y-auto">
+            {productCategoryOptions.map((option) => {
+              const selected = form.productCategories.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={selected}
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => set('productCategories', selected
+                    ? form.productCategories.filter((value) => value !== option.value)
+                    : [...form.productCategories, option.value])}
+                >
+                  <span className={`flex h-4 w-4 items-center justify-center rounded border ${selected ? 'border-primary bg-primary text-primary-foreground' : 'border-input'}`}>
+                    {selected && <Check size={12} aria-hidden="true" />}
+                  </span>
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
     </label>
   );
 
@@ -233,8 +292,8 @@ export function ProjectFormModal({
         </div>
         {mutationError && <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-xs text-destructive">This project could not be saved. Check the required fields and try again.</p>}
         <div className="grid gap-4 md:grid-cols-2">
-          {input('category', 'Category', 'text', 'Residential or commercial')}
-          {input('productCategories', 'Product categories', 'text', 'Materials, finishes, equipment')}
+          {select('category', 'Category', optionsWithCurrentValue(PROJECT_CATEGORY_OPTIONS, form.category))}
+          {productCategoryPicker}
         </div>
         <div className="ink-rule pt-5">
           <p className="mb-4 text-sm font-bold">Lifecycle & value</p>
