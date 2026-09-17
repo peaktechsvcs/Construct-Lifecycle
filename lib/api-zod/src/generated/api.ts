@@ -6268,6 +6268,14 @@ export const ListOpportunitiesResponse = zod.array(ListOpportunitiesResponseItem
  * @summary Create an opportunity
  */
 
+export const createOpportunityBodyNewCustomerOneCompanyNameMax = 160;
+
+export const createOpportunityBodyNewCustomerOneCustomerTypeMax = 40;
+
+export const createOpportunityBodyNewCustomerOnePrimaryContactMax = 120;
+
+export const createOpportunityBodyNewCustomerOnePhoneMax = 40;
+
 export const createOpportunityBodyNameMax = 180;
 
 export const createOpportunityBodyDescriptionMax = 5000;
@@ -6295,7 +6303,14 @@ export const createOpportunityBodyCrmExternalReferenceMax = 180;
 
 
 export const CreateOpportunityBody = zod.object({
-  "businessCustomerId": zod.number().int().min(1),
+  "businessCustomerId": zod.number().int().min(1).nullish(),
+  "newCustomer": zod.union([zod.object({
+  "companyName": zod.string().min(1).max(createOpportunityBodyNewCustomerOneCompanyNameMax),
+  "customerType": zod.string().max(createOpportunityBodyNewCustomerOneCustomerTypeMax).optional(),
+  "primaryContact": zod.string().max(createOpportunityBodyNewCustomerOnePrimaryContactMax).optional(),
+  "email": zod.string().email().optional(),
+  "phone": zod.string().max(createOpportunityBodyNewCustomerOnePhoneMax).optional()
+}),zod.null()]).optional(),
   "name": zod.string().min(1).max(createOpportunityBodyNameMax),
   "description": zod.string().max(createOpportunityBodyDescriptionMax).optional(),
   "stage": zod.enum(['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost']).optional(),
@@ -6762,6 +6777,14 @@ export const ListBidsResponse = zod.array(ListBidsResponseItem)
  * @summary Create a bid
  */
 
+export const createBidBodyNewCustomerOneCompanyNameMax = 160;
+
+export const createBidBodyNewCustomerOneCustomerTypeMax = 40;
+
+export const createBidBodyNewCustomerOnePrimaryContactMax = 120;
+
+export const createBidBodyNewCustomerOnePhoneMax = 40;
+
 
 export const createBidBodyNameMax = 180;
 
@@ -6780,7 +6803,14 @@ export const createBidBodyEstimatingProviderMax = 160;
 
 
 export const CreateBidBody = zod.object({
-  "businessCustomerId": zod.number().int().min(1),
+  "businessCustomerId": zod.number().int().min(1).nullish(),
+  "newCustomer": zod.union([zod.object({
+  "companyName": zod.string().min(1).max(createBidBodyNewCustomerOneCompanyNameMax),
+  "customerType": zod.string().max(createBidBodyNewCustomerOneCustomerTypeMax).optional(),
+  "primaryContact": zod.string().max(createBidBodyNewCustomerOnePrimaryContactMax).optional(),
+  "email": zod.string().email().optional(),
+  "phone": zod.string().max(createBidBodyNewCustomerOnePhoneMax).optional()
+}),zod.null()]).optional(),
   "opportunityId": zod.number().int().min(1).optional(),
   "name": zod.string().min(1).max(createBidBodyNameMax),
   "description": zod.string().max(createBidBodyDescriptionMax).optional(),
@@ -7497,6 +7527,14 @@ export const ListEstimatesResponse = zod.array(ListEstimatesResponseItem)
  * @summary Create an estimate
  */
 
+export const createEstimateBodyNewCustomerOneCompanyNameMax = 160;
+
+export const createEstimateBodyNewCustomerOneCustomerTypeMax = 40;
+
+export const createEstimateBodyNewCustomerOnePrimaryContactMax = 120;
+
+export const createEstimateBodyNewCustomerOnePhoneMax = 40;
+
 
 export const createEstimateBodyNameMax = 180;
 
@@ -7527,7 +7565,14 @@ export const createEstimateBodyExternalReferenceMax = 180;
 
 
 export const CreateEstimateBody = zod.object({
-  "businessCustomerId": zod.number().int().min(1),
+  "businessCustomerId": zod.number().int().min(1).nullish(),
+  "newCustomer": zod.union([zod.object({
+  "companyName": zod.string().min(1).max(createEstimateBodyNewCustomerOneCompanyNameMax),
+  "customerType": zod.string().max(createEstimateBodyNewCustomerOneCustomerTypeMax).optional(),
+  "primaryContact": zod.string().max(createEstimateBodyNewCustomerOnePrimaryContactMax).optional(),
+  "email": zod.string().email().optional(),
+  "phone": zod.string().max(createEstimateBodyNewCustomerOnePhoneMax).optional()
+}),zod.null()]).optional(),
   "bidId": zod.number().int().min(1).optional(),
   "name": zod.string().min(1).max(createEstimateBodyNameMax),
   "description": zod.string().max(createEstimateBodyDescriptionMax).optional(),
@@ -7774,6 +7819,14 @@ export const ListProposalsResponse = zod.array(ListProposalsResponseItem)
  * @summary Create a proposal
  */
 
+export const createProposalBodyNewCustomerOneCompanyNameMax = 160;
+
+export const createProposalBodyNewCustomerOneCustomerTypeMax = 40;
+
+export const createProposalBodyNewCustomerOnePrimaryContactMax = 120;
+
+export const createProposalBodyNewCustomerOnePhoneMax = 40;
+
 
 
 export const createProposalBodyNameMax = 180;
@@ -7797,7 +7850,14 @@ export const createProposalBodyExternalReferenceMax = 180;
 
 
 export const CreateProposalBody = zod.object({
-  "businessCustomerId": zod.number().int().min(1),
+  "businessCustomerId": zod.number().int().min(1).nullish(),
+  "newCustomer": zod.union([zod.object({
+  "companyName": zod.string().min(1).max(createProposalBodyNewCustomerOneCompanyNameMax),
+  "customerType": zod.string().max(createProposalBodyNewCustomerOneCustomerTypeMax).optional(),
+  "primaryContact": zod.string().max(createProposalBodyNewCustomerOnePrimaryContactMax).optional(),
+  "email": zod.string().email().optional(),
+  "phone": zod.string().max(createProposalBodyNewCustomerOnePhoneMax).optional()
+}),zod.null()]).optional(),
   "estimateId": zod.number().int().min(1).optional(),
   "bidId": zod.number().int().min(1).optional(),
   "name": zod.string().min(1).max(createProposalBodyNameMax),

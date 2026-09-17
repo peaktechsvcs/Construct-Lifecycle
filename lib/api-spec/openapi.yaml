@@ -4911,9 +4911,13 @@ components:
         updatedAt: { type: string, format: date-time }
     OpportunityInput:
       type: object
-      required: [businessCustomerId, name]
+      required: [name]
       properties:
-        businessCustomerId: { type: integer, minimum: 1 }
+        businessCustomerId: { type: ["integer", "null"], minimum: 1 }
+        newCustomer:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessCustomerInput"
+            - type: "null"
         name: { type: string, minLength: 1, maxLength: 180 }
         description: { type: string, maxLength: 5000 }
         stage: { $ref: "#/components/schemas/OpportunityStage" }
@@ -5085,9 +5089,13 @@ components:
         updatedAt: { type: string, format: date-time }
     BidInput:
       type: object
-      required: [businessCustomerId, name]
+      required: [name]
       properties:
-        businessCustomerId: { type: integer, minimum: 1 }
+        businessCustomerId: { type: ["integer", "null"], minimum: 1 }
+        newCustomer:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessCustomerInput"
+            - type: "null"
         opportunityId: { type: integer, minimum: 1 }
         name: { type: string, minLength: 1, maxLength: 180 }
         description: { type: string, maxLength: 5000 }
@@ -5262,9 +5270,13 @@ components:
         updatedAt: { type: string, format: date-time }
     EstimateInput:
       type: object
-      required: [businessCustomerId, name]
+      required: [name]
       properties:
-        businessCustomerId: { type: integer, minimum: 1 }
+        businessCustomerId: { type: ["integer", "null"], minimum: 1 }
+        newCustomer:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessCustomerInput"
+            - type: "null"
         bidId: { type: integer, minimum: 1 }
         name: { type: string, minLength: 1, maxLength: 180 }
         description: { type: string, maxLength: 5000 }
@@ -5340,9 +5352,13 @@ components:
         updatedAt: { type: string, format: date-time }
     ProposalInput:
       type: object
-      required: [businessCustomerId, name]
+      required: [name]
       properties:
-        businessCustomerId: { type: integer, minimum: 1 }
+        businessCustomerId: { type: ["integer", "null"], minimum: 1 }
+        newCustomer:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessCustomerInput"
+            - type: "null"
         estimateId: { type: integer, minimum: 1 }
         bidId: { type: integer, minimum: 1 }
         name: { type: string, minLength: 1, maxLength: 180 }

@@ -5,13 +5,18 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { BusinessCustomerInput } from './businessCustomerInput';
 import type { OpportunityQualification } from './opportunityQualification';
 import type { OpportunityStage } from './opportunityStage';
 import type { ProposalIntegrationStatus } from './proposalIntegrationStatus';
 
 export interface OpportunityInput {
-  /** @minimum 1 */
-  businessCustomerId: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessCustomerId?: number | null;
+  newCustomer?: BusinessCustomerInput | null;
   /**
      * @minLength 1
      * @maxLength 180

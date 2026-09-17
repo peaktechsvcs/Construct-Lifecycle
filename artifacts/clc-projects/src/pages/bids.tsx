@@ -3,9 +3,9 @@ import { Link, useLocation, useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, ClipboardList, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
 import {
-  Bid, BidInput, BidScope, BidScopeInput, BidScopeStatus, BidScopeMode, BidScopeUpdate, BidStage, BidType, BidIntegrationCoverage, BidUpdate,
+  Bid, BidInput, BidScope, BidScopeInput, BidScopeStatus, BidScopeMode, BidScopeUpdate, BidStage, BidType, BidIntegrationCoverage, BidUpdate, BusinessCustomerInput,
   useListBids, getListBidsQueryKey, useCreateBid, useGetBid, getGetBidQueryKey,
-  useUpdateBid, useDeleteBid, useListBusinessCustomers, getListBusinessCustomersQueryKey,
+  useUpdateBid, useDeleteBid,
   useListTenantMembers, getListTenantMembersQueryKey, useListOpportunities, getListOpportunitiesQueryKey,
   useListBidScopes, getListBidScopesQueryKey, useCreateBidScope, useUpdateBidScope, useDeleteBidScope,
 } from '@workspace/api-client-react';
@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useTenant } from '@/providers/tenant-provider';
 import NotFound from '@/pages/not-found';
 import { BidAttachmentsPanel } from '@/components/bid-attachments-panel';
+import { CustomerSelector } from '@/components/customer-selector';
 
 const stages: { value: BidStage; label: string }[] = [
   { value: 'invited', label: 'Invited' }, { value: 'qualifying', label: 'Qualifying' },
@@ -34,14 +35,14 @@ const tone = (stage: string) => stage === 'awarded' ? 'green' as const : stage =
 const label = (items: { value: string; label: string }[], value: string) => items.find((item) => item.value === value)?.label ?? value;
 
 type FormState = {
-  businessCustomerId: string; opportunityId: string; name: string; description: string; stage: BidStage;
+  businessCustomerId: string; customerName: string; newCustomer?: BusinessCustomerInput; opportunityId: string; name: string; description: string; stage: BidStage;
   bidType: BidType; scopeMode: BidScopeMode; specialty: string; estimatedValue: string; dueDate: string;
   ownerUserId: string; takeoffProvider: string; takeoffCoverage: BidIntegrationCoverage;
   estimatingProvider: string; estimatingCoverage: BidIntegrationCoverage;
 };
-const emptyForm: FormState = { businessCustomerId: '', opportunityId: '', name: '', description: '', stage: 'invited', bidType: 'general', scopeMode: 'full', specialty: '', estimatedValue: '', dueDate: '', ownerUserId: '', takeoffProvider: '', takeoffCoverage: 'none', estimatingProvider: '', estimatingCoverage: 'none' };
+const emptyForm: FormState = { businessCustomerId: '', customerName: '', opportunityId: '', name: '', description: '', stage: 'invited', bidType: 'general', scopeMode: 'full', specialty: '', estimatedValue: '', dueDate: '', ownerUserId: '', takeoffProvider: '', takeoffCoverage: 'none', estimatingProvider: '', estimatingCoverage: 'none' };
 const toForm = (bid?: Bid): FormState => bid ? {
-  businessCustomerId: String(bid.businessCustomerId), opportunityId: bid.opportunityId ? String(bid.opportunityId) : '', name: bid.name,
+  businessCustomerId: String(bid.businessCustomerId), customerName: bid.customerName, opportunityId: bid.opportunityId ? String(bid.opportunityId) : '', name: bid.name,
   description: bid.description ?? '', stage: bid.stage, bidType: bid.bidType, scopeMode: bid.scopeMode, specialty: bid.specialty ?? '',
   estimatedValue: bid.estimatedValue ? String(bid.estimatedValue) : '', dueDate: bid.dueDate?.slice(0, 10) ?? '',
   ownerUserId: bid.ownerUserId ? String(bid.ownerUserId) : '', takeoffProvider: bid.takeoffProvider ?? '', takeoffCoverage: bid.takeoffCoverage,
@@ -50,16 +51,22 @@ const toForm = (bid?: Bid): FormState => bid ? {
 
 function BidForm({ bid, onClose, onSaved }: { bid?: Bid; onClose: () => void; onSaved: (bid: Bid) => void }) {
   const [form, setForm] = useState<FormState>(() => toForm(bid));
-  const customers = useListBusinessCustomers(undefined, { query: { queryKey: getListBusinessCustomersQueryKey() } });
   const members = useListTenantMembers({ query: { queryKey: getListTenantMembersQueryKey() } });
   const opportunities = useListOpportunities(undefined, { query: { queryKey: getListOpportunitiesQueryKey() } });
   const create = useCreateBid(); const update = useUpdateBid(); const pending = create.isPending || update.isPending;
-  const set = (key: keyof FormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
+   const set = (key: keyof FormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
+   const setCustomer = (customer?: { id: number; companyName: string }) => setForm((current) => ({
+     ...current, businessCustomerId: customer?.id ? String(customer.id) : '', customerName: customer?.companyName ?? '', newCustomer: undefined,
+   }));
+   const setCustomerDraft = (draft?: BusinessCustomerInput) => setForm((current) => ({
+     ...current, businessCustomerId: '', customerName: draft?.companyName ?? current.customerName, newCustomer: draft,
+   }));
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!form.businessCustomerId || !form.name.trim()) return;
+     if ((!form.businessCustomerId && !form.newCustomer) || !form.name.trim()) return;
     const base = {
-      businessCustomerId: Number(form.businessCustomerId), opportunityId: form.opportunityId ? Number(form.opportunityId) : undefined,
+       businessCustomerId: form.businessCustomerId ? Number(form.businessCustomerId) : undefined, newCustomer: form.newCustomer,
+       opportunityId: form.opportunityId ? Number(form.opportunityId) : undefined,
       name: form.name.trim(), description: form.description.trim() || undefined, stage: form.stage, bidType: form.bidType, scopeMode: form.scopeMode,
       specialty: form.specialty.trim() || undefined, estimatedValue: form.estimatedValue ? Number(form.estimatedValue) : 0, dueDate: form.dueDate || undefined,
       ownerUserId: form.ownerUserId ? Number(form.ownerUserId) : undefined, takeoffProvider: form.takeoffProvider.trim() || undefined,
@@ -70,13 +77,13 @@ function BidForm({ bid, onClose, onSaved }: { bid?: Bid; onClose: () => void; on
       update.mutate({ bidId: bid.id, data }, { onSuccess: onSaved });
     } else create.mutate({ data: base as BidInput }, { onSuccess: onSaved });
   };
-   const select = (key: keyof FormState, value: string) => <Select value={String(form[key]) || 'none'} onValueChange={(v) => set(key, v === 'none' ? '' : v)}><SelectTrigger aria-label={key}><SelectValue /></SelectTrigger><SelectContent className="bg-popover">{key === 'businessCustomerId' && <><SelectItem value="none">Select customer</SelectItem>{(customers.data ?? []).map((x) => <SelectItem key={x.id} value={String(x.id)}>{x.companyName}</SelectItem>)}</>}{key === 'opportunityId' && <><SelectItem value="none">No opportunity</SelectItem>{(opportunities.data ?? []).map((x) => <SelectItem key={x.id} value={String(x.id)}>{x.opportunityNumber} · {x.name}</SelectItem>)}</>}{key === 'ownerUserId' && <><SelectItem value="none">Unassigned</SelectItem>{(members.data ?? []).map((x) => <SelectItem key={x.userId} value={String(x.userId)}>{x.displayName || x.email || `Member ${x.userId}`}</SelectItem>)}</>}{key === 'stage' && stages.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}{key === 'bidType' && <><SelectItem value="general">General</SelectItem><SelectItem value="specialty">Specialty</SelectItem></>}{key === 'scopeMode' && <><SelectItem value="full">Full scope</SelectItem><SelectItem value="partial">Partial scope</SelectItem></>}{(key === 'takeoffCoverage' || key === 'estimatingCoverage') && coverage.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>;
-  const field = (key: keyof FormState, title: string, props: Record<string, string> = {}) => <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{title}</span><Input {...props} value={form[key]} onChange={(e) => set(key, e.target.value)} /></label>;
+    const select = (key: keyof FormState, value: string) => <Select value={String(form[key]) || 'none'} onValueChange={(v) => set(key, v === 'none' ? '' : v)}><SelectTrigger aria-label={key}><SelectValue /></SelectTrigger><SelectContent className="bg-popover">{key === 'opportunityId' && <><SelectItem value="none">No opportunity</SelectItem>{(opportunities.data ?? []).filter((x) => !form.businessCustomerId || x.businessCustomerId === Number(form.businessCustomerId)).map((x) => <SelectItem key={x.id} value={String(x.id)}>{x.opportunityNumber} · {x.name}</SelectItem>)}</>}{key === 'ownerUserId' && <><SelectItem value="none">Unassigned</SelectItem>{(members.data ?? []).map((x) => <SelectItem key={x.userId} value={String(x.userId)}>{x.displayName || x.email || `Member ${x.userId}`}</SelectItem>)}</>}{key === 'stage' && stages.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}{key === 'bidType' && <><SelectItem value="general">General</SelectItem><SelectItem value="specialty">Specialty</SelectItem></>}{key === 'scopeMode' && <><SelectItem value="full">Full scope</SelectItem><SelectItem value="partial">Partial scope</SelectItem></>}{(key === 'takeoffCoverage' || key === 'estimatingCoverage') && coverage.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>;
+   const field = (key: keyof FormState, title: string, props: Record<string, string> = {}) => <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{title}</span><Input {...props} value={String(form[key] ?? '')} onChange={(e) => set(key, e.target.value)} /></label>;
   return <Modal title={bid ? 'Edit bid' : 'New bid'} onClose={onClose}><form onSubmit={submit} className="space-y-4">
-    <div className="grid gap-4 md:grid-cols-2">{field('name', 'Bid name', { required: 'true', placeholder: 'Central plant renovation' })}<label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Business customer</span>{select('businessCustomerId', form.businessCustomerId)}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Opportunity</span>{select('opportunityId', form.opportunityId)}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Stage</span>{select('stage', form.stage)}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Bid type</span>{select('bidType', form.bidType)}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Scope</span>{select('scopeMode', form.scopeMode)}</label>{field('specialty', 'Specialty', { placeholder: 'Electrical, HVAC, concrete…' })}{field('estimatedValue', 'Estimated value', { type: 'number', min: '0', step: '1', placeholder: '0' })}{field('dueDate', 'Due date', { type: 'date' })}<label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Owner</span>{select('ownerUserId', form.ownerUserId)}</label></div>
+     <div className="grid gap-4 md:grid-cols-2">{field('name', 'Bid name', { required: 'true', placeholder: 'Central plant renovation' })}<CustomerSelector value={form.customerName} selectedId={form.businessCustomerId ? Number(form.businessCustomerId) : undefined} draft={form.newCustomer} onSelect={setCustomer} onDraftChange={setCustomerDraft} allowCreate={!bid} /><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Opportunity</span>{select('opportunityId', form.opportunityId)}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Stage</span>{select('stage', form.stage)}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Bid type</span>{select('bidType', form.bidType)}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Scope</span>{select('scopeMode', form.scopeMode)}</label>{field('specialty', 'Specialty', { placeholder: 'Electrical, HVAC, concrete…' })}{field('estimatedValue', 'Estimated value', { type: 'number', min: '0', step: '1', placeholder: '0' })}{field('dueDate', 'Due date', { type: 'date' })}<label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Owner</span>{select('ownerUserId', form.ownerUserId)}</label></div>
     <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Description</span><Textarea rows={3} value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="Scope, assumptions, and submission notes" /></label>
     <div className="rounded-lg border border-border bg-secondary/35 p-4"><p className="mono mb-3 text-[10px] uppercase tracking-[.13em] text-muted-foreground">System coverage</p><div className="grid gap-4 md:grid-cols-2">{field('takeoffProvider', 'Takeoff system', { placeholder: 'Provider name' })}<label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Takeoff coverage</span>{select('takeoffCoverage', form.takeoffCoverage)}</label>{field('estimatingProvider', 'Estimating system', { placeholder: 'Provider name' })}<label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Estimating coverage</span>{select('estimatingCoverage', form.estimatingCoverage)}</label></div></div>
-    {(create.isError || update.isError) && <p role="alert" className="text-xs text-destructive">This bid could not be saved. Check the fields and try again.</p>}<div className="flex justify-end gap-3 border-t border-border pt-4"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending || !form.name.trim() || !form.businessCustomerId}>{pending ? 'Saving…' : bid ? 'Save changes' : 'Create bid'}</Button></div>
+     {(create.isError || update.isError) && <p role="alert" className="text-xs text-destructive">This bid could not be saved. Check the fields and try again.</p>}<div className="flex justify-end gap-3 border-t border-border pt-4"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending || !form.name.trim() || (!form.businessCustomerId && !form.newCustomer)}>{pending ? 'Saving…' : bid ? 'Save changes' : 'Create bid'}</Button></div>
    </form></Modal>;
 }
 

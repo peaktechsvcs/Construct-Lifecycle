@@ -26,6 +26,7 @@ import {
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
+import { resolveBusinessCustomer } from "../lib/business-customer";
 
 const router: IRouter = Router();
 const stages = ["invited", "qualifying", "takeoff", "estimating", "review", "submitted", "awarded", "lost"] as const;
@@ -348,11 +349,6 @@ router.post("/bids", requireRole("owner", "admin", "member"), async (req: Tenant
     res.status(400).json({ error: "Invalid bid details", details: parsed.error.issues });
     return;
   }
-  const relationshipError = await validateRelationships(req, parsed.data.businessCustomerId, parsed.data.opportunityId);
-  if (relationshipError) {
-    res.status(400).json({ error: relationshipError });
-    return;
-  }
   if (!(await validateOwner(req, parsed.data.ownerUserId))) {
     res.status(400).json({ error: "Bid owner must be a member of this workspace" });
     return;
@@ -362,6 +358,20 @@ router.post("/bids", requireRole("owner", "admin", "member"), async (req: Tenant
     res.status(400).json({ error: configurationError });
     return;
   }
+  if (parsed.data.newCustomer && parsed.data.opportunityId) {
+    res.status(400).json({ error: "A new customer cannot be linked to an existing opportunity" });
+    return;
+  }
+  const customer = await resolveBusinessCustomer(req, parsed.data);
+  if ("status" in customer) {
+    res.status(customer.status).json({ error: customer.error, ...(customer.existingCustomerId ? { existingCustomerId: customer.existingCustomerId } : {}) });
+    return;
+  }
+  const relationshipError = await validateRelationships(req, customer.customerId, parsed.data.opportunityId);
+  if (relationshipError) {
+    res.status(400).json({ error: relationshipError });
+    return;
+  }
 
   const [{ count }] = await db.select({ count: sql<number>`count(*)::int` })
     .from(bidsTable)
@@ -369,7 +379,7 @@ router.post("/bids", requireRole("owner", "admin", "member"), async (req: Tenant
   const bidNumber = `BID-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
   const [created] = await db.insert(bidsTable).values({
     bidNumber,
-    businessCustomerId: parsed.data.businessCustomerId,
+    businessCustomerId: customer.customerId,
     opportunityId: parsed.data.opportunityId ?? null,
     name: parsed.data.name.trim(),
     description: parsed.data.description?.trim() || null,

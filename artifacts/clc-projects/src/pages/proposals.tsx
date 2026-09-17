@@ -3,10 +3,10 @@ import { Link, useLocation, useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, FileText, Pencil, Plus, Search, Send, Trash2, UserRound } from 'lucide-react';
 import {
-  Proposal, ProposalInput, ProposalIntegrationKind, ProposalIntegrationStatus, ProposalStage, ProposalUpdate,
-  useCreateProposal, useDeleteProposal, useGetProposal, useListBids, useListBusinessCustomers, useListEstimates,
+  Proposal, ProposalInput, ProposalIntegrationKind, ProposalIntegrationStatus, ProposalStage, ProposalUpdate, BusinessCustomerInput,
+  useCreateProposal, useDeleteProposal, useGetProposal, useListBids, useListEstimates,
   useListProposals, useListTenantMembers, useUpdateProposal,
-  getGetProposalQueryKey, getListBidsQueryKey, getListBusinessCustomersQueryKey, getListEstimatesQueryKey,
+  getGetProposalQueryKey, getListBidsQueryKey, getListEstimatesQueryKey,
   getListProposalsQueryKey, getListTenantMembersQueryKey,
 } from '@workspace/api-client-react';
 import { Badge, Button, EmptyState, ErrorPanel, LoadingPanel, Modal, PageTitle, currency, shortDate } from '@/components/app-ui';
@@ -14,6 +14,7 @@ import { Input } from '@workspace/construct-lifecycle-design-system/components/u
 import { Textarea } from '@workspace/construct-lifecycle-design-system/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/construct-lifecycle-design-system/components/ui/select';
 import { useTenant } from '@/providers/tenant-provider';
+import { CustomerSelector } from '@/components/customer-selector';
 import NotFound from '@/pages/not-found';
 
 const stages: { value: ProposalStage; label: string }[] = [
@@ -35,18 +36,18 @@ const tone = (stage: string) => stage === 'accepted' ? 'green' as const : stage 
 const integrationTone = (status: ProposalIntegrationStatus) => status === 'synced' ? 'green' as const : status === 'error' ? 'red' as const : status === 'pending' ? 'orange' as const : 'neutral' as const;
 
 type FormState = {
-  businessCustomerId: string; estimateId: string; bidId: string; name: string; description: string;
+  businessCustomerId: string; customerName: string; newCustomer?: BusinessCustomerInput; estimateId: string; bidId: string; name: string; description: string;
   stage: ProposalStage; proposalValue: string; validUntil: string; recipientName: string; recipientEmail: string;
   ownerUserId: string; integrationProviderKey: string; integrationKind: ProposalIntegrationKind;
   integrationStatus: ProposalIntegrationStatus; externalReference: string;
 };
 const emptyForm: FormState = {
-  businessCustomerId: '', estimateId: '', bidId: '', name: '', description: '', stage: 'draft', proposalValue: '',
+  businessCustomerId: '', customerName: '', estimateId: '', bidId: '', name: '', description: '', stage: 'draft', proposalValue: '',
   validUntil: '', recipientName: '', recipientEmail: '', ownerUserId: '', integrationProviderKey: '',
   integrationKind: 'document', integrationStatus: 'manual', externalReference: '',
 };
 const toForm = (proposal?: Proposal): FormState => proposal ? {
-  businessCustomerId: String(proposal.businessCustomerId), estimateId: proposal.estimateId ? String(proposal.estimateId) : '',
+  businessCustomerId: String(proposal.businessCustomerId), customerName: proposal.customerName, estimateId: proposal.estimateId ? String(proposal.estimateId) : '',
   bidId: proposal.bidId ? String(proposal.bidId) : '', name: proposal.name, description: proposal.description ?? '',
   stage: proposal.stage, proposalValue: proposal.proposalValue ? String(proposal.proposalValue) : '',
   validUntil: proposal.validUntil?.slice(0, 10) ?? '', recipientName: proposal.recipientName ?? '',
@@ -57,7 +58,6 @@ const toForm = (proposal?: Proposal): FormState => proposal ? {
 
 function ProposalForm({ proposal, onClose, onSaved }: { proposal?: Proposal; onClose: () => void; onSaved: (proposal: Proposal) => void }) {
   const [form, setForm] = useState<FormState>(() => toForm(proposal));
-  const customers = useListBusinessCustomers(undefined, { query: { queryKey: getListBusinessCustomersQueryKey() } });
   const members = useListTenantMembers({ query: { queryKey: getListTenantMembersQueryKey() } });
   const estimates = useListEstimates(undefined, { query: { queryKey: getListEstimatesQueryKey() } });
   const bids = useListBids(undefined, { query: { queryKey: getListBidsQueryKey() } });
@@ -67,11 +67,18 @@ function ProposalForm({ proposal, onClose, onSaved }: { proposal?: Proposal; onC
   const availableBids = (bids.data ?? []).filter((bid) => !customerId || bid.businessCustomerId === customerId);
   useEffect(() => setForm(toForm(proposal)), [proposal]);
   const set = (key: keyof FormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const setCustomer = (customer?: { id: number; companyName: string }) => setForm((current) => ({
+    ...current, businessCustomerId: customer?.id ? String(customer.id) : '', customerName: customer?.companyName ?? '', newCustomer: undefined,
+  }));
+  const setCustomerDraft = (draft?: BusinessCustomerInput) => setForm((current) => ({
+    ...current, businessCustomerId: '', customerName: draft?.companyName ?? current.customerName, newCustomer: draft,
+  }));
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!form.businessCustomerId || !form.name.trim()) return;
+    if ((!form.businessCustomerId && !form.newCustomer) || !form.name.trim()) return;
     const base = {
-      businessCustomerId: customerId, estimateId: form.estimateId ? Number(form.estimateId) : undefined,
+      businessCustomerId: form.businessCustomerId ? customerId : undefined, newCustomer: form.newCustomer,
+      estimateId: form.estimateId ? Number(form.estimateId) : undefined,
       bidId: form.bidId ? Number(form.bidId) : undefined, name: form.name.trim(),
       description: form.description.trim() || undefined, stage: form.stage,
       proposalValue: form.proposalValue ? Number(form.proposalValue) : 0, validUntil: form.validUntil || undefined,
@@ -87,7 +94,6 @@ function ProposalForm({ proposal, onClose, onSaved }: { proposal?: Proposal; onC
     } else create.mutate({ data: base as ProposalInput }, { onSuccess: onSaved });
   };
   const select = (key: keyof FormState) => <Select value={String(form[key]) || 'none'} onValueChange={(value) => set(key, value === 'none' ? '' : value)}><SelectTrigger aria-label={key}><SelectValue /></SelectTrigger><SelectContent className="bg-popover">
-    {key === 'businessCustomerId' && <><SelectItem value="none">Select customer</SelectItem>{(customers.data ?? []).map((item) => <SelectItem key={item.id} value={String(item.id)}>{item.companyName}</SelectItem>)}</>}
     {key === 'estimateId' && <><SelectItem value="none">No linked estimate</SelectItem>{availableEstimates.map((item) => <SelectItem key={item.id} value={String(item.id)}>{item.estimateNumber} · {item.name}</SelectItem>)}</>}
     {key === 'bidId' && <><SelectItem value="none">No linked bid</SelectItem>{availableBids.map((item) => <SelectItem key={item.id} value={String(item.id)}>{item.bidNumber} · {item.name}</SelectItem>)}</>}
     {key === 'ownerUserId' && <><SelectItem value="none">Unassigned</SelectItem>{(members.data ?? []).map((item) => <SelectItem key={item.userId} value={String(item.userId)}>{item.displayName || item.email || `Member ${item.userId}`}</SelectItem>)}</>}
@@ -95,13 +101,13 @@ function ProposalForm({ proposal, onClose, onSaved }: { proposal?: Proposal; onC
     {key === 'integrationKind' && integrationKinds.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
     {key === 'integrationStatus' && integrationStatuses.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
   </SelectContent></Select>;
-  const field = (key: keyof FormState, title: string, props: Record<string, string> = {}) => <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{title}</span><Input {...props} value={form[key]} onChange={(event) => set(key, event.target.value)} /></label>;
+  const field = (key: keyof FormState, title: string, props: Record<string, string> = {}) => <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{title}</span><Input {...props} value={String(form[key] ?? '')} onChange={(event) => set(key, event.target.value)} /></label>;
   return <Modal title={proposal ? 'Edit proposal' : 'New proposal'} onClose={onClose}><form onSubmit={submit} className="space-y-4">
-    <div className="grid gap-4 md:grid-cols-2">{field('name', 'Proposal name', { required: 'true', placeholder: 'North campus proposal' })}<label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Business customer</span>{select('businessCustomerId')}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Estimate</span>{select('estimateId')}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Bid</span>{select('bidId')}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Stage</span>{select('stage')}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Owner</span>{select('ownerUserId')}</label>{field('proposalValue', 'Proposal value', { type: 'number', min: '0', step: '0.01', placeholder: '0.00' })}{field('validUntil', 'Valid until', { type: 'date' })}</div>
+     <div className="grid gap-4 md:grid-cols-2">{field('name', 'Proposal name', { required: 'true', placeholder: 'North campus proposal' })}<CustomerSelector value={form.customerName} selectedId={form.businessCustomerId ? customerId : undefined} draft={form.newCustomer} onSelect={setCustomer} onDraftChange={setCustomerDraft} allowCreate={!proposal} /><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Estimate</span>{select('estimateId')}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Bid</span>{select('bidId')}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Stage</span>{select('stage')}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Owner</span>{select('ownerUserId')}</label>{field('proposalValue', 'Proposal value', { type: 'number', min: '0', step: '0.01', placeholder: '0.00' })}{field('validUntil', 'Valid until', { type: 'date' })}</div>
     <div className="grid gap-4 md:grid-cols-2">{field('recipientName', 'Recipient name', { placeholder: 'Customer decision maker' })}{field('recipientEmail', 'Recipient email', { type: 'email', placeholder: 'name@customer.com' })}</div>
     <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Description</span><Textarea rows={3} value={form.description} onChange={(event) => set('description', event.target.value)} placeholder="Scope, assumptions, exclusions, and next steps" /></label>
     <section className="rounded-lg border border-border bg-secondary/35 p-4"><p className="mono mb-3 text-[10px] uppercase tracking-[.13em] text-muted-foreground">Integration envelope</p><div className="grid gap-4 md:grid-cols-2">{field('integrationProviderKey', 'Provider key', { placeholder: 'hubspot, salesforce, docusign' })}<label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Integration kind</span>{select('integrationKind')}</label><label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Sync status</span>{select('integrationStatus')}</label>{field('externalReference', 'External reference', { placeholder: 'CRM opportunity or document ID' })}</div><p className="mt-3 text-xs leading-5 text-muted-foreground">CRM integrations can track the opportunity record alongside proposal delivery, while document and e-signature systems can manage the customer-facing handoff.</p></section>
-    {(create.isError || update.isError) && <p role="alert" className="text-xs text-destructive">This proposal could not be saved. Check the linked records and integration fields.</p>}<div className="flex justify-end gap-3 border-t border-border pt-4"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending || !form.name.trim() || !form.businessCustomerId}>{pending ? 'Saving…' : proposal ? 'Save changes' : 'Create proposal'}</Button></div>
+     {(create.isError || update.isError) && <p role="alert" className="text-xs text-destructive">This proposal could not be saved. Check the linked records and integration fields.</p>}<div className="flex justify-end gap-3 border-t border-border pt-4"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending || !form.name.trim() || (!form.businessCustomerId && !form.newCustomer)}>{pending ? 'Saving…' : proposal ? 'Save changes' : 'Create proposal'}</Button></div>
   </form></Modal>;
 }
 

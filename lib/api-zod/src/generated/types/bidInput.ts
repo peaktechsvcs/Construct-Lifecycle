@@ -9,10 +9,15 @@ import type { BidIntegrationCoverage } from './bidIntegrationCoverage';
 import type { BidScopeMode } from './bidScopeMode';
 import type { BidStage } from './bidStage';
 import type { BidType } from './bidType';
+import type { BusinessCustomerInput } from './businessCustomerInput';
 
 export interface BidInput {
-  /** @minimum 1 */
-  businessCustomerId: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessCustomerId?: number | null;
+  newCustomer?: BusinessCustomerInput | null;
   /** @minimum 1 */
   opportunityId?: number;
   /**

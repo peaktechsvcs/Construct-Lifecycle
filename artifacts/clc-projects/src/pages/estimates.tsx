@@ -5,6 +5,7 @@ import { Calculator, CalendarDays, CircleDollarSign, Pencil, Plus, Search, Trash
 import {
   Estimate,
   EstimateInput,
+  BusinessCustomerInput,
   EstimateIntegrationKind,
   EstimateIntegrationStatus,
   EstimateStage,
@@ -13,13 +14,11 @@ import {
   useDeleteEstimate,
   useGetEstimate,
   useListBids,
-  useListBusinessCustomers,
   useListEstimates,
   useListTenantMembers,
   useUpdateEstimate,
   getGetEstimateQueryKey,
   getListBidsQueryKey,
-  getListBusinessCustomersQueryKey,
   getListEstimatesQueryKey,
   getListTenantMembersQueryKey,
 } from '@workspace/api-client-react';
@@ -28,6 +27,7 @@ import { Input } from '@workspace/construct-lifecycle-design-system/components/u
 import { Textarea } from '@workspace/construct-lifecycle-design-system/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/construct-lifecycle-design-system/components/ui/select';
 import { useTenant } from '@/providers/tenant-provider';
+import { CustomerSelector } from '@/components/customer-selector';
 import NotFound from '@/pages/not-found';
 
 const stages: { value: EstimateStage; label: string }[] = [
@@ -56,6 +56,8 @@ const label = (items: { value: string; label: string }[], value: string) => item
 
 type FormState = {
   businessCustomerId: string;
+  customerName: string;
+  newCustomer?: BusinessCustomerInput;
   bidId: string;
   name: string;
   description: string;
@@ -74,14 +76,14 @@ type FormState = {
 };
 
 const emptyForm: FormState = {
-  businessCustomerId: '', bidId: '', name: '', description: '', stage: 'draft',
+  businessCustomerId: '', customerName: '', bidId: '', name: '', description: '', stage: 'draft',
   laborValue: '', materialValue: '', subcontractValue: '', otherValue: '', contingencyValue: '',
   dueDate: '', ownerUserId: '', integrationProviderKey: '', integrationKind: 'takeoff_estimating',
   integrationStatus: 'manual', externalReference: '',
 };
 
 const toForm = (estimate?: Estimate): FormState => estimate ? {
-  businessCustomerId: String(estimate.businessCustomerId),
+  businessCustomerId: String(estimate.businessCustomerId), customerName: estimate.customerName,
   bidId: estimate.bidId ? String(estimate.bidId) : '',
   name: estimate.name,
   description: estimate.description ?? '',
@@ -103,7 +105,6 @@ const numberOrZero = (value: string) => value ? Number(value) : 0;
 
 function EstimateForm({ estimate, onClose, onSaved }: { estimate?: Estimate; onClose: () => void; onSaved: (estimate: Estimate) => void }) {
   const [form, setForm] = useState<FormState>(() => toForm(estimate));
-  const customers = useListBusinessCustomers(undefined, { query: { queryKey: getListBusinessCustomersQueryKey() } });
   const members = useListTenantMembers({ query: { queryKey: getListTenantMembersQueryKey() } });
   const bids = useListBids(undefined, { query: { queryKey: getListBidsQueryKey() } });
   const create = useCreateEstimate();
@@ -116,11 +117,18 @@ function EstimateForm({ estimate, onClose, onSaved }: { estimate?: Estimate; onC
 
   useEffect(() => setForm(toForm(estimate)), [estimate]);
   const set = (key: keyof FormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const setCustomer = (customer?: { id: number; companyName: string }) => setForm((current) => ({
+    ...current, businessCustomerId: customer?.id ? String(customer.id) : '', customerName: customer?.companyName ?? '', newCustomer: undefined,
+  }));
+  const setCustomerDraft = (draft?: BusinessCustomerInput) => setForm((current) => ({
+    ...current, businessCustomerId: '', customerName: draft?.companyName ?? current.customerName, newCustomer: draft,
+  }));
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!form.businessCustomerId || !form.name.trim()) return;
+    if ((!form.businessCustomerId && !form.newCustomer) || !form.name.trim()) return;
     const base = {
-      businessCustomerId: Number(form.businessCustomerId),
+      businessCustomerId: form.businessCustomerId ? Number(form.businessCustomerId) : undefined,
+      newCustomer: form.newCustomer,
       bidId: form.bidId ? Number(form.bidId) : undefined,
       name: form.name.trim(),
       description: form.description.trim() || undefined,
@@ -157,7 +165,6 @@ function EstimateForm({ estimate, onClose, onSaved }: { estimate?: Estimate; onC
     <Select value={String(form[key]) || 'none'} onValueChange={(value) => set(key, value === 'none' ? '' : value)}>
       <SelectTrigger aria-label={key}><SelectValue /></SelectTrigger>
       <SelectContent className="bg-popover">
-        {key === 'businessCustomerId' && <><SelectItem value="none">Select customer</SelectItem>{(customers.data ?? []).map((customer) => <SelectItem key={customer.id} value={String(customer.id)}>{customer.companyName}</SelectItem>)}</>}
         {key === 'bidId' && <><SelectItem value="none">No linked bid</SelectItem>{availableBids.map((bid) => <SelectItem key={bid.id} value={String(bid.id)}>{bid.bidNumber} · {bid.name}</SelectItem>)}</>}
         {key === 'ownerUserId' && <><SelectItem value="none">Unassigned</SelectItem>{(members.data ?? []).map((member) => <SelectItem key={member.userId} value={String(member.userId)}>{member.displayName || member.email || `Member ${member.userId}`}</SelectItem>)}</>}
         {key === 'stage' && stages.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
@@ -166,13 +173,13 @@ function EstimateForm({ estimate, onClose, onSaved }: { estimate?: Estimate; onC
       </SelectContent>
     </Select>
   );
-  const field = (key: keyof FormState, title: string, props: Record<string, string> = {}) => <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{title}</span><Input {...props} value={form[key]} onChange={(event) => set(key, event.target.value)} /></label>;
+  const field = (key: keyof FormState, title: string, props: Record<string, string> = {}) => <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{title}</span><Input {...props} value={String(form[key] ?? '')} onChange={(event) => set(key, event.target.value)} /></label>;
 
   return <Modal title={estimate ? 'Edit estimate' : 'New estimate'} onClose={onClose}>
     <form onSubmit={submit} className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         {field('name', 'Estimate name', { required: 'true', placeholder: 'North wing renovation estimate' })}
-        <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Business customer</span>{select('businessCustomerId')}</label>
+        <CustomerSelector value={form.customerName} selectedId={form.businessCustomerId ? Number(form.businessCustomerId) : undefined} draft={form.newCustomer} onSelect={setCustomer} onDraftChange={setCustomerDraft} allowCreate={!estimate} />
         <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Source bid</span>{select('bidId')}</label>
         <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Stage</span>{select('stage')}</label>
         <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Owner</span>{select('ownerUserId')}</label>
@@ -194,7 +201,7 @@ function EstimateForm({ estimate, onClose, onSaved }: { estimate?: Estimate; onC
         <p className="mt-3 text-xs leading-5 text-muted-foreground">Provider keys are intentionally vendor-neutral so future connectors can import, sync, and reconcile estimates without changing the estimate record.</p>
       </section>
       {(create.isError || update.isError) && <p role="alert" className="text-xs text-destructive">This estimate could not be saved. Check the fields and integration status.</p>}
-      <div className="flex justify-end gap-3 border-t border-border pt-4"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending || !form.name.trim() || !form.businessCustomerId}>{pending ? 'Saving…' : estimate ? 'Save changes' : 'Create estimate'}</Button></div>
+      <div className="flex justify-end gap-3 border-t border-border pt-4"><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" disabled={pending || !form.name.trim() || (!form.businessCustomerId && !form.newCustomer)}>{pending ? 'Saving…' : estimate ? 'Save changes' : 'Create estimate'}</Button></div>
     </form>
   </Modal>;
 }

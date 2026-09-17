@@ -20,6 +20,7 @@ import {
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
+import { resolveBusinessCustomer } from "../lib/business-customer";
 
 const router: IRouter = Router();
 const stages = ["draft", "internal_review", "ready", "sent", "viewed", "accepted", "declined", "expired"] as const;
@@ -231,11 +232,6 @@ router.post("/proposals", requireRole("owner", "admin", "member"), async (req: T
     res.status(400).json({ error: "Invalid proposal details", details: parsed.error.issues });
     return;
   }
-  const relationshipError = await validateRelationships(req, parsed.data.businessCustomerId, parsed.data.estimateId, parsed.data.bidId);
-  if (relationshipError) {
-    res.status(400).json({ error: relationshipError });
-    return;
-  }
   if (!(await validateOwner(req, parsed.data.ownerUserId))) {
     res.status(400).json({ error: "Proposal owner must be a member of this workspace" });
     return;
@@ -245,13 +241,27 @@ router.post("/proposals", requireRole("owner", "admin", "member"), async (req: T
     res.status(400).json({ error: integrationError });
     return;
   }
+  if (parsed.data.newCustomer && (parsed.data.estimateId || parsed.data.bidId)) {
+    res.status(400).json({ error: "A new customer cannot be linked to existing pipeline records" });
+    return;
+  }
+  const customer = await resolveBusinessCustomer(req, parsed.data);
+  if ("status" in customer) {
+    res.status(customer.status).json({ error: customer.error, ...(customer.existingCustomerId ? { existingCustomerId: customer.existingCustomerId } : {}) });
+    return;
+  }
+  const relationshipError = await validateRelationships(req, customer.customerId, parsed.data.estimateId, parsed.data.bidId);
+  if (relationshipError) {
+    res.status(400).json({ error: relationshipError });
+    return;
+  }
   const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(proposalsTable)
     .where(and(eq(proposalsTable.tenantId, req.tenantId!), eq(proposalsTable.environmentId, req.environmentId!)));
   const proposalNumber = `PROP-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
   const stage = parsed.data.stage ?? stages[0];
   const [created] = await db.insert(proposalsTable).values({
     proposalNumber,
-    businessCustomerId: parsed.data.businessCustomerId,
+    businessCustomerId: customer.customerId,
     estimateId: parsed.data.estimateId ?? null,
     bidId: parsed.data.bidId ?? null,
     name: parsed.data.name.trim(),

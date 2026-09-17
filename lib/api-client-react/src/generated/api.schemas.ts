@@ -553,9 +553,28 @@ export interface Opportunity {
   updatedAt: string;
 }
 
+export interface BusinessCustomerInput {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  companyName: string;
+  /** @maxLength 40 */
+  customerType?: string;
+  /** @maxLength 120 */
+  primaryContact?: string;
+  email?: string;
+  /** @maxLength 40 */
+  phone?: string;
+}
+
 export interface OpportunityInput {
-  /** @minimum 1 */
-  businessCustomerId: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessCustomerId?: number | null;
+  newCustomer?: BusinessCustomerInput | null;
   /**
      * @minLength 1
      * @maxLength 180
@@ -906,8 +925,12 @@ export interface Bid {
 }
 
 export interface BidInput {
-  /** @minimum 1 */
-  businessCustomerId: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessCustomerId?: number | null;
+  newCustomer?: BusinessCustomerInput | null;
   /** @minimum 1 */
   opportunityId?: number;
   /**
@@ -1239,8 +1262,12 @@ export interface Estimate {
 }
 
 export interface EstimateInput {
-  /** @minimum 1 */
-  businessCustomerId: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessCustomerId?: number | null;
+  newCustomer?: BusinessCustomerInput | null;
   /** @minimum 1 */
   bidId?: number;
   /**
@@ -1424,8 +1451,12 @@ export interface Proposal {
 }
 
 export interface ProposalInput {
-  /** @minimum 1 */
-  businessCustomerId: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessCustomerId?: number | null;
+  newCustomer?: BusinessCustomerInput | null;
   /** @minimum 1 */
   estimateId?: number;
   /** @minimum 1 */
@@ -3564,21 +3595,6 @@ export interface ProjectControlsDashboard {
   scheduleRiskDays: number;
   billingPending: number;
   closeoutReadyProjects: number;
-}
-
-export interface BusinessCustomerInput {
-  /**
-     * @minLength 1
-     * @maxLength 160
-     */
-  companyName: string;
-  /** @maxLength 40 */
-  customerType?: string;
-  /** @maxLength 120 */
-  primaryContact?: string;
-  email?: string;
-  /** @maxLength 40 */
-  phone?: string;
 }
 
 export interface ProjectInput {

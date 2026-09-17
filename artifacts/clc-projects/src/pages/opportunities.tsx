@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, Mail, MessageSquareText, Pencil, Phone, Plus, Search, Trash2, UserRound } from 'lucide-react';
 import {
   Opportunity,
+  BusinessCustomerInput,
   OpportunityStage,
   OpportunityInput,
   OpportunityUpdate,
@@ -19,8 +20,6 @@ import {
   useUpdateOpportunityActivity,
   useUpdateOpportunity,
   useDeleteOpportunity,
-  useListBusinessCustomers,
-  getListBusinessCustomersQueryKey,
   useListTenantMembers,
   getListTenantMembersQueryKey,
 } from '@workspace/api-client-react';
@@ -29,6 +28,7 @@ import { Input } from '@workspace/construct-lifecycle-design-system/components/u
 import { Textarea } from '@workspace/construct-lifecycle-design-system/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/construct-lifecycle-design-system/components/ui/select';
 import { useTenant } from '@/providers/tenant-provider';
+import { CustomerSelector } from '@/components/customer-selector';
 import NotFound from '@/pages/not-found';
 
 const stages: { value: OpportunityStage; label: string }[] = [
@@ -59,6 +59,8 @@ const fieldClass = 'w-full rounded-md border border-input bg-background px-3 py-
 
 type FormState = {
   businessCustomerId: string;
+  customerName: string;
+  newCustomer?: BusinessCustomerInput;
   name: string;
   description: string;
   stage: OpportunityStage;
@@ -79,6 +81,7 @@ type FormState = {
 
 const emptyForm: FormState = {
   businessCustomerId: '',
+  customerName: '',
   name: '',
   description: '',
   stage: 'new',
@@ -101,6 +104,7 @@ function toForm(opportunity?: Opportunity): FormState {
   if (!opportunity) return emptyForm;
   return {
     businessCustomerId: String(opportunity.businessCustomerId),
+    customerName: opportunity.customerName,
     name: opportunity.name,
     description: opportunity.description ?? '',
     stage: opportunity.stage,
@@ -130,7 +134,6 @@ function OpportunityForm({
   onSaved: (saved: Opportunity) => void;
 }) {
   const [form, setForm] = useState<FormState>(() => toForm(opportunity));
-  const customers = useListBusinessCustomers(undefined, { query: { queryKey: getListBusinessCustomersQueryKey() } });
   const members = useListTenantMembers({ query: { queryKey: getListTenantMembersQueryKey() } });
   const create = useCreateOpportunity();
   const update = useUpdateOpportunity();
@@ -140,10 +143,23 @@ function OpportunityForm({
   useEffect(() => setForm(toForm(opportunity)), [opportunity]);
 
   const set = (key: keyof FormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const setCustomer = (customer?: { id: number; companyName: string }) => setForm((current) => ({
+    ...current,
+    businessCustomerId: customer?.id ? String(customer.id) : '',
+    customerName: customer?.companyName ?? '',
+    newCustomer: undefined,
+  }));
+  const setCustomerDraft = (draft?: BusinessCustomerInput) => setForm((current) => ({
+    ...current,
+    businessCustomerId: '',
+    customerName: draft?.companyName ?? current.customerName,
+    newCustomer: draft,
+  }));
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     const base = {
-      businessCustomerId: Number(form.businessCustomerId),
+      businessCustomerId: form.businessCustomerId ? Number(form.businessCustomerId) : undefined,
+      newCustomer: form.newCustomer,
       name: form.name.trim(),
       description: form.description.trim() || undefined,
       stage: form.stage,
@@ -161,7 +177,7 @@ function OpportunityForm({
       crmIntegrationStatus: form.crmIntegrationStatus,
       crmExternalReference: form.crmExternalReference.trim() || undefined,
     };
-    if (!base.businessCustomerId || !base.name) return;
+    if ((!base.businessCustomerId && !base.newCustomer) || !base.name) return;
     const onSuccess = (saved: Opportunity) => onSaved(saved);
     if (opportunity) {
       const data: OpportunityUpdate = { ...base, expectedCloseDate: base.expectedCloseDate || null, ownerUserId: base.ownerUserId ?? null };
@@ -179,15 +195,14 @@ function OpportunityForm({
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Opportunity name</span>
             <Input autoFocus required maxLength={180} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="North campus expansion" />
           </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Business customer</span>
-            <Select value={form.businessCustomerId} onValueChange={(value) => set('businessCustomerId', value)}>
-              <SelectTrigger aria-label="Business customer"><SelectValue placeholder="Select customer" /></SelectTrigger>
-              <SelectContent className="bg-popover">
-                {(customers.data ?? []).map((customer) => <SelectItem key={customer.id} value={String(customer.id)}>{customer.companyName}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </label>
+          <CustomerSelector
+            value={form.customerName}
+            selectedId={form.businessCustomerId ? Number(form.businessCustomerId) : undefined}
+            draft={form.newCustomer}
+            onSelect={setCustomer}
+            onDraftChange={setCustomerDraft}
+            allowCreate={!isEditing}
+          />
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Stage</span>
             <Select value={form.stage} onValueChange={(value) => set('stage', value as OpportunityStage)}>
@@ -262,7 +277,7 @@ function OpportunityForm({
         {(create.isError || update.isError) && <p role="alert" className="text-xs text-destructive">This opportunity could not be saved. Check the fields and try again.</p>}
         <div className="flex justify-end gap-3 border-t border-border pt-4">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={pending || !form.name.trim() || !form.businessCustomerId}>{pending ? 'Saving…' : isEditing ? 'Save changes' : 'Create opportunity'}</Button>
+          <Button type="submit" disabled={pending || !form.name.trim() || (!form.businessCustomerId && !form.newCustomer)}>{pending ? 'Saving…' : isEditing ? 'Save changes' : 'Create opportunity'}</Button>
         </div>
       </form>
     </Modal>

@@ -5,13 +5,18 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { BusinessCustomerInput } from './businessCustomerInput';
 import type { EstimateIntegrationKind } from './estimateIntegrationKind';
 import type { EstimateIntegrationStatus } from './estimateIntegrationStatus';
 import type { EstimateStage } from './estimateStage';
 
 export interface EstimateInput {
-  /** @minimum 1 */
-  businessCustomerId: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessCustomerId?: number | null;
+  newCustomer?: BusinessCustomerInput | null;
   /** @minimum 1 */
   bidId?: number;
   /**

@@ -23,6 +23,7 @@ import {
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
+import { resolveBusinessCustomer } from "../lib/business-customer";
 
 const router: IRouter = Router();
 const stages = ["new", "qualified", "proposal", "negotiation", "won", "lost"] as const;
@@ -199,12 +200,13 @@ router.post("/opportunities", requireRole("owner", "admin", "member"), async (re
     res.status(400).json({ error: "Invalid opportunity details", details: parsed.error.issues });
     return;
   }
-  if (!(await validateCustomer(req, parsed.data.businessCustomerId))) {
-    res.status(404).json({ error: "Active business customer not found in this environment" });
-    return;
-  }
   if (!(await validateOwner(req, parsed.data.ownerUserId))) {
     res.status(400).json({ error: "Opportunity owner must be a member of this workspace" });
+    return;
+  }
+  const customer = await resolveBusinessCustomer(req, parsed.data);
+  if ("status" in customer) {
+    res.status(customer.status).json({ error: customer.error, ...(customer.existingCustomerId ? { existingCustomerId: customer.existingCustomerId } : {}) });
     return;
   }
 
@@ -214,7 +216,7 @@ router.post("/opportunities", requireRole("owner", "admin", "member"), async (re
   const opportunityNumber = `OP-${new Date().getFullYear()}-${String(Number(count) + 1).padStart(3, "0")}`;
   const [created] = await db.insert(opportunitiesTable).values({
     opportunityNumber,
-    businessCustomerId: parsed.data.businessCustomerId,
+    businessCustomerId: customer.customerId,
     name: parsed.data.name.trim(),
     description: parsed.data.description?.trim() || null,
     stage: parsed.data.stage ?? stages[0],

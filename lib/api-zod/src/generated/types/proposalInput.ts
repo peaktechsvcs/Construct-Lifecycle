@@ -5,13 +5,18 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { BusinessCustomerInput } from './businessCustomerInput';
 import type { ProposalIntegrationKind } from './proposalIntegrationKind';
 import type { ProposalIntegrationStatus } from './proposalIntegrationStatus';
 import type { ProposalStage } from './proposalStage';
 
 export interface ProposalInput {
-  /** @minimum 1 */
-  businessCustomerId: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessCustomerId?: number | null;
+  newCustomer?: BusinessCustomerInput | null;
   /** @minimum 1 */
   estimateId?: number;
   /** @minimum 1 */
