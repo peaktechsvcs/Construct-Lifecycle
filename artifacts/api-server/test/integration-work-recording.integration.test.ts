@@ -103,6 +103,22 @@ ReplitConnectors.prototype.proxy = async function (provider, path) {
         json: async () => ({ contentBytes: Buffer.from("protected-mailbox-attachment", "utf8").toString("base64") }),
       };
     }
+    if (path.includes("/v1.0/me/messages?")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          value: [{
+            id: messageId,
+            conversationId: `conversation-${messageId}`,
+            subject: "Outlook ITB North Campus",
+            from: { emailAddress: { name: "Outlook Bids", address: "outlook-bids@example.com" } },
+            receivedDateTime: "2026-09-14T11:00:00Z",
+            bodyPreview: "Project: North Campus",
+          }],
+        }),
+      };
+    }
     return {
       ok: true,
       status: 200,
@@ -486,7 +502,7 @@ test("keeps mailbox duplicate detection scoped by provider, environment, and ten
     body: JSON.stringify({ provider: "outlook", threadId: "conversation-1", messageId: "message-1" }),
   });
   assert.equal(outlook.status, 201, JSON.stringify(outlook.body));
-  const outlookBody = outlook.body as { sourceType: string; sourceBody: string };
+  const outlookBody = outlook.body as { id: number; sourceType: string; sourceBody: string };
   assert.equal(outlookBody.sourceType, "outlook");
   assert.equal(outlookBody.sourceBody, "Project: North Campus Bid due: September 30, 2026");
 
@@ -500,6 +516,7 @@ test("keeps mailbox duplicate detection scoped by provider, environment, and ten
     body: JSON.stringify({ provider: "google-mail", threadId: "thread-1", messageId: "message-1" }),
   });
   assert.equal(otherEnvironmentImport.status, 201, JSON.stringify(otherEnvironmentImport.body));
+  const otherEnvironmentBody = otherEnvironmentImport.body as { id: number };
 
   const switchedBack = await request("/tenant/environments", {
     method: "POST",
@@ -512,6 +529,52 @@ test("keeps mailbox duplicate detection scoped by provider, environment, and ten
     body: JSON.stringify({ provider: "google-mail", threadId: "thread-1", messageId: "message-1" }),
   }, otherClerkUserId);
   assert.equal(otherTenantImport.status, 201, JSON.stringify(otherTenantImport.body));
+  const otherTenantBody = otherTenantImport.body as { id: number };
+
+  const previewMessage = (body: Json) => {
+    const message = (body as Array<{ messageId: string; intakeId: number | null }>)
+      .find((item) => item.messageId === "message-1");
+    return message?.intakeId ?? null;
+  };
+  const [developmentGoogleIntake] = await db.select({ id: itbIntakesTable.id }).from(itbIntakesTable).where(and(
+    eq(itbIntakesTable.tenantId, tenantId),
+    eq(itbIntakesTable.environmentId, environmentId),
+    eq(itbIntakesTable.sourceProvider, "google-mail"),
+    eq(itbIntakesTable.sourceMessageId, "message-1"),
+  ));
+  assert.ok(developmentGoogleIntake);
+
+  const developmentGooglePreview = await request("/itb-intakes/mailbox/preview?provider=google-mail&q=newer_than%3A30d%20bid");
+  assert.equal(developmentGooglePreview.status, 200, JSON.stringify(developmentGooglePreview.body));
+  assert.equal(previewMessage(developmentGooglePreview.body), developmentGoogleIntake.id, JSON.stringify({
+    expected: developmentGoogleIntake.id,
+    preview: developmentGooglePreview.body,
+  }));
+
+  const productionGooglePreview = await request("/itb-intakes/mailbox/preview?provider=google-mail&q=newer_than%3A30d%20bid", {}, productionClerkUserId);
+  assert.equal(productionGooglePreview.status, 200, JSON.stringify(productionGooglePreview.body));
+  assert.equal(previewMessage(productionGooglePreview.body), otherEnvironmentBody.id, JSON.stringify({
+    expected: otherEnvironmentBody.id,
+    preview: productionGooglePreview.body,
+  }));
+
+  const developmentOutlookPreview = await request("/itb-intakes/mailbox/preview?provider=outlook&q=newer_than%3A30d%20bid");
+  assert.equal(developmentOutlookPreview.status, 200, JSON.stringify(developmentOutlookPreview.body));
+  assert.equal(previewMessage(developmentOutlookPreview.body), outlookBody.id, JSON.stringify({
+    expected: outlookBody.id,
+    preview: developmentOutlookPreview.body,
+  }));
+
+  const otherTenantPreview = await request("/itb-intakes/mailbox/preview?provider=google-mail&q=newer_than%3A30d%20bid", {}, otherClerkUserId);
+  assert.equal(otherTenantPreview.status, 200, JSON.stringify(otherTenantPreview.body));
+  assert.equal(previewMessage(otherTenantPreview.body), otherTenantBody.id);
+
+  assert.equal(new Set([
+    previewMessage(developmentGooglePreview.body),
+    previewMessage(productionGooglePreview.body),
+    previewMessage(developmentOutlookPreview.body),
+    previewMessage(otherTenantPreview.body),
+  ]).size, 4);
 });
 
 test("serializes concurrent mailbox imports before storing attachments", async () => {
