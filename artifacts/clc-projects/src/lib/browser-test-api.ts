@@ -27,6 +27,13 @@ function failedOwnerInvitationMode(): boolean {
   return new URLSearchParams(window.location.search).get('browserCustomerOnboarding') === 'failed';
 }
 
+type BrowserMailboxScenario = 'existing' | 'duplicate' | 'provider-failure' | null;
+
+function browserMailboxScenario(): BrowserMailboxScenario {
+  const value = new URLSearchParams(window.location.search).get('browserMailbox');
+  return value === 'existing' || value === 'duplicate' || value === 'provider-failure' ? value : null;
+}
+
 function browserRole(): BrowserRole {
   const value = new URLSearchParams(window.location.search).get('browserRole');
   if (value === 'owner' || value === 'admin' || value === 'member' || value === 'viewer') {
@@ -400,6 +407,60 @@ const standaloneProjectControls = {
   scheduleItems: [browserMilestone],
 };
 
+const browserMailboxIntake = {
+  id: 7201,
+  tenantId: tenant.id,
+  environmentId: environments[0].id,
+  sourceType: 'gmail',
+  sourceProvider: 'google-mail',
+  sourceMessageId: 'browser-mailbox-message',
+  sourceThreadId: 'browser-mailbox-thread',
+  sourceMailbox: 'me',
+  sourceSender: 'estimating@example.test',
+  sourceSenderEmail: 'estimating@example.test',
+  sourceSubject: 'ITB Browser Mailbox Recovery',
+  sourceReceivedAt: '2026-09-15T15:00:00.000Z',
+  sourceBody: 'Project: Browser Mailbox Recovery\nBid due: September 30, 2026\nContact: Browser Test Contact\nContact email: browser-contact@example.test\nLocation: 42 Test Avenue',
+  status: 'review',
+  extractionStatus: 'completed',
+  extraction: {
+    issuer: { value: 'Browser Test Builder', confidence: 0.93, evidence: 'Issuer: Browser Test Builder' },
+    contactName: { value: 'Browser Test Contact', confidence: 0.9, evidence: 'Contact: Browser Test Contact' },
+    contactEmail: { value: 'browser-contact@example.test', confidence: 0.98, evidence: 'browser-contact@example.test' },
+    contactPhone: { value: null, confidence: 0, evidence: 'No phone number found.' },
+    projectName: { value: 'Browser Mailbox Recovery', confidence: 0.94, evidence: 'Project: Browser Mailbox Recovery' },
+    location: { value: '42 Test Avenue', confidence: 0.91, evidence: 'Location: 42 Test Avenue' },
+    dueDate: { value: '2026-09-30', confidence: 0.97, evidence: 'Bid due: September 30, 2026' },
+    scope: [],
+    requirements: [],
+    alternates: [],
+    estimatedValue: { value: null, confidence: 0, evidence: 'No estimated value found.' },
+  },
+  warnings: [],
+  errorMessage: null,
+  businessCustomerId: null,
+  opportunityId: null,
+  bidId: null,
+  mergedIntoId: null,
+  reviewedAt: null,
+  attachments: [],
+  createdAt: '2026-09-15T15:01:00.000Z',
+  updatedAt: '2026-09-15T15:01:00.000Z',
+};
+
+const browserMailboxMessage = {
+  provider: 'google-mail',
+  messageId: 'browser-mailbox-message',
+  threadId: 'browser-mailbox-thread',
+  subject: browserMailboxIntake.sourceSubject,
+  sender: browserMailboxIntake.sourceSender,
+  senderEmail: browserMailboxIntake.sourceSenderEmail,
+  receivedAt: browserMailboxIntake.sourceReceivedAt,
+  snippet: 'Project: Browser Mailbox Recovery. Bid due: September 30, 2026.',
+  imported: false,
+  intakeId: null,
+};
+
 export function installBrowserTestApi() {
   const originalFetch = window.fetch.bind(window);
   const browserSearchDelay = new URLSearchParams(window.location.search).get('browserSearchDelay') === '1'
@@ -532,6 +593,27 @@ export function installBrowserTestApi() {
         itemType: 'milestone',
         updatedAt: new Date(0).toISOString(),
       });
+    }
+    if (url.pathname === '/api/itb-intakes') return json([browserMailboxIntake]);
+    if (url.pathname === `/api/itb-intakes/${browserMailboxIntake.id}/documents`) return json([]);
+    if (url.pathname === `/api/itb-intakes/${browserMailboxIntake.id}`) return json(browserMailboxIntake);
+    if (url.pathname === '/api/itb-intakes/mailbox/preview') {
+      const scenario = browserMailboxScenario();
+      return json([{
+        ...browserMailboxMessage,
+        imported: scenario === 'existing',
+        intakeId: scenario === 'existing' ? browserMailboxIntake.id : null,
+      }]);
+    }
+    if (url.pathname === '/api/itb-intakes/mailbox/import' && requestMethod === 'POST') {
+      const scenario = browserMailboxScenario();
+      if (scenario === 'duplicate') {
+        return json({ error: 'This mailbox message was already imported', intakeId: browserMailboxIntake.id }, 409);
+      }
+      if (scenario === 'provider-failure') {
+        return json({ error: 'Google Workspace mailbox is not connected or could not be read' }, 424);
+      }
+      return json(browserMailboxIntake, 201);
     }
     if (url.pathname === '/api/dashboard/summary') return json(dashboardSummary);
     if (url.pathname === '/api/dashboard/project-controls') return json(projectControls);

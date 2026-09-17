@@ -738,6 +738,145 @@ async function checkFailedOwnerInvitationRecovery() {
   }
 }
 
+async function checkMailboxRecoveryFlows() {
+  const flows = [
+    {
+      scenario: "existing",
+      name: "already-imported mailbox message",
+      expectedButton: "Open existing intake",
+      expectedState: "existing",
+    },
+    {
+      scenario: "duplicate",
+      name: "mailbox duplicate recovery",
+      expectedButton: "Import",
+      expectedState: "duplicate",
+    },
+    {
+      scenario: "provider-failure",
+      name: "mailbox provider failure",
+      expectedButton: "Import",
+      expectedState: "provider-failure",
+    },
+  ];
+
+  for (const flow of flows) {
+    const { target, client } = await openTarget(
+      `/itb-intakes?browserAuth=authenticated&browserMailbox=${flow.scenario}`,
+    );
+    try {
+      await waitFor(
+        client,
+        `${flow.name} intake page`,
+        `(() => ({
+          ready: document.querySelector("h1")?.textContent?.trim() === "ITB intakes"
+            && document.querySelector('[data-testid="button-mailbox-preview"]') !== null,
+        }))()`,
+      );
+
+      const opened = await evaluate(client, `(() => {
+        const button = document.querySelector('[data-testid="button-mailbox-preview"]');
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()`);
+      if (!opened) throw new Error(`${flow.name}: mailbox preview opener missing`);
+
+      await waitFor(
+        client,
+        `${flow.name} mailbox dialog`,
+        `(() => ({
+          ready: document.querySelector('[role="dialog"]') !== null
+            && [...document.querySelectorAll('[role="dialog"] button')].some((button) => button.textContent?.trim() === "Preview"),
+        }))()`,
+      );
+
+      const previewed = await evaluate(client, `(() => {
+        const dialog = document.querySelector('[role="dialog"]');
+        const button = [...(dialog?.querySelectorAll("button") ?? [])]
+          .find((candidate) => candidate.textContent?.trim() === "Preview");
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()`);
+      if (!previewed) throw new Error(`${flow.name}: mailbox preview action missing`);
+
+      await waitFor(
+        client,
+        `${flow.name} mailbox message`,
+        `(() => ({
+          ready: document.querySelector('[data-testid="mailbox-import-browser-mailbox-message"]') !== null,
+        }))()`,
+      );
+
+      const messageState = await evaluate(client, `(() => {
+        const button = document.querySelector('[data-testid="mailbox-import-browser-mailbox-message"]');
+        return { label: button?.textContent?.trim() ?? "" };
+      })()`);
+      if (messageState.label !== flow.expectedButton) {
+        throw new Error(`${flow.name}: mailbox action "${messageState.label}" instead of "${flow.expectedButton}"`);
+      }
+
+      const imported = await evaluate(client, `(() => {
+        const button = document.querySelector('[data-testid="mailbox-import-browser-mailbox-message"]');
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()`);
+      if (!imported) throw new Error(`${flow.name}: mailbox message action could not be clicked`);
+
+      if (flow.expectedState === "existing") {
+        await waitFor(
+          client,
+          `${flow.name} detail`,
+          `(() => ({
+            ready: document.querySelector('[role="dialog"]') === null
+              && document.querySelector("h2")?.textContent?.trim() === "ITB Browser Mailbox Recovery",
+          }))()`,
+        );
+      } else if (flow.expectedState === "duplicate") {
+        await waitFor(
+          client,
+          `${flow.name} recovery banner`,
+          `(() => ({
+            ready: document.querySelector('[data-testid="mailbox-import-duplicate"]') !== null
+              && document.querySelector('[data-testid="mailbox-open-existing-intake"]') !== null,
+          }))()`,
+        );
+
+        const openedExisting = await evaluate(client, `(() => {
+          const button = document.querySelector('[data-testid="mailbox-open-existing-intake"]');
+          if (!(button instanceof HTMLElement)) return false;
+          button.click();
+          return true;
+        })()`);
+        if (!openedExisting) throw new Error(`${flow.name}: existing intake action could not be clicked`);
+
+        await waitFor(
+          client,
+          `${flow.name} detail`,
+          `(() => ({
+            ready: document.querySelector('[role="dialog"]') === null
+              && document.querySelector("h2")?.textContent?.trim() === "ITB Browser Mailbox Recovery",
+          }))()`,
+        );
+      } else {
+        await waitFor(
+          client,
+          `${flow.name} error`,
+          `(() => ({
+            ready: document.querySelector('[data-testid="mailbox-import-error"]') !== null
+              && document.querySelector('[data-testid="mailbox-import-duplicate"]') === null,
+          }))()`,
+        );
+      }
+    } finally {
+      await closeTarget(target, client);
+    }
+  }
+  console.log("✔ mailbox existing-intake, duplicate-recovery, and provider-failure flows");
+}
+
 const server = spawn("pnpm", ["--filter", "@workspace/clc-projects", "run", "dev"], {
   env: {
     ...process.env,
@@ -780,10 +919,11 @@ try {
   await checkProjectDetailReturnSafety();
   await checkActiveProjectsClearSearch();
   await checkFailedOwnerInvitationRecovery();
+  await checkMailboxRecoveryFlows();
   console.log(
     process.env.CLC_BROWSER_TEST_SKIP_ROUTE_MATRIX === "1"
-      ? "Validated failed owner invitation recovery."
-      : `Validated ${cases.length} authenticated and protected browser routes plus failed owner invitation recovery.`,
+      ? "Validated failed owner invitation recovery and mailbox recovery flows."
+      : `Validated ${cases.length} authenticated and protected browser routes plus failed owner invitation and mailbox recovery flows.`,
   );
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
