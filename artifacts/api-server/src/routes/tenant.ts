@@ -172,8 +172,19 @@ const validateContrast = (data: Record<string, unknown>) => {
   });
 };
 const context = async (req: TenantRequest) => {
+  const customerMemberships = await db.select({
+    id: tenantsTable.id,
+    name: tenantsTable.name,
+    slug: tenantsTable.slug,
+    status: tenantsTable.status,
+    customerBrandingEnabled: tenantsTable.customerBrandingEnabled,
+    role: membershipsTable.role,
+  })
+    .from(membershipsTable)
+    .innerJoin(tenantsTable, eq(membershipsTable.tenantId, tenantsTable.id))
+    .where(eq(membershipsTable.userId, req.localUserId!));
   const memberships = req.isPlatformAdmin
-    ? await db.select({
+    ? (await db.select({
         id: tenantsTable.id,
         name: tenantsTable.name,
         slug: tenantsTable.slug,
@@ -183,18 +194,11 @@ const context = async (req: TenantRequest) => {
       })
         .from(tenantsTable)
         .where(eq(tenantsTable.status, "active"))
-        .orderBy(tenantsTable.name)
-    : await db.select({
-        id: tenantsTable.id,
-        name: tenantsTable.name,
-        slug: tenantsTable.slug,
-        status: tenantsTable.status,
-        customerBrandingEnabled: tenantsTable.customerBrandingEnabled,
-        role: membershipsTable.role,
-      })
-        .from(membershipsTable)
-        .innerJoin(tenantsTable, eq(membershipsTable.tenantId, tenantsTable.id))
-        .where(eq(membershipsTable.userId, req.localUserId!));
+        .orderBy(tenantsTable.name)).map((tenant) => ({
+          ...tenant,
+          role: customerMemberships.find((membership) => membership.id === tenant.id)?.role ?? tenant.role,
+        }))
+    : customerMemberships;
   const environments = await db.select().from(environmentsTable)
     .where(
       req.isPlatformAdmin
