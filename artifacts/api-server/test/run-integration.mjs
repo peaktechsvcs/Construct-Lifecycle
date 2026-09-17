@@ -29,6 +29,7 @@ const allIntegrationTests = [
   "integration-work-recording.integration.test.ts",
   "opportunity-preconstruction.integration.test.ts",
   "inline-customer-creation.integration.test.ts",
+  "project-controls-persistence.integration.test.ts",
   "supplier-orders.integration.test.ts",
   "platform-provisioning.integration.test.ts",
   "signatures.integration.test.ts",
