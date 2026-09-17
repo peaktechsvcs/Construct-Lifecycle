@@ -552,7 +552,7 @@ async function checkProjectDetailReturnSafety() {
       `(() => ({
         ready: window.location.origin === ${JSON.stringify(baseUrl)}
           && window.location.pathname === "/dashboard/drilldown/active-projects"
-          && window.location.search === "?browserAuth=authenticated&sort=value_desc&search=alpha",
+          && window.location.search === "?browserAuth=authenticated&sort=value_desc&search=alpha"
           && window.location.hash === "#projects",
         url: window.location.href,
       }))()`,
@@ -560,7 +560,7 @@ async function checkProjectDetailReturnSafety() {
   } finally {
     await closeTarget(validTarget.target, validTarget.client);
   }
-  console.log("✔ project detail preserves valid internal return query parameters");
+  console.log("✔ project detail preserves valid internal return query parameters and hash");
 
   const mobileViewport = { width: 390, height: 844 };
   for (const unsafeReturn of unsafeReturns) {
@@ -635,7 +635,8 @@ async function checkProjectDetailReturnSafety() {
           && window.innerHeight === ${mobileViewport.height}
           && window.location.origin === ${JSON.stringify(baseUrl)}
           && window.location.pathname === "/dashboard/drilldown/active-projects"
-          && window.location.search === "?browserAuth=authenticated&sort=value_desc&search=alpha",
+          && window.location.search === "?browserAuth=authenticated&sort=value_desc&search=alpha"
+          && window.location.hash === "#projects",
         url: window.location.href,
       }))()`,
     );

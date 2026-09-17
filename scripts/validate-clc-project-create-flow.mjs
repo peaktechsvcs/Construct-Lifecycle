@@ -232,7 +232,7 @@ async function checkPermittedRole(role) {
       return {
         title: dialog?.querySelector('h2')?.textContent?.trim() ?? "",
         stage: dialog?.querySelector('[data-testid="select-project-stage"]')?.value ?? "",
-        customerInput: dialog?.querySelector('[data-testid="input-project-customer"]') instanceof HTMLInputElement,
+        customerInput: dialog?.querySelector('[data-testid="input-business-customer"]') instanceof HTMLInputElement,
       };
     })()`);
     if (defaults.title !== "Create a new project") throw new Error(`${role} opened the wrong form: ${defaults.title}`);
@@ -240,7 +240,7 @@ async function checkPermittedRole(role) {
     if (!defaults.customerInput) throw new Error(`${role} did not render the customer selector`);
 
     const focused = await evaluate(client, `(() => {
-      const input = document.querySelector('[data-testid="input-project-customer"]');
+      const input = document.querySelector('[data-testid="input-business-customer"]');
       if (!(input instanceof HTMLInputElement)) return false;
       input.focus();
       input.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
@@ -270,7 +270,7 @@ async function checkPermittedRole(role) {
       client,
       `${role} selected customer`,
       `(() => ({
-        ready: document.querySelector('[data-testid="input-project-customer"]')?.value === "Browser Test Customer",
+        ready: document.querySelector('[data-testid="input-business-customer"]')?.value === "Browser Test Customer",
       }))()`,
     );
     if (role === "owner") {
@@ -373,7 +373,7 @@ async function checkDirectProjectBookCreation() {
       }))()`,
     );
     const customerInputFocused = await evaluate(client, `(() => {
-      const input = document.querySelector('[data-testid="input-project-customer"]');
+      const input = document.querySelector('[data-testid="input-business-customer"]');
       if (!(input instanceof HTMLInputElement)) return false;
       input.focus();
       input.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
@@ -489,7 +489,7 @@ async function checkFailedActiveProjectSaveCancellation() {
     if (!failureInstalled) throw new Error("failed-save browser response could not be installed");
 
     const customerFocused = await evaluate(client, `(() => {
-      const input = document.querySelector('[data-testid="input-project-customer"]');
+      const input = document.querySelector('[data-testid="input-business-customer"]');
       if (!(input instanceof HTMLInputElement)) return false;
       input.focus();
       input.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
@@ -794,7 +794,7 @@ async function checkCustomerDetailProjectShortcut(role, expectedShortcut) {
         ready: window.location.pathname === "/projects"
           && new URL(window.location.href).searchParams.get("customerId") === "42"
           && document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project"
-          && document.querySelector('[data-testid="input-project-customer"]')?.value === "Browser Test Customer",
+          && document.querySelector('[data-testid="input-business-customer"]')?.value === "Browser Test Customer",
       }))()`,
     );
 
@@ -809,13 +809,13 @@ async function checkCustomerDetailProjectShortcut(role, expectedShortcut) {
       client,
       `${role} cleared customer selection`,
       `(() => ({
-        ready: document.querySelector('[data-testid="input-project-customer"]')?.value === ""
+        ready: document.querySelector('[data-testid="input-business-customer"]')?.value === ""
           && document.querySelector('[role="dialog"] button[aria-label="Clear selected customer"]') === null,
       }))()`,
     );
 
     const focused = await evaluate(client, `(() => {
-      const input = document.querySelector('[data-testid="input-project-customer"]');
+      const input = document.querySelector('[data-testid="input-business-customer"]');
       if (!(input instanceof HTMLInputElement)) return false;
       input.focus();
       return true;
@@ -842,7 +842,7 @@ async function checkCustomerDetailProjectShortcut(role, expectedShortcut) {
       client,
       `${role} changed customer selection`,
       `(() => ({
-        ready: document.querySelector('[data-testid="input-project-customer"]')?.value === "Browser Alternate Customer"
+        ready: document.querySelector('[data-testid="input-business-customer"]')?.value === "Browser Alternate Customer"
           && document.querySelector('[role="dialog"] button[aria-label="Clear selected customer"]') !== null,
       }))()`,
     );
@@ -908,7 +908,7 @@ async function checkReturnPathSafety() {
       }))()`,
     );
     const customerInputFocused = await evaluate(client, `(() => {
-      const input = document.querySelector('[data-testid="input-project-customer"]');
+      const input = document.querySelector('[data-testid="input-business-customer"]');
       if (!(input instanceof HTMLInputElement)) return false;
       input.focus();
       input.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
