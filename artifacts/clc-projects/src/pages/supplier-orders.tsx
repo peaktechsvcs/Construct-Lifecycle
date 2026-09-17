@@ -117,27 +117,35 @@ function money(value: number) {
   return currency.format(value);
 }
 
+function positiveInteger(value: string | null) {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 export function SupplierOrders() {
   const qc = useQueryClient();
   const [location, setLocation] = useLocation();
+  const pathname = useMemo(() => location.split('?')[0] || '/procurement', [location]);
+  const routeParams = useMemo(() => new URLSearchParams(location.split('?')[1] ?? ''), [location]);
   const routeMode = useMemo<RouteMode>(() => {
-    const pathname = location.split('?')[0];
     if (pathname === '/purchase-orders') return 'purchase-orders';
     if (pathname === '/deliveries') return 'deliveries';
     if (pathname === '/receiving') return 'receiving';
     return 'procurement';
-  }, [location]);
+  }, [pathname]);
   const routeTab = useMemo<Tab>(() => {
-    const pathname = location.split('?')[0];
     if (pathname === '/purchase-orders' || pathname === '/deliveries' || pathname === '/receiving') return 'orders';
-    const requested = new URLSearchParams(location.split('?')[1] ?? '').get('tab');
+    const requested = routeParams.get('tab');
     return tabs.some((item) => item.value === requested) ? requested as Tab : 'overview';
-  }, [location]);
+  }, [pathname, routeParams]);
   const [tab, setTab] = useState<Tab>(routeTab);
   useEffect(() => setTab(routeTab), [routeTab]);
   const [search, setSearch] = useState('');
   const [selectedQuoteId, setSelectedQuoteId] = useState<number>();
   const [selectedOrderId, setSelectedOrderId] = useState<number>();
+  const routeQuoteId = useMemo(() => positiveInteger(routeParams.get('quote')), [routeParams]);
+  const routeOrderId = useMemo(() => positiveInteger(routeParams.get('order')), [routeParams]);
   const [showProductForm, setShowProductForm] = useState(false);
   const [showVendorForm, setShowVendorForm] = useState(false);
   const [showQuoteForm, setShowQuoteForm] = useState(false);
@@ -173,6 +181,11 @@ export function SupplierOrders() {
   const completeProofUpload = useCompleteSupplierDeliveryProofUpload();
   const createInvoice = useCreateSupplierInvoice();
   const createTerms = useCreateSupplierCustomerTerms();
+
+  useEffect(() => {
+    setSelectedQuoteId(routeQuoteId);
+    setSelectedOrderId(routeOrderId);
+  }, [routeOrderId, routeQuoteId]);
 
   useEffect(() => {
     if (!selectedOrder.data) return;
@@ -213,11 +226,50 @@ export function SupplierOrders() {
 
   useEffect(() => {
     if (routeMode === 'procurement' || !visibleOrders.length) return;
-    if (!selectedOrderId || !visibleOrders.some((order) => order.id === selectedOrderId)) {
-      setSelectedOrderId(visibleOrders[0].id);
-      setOrderStatus(visibleOrders[0].orderStatus);
+    const nextOrder = routeOrderId && visibleOrders.find((order) => order.id === routeOrderId) ? visibleOrders.find((order) => order.id === routeOrderId) : visibleOrders[0];
+    if (!nextOrder) return;
+    if (selectedOrderId !== nextOrder.id) {
+      setSelectedOrderId(nextOrder.id);
+      setOrderStatus(nextOrder.orderStatus);
     }
-  }, [routeMode, selectedOrderId, visibleOrders]);
+    if (routeOrderId !== nextOrder.id) {
+      const params = new URLSearchParams();
+      params.set('order', String(nextOrder.id));
+      setLocation(`${pathname}?${params.toString()}`, { replace: true });
+    }
+  }, [pathname, routeMode, routeOrderId, selectedOrderId, setLocation, visibleOrders]);
+
+  function navigateTab(nextTab: Tab) {
+    setTab(nextTab);
+    if (routeMode !== 'procurement' && nextTab !== 'orders') {
+      setLocation(`/procurement?tab=${nextTab}`, { replace: true });
+      return;
+    }
+    const params = new URLSearchParams();
+    if (routeMode === 'procurement' && nextTab !== 'overview') params.set('tab', nextTab);
+    if (nextTab === 'quotes' && selectedQuoteId) params.set('quote', String(selectedQuoteId));
+    if (nextTab === 'orders' && selectedOrderId) params.set('order', String(selectedOrderId));
+    const query = params.toString();
+    setLocation(`${pathname}${query ? `?${query}` : ''}`, { replace: true });
+  }
+
+  function selectQuote(id: number) {
+    setSelectedQuoteId(id);
+    setSelectedOrderId(undefined);
+    setTab('quotes');
+    setLocation(`/procurement?tab=quotes&quote=${id}`, { replace: true });
+  }
+
+  function selectOrder(id: number) {
+    setSelectedOrderId(id);
+    setSelectedQuoteId(undefined);
+    setOrderStatus(orders.data?.find((order) => order.id === id)?.orderStatus ?? 'approved');
+    const params = new URLSearchParams();
+    if (routeMode === 'procurement') params.set('tab', 'orders');
+    params.set('order', String(id));
+    const query = params.toString();
+    setLocation(`${pathname}${query ? `?${query}` : ''}`, { replace: true });
+  }
 
   const metrics = useMemo(() => {
     const orderRows = orders.data ?? [];
@@ -283,13 +335,13 @@ export function SupplierOrders() {
           promisedDate: quoteForm.promisedDate || undefined,
         }],
       },
-    }, { onSuccess: (quote) => { setSelectedQuoteId(quote.id); setShowQuoteForm(false); setTab('quotes'); refresh(); } });
+    }, { onSuccess: (quote) => { setShowQuoteForm(false); selectQuote(quote.id); refresh(); } });
   }
 
   function convertSelectedQuote() {
     if (!selectedQuoteId) return;
     convertQuote.mutate({ quoteId: selectedQuoteId, data: { jobsiteInstructions: 'Coordinate delivery appointment with the project team.' } }, {
-      onSuccess: (order) => { setSelectedOrderId(order.id); setSelectedQuoteId(undefined); setTab('orders'); refresh(); },
+      onSuccess: (order) => { selectOrder(order.id); refresh(); },
     });
   }
 
@@ -409,7 +461,7 @@ export function SupplierOrders() {
 
       <nav className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 sm:grid-cols-4" aria-label="Supplier operations sections">
         {tabs.map(({ value, label, icon: Icon }) => (
-          <button key={value} type="button" data-testid={`button-supplier-tab-${value}`} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)} className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
+          <button key={value} type="button" data-testid={`button-supplier-tab-${value}`} aria-current={tab === value ? 'page' : undefined} onClick={() => navigateTab(value)} className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
             <Icon size={15} /> {label}
           </button>
         ))}
@@ -426,8 +478,8 @@ export function SupplierOrders() {
             <StatCard label="Open sell value" value={money(metrics.openValue)} detail="Margin visible to the team" icon={Warehouse} accent="green" />
           </section>
           <div className="grid gap-6 xl:grid-cols-[1.15fr_.85fr]">
-            <Section eyebrow="Order book" title="Latest supplier orders" action={<Button variant="ghost" onClick={() => setTab('orders')}>View all <ArrowRight size={15} /></Button>}>
-              {orders.isLoading ? <LoadingPanel lines={4} /> : orders.data?.length ? <OrderTable orders={orders.data.slice(0, 5)} selectedOrderId={selectedOrderId} onSelect={(id) => { setSelectedOrderId(id); setTab('orders'); }} /> : <EmptyState icon={Truck} title="No supplier orders yet" text="Accept a supplier quote to create the first purchase order." />}
+            <Section eyebrow="Order book" title="Latest supplier orders" action={<Button variant="ghost" onClick={() => navigateTab('orders')}>View all <ArrowRight size={15} /></Button>}>
+              {orders.isLoading ? <LoadingPanel lines={4} /> : orders.data?.length ? <OrderTable orders={orders.data.slice(0, 5)} selectedOrderId={selectedOrderId} onSelect={selectOrder} /> : <EmptyState icon={Truck} title="No supplier orders yet" text="Accept a supplier quote to create the first purchase order." />}
             </Section>
             <Section eyebrow="Supply readiness" title="Catalog signals">
               <div className="space-y-3">
@@ -510,7 +562,7 @@ export function SupplierOrders() {
               <Field label="Unit sell price"><Input required type="number" min="0" step="0.01" value={quoteForm.unitPrice} onChange={(event) => setQuoteForm({ ...quoteForm, unitPrice: event.target.value })} className={inputClass} /></Field>
               <div className="flex gap-2 sm:col-span-2"><Button type="submit">Create quote</Button><Button type="button" variant="ghost" onClick={() => setShowQuoteForm(false)}>Cancel</Button></div>
             </form>}
-            {quotes.isLoading ? <LoadingPanel lines={5} /> : quotes.data?.length ? <QuoteTable quotes={quotes.data} selectedQuoteId={selectedQuoteId} onSelect={setSelectedQuoteId} /> : <EmptyState icon={Receipt} title="No supplier quotes yet" text="Create a quote from catalog pricing, then convert accepted work into an order." />}
+            {quotes.isLoading ? <LoadingPanel lines={5} /> : quotes.data?.length ? <QuoteTable quotes={quotes.data} selectedQuoteId={selectedQuoteId} onSelect={selectQuote} /> : <EmptyState icon={Receipt} title="No supplier quotes yet" text="Create a quote from catalog pricing, then convert accepted work into an order." />}
           </Section>
           <Section eyebrow="Conversion" title="Quote detail">
             {!selectedQuoteId ? <EmptyState icon={Receipt} title="Choose a quote" text="Select a quote to review margin and convert accepted supplier pricing into an order." /> : selectedQuote.isLoading ? <LoadingPanel lines={4} /> : selectedQuote.data ? <div className="space-y-4">
@@ -530,7 +582,7 @@ export function SupplierOrders() {
             eyebrow={routeMode === 'deliveries' ? 'Appointments and tracking' : routeMode === 'receiving' ? 'Delivered quantities and exceptions' : 'Purchasing and fulfillment'}
             title={routeMode === 'deliveries' ? 'Delivery schedule' : routeMode === 'receiving' ? 'Receiving dispositions' : 'Supplier orders'}
           >
-            {orders.isLoading ? <LoadingPanel lines={5} /> : visibleOrders.length ? <OrderTable orders={visibleOrders} selectedOrderId={selectedOrderId} onSelect={(id) => { setSelectedOrderId(id); setOrderStatus(orders.data?.find((order) => order.id === id)?.orderStatus ?? 'approved'); }} /> : <EmptyState icon={routeMode === 'receiving' ? Warehouse : Truck} title={routeMode === 'receiving' ? 'No receiving work yet' : routeMode === 'deliveries' ? 'No deliveries scheduled' : 'No orders yet'} text={routeMode === 'receiving' ? 'Delivered, partial, and exception quantities will appear here for disposition.' : routeMode === 'deliveries' ? 'Create a delivery from a purchase order to begin scheduling and tracking fulfillment.' : 'Accepted supplier quotes appear here as purchase orders.'} />}
+            {orders.isLoading ? <LoadingPanel lines={5} /> : visibleOrders.length ? <OrderTable orders={visibleOrders} selectedOrderId={selectedOrderId} onSelect={selectOrder} /> : <EmptyState icon={routeMode === 'receiving' ? Warehouse : Truck} title={routeMode === 'receiving' ? 'No receiving work yet' : routeMode === 'deliveries' ? 'No deliveries scheduled' : 'No orders yet'} text={routeMode === 'receiving' ? 'Delivered, partial, and exception quantities will appear here for disposition.' : routeMode === 'deliveries' ? 'Create a delivery from a purchase order to begin scheduling and tracking fulfillment.' : 'Accepted supplier quotes appear here as purchase orders.'} />}
           </Section>
           <Section eyebrow="Fulfillment control" title="Order detail">
             {!selectedOrderId ? <EmptyState icon={ClipboardList} title="Choose an order" text="Review promised dates, margin, delivery appointments, receiving, invoices, and audit events." /> : selectedOrder.isLoading ? <LoadingPanel lines={5} /> : selectedOrder.data ? <div className="space-y-5">
