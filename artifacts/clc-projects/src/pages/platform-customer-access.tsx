@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, CircleUserRound, Clock3, Copy, History, Mail, Save, Trash2, XCircle } from 'lucide-react';
 import {
+  BusinessType,
   PlatformCustomerAuditEvent,
   PlatformCustomerDetails,
   getGetPlatformCustomerQueryKey,
@@ -15,6 +16,7 @@ import {
   useUpdatePlatformCustomerMember,
 } from '@workspace/api-client-react';
 import { Badge, Button } from '@/components/app-ui';
+import { BUSINESS_TYPE_OPTIONS } from '@/lib/business-profile';
 
 const inputClass = 'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-primary/20';
 type CustomerRole = 'owner' | 'admin' | 'member' | 'viewer';
@@ -43,6 +45,7 @@ export function PlatformCustomerAccess({
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const customer = details.customer;
+  const [businessTypes, setBusinessTypes] = useState<BusinessType[]>(customer.businessTypes);
 
   useEffect(() => {
     if (initialOwnerEmail) {
@@ -61,6 +64,10 @@ export function PlatformCustomerAccess({
       setRetryingOwnerInvitation(false);
     }
   }, [initialOwnerEmail, retryingOwnerInvitation, tenantId]);
+
+  useEffect(() => {
+    setBusinessTypes(customer.businessTypes);
+  }, [customer.businessTypes]);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: getGetPlatformCustomerQueryKey(tenantId) });
@@ -81,6 +88,22 @@ export function PlatformCustomerAccess({
           refresh();
         },
       },
+    );
+  };
+
+  const toggleBusinessType = (businessType: BusinessType) => {
+    setBusinessTypes((current) =>
+      current.includes(businessType)
+        ? current.filter((item) => item !== businessType)
+        : [...current, businessType],
+    );
+  };
+
+  const saveBusinessTypes = () => {
+    if (businessTypes.length === 0) return;
+    updateCustomer.mutate(
+      { tenantId, data: { status: customer.status, businessTypes } },
+      { onSuccess: refresh },
     );
   };
 
@@ -113,6 +136,43 @@ export function PlatformCustomerAccess({
           />
           Customer Branding enabled
         </label>
+      </div>
+
+      <div className="mt-5 rounded-lg border border-border bg-background p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold">Business type</h3>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">Choose the customer workspace roles that should shape its available features.</p>
+          </div>
+          <Button
+            type="button"
+            className="px-3 py-2 text-xs"
+            disabled={updateCustomer.isPending || businessTypes.length === 0}
+            onClick={saveBusinessTypes}
+          >
+            <Save size={14} /> {updateCustomer.isPending ? 'Saving…' : 'Save business types'}
+          </Button>
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-3">
+          {BUSINESS_TYPE_OPTIONS.map((option) => {
+            const selected = businessTypes.includes(option.value);
+            return (
+              <label key={option.value} className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${selected ? 'border-primary/50 bg-primary/5' : 'border-border bg-card hover:border-primary/40'}`}>
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() => toggleBusinessType(option.value)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold">{option.label}</span>
+                  <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">{option.description}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        {businessTypes.length === 0 && <p role="alert" className="mt-2 text-xs text-destructive">Select at least one business type.</p>}
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_300px]">
@@ -223,6 +283,8 @@ function auditSummary(event: PlatformCustomerAuditEvent) {
       return `Workspace status changed to ${String(details.status ?? 'updated')}`;
     case 'customer_branding_changed':
       return `Customer branding ${details.customerBrandingEnabled === true ? 'enabled' : 'disabled'}`;
+    case 'customer_business_types_changed':
+      return `Business types updated to ${Array.isArray(details.businessTypes) ? details.businessTypes.join(', ') : 'updated values'}`;
     case 'customer_member_access_updated':
       return `${affectedUser} access updated to ${String(details.role ?? 'updated')}`;
     case 'customer_member_removed':

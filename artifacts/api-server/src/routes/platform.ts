@@ -39,7 +39,10 @@ import {
   serializeInvitation,
 } from "./tenant-admin";
 import { createCustomerWorkspace } from "../lib/customer-onboarding";
-import { DEFAULT_TENANT_BUSINESS_TYPES, getTenantBusinessTypes } from "../lib/tenant-business-profile";
+import {
+  DEFAULT_TENANT_BUSINESS_TYPES,
+  getTenantBusinessTypes,
+} from "../lib/tenant-business-profile";
 import { isIsolatedEnvironmentReady, isRecentHealthyCheck } from "../lib/provisioning";
 import {
   checkInvitationRateLimit,
@@ -1081,17 +1084,28 @@ router.patch("/platform/customers/:tenantId", async (req: TenantRequest, res) =>
     res.status(404).json({ error: "Customer not found" });
     return;
   }
+  const currentBusinessTypes = await getTenantBusinessTypes(tenantId);
   const [tenant] = await db
-    .update(tenantsTable)
-    .set({
-      status: parsed.data.status,
-      ...(parsed.data.customerBrandingEnabled === undefined
-        ? {}
-        : { customerBrandingEnabled: parsed.data.customerBrandingEnabled }),
-      updatedAt: new Date(),
-    })
-    .where(eq(tenantsTable.id, tenantId))
-    .returning();
+    .transaction(async (tx) => {
+      const [updatedTenant] = await tx
+        .update(tenantsTable)
+        .set({
+          status: parsed.data.status,
+          ...(parsed.data.customerBrandingEnabled === undefined
+            ? {}
+            : { customerBrandingEnabled: parsed.data.customerBrandingEnabled }),
+          updatedAt: new Date(),
+        })
+        .where(eq(tenantsTable.id, tenantId))
+        .returning();
+      if (parsed.data.businessTypes) {
+        await tx.delete(tenantBusinessTypesTable).where(eq(tenantBusinessTypesTable.tenantId, tenantId));
+        await tx.insert(tenantBusinessTypesTable).values(
+          parsed.data.businessTypes.map((businessType) => ({ tenantId, businessType })),
+        );
+      }
+      return [updatedTenant];
+    });
   if (!tenant) {
     res.status(404).json({ error: "Customer not found" });
     return;
@@ -1105,6 +1119,14 @@ router.patch("/platform/customers/:tenantId", async (req: TenantRequest, res) =>
   ) {
     await writeAudit(req, "customer_branding_changed", tenant.id, {
       customerBrandingEnabled: tenant.customerBrandingEnabled,
+    });
+  }
+  if (
+    parsed.data.businessTypes
+    && JSON.stringify(currentBusinessTypes) !== JSON.stringify(parsed.data.businessTypes)
+  ) {
+    await writeAudit(req, "customer_business_types_changed", tenant.id, {
+      businessTypes: parsed.data.businessTypes,
     });
   }
   res.json(await serializeCustomer(tenant));

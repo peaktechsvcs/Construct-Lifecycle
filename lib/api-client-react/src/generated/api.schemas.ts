@@ -4305,6 +4305,11 @@ export const UpdatePlatformCustomerInputStatus = {
 export interface UpdatePlatformCustomerInput {
   status: UpdatePlatformCustomerInputStatus;
   customerBrandingEnabled?: boolean;
+  /**
+     * @minItems 1
+     * @maxItems 3
+     */
+  businessTypes?: BusinessType[];
 }
 
 export interface PlatformCustomerMemberEnvironment {

@@ -5,9 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { BusinessType } from './businessType';
 import type { UpdatePlatformCustomerInputStatus } from './updatePlatformCustomerInputStatus';
 
 export interface UpdatePlatformCustomerInput {
   status: UpdatePlatformCustomerInputStatus;
   customerBrandingEnabled?: boolean;
+  /**
+     * @minItems 1
+     * @maxItems 3
+     */
+  businessTypes?: BusinessType[];
 }

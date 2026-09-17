@@ -11820,9 +11820,14 @@ export const UpdatePlatformCustomerParams = zod.object({
   "tenantId": zod.coerce.number().int().min(1)
 })
 
+export const updatePlatformCustomerBodyBusinessTypesMax = 3;
+
+
+
 export const UpdatePlatformCustomerBody = zod.object({
   "status": zod.enum(['active', 'suspended']),
-  "customerBrandingEnabled": zod.boolean().optional()
+  "customerBrandingEnabled": zod.boolean().optional(),
+  "businessTypes": zod.array(zod.enum(['general-contractor', 'subcontractor', 'supplier'])).min(1).max(updatePlatformCustomerBodyBusinessTypesMax).optional()
 })
 
 
