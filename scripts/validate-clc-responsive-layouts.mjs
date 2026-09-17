@@ -128,6 +128,17 @@ const cases = [
         { selector: 'input[data-testid="input-milestone-name"]', value: "Site mobilization updated" },
       ],
     },
+    editInlineEditor: {
+      openSelector: 'button[data-testid="button-edit-milestone-4202"]',
+      requiredSelector: 'input[data-testid="input-milestone-itemNumber"]',
+      submitSelector: 'button[data-testid="button-save-milestone"]',
+      submitLabel: "Save milestone",
+      feedbackSelector: '[data-testid="milestone-save-feedback"]',
+      feedbackText: "Milestone saved.",
+      fields: [
+        { selector: 'input[data-testid="input-milestone-name"]', value: "Site mobilization edited" },
+      ],
+    },
     shell: true,
   },
   {
@@ -795,8 +806,8 @@ async function inspectDialog(client, routeCase, viewport) {
   throw new Error(`${routeCase.name} (${viewport.name}): dialog close control did not close the dialog`);
 }
 
-async function inspectInlineEditor(client, routeCase, viewport) {
-  const editorCase = routeCase.inlineEditor;
+async function inspectInlineEditor(client, routeCase, viewport, editorKey = "inlineEditor") {
+  const editorCase = routeCase[editorKey];
   if (!editorCase) return;
 
   const opened = await evaluate(client, `(() => {
@@ -1332,6 +1343,7 @@ async function inspect(client, routeCase, viewport) {
   await inspectDialog(client, routeCase, viewport);
   await inspectProjectControlsPersistence(client, routeCase, viewport);
   await inspectInlineEditor(client, routeCase, viewport);
+  await inspectInlineEditor(client, routeCase, viewport, "editInlineEditor");
   await inspectSearchTransition(client, routeCase, viewport);
   await inspectSupplierQuoteCreation(client, routeCase, viewport);
   await inspectProcurementFailureRecovery(client, routeCase, viewport);
