@@ -1,6 +1,7 @@
 type BrowserAuthMode = 'authenticated' | 'platform' | 'signed-out' | 'no-tenant';
 type BrowserBrandingMode = 'default' | 'valid' | 'empty' | 'broken' | 'invalid-draft' | 'unreachable-draft';
 type BrowserRole = 'owner' | 'admin' | 'member' | 'viewer';
+type BrowserProcurementFailure = 'orders' | null;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -25,6 +26,12 @@ function brandingMode(): BrowserBrandingMode {
 
 function failedOwnerInvitationMode(): boolean {
   return new URLSearchParams(window.location.search).get('browserCustomerOnboarding') === 'failed';
+}
+
+function browserProcurementFailure(): BrowserProcurementFailure {
+  return new URLSearchParams(window.location.search).get('browserProcurementFailure') === 'orders'
+    ? 'orders'
+    : null;
 }
 
 type BrowserMailboxScenario = 'existing' | 'duplicate' | 'provider-failure' | null;
@@ -650,6 +657,7 @@ const browserMailboxMessage = {
 
 export function installBrowserTestApi() {
   const originalFetch = window.fetch.bind(window);
+  let browserProcurementFailureUsed = false;
   const browserSearchDelay = new URLSearchParams(window.location.search).get('browserSearchDelay') === '1'
     ? 600
     : 0;
@@ -946,7 +954,13 @@ export function installBrowserTestApi() {
       browserSupplierQuote.status = 'converted';
       return json(browserSupplierOrderDetail);
     }
-    if (url.pathname === '/api/supplier-orders') return json([browserSupplierOrder]);
+    if (url.pathname === '/api/supplier-orders' && requestMethod === 'GET') {
+      if (browserProcurementFailure() === 'orders' && !browserProcurementFailureUsed) {
+        browserProcurementFailureUsed = true;
+        return json({ error: 'Supplier order queue is temporarily unavailable' }, 503);
+      }
+      return json([browserSupplierOrder]);
+    }
     if (url.pathname === `/api/supplier-orders/${browserSupplierOrder.id}`) return json(browserSupplierOrderDetail);
     if (url.pathname === `/api/supplier-orders/${browserSupplierOrder.id}/events`) return json(browserSupplierOrderEvents);
     if (url.pathname === '/api/trade-partners') return json([browserTradePartner]);

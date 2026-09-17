@@ -145,6 +145,21 @@ const cases = [
     skipVisual: true,
   },
   {
+    id: "procurement-api-failure",
+    name: "procurement API failure recovery",
+    path: "/procurement?browserAuth=authenticated&browserProcurementFailure=orders",
+    heading: "Supplier operations",
+    actions: [
+      'button[data-testid="button-new-supplier-quote"]',
+      'button[data-testid="button-supplier-tab-quotes"]',
+    ],
+    requiredSelectors: ['button[data-testid="button-supplier-tab-orders"]'],
+    requiredTexts: ["Latest supplier orders", "PO-8202", "Browser Test Customer"],
+    procurementFailureRecovery: true,
+    shell: true,
+    skipVisual: true,
+  },
+  {
     id: "purchase-orders-workspace",
     name: "purchase orders workspace",
     path: "/purchase-orders?browserAuth=authenticated&order=8202",
@@ -1188,6 +1203,39 @@ async function inspectSupplierQuoteCreation(client, routeCase, viewport) {
   );
 }
 
+async function inspectProcurementFailureRecovery(client, routeCase, viewport) {
+  if (!routeCase.procurementFailureRecovery) return;
+
+  await waitFor(
+    client,
+    `${routeCase.name} error state`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="supplier-workspace-error"]') !== null
+        && document.body.innerText.includes("Supplier workspace unavailable")
+        && [...document.querySelectorAll("button")].some((button) => button.textContent?.trim() === "Retry"),
+    }))()`,
+  );
+
+  const retried = await evaluate(client, `(() => {
+    const button = [...document.querySelectorAll("button")]
+      .find((candidate) => candidate.textContent?.trim() === "Retry");
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!retried) throw new Error(`${routeCase.name} (${viewport.name}): retry action missing`);
+
+  await waitFor(
+    client,
+    `${routeCase.name} recovered queue`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="supplier-workspace-error"]') === null
+        && document.querySelector('[data-testid="row-supplier-order-8202"]') !== null
+        && document.body.innerText.includes("PO-8202"),
+    }))()`,
+  );
+}
+
 async function inspect(client, routeCase, viewport) {
   if (routeCase.shell && viewport.name === "mobile") {
     const opened = await evaluate(client, `(() => {
@@ -1205,6 +1253,7 @@ async function inspect(client, routeCase, viewport) {
   await inspectInlineEditor(client, routeCase, viewport);
   await inspectSearchTransition(client, routeCase, viewport);
   await inspectSupplierQuoteCreation(client, routeCase, viewport);
+  await inspectProcurementFailureRecovery(client, routeCase, viewport);
   await inspectProcurementNavigation(client, routeCase, viewport);
 
   return evaluate(client, `(() => {

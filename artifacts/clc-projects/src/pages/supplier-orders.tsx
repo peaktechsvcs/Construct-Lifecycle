@@ -165,7 +165,7 @@ export function SupplierOrders() {
   const customers = useListBusinessCustomers({ includeArchived: false }, { query: { queryKey: getListBusinessCustomersQueryKey({ includeArchived: false }) } });
   const terms = useListSupplierCustomerTerms({ query: { queryKey: getListSupplierCustomerTermsQueryKey() } });
   const quotes = useListSupplierQuotes(undefined, { query: { queryKey: getListSupplierQuotesQueryKey() } });
-  const orders = useListSupplierOrders(undefined, { query: { queryKey: getListSupplierOrdersQueryKey() } });
+  const orders = useListSupplierOrders(undefined, { query: { retry: false, queryKey: getListSupplierOrdersQueryKey() } });
   const selectedQuote = useGetSupplierQuote(selectedQuoteId ?? 0, { query: { enabled: Boolean(selectedQuoteId), queryKey: getGetSupplierQuoteQueryKey(selectedQuoteId ?? 0) } });
   const selectedOrder = useGetSupplierOrder(selectedOrderId ?? 0, { query: { enabled: Boolean(selectedOrderId), queryKey: getGetSupplierOrderQueryKey(selectedOrderId ?? 0) } });
   const events = useListSupplierOrderEvents(selectedOrderId ?? 0, { query: { enabled: Boolean(selectedOrderId), queryKey: getListSupplierOrderEventsQueryKey(selectedOrderId ?? 0) } });
@@ -468,7 +468,7 @@ export function SupplierOrders() {
         ))}
       </nav>
 
-      {pageError && <ErrorPanel title="Supplier workspace unavailable" text="The latest supplier data could not be loaded. Try again after checking the active workspace." onRetry={refresh} />}
+      {pageError && <div data-testid="supplier-workspace-error"><ErrorPanel title="Supplier workspace unavailable" text="The latest supplier data could not be loaded. Try again after checking the active workspace." onRetry={refresh} /></div>}
 
       {tab === 'overview' && (
         <>
