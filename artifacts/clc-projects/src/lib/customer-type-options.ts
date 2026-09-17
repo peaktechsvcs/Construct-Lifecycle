@@ -1,6 +1,6 @@
 export const CUSTOMER_TYPE_OPTIONS = [
   { value: 'business', label: 'Business' },
-  { value: 'builder', label: 'Builder' },
+  { value: 'general_contractor', label: 'General contractor (GC)' },
   { value: 'designer', label: 'Designer / architect' },
   { value: 'homeowner', label: 'Homeowner' },
   { value: 'developer', label: 'Developer' },
