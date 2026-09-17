@@ -263,6 +263,7 @@ export function SupplierOrders() {
   function selectOrder(id: number) {
     setSelectedOrderId(id);
     setSelectedQuoteId(undefined);
+    setTab('orders');
     setOrderStatus(orders.data?.find((order) => order.id === id)?.orderStatus ?? 'approved');
     const params = new URLSearchParams();
     if (routeMode === 'procurement') params.set('tab', 'orders');

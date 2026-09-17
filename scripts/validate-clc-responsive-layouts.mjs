@@ -129,6 +129,54 @@ const cases = [
     skipVisual: true,
   },
   {
+    id: "procurement-workspace",
+    name: "procurement workspace",
+    path: "/procurement?browserAuth=authenticated",
+    heading: "Supplier operations",
+    actions: [
+      'button[data-testid="button-new-supplier-quote"]',
+      'button[data-testid="button-supplier-tab-quotes"]',
+    ],
+    requiredSelectors: ['button[data-testid="button-supplier-tab-orders"]'],
+    requiredTexts: ["Latest supplier orders", "PO-8202", "Browser Test Customer"],
+    procurementNavigation: true,
+    shell: true,
+    skipVisual: true,
+  },
+  {
+    id: "purchase-orders-workspace",
+    name: "purchase orders workspace",
+    path: "/purchase-orders?browserAuth=authenticated&order=8202",
+    heading: "Purchase orders",
+    actions: ['button[data-testid="button-open-procurement"]'],
+    requiredSelectors: ['[data-testid="row-supplier-order-8202"]'],
+    requiredTexts: ["Supplier orders", "PO-8202", "Order detail", "SCHEDULE DELIVERY / PARTIAL FULFILLMENT"],
+    shell: true,
+    skipVisual: true,
+  },
+  {
+    id: "deliveries-workspace",
+    name: "deliveries workspace",
+    path: "/deliveries?browserAuth=authenticated&order=8202",
+    heading: "Delivery control",
+    actions: ['button[data-testid="button-open-procurement"]'],
+    requiredSelectors: ['[data-testid="row-supplier-order-8202"]'],
+    requiredTexts: ["Delivery schedule", "DEL-8202", "DELIVERY EVIDENCE", "Record delivery"],
+    shell: true,
+    skipVisual: true,
+  },
+  {
+    id: "receiving-workspace",
+    name: "receiving workspace",
+    path: "/receiving?browserAuth=authenticated&order=8202",
+    heading: "Receiving queue",
+    actions: ['button[data-testid="button-open-procurement"]'],
+    requiredSelectors: ['[data-testid="row-supplier-order-8202"]'],
+    requiredTexts: ["Receiving dispositions", "DEL-8202", "RECEIVING CLOSEOUT", "Save receiving"],
+    shell: true,
+    skipVisual: true,
+  },
+  {
     id: "active-projects-empty-guidance",
     name: "active projects empty guidance",
     path: "/dashboard/drilldown/active-projects?browserAuth=authenticated",
@@ -958,6 +1006,107 @@ async function inspectSearchTransition(client, routeCase, viewport) {
   }
 }
 
+async function inspectProcurementNavigation(client, routeCase, viewport) {
+  if (!routeCase.procurementNavigation) return;
+
+  const quotesTab = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-supplier-tab-quotes"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!quotesTab) throw new Error(`${routeCase.name} (${viewport.name}): quotes tab missing`);
+
+  await waitFor(
+    client,
+    `${routeCase.name} quote queue`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="row-supplier-quote-8101"]') !== null
+        && document.body.innerText.includes("SQ-8101"),
+    }))()`,
+  );
+
+  const quoteSelected = await evaluate(client, `(() => {
+    const row = document.querySelector('[data-testid="row-supplier-quote-8101"]');
+    if (!(row instanceof HTMLElement)) return false;
+    row.click();
+    return true;
+  })()`);
+  if (!quoteSelected) throw new Error(`${routeCase.name} (${viewport.name}): quote row missing`);
+
+  await waitFor(
+    client,
+    `${routeCase.name} quote detail`,
+    `(() => ({
+      ready: document.body.innerText.includes("Convert to purchase order")
+        && document.body.innerText.includes("Browser Test Customer"),
+    }))()`,
+  );
+
+  const converted = await evaluate(client, `(() => {
+    const button = [...document.querySelectorAll("button")]
+      .find((candidate) => candidate.textContent?.includes("Convert to purchase order"));
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!converted) throw new Error(`${routeCase.name} (${viewport.name}): quote conversion action missing`);
+
+  await waitFor(
+    client,
+    `${routeCase.name} converted order`,
+    `(() => ({
+      ready: window.location.pathname === "/procurement"
+        && new URLSearchParams(window.location.search).get("order") === "8202"
+        && document.body.innerText.includes("PO-8202")
+        && document.body.innerText.toLowerCase().includes("schedule delivery / partial fulfillment"),
+    }))()`,
+  );
+
+  const navigate = async (path, heading, requiredText) => {
+    const loaded = client.event("Page.loadEventFired");
+    await client.command("Page.navigate", { url: `${baseUrl}${path}` });
+    await loaded;
+    await waitForRenderedPage(client, { path, heading });
+    await waitFor(
+      client,
+      `${routeCase.name} ${heading}`,
+      `(() => ({
+        ready: document.querySelector("h1")?.textContent?.trim() === ${JSON.stringify(heading)}
+          && document.body.innerText.toLowerCase().includes(${JSON.stringify(requiredText.toLowerCase())})
+          && document.body.innerText.includes("DEL-8202"),
+      }))()`,
+    );
+  };
+
+  await navigate("/deliveries?browserAuth=authenticated&order=8202", "Delivery control", "Delivery evidence");
+  await navigate("/receiving?browserAuth=authenticated&order=8202", "Receiving queue", "Receiving closeout");
+  const returnLoaded = client.event("Page.loadEventFired");
+  await client.command("Page.navigate", { url: `${baseUrl}/procurement?tab=overview&browserAuth=authenticated` });
+  await returnLoaded;
+  const reloaded = client.event("Page.loadEventFired");
+  await client.command("Page.reload", { ignoreCache: true });
+  await reloaded;
+  await waitForRenderedPage(client, { name: routeCase.name, heading: "Supplier operations", shell: true });
+  if (viewport.name === "mobile") {
+    const menuOpened = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-open-menu"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!menuOpened) throw new Error(`${routeCase.name} (${viewport.name}): mobile menu button missing after navigation flow`);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  await waitFor(
+    client,
+    `${routeCase.name} procurement overview`,
+    `(() => ({
+      ready: document.body.innerText.includes("Latest supplier orders"),
+    }))()`,
+  );
+}
+
 async function inspect(client, routeCase, viewport) {
   if (routeCase.shell && viewport.name === "mobile") {
     const opened = await evaluate(client, `(() => {
@@ -974,6 +1123,7 @@ async function inspect(client, routeCase, viewport) {
   await inspectProjectControlsPersistence(client, routeCase, viewport);
   await inspectInlineEditor(client, routeCase, viewport);
   await inspectSearchTransition(client, routeCase, viewport);
+  await inspectProcurementNavigation(client, routeCase, viewport);
 
   return evaluate(client, `(() => {
     const visible = (selector) => {
@@ -1016,7 +1166,7 @@ async function inspect(client, routeCase, viewport) {
     const requiredSelectors = ${JSON.stringify(routeCase.requiredSelectors ?? [])}
       .filter((selector) => !document.querySelector(selector));
     const requiredTexts = ${JSON.stringify(routeCase.requiredTexts ?? [])}
-      .filter((text) => !document.body.innerText.includes(text));
+      .filter((text) => !document.body.innerText.toLowerCase().includes(text.toLowerCase()));
     const orderedTexts = ${JSON.stringify(routeCase.orderedTexts ?? [])};
     const orderedTextFailures = orderedTexts.filter((text, index) => {
       const current = document.body.innerText.indexOf(text);

@@ -358,6 +358,174 @@ const browserContract = {
   updatedAt: new Date(0).toISOString(),
 };
 
+const browserSupplierProduct = {
+  id: 8101,
+  sku: 'MAT-010',
+  name: 'Browser Test Concrete',
+  description: 'Procurement browser fixture material',
+  category: 'Concrete',
+  unit: 'each',
+  defaultVendorId: 8102,
+  leadTimeDays: 14,
+  unitCost: 100,
+  listPrice: 150,
+  availableQuantity: 20,
+  backorderedQuantity: 0,
+  status: 'active',
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+};
+
+const browserSupplierVendor = {
+  id: 8102,
+  name: 'Browser Test Supplier',
+  contactName: 'Supplier Contact',
+  email: 'supplier@example.test',
+  phone: null,
+  leadTimeDays: 14,
+  status: 'active',
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+};
+
+const browserSupplierQuoteLine = {
+  id: 8103,
+  quoteId: 8101,
+  productId: browserSupplierProduct.id,
+  vendorId: browserSupplierVendor.id,
+  description: browserSupplierProduct.name,
+  quantity: 10,
+  unit: 'each',
+  unitCost: 100,
+  unitPrice: 150,
+  approvedSubstitution: null,
+  promisedDate: '2026-10-15',
+  scopeReference: null,
+};
+
+const browserSupplierQuote = {
+  id: 8101,
+  quoteNumber: 'SQ-8101',
+  businessCustomerId: businessCustomer.id,
+  customerName: businessCustomer.companyName,
+  projectId: project.id,
+  bidId: null,
+  estimateId: null,
+  proposalId: null,
+  status: 'accepted',
+  quoteDate: '2026-09-15',
+  validUntil: '2026-10-01',
+  notes: 'Browser procurement quote',
+  subtotal: 1500,
+  totalCost: 1000,
+  totalSell: 1500,
+  grossMargin: 500,
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+};
+
+const browserSupplierOrderLine = {
+  id: 8203,
+  orderId: 8202,
+  sourceQuoteLineId: browserSupplierQuoteLine.id,
+  productId: browserSupplierProduct.id,
+  vendorId: browserSupplierVendor.id,
+  description: browserSupplierProduct.name,
+  quantity: 10,
+  unit: 'each',
+  unitCost: 100,
+  unitPrice: 150,
+  purchasedQuantity: 10,
+  deliveredQuantity: 10,
+  receivedQuantity: 0,
+  backorderedQuantity: 0,
+  approvedSubstitution: null,
+  promisedDate: '2026-10-15',
+  scopeReference: null,
+};
+
+const browserSupplierDeliveryLine = {
+  id: 8205,
+  deliveryId: 8204,
+  orderLineId: browserSupplierOrderLine.id,
+  quantityDelivered: 10,
+  quantityReceived: 0,
+  quantityDamaged: 0,
+  quantityShort: 0,
+  quantityReturned: 0,
+  exceptionNote: null,
+  acceptedByUserId: null,
+  createdAt: new Date(0).toISOString(),
+};
+
+const browserSupplierDelivery = {
+  id: 8204,
+  orderId: 8202,
+  deliveryNumber: 'DEL-8202',
+  status: 'delivered',
+  appointmentDate: '2026-09-20',
+  windowStart: null,
+  windowEnd: null,
+  carrier: 'Browser Test Freight',
+  trackingReference: 'TRACK-8202',
+  jobsiteInstructions: 'Check in with the project team.',
+  proofObjectPath: null,
+  proofFileName: null,
+  proofContentType: null,
+  proofFileSize: null,
+  recipientName: null,
+  deliveredAt: '2026-09-20T15:00:00.000Z',
+  notes: null,
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+  lines: [browserSupplierDeliveryLine],
+};
+
+const browserSupplierOrder = {
+  id: 8202,
+  orderNumber: 'PO-8202',
+  businessCustomerId: businessCustomer.id,
+  customerName: businessCustomer.companyName,
+  projectId: project.id,
+  bidId: null,
+  estimateId: null,
+  proposalId: null,
+  sourceQuoteId: browserSupplierQuote.id,
+  orderStatus: 'partially_fulfilled',
+  paymentStatus: 'unbilled',
+  orderDate: '2026-09-16',
+  promisedDate: '2026-10-15',
+  subtotal: 1500,
+  totalCost: 1000,
+  totalSell: 1500,
+  grossMargin: 500,
+  jobsiteInstructions: 'Check in with the project team.',
+  customerVisibleStatus: 'partially_fulfilled',
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+};
+
+const browserSupplierOrderDetail = {
+  ...browserSupplierOrder,
+  lines: [browserSupplierOrderLine],
+  deliveries: [browserSupplierDelivery],
+  invoices: [],
+};
+
+const browserSupplierOrderEvents = [{
+  id: 8206,
+  orderId: browserSupplierOrder.id,
+  entityType: 'order',
+  entityId: browserSupplierOrder.id,
+  action: 'order_created',
+  fromStatus: null,
+  toStatus: 'approved',
+  details: 'Converted from accepted quote.',
+  visibleToCustomer: false,
+  actorUserId: 1,
+  createdAt: new Date(0).toISOString(),
+}];
+
 const browserMilestone = {
   id: 4202,
   projectId: project.id,
@@ -708,6 +876,20 @@ export function installBrowserTestApi() {
     }
     if (url.pathname === '/api/customers/42') return json(businessCustomer);
     if (url.pathname === '/api/customers') return json([businessCustomer, alternateBusinessCustomer]);
+    if (url.pathname === '/api/supplier-products') return json([browserSupplierProduct]);
+    if (url.pathname === '/api/supplier-vendors') return json([browserSupplierVendor]);
+    if (url.pathname === '/api/supplier-customer-terms') return json([]);
+    if (url.pathname === '/api/supplier-quotes') return json([browserSupplierQuote]);
+    if (url.pathname === `/api/supplier-quotes/${browserSupplierQuote.id}`) {
+      return json({ ...browserSupplierQuote, lines: [browserSupplierQuoteLine] });
+    }
+    if (url.pathname === `/api/supplier-quotes/${browserSupplierQuote.id}/convert` && requestMethod === 'POST') {
+      browserSupplierQuote.status = 'converted';
+      return json(browserSupplierOrderDetail);
+    }
+    if (url.pathname === '/api/supplier-orders') return json([browserSupplierOrder]);
+    if (url.pathname === `/api/supplier-orders/${browserSupplierOrder.id}`) return json(browserSupplierOrderDetail);
+    if (url.pathname === `/api/supplier-orders/${browserSupplierOrder.id}/events`) return json(browserSupplierOrderEvents);
     if (url.pathname === '/api/trade-partners') return json([browserTradePartner]);
     if (url.pathname === `/api/trade-partners/${browserTradePartner.id}`) {
       return json({ partner: browserTradePartner, complianceDocuments: browserComplianceDocuments, requirements: [], agreements: [] });
