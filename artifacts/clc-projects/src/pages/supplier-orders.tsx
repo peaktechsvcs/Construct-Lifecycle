@@ -25,6 +25,7 @@ import {
   getListSupplierProductsQueryKey,
   getListSupplierQuotesQueryKey,
   getListSupplierVendorsQueryKey,
+  getListSupplierOrderEventsQueryKey,
   useCreateSupplierDelivery,
   useCreateSupplierInvoice,
   useCreateSupplierCustomerTerms,
@@ -68,6 +69,7 @@ const tabs = [
 ] as const;
 
 type Tab = typeof tabs[number]['value'];
+type RouteMode = 'procurement' | 'purchase-orders' | 'deliveries' | 'receiving';
 type ReceivingDraft = {
   received: string;
   damaged: string;
@@ -117,7 +119,14 @@ function money(value: number) {
 
 export function SupplierOrders() {
   const qc = useQueryClient();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const routeMode = useMemo<RouteMode>(() => {
+    const pathname = location.split('?')[0];
+    if (pathname === '/purchase-orders') return 'purchase-orders';
+    if (pathname === '/deliveries') return 'deliveries';
+    if (pathname === '/receiving') return 'receiving';
+    return 'procurement';
+  }, [location]);
   const routeTab = useMemo<Tab>(() => {
     const pathname = location.split('?')[0];
     if (pathname === '/purchase-orders' || pathname === '/deliveries' || pathname === '/receiving') return 'orders';
@@ -151,7 +160,7 @@ export function SupplierOrders() {
   const orders = useListSupplierOrders(undefined, { query: { queryKey: getListSupplierOrdersQueryKey() } });
   const selectedQuote = useGetSupplierQuote(selectedQuoteId ?? 0, { query: { enabled: Boolean(selectedQuoteId), queryKey: getGetSupplierQuoteQueryKey(selectedQuoteId ?? 0) } });
   const selectedOrder = useGetSupplierOrder(selectedOrderId ?? 0, { query: { enabled: Boolean(selectedOrderId), queryKey: getGetSupplierOrderQueryKey(selectedOrderId ?? 0) } });
-  const events = useListSupplierOrderEvents(selectedOrderId ?? 0, { query: { enabled: Boolean(selectedOrderId), queryKey: ['/api/supplier-orders', selectedOrderId, 'events'] } });
+  const events = useListSupplierOrderEvents(selectedOrderId ?? 0, { query: { enabled: Boolean(selectedOrderId), queryKey: getListSupplierOrderEventsQueryKey(selectedOrderId ?? 0) } });
 
   const createProduct = useCreateSupplierProduct();
   const createVendor = useCreateSupplierVendor();
@@ -184,12 +193,31 @@ export function SupplierOrders() {
   }, [selectedOrder.data?.id, selectedOrder.data?.updatedAt]);
 
   const refresh = () => {
-    void qc.invalidateQueries({ queryKey: ['/api/supplier-products'] });
-    void qc.invalidateQueries({ queryKey: ['/api/supplier-vendors'] });
-    void qc.invalidateQueries({ queryKey: ['/api/supplier-quotes'] });
-    void qc.invalidateQueries({ queryKey: ['/api/supplier-orders'] });
+    void qc.invalidateQueries({ queryKey: getListSupplierProductsQueryKey() });
+    void qc.invalidateQueries({ queryKey: getListSupplierVendorsQueryKey() });
+    void qc.invalidateQueries({ queryKey: getListSupplierQuotesQueryKey() });
+    void qc.invalidateQueries({ queryKey: getListSupplierOrdersQueryKey() });
     if (selectedOrderId) void qc.invalidateQueries({ queryKey: getGetSupplierOrderQueryKey(selectedOrderId) });
+    if (selectedOrderId) void qc.invalidateQueries({ queryKey: getListSupplierOrderEventsQueryKey(selectedOrderId) });
   };
+
+  const visibleOrders = useMemo(() => {
+    const rows = orders.data ?? [];
+    // The list contract intentionally returns order summaries. Use lifecycle
+    // state as the queue index, then load the selected detail for delivery
+    // lines and receiving dispositions.
+    if (routeMode === 'deliveries') return rows.filter((order) => ['approved', 'purchasing', 'partially_fulfilled'].includes(order.orderStatus));
+    if (routeMode === 'receiving') return rows.filter((order) => ['partially_fulfilled', 'fulfilled', 'closed'].includes(order.orderStatus));
+    return rows;
+  }, [orders.data, routeMode]);
+
+  useEffect(() => {
+    if (routeMode === 'procurement' || !visibleOrders.length) return;
+    if (!selectedOrderId || !visibleOrders.some((order) => order.id === selectedOrderId)) {
+      setSelectedOrderId(visibleOrders[0].id);
+      setOrderStatus(visibleOrders[0].orderStatus);
+    }
+  }, [routeMode, selectedOrderId, visibleOrders]);
 
   const metrics = useMemo(() => {
     const orderRows = orders.data ?? [];
@@ -367,15 +395,21 @@ export function SupplierOrders() {
   return (
     <div className="animate-rise space-y-6">
       <PageTitle
-        eyebrow="Materials, purchasing, and fulfillment"
-        title="Supplier operations"
-        description="Move supplier quotes into controlled orders, track margin and promised dates, and keep delivery, receiving, and payment history connected to the customer workspace."
-        action={<Button onClick={() => setShowQuoteForm((value) => !value)}><Plus size={16} /> New supplier quote</Button>}
+        eyebrow={routeMode === 'procurement' ? 'Materials, purchasing, and fulfillment' : 'Supplier operations'}
+        title={routeMode === 'purchase-orders' ? 'Purchase orders' : routeMode === 'deliveries' ? 'Delivery control' : routeMode === 'receiving' ? 'Receiving queue' : 'Supplier operations'}
+        description={routeMode === 'purchase-orders'
+          ? 'Review committed material spend, update order status, and open fulfillment details without losing customer context.'
+          : routeMode === 'deliveries'
+            ? 'Coordinate appointments, carriers, proof of delivery, and exceptions across every active supplier order.'
+            : routeMode === 'receiving'
+              ? 'Reconcile delivered quantities, damage, shortages, returns, and receiving proof before payment moves forward.'
+              : 'Move supplier quotes into controlled orders, track margin and promised dates, and keep delivery, receiving, and payment history connected to the customer workspace.'}
+        action={routeMode === 'procurement' ? <Button data-testid="button-new-supplier-quote" onClick={() => setShowQuoteForm((value) => !value)}><Plus size={16} /> New supplier quote</Button> : <Button variant="outline" data-testid="button-open-procurement" onClick={() => setLocation('/procurement')}>Open procurement</Button>}
       />
 
       <nav className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-2 sm:grid-cols-4" aria-label="Supplier operations sections">
         {tabs.map(({ value, label, icon: Icon }) => (
-          <button key={value} type="button" aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)} className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
+          <button key={value} type="button" data-testid={`button-supplier-tab-${value}`} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)} className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
             <Icon size={15} /> {label}
           </button>
         ))}
@@ -492,8 +526,11 @@ export function SupplierOrders() {
 
       {tab === 'orders' && (
         <div className="grid gap-6 xl:grid-cols-[1.15fr_.85fr]">
-          <Section eyebrow="Purchasing and fulfillment" title="Supplier orders">
-            {orders.isLoading ? <LoadingPanel lines={5} /> : orders.data?.length ? <OrderTable orders={orders.data} selectedOrderId={selectedOrderId} onSelect={(id) => { setSelectedOrderId(id); setOrderStatus(orders.data?.find((order) => order.id === id)?.orderStatus ?? 'approved'); }} /> : <EmptyState icon={Truck} title="No orders yet" text="Accepted supplier quotes appear here as purchase orders." />}
+          <Section
+            eyebrow={routeMode === 'deliveries' ? 'Appointments and tracking' : routeMode === 'receiving' ? 'Delivered quantities and exceptions' : 'Purchasing and fulfillment'}
+            title={routeMode === 'deliveries' ? 'Delivery schedule' : routeMode === 'receiving' ? 'Receiving dispositions' : 'Supplier orders'}
+          >
+            {orders.isLoading ? <LoadingPanel lines={5} /> : visibleOrders.length ? <OrderTable orders={visibleOrders} selectedOrderId={selectedOrderId} onSelect={(id) => { setSelectedOrderId(id); setOrderStatus(orders.data?.find((order) => order.id === id)?.orderStatus ?? 'approved'); }} /> : <EmptyState icon={routeMode === 'receiving' ? Warehouse : Truck} title={routeMode === 'receiving' ? 'No receiving work yet' : routeMode === 'deliveries' ? 'No deliveries scheduled' : 'No orders yet'} text={routeMode === 'receiving' ? 'Delivered, partial, and exception quantities will appear here for disposition.' : routeMode === 'deliveries' ? 'Create a delivery from a purchase order to begin scheduling and tracking fulfillment.' : 'Accepted supplier quotes appear here as purchase orders.'} />}
           </Section>
           <Section eyebrow="Fulfillment control" title="Order detail">
             {!selectedOrderId ? <EmptyState icon={ClipboardList} title="Choose an order" text="Review promised dates, margin, delivery appointments, receiving, invoices, and audit events." /> : selectedOrder.isLoading ? <LoadingPanel lines={5} /> : selectedOrder.data ? <div className="space-y-5">
@@ -509,8 +546,8 @@ export function SupplierOrders() {
                  <Field label="Carrier / reference"><Input value={deliveryForm.carrier} onChange={(event) => setDeliveryForm({ ...deliveryForm, carrier: event.target.value })} className={inputClass} /></Field>
                  <div className="sm:col-span-2"><Button type="submit" disabled={createDelivery.isPending}>{createDelivery.isPending ? 'Recording…' : 'Record delivery'}</Button></div>
                </form>
-               <section className="space-y-3">
-                 <div><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary">Receiving closeout</p><h4 className="mt-1 text-sm font-bold">Proof, exceptions, and returns</h4><p className="mt-1 text-xs text-muted-foreground">Record the final quantity disposition for every delivery line. Order received totals are recalculated from these entries.</p></div>
+                <section className="space-y-3">
+                  <div><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary">{routeMode === 'deliveries' ? 'Delivery evidence' : 'Receiving closeout'}</p><h4 className="mt-1 text-sm font-bold">{routeMode === 'deliveries' ? 'Proof, appointments, and exceptions' : 'Proof, exceptions, and returns'}</h4><p className="mt-1 text-xs text-muted-foreground">{routeMode === 'deliveries' ? 'Keep appointment status, proof, and exceptions attached to the order as fulfillment moves.' : 'Record the final quantity disposition for every delivery line. Order received totals are recalculated from these entries.'}</p></div>
                  {selectedOrder.data.deliveries.length ? selectedOrder.data.deliveries.map((delivery) => <DeliveryReceivingCard key={delivery.id} delivery={delivery} orderLines={selectedOrder.data!.lines} drafts={receivingDrafts} onDraftChange={(lineId, draft) => setReceivingDrafts((current) => ({ ...current, [lineId]: draft }))} onSave={saveReceiving} onUpload={uploadProof} proofError={proofError} isSaving={recordReceiving.isPending} isUploading={requestProofUpload.isPending || completeProofUpload.isPending} />) : <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">Record a delivery above to start receiving.</div>}
                </section>
               <form onSubmit={saveInvoice} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2"><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary sm:col-span-2">Supplier invoice</p><Field label="Invoice number"><Input required value={invoiceForm.invoiceNumber} onChange={(event) => setInvoiceForm({ ...invoiceForm, invoiceNumber: event.target.value })} className={inputClass} /></Field><Field label="Total amount"><Input required type="number" min="0" step="0.01" value={invoiceForm.totalAmount} onChange={(event) => setInvoiceForm({ ...invoiceForm, totalAmount: event.target.value })} className={inputClass} /></Field><Field label="Due date"><Input type="date" value={invoiceForm.dueDate} onChange={(event) => setInvoiceForm({ ...invoiceForm, dueDate: event.target.value })} className={inputClass} /></Field><Field label="Payment status"><select value={invoiceForm.status} onChange={(event) => setInvoiceForm({ ...invoiceForm, status: event.target.value })} className={inputClass}>{['submitted', 'approved', 'partially_paid', 'paid', 'disputed'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Field label="Amount paid"><Input type="number" min="0" step="0.01" value={invoiceForm.paidAmount} onChange={(event) => setInvoiceForm({ ...invoiceForm, paidAmount: event.target.value })} className={inputClass} /></Field><Field label="Payment reference"><Input value={invoiceForm.paymentReference} onChange={(event) => setInvoiceForm({ ...invoiceForm, paymentReference: event.target.value })} placeholder="Check, ACH, or remittance reference" className={inputClass} /></Field><Field label="Waiver status"><select value={invoiceForm.waiverStatus} onChange={(event) => setInvoiceForm({ ...invoiceForm, waiverStatus: event.target.value })} className={inputClass}>{['not_required', 'pending', 'received', 'approved', 'rejected'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Field label="Waiver reference"><Input value={invoiceForm.waiverReference} onChange={(event) => setInvoiceForm({ ...invoiceForm, waiverReference: event.target.value })} className={inputClass} /></Field><div className="sm:col-span-2"><Button type="submit" disabled={createInvoice.isPending}>Add invoice</Button></div></form>
@@ -610,9 +647,9 @@ function ProductTable({ products }: { products: SupplierProduct[] }) {
 }
 
 function QuoteTable({ quotes, selectedQuoteId, onSelect }: { quotes: SupplierQuote[]; selectedQuoteId?: number; onSelect: (id: number) => void }) {
-  return <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-sm"><thead className="border-b border-border text-xs text-muted-foreground"><tr><th className="pb-2 font-semibold">Quote</th><th className="pb-2 font-semibold">Customer</th><th className="pb-2 font-semibold">Sell</th><th className="pb-2 font-semibold">Margin</th><th className="pb-2 font-semibold">Status</th></tr></thead><tbody className="divide-y divide-border">{quotes.map((quote) => <tr key={quote.id} className={`cursor-pointer transition-colors hover:bg-secondary/50 ${selectedQuoteId === quote.id ? 'bg-primary/5' : ''}`} onClick={() => onSelect(quote.id)}><td className="py-3 font-bold">{quote.quoteNumber}</td><td className="py-3">{quote.customerName}</td><td className="py-3">{money(quote.totalSell)}</td><td className="py-3">{money(quote.grossMargin)}</td><td className="py-3"><Badge tone={statusTone(quote.status)}>{labelStatus(quote.status)}</Badge></td></tr>)}</tbody></table></div>;
+  return <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-sm"><thead className="border-b border-border text-xs text-muted-foreground"><tr><th className="pb-2 font-semibold">Quote</th><th className="pb-2 font-semibold">Customer</th><th className="pb-2 font-semibold">Sell</th><th className="pb-2 font-semibold">Margin</th><th className="pb-2 font-semibold">Status</th></tr></thead><tbody className="divide-y divide-border">{quotes.map((quote) => <tr key={quote.id} data-testid={`row-supplier-quote-${quote.id}`} tabIndex={0} role="button" className={`cursor-pointer transition-colors hover:bg-secondary/50 ${selectedQuoteId === quote.id ? 'bg-primary/5' : ''}`} onClick={() => onSelect(quote.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onSelect(quote.id); }}><td className="py-3 font-bold">{quote.quoteNumber}</td><td className="py-3">{quote.customerName}</td><td className="py-3">{money(quote.totalSell)}</td><td className="py-3">{money(quote.grossMargin)}</td><td className="py-3"><Badge tone={statusTone(quote.status)}>{labelStatus(quote.status)}</Badge></td></tr>)}</tbody></table></div>;
 }
 
 function OrderTable({ orders, selectedOrderId, onSelect }: { orders: SupplierOrder[]; selectedOrderId?: number; onSelect: (id: number) => void }) {
-  return <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="border-b border-border text-xs text-muted-foreground"><tr><th className="pb-2 font-semibold">Order</th><th className="pb-2 font-semibold">Customer</th><th className="pb-2 font-semibold">Promised</th><th className="pb-2 font-semibold">Sell / margin</th><th className="pb-2 font-semibold">Status</th></tr></thead><tbody className="divide-y divide-border">{orders.map((order) => <tr key={order.id} className={`cursor-pointer transition-colors hover:bg-secondary/50 ${selectedOrderId === order.id ? 'bg-primary/5' : ''}`} onClick={() => onSelect(order.id)}><td className="py-3 font-bold">{order.orderNumber}</td><td className="py-3">{order.customerName}</td><td className="py-3">{shortDate(order.promisedDate)}</td><td className="py-3">{money(order.totalSell)} <span className="text-muted-foreground">/ {money(order.grossMargin)}</span></td><td className="py-3"><Badge tone={statusTone(order.orderStatus)}>{labelStatus(order.orderStatus)}</Badge></td></tr>)}</tbody></table></div>;
+  return <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="border-b border-border text-xs text-muted-foreground"><tr><th className="pb-2 font-semibold">Order</th><th className="pb-2 font-semibold">Customer</th><th className="pb-2 font-semibold">Promised</th><th className="pb-2 font-semibold">Sell / margin</th><th className="pb-2 font-semibold">Status</th></tr></thead><tbody className="divide-y divide-border">{orders.map((order) => <tr key={order.id} data-testid={`row-supplier-order-${order.id}`} tabIndex={0} role="button" className={`cursor-pointer transition-colors hover:bg-secondary/50 ${selectedOrderId === order.id ? 'bg-primary/5' : ''}`} onClick={() => onSelect(order.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onSelect(order.id); }}><td className="py-3 font-bold">{order.orderNumber}</td><td className="py-3">{order.customerName}</td><td className="py-3">{shortDate(order.promisedDate)}</td><td className="py-3">{money(order.totalSell)} <span className="text-muted-foreground">/ {money(order.grossMargin)}</span></td><td className="py-3"><Badge tone={statusTone(order.orderStatus)}>{labelStatus(order.orderStatus)}</Badge></td></tr>)}</tbody></table></div>;
 }
