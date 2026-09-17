@@ -38,7 +38,7 @@ export function useUser() {
     user: {
       id: 'browser-test-user',
       fullName: 'Browser Test User',
-      imageUrl: '',
+      imageUrl: undefined,
       primaryEmailAddress: { emailAddress: 'browser-test@example.test' },
     },
   };

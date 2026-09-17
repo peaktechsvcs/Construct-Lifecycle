@@ -330,8 +330,48 @@ const project = {
   updatedAt: new Date(0).toISOString(),
 };
 
+const browserContract = {
+  id: 4201,
+  projectId: project.id,
+  contractNumber: 'CNT-0042',
+  deliveryMethod: 'design_bid_build',
+  originalValue: 1250000,
+  currentValue: 1300000,
+  contractStart: '2026-01-15',
+  contractEnd: '2026-12-15',
+  noticeToProceed: '2026-01-20',
+  paymentTerms: 'Net 30',
+  retainagePercent: 10,
+  retainageCap: null,
+  approvalStatus: 'approved',
+  status: 'active',
+  documentUrl: 'https://example.test/contracts/CNT-0042',
+  participants: [],
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+};
+
+const browserMilestone = {
+  id: 4202,
+  projectId: project.id,
+  itemNumber: 'MS-001',
+  name: 'Site mobilization',
+  itemType: 'milestone',
+  predecessor: null,
+  plannedStart: '2026-02-01',
+  plannedEnd: '2026-02-15',
+  actualStart: null,
+  actualEnd: null,
+  status: 'planned',
+  ownerName: 'Browser Test User',
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+};
+
 const projectDetailControls = {
+  projectId: project.id,
   contract: null,
+  scheduleItems: [],
   financials: null,
   commitments: [],
   issues: [],
@@ -352,6 +392,12 @@ const projectDetailControls = {
     retainageHeld: 0,
     billedToDate: project.invoicedAmount,
   },
+};
+
+const standaloneProjectControls = {
+  ...projectDetailControls,
+  contract: browserContract,
+  scheduleItems: [browserMilestone],
 };
 
 export function installBrowserTestApi() {
@@ -439,6 +485,54 @@ export function installBrowserTestApi() {
       });
     }
     if (url.pathname === '/api/workflow/config') return json(workflow);
+    const requestMethod = String(init?.method ?? 'GET').toUpperCase();
+    if (url.pathname === `/api/projects/${project.id}/controls/contract` && requestMethod === 'PUT') {
+      let requestBody: Record<string, unknown> = {};
+      try {
+        requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      } catch {
+        // The production form already validates the request before submitting.
+      }
+      return json({
+        ...browserContract,
+        ...requestBody,
+        participants: Array.isArray(requestBody.participants) ? requestBody.participants : [],
+        updatedAt: new Date(0).toISOString(),
+      });
+    }
+    if (url.pathname === `/api/projects/${project.id}/controls/schedule` && requestMethod === 'POST') {
+      let requestBody: Record<string, unknown> = {};
+      try {
+        requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      } catch {
+        // The production form already validates the request before submitting.
+      }
+      return json({
+        ...browserMilestone,
+        ...requestBody,
+        id: 4203,
+        projectId: project.id,
+        itemType: 'milestone',
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+      }, 201);
+    }
+    if (url.pathname === `/api/projects/${project.id}/controls/schedule/${browserMilestone.id}` && requestMethod === 'PATCH') {
+      let requestBody: Record<string, unknown> = {};
+      try {
+        requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      } catch {
+        // The production form already validates the request before submitting.
+      }
+      return json({
+        ...browserMilestone,
+        ...requestBody,
+        id: browserMilestone.id,
+        projectId: project.id,
+        itemType: 'milestone',
+        updatedAt: new Date(0).toISOString(),
+      });
+    }
     if (url.pathname === '/api/dashboard/summary') return json(dashboardSummary);
     if (url.pathname === '/api/dashboard/project-controls') return json(projectControls);
     if (url.pathname === '/api/dashboard/drilldown' && url.searchParams.get('type') === 'active-projects') {
@@ -557,7 +651,12 @@ export function installBrowserTestApi() {
     if (url.pathname === '/api/notifications') return json({ items: [], unreadCount: 0, total: 0 });
     if (url.pathname === '/api/dashboard/activity') return json([]);
     if (url.pathname === '/api/projects/42/activity') return json([]);
-    if (url.pathname === '/api/projects/42/controls') return json(projectDetailControls);
+    if (url.pathname === '/api/projects/42/controls') {
+      const controls = new URLSearchParams(window.location.search).get('browserControls') === 'standalone'
+        ? standaloneProjectControls
+        : projectDetailControls;
+      return json(controls);
+    }
     if (url.pathname === '/api/projects/42') return json(project);
     if (url.pathname === '/api/projects' && String(init?.method ?? 'GET').toUpperCase() === 'POST') {
       return json({ ...project, id: 43, projectNumber: 'P-0043', projectName: 'Browser Created Project' }, 201);

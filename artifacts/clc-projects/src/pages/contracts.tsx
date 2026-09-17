@@ -81,14 +81,14 @@ function ContractRow({ project }: { project: Project }) {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {contract && <Badge tone={tone(contract.status)}>{contract.status}</Badge>}
-          <Button variant="outline" className="px-3 py-1.5 text-xs" onClick={() => { setFeedback(''); setEditing((value) => !value); }}>{editing ? 'Close editor' : 'Edit contract'}</Button>
-          <Link href={`/projects/${project.id}`} className="rounded-md px-2 py-1.5 text-xs font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Project detail</Link>
+           <Button data-testid={`button-edit-contract-${project.id}`} variant="outline" className="px-3 py-1.5 text-xs" onClick={() => { setFeedback(''); setEditing((value) => !value); }}>{editing ? 'Close editor' : 'Edit contract'}</Button>
+           <Link data-testid={`link-contract-project-${project.id}`} href={`/projects/${project.id}`} className="rounded-md px-2 py-1.5 text-xs font-semibold text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Project detail</Link>
         </div>
       </div>
-      {feedback && <p role="status" className="mt-3 text-xs text-status-success">{feedback}</p>}
+       {feedback && <p data-testid="contract-save-feedback" role="status" className="mt-3 text-xs text-status-success">{feedback}</p>}
       {contract ? (
         <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div><p className="mono text-[9px] uppercase text-muted-foreground">Contract / approval</p><p className="mt-1 text-sm font-semibold">{contract.contractNumber} · <Badge tone={tone(contract.approvalStatus)}>{contract.approvalStatus}</Badge></p></div>
+           <div><p className="mono text-[9px] uppercase text-muted-foreground">Contract / approval</p><div className="mt-1 flex flex-wrap items-center gap-1 text-sm font-semibold">{contract.contractNumber} · <span data-testid="contract-approval-status"><Badge tone={tone(contract.approvalStatus)}>{contract.approvalStatus}</Badge></span></div></div>
           <div><p className="mono text-[9px] uppercase text-muted-foreground">Current value</p><p className="mt-1 text-sm font-semibold">{currency.format(contract.currentValue)}</p></div>
           <div><p className="mono text-[9px] uppercase text-muted-foreground">Delivery / dates</p><p className="mt-1 text-sm font-semibold">{contract.deliveryMethod.replace(/_/g, ' ')} · {shortDate(contract.contractStart)} — {shortDate(contract.contractEnd)}</p></div>
           <div><p className="mono text-[9px] uppercase text-muted-foreground">Terms / participants</p><p className="mt-1 text-sm font-semibold">{contract.paymentTerms || 'Terms not entered'} · {contract.participants.length} listed</p></div>
@@ -100,7 +100,7 @@ function ContractRow({ project }: { project: Project }) {
 }
 
 function ContractEditor({ draft, set, participants, setParticipants, onSave, pending }: { draft: Draft; set: (key: keyof Draft, value: string) => void; participants: Participant[]; setParticipants: (items: Participant[]) => void; onSave: () => void; pending: boolean }) {
-  const field = (label: string, key: keyof Draft, type = 'text') => <label className="block"><span className="mb-1 block text-[10px] font-semibold text-muted-foreground">{label}</span><Input type={type} value={draft[key]} onChange={(event) => set(key, event.target.value)} className="h-9 bg-background text-xs" /></label>;
+  const field = (label: string, key: keyof Draft, type = 'text') => <label className="block"><span className="mb-1 block text-[10px] font-semibold text-muted-foreground">{label}</span><Input data-testid={`input-contract-${key}`} type={type} value={draft[key]} onChange={(event) => set(key, event.target.value)} className="h-9 bg-background text-xs" /></label>;
   return <div className="mt-5 border-t border-border pt-4">
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{field('Contract number', 'contractNumber')}{field('Original value', 'originalValue', 'number')}{field('Current value', 'currentValue', 'number')}{field('Retainage %', 'retainagePercent', 'number')}{field('Start', 'contractStart', 'date')}{field('End', 'contractEnd', 'date')}{field('Notice to proceed', 'noticeToProceed', 'date')}{field('Retainage cap', 'retainageCap', 'number')}
       <label className="block"><span className="mb-1 block text-[10px] font-semibold text-muted-foreground">Delivery method</span><select className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs" value={draft.deliveryMethod} onChange={(event) => set('deliveryMethod', event.target.value)}><option value="design_bid_build">Design-bid-build</option><option value="design_build">Design-build</option><option value="construction_manager_at_risk">CM at risk</option><option value="negotiated">Negotiated</option></select></label>
@@ -111,7 +111,7 @@ function ContractEditor({ draft, set, participants, setParticipants, onSave, pen
     <div className="mt-4"><div className="flex items-center justify-between"><p className="text-xs font-bold">Participants</p><Button variant="outline" className="px-2 py-1 text-[10px]" onClick={() => setParticipants([...participants, blankParticipant()])}><Plus size={12} /> Add participant</Button></div>
       <div className="mt-2 space-y-2">{participants.map((item, index) => <div key={index} className="grid gap-2 rounded-md border border-border bg-secondary/25 p-3 sm:grid-cols-2 lg:grid-cols-5">{(['participantType', 'organizationName', 'contactName', 'contactEmail', 'role'] as const).map((key) => <Input key={key} aria-label={key.replace(/([A-Z])/g, ' $1')} placeholder={key.replace(/([A-Z])/g, ' $1')} value={item[key]} onChange={(event) => setParticipants(participants.map((current, i) => i === index ? { ...current, [key]: event.target.value } : current))} className="h-8 bg-background text-xs" />)}<Button variant="ghost" aria-label={`Remove participant ${index + 1}`} className="justify-self-start px-2 text-xs text-status-danger lg:col-start-5" onClick={() => setParticipants(participants.filter((_, i) => i !== index))}><Trash2 size={13} /> Remove</Button></div>)}</div>
     </div>
-    <Button className="mt-4 px-3 py-2 text-xs" disabled={pending || !draft.contractNumber.trim()} onClick={onSave}>{pending ? 'Saving…' : 'Save contract'}</Button>
+     <Button data-testid="button-save-contract" className="mt-4 px-3 py-2 text-xs" disabled={pending || !draft.contractNumber.trim()} onClick={onSave}>{pending ? 'Saving…' : 'Save contract'}</Button>
   </div>;
 }
 
@@ -120,5 +120,5 @@ export function Contracts() {
   if (projects.isLoading) return <LoadingPanel lines={7} />;
   if (projects.isError) return <ErrorPanel title="Contracts are unavailable" text="Projects could not be loaded for this environment." onRetry={() => projects.refetch()} />;
   const items = projects.data ?? [];
-  return <div className="animate-rise"><PageTitle eyebrow="Project controls" title="Contracts" description="Review agreement status, commercial terms, and participants across the current environment." />{items.length === 0 ? <EmptyState icon={FileCheck2} title="No projects to review" text="Contracts will appear here when projects are available." /> : <div className="space-y-3">{items.map((project) => <ContractRow key={project.id} project={project} />)}</div>}</div>;
+  return <div data-testid="contracts-page" className="animate-rise"><PageTitle eyebrow="Project controls" title="Contracts" description="Review agreement status, commercial terms, and participants across the current environment." />{items.length === 0 ? <EmptyState icon={FileCheck2} title="No projects to review" text="Contracts will appear here when projects are available." /> : <div className="space-y-3">{items.map((project) => <ContractRow key={project.id} project={project} />)}</div>}</div>;
 }

@@ -42,3 +42,4 @@
 - [Post-merge database setup](post-merge-database-setup.md) — noninteractive Drizzle schema pushes need an explicit force flag and enough timeout for schema introspection.
 - [Development workspace bootstrap](development-workspace-bootstrap.md) — the first dev user may already be platform admin when tenant resolution runs, so bootstrap must repair tenant and environment state for that path.
 - [Tenant role resolution](tenant-role-resolution.md) — prefer the API's active tenant role when gating tenant-scoped actions.
+- [Responsive browser coverage](responsive-browser-coverage.md) — strict CDP error capture turns invalid markup and empty asset URLs into actionable release failures.

@@ -66,6 +66,59 @@ const cases = [
     shell: true,
   },
   {
+    id: "contracts-workspace",
+    name: "contracts workspace",
+    path: "/contracts?browserAuth=authenticated&browserControls=standalone",
+    heading: "Contracts",
+    actions: [
+      'button[data-testid="button-edit-contract-42"]',
+      'a[data-testid="link-contract-project-42"]',
+    ],
+    requiredSelectors: ['[data-testid="contract-approval-status"]'],
+    requiredTexts: ["Browser Test Project", "CNT-0042", "Net 30"],
+    inlineEditor: {
+      openSelector: 'button[data-testid="button-edit-contract-42"]',
+      requiredSelector: 'input[data-testid="input-contract-contractNumber"]',
+      submitSelector: 'button[data-testid="button-save-contract"]',
+      submitLabel: "Save contract",
+      feedbackSelector: '[data-testid="contract-save-feedback"]',
+      feedbackText: "Contract saved.",
+      fieldSelector: 'input[data-testid="input-contract-contractNumber"]',
+      fieldValue: "CNT-0042-UPDATED",
+    },
+    shell: true,
+    skipVisual: true,
+  },
+  {
+    id: "milestones-workspace",
+    name: "milestones workspace",
+    path: "/milestones?browserAuth=authenticated&browserControls=standalone",
+    heading: "Milestones",
+    actions: [
+      'button[data-testid="button-add-milestone-42"]',
+      'a[data-testid="link-milestone-project-42"]',
+    ],
+    requiredSelectors: [
+      '[data-testid="milestone-status-4202"]',
+      'button[data-testid="button-edit-milestone-4202"]',
+    ],
+    requiredTexts: ["Browser Test Project", "MS-001", "Site mobilization"],
+    inlineEditor: {
+      openSelector: 'button[data-testid="button-add-milestone-42"]',
+      requiredSelector: 'input[data-testid="input-milestone-itemNumber"]',
+      submitSelector: 'button[data-testid="button-save-milestone"]',
+      submitLabel: "Add milestone",
+      feedbackSelector: '[data-testid="milestone-save-feedback"]',
+      feedbackText: "Milestone saved.",
+      fields: [
+        { selector: 'input[data-testid="input-milestone-itemNumber"]', value: "MS-002" },
+        { selector: 'input[data-testid="input-milestone-name"]', value: "Site mobilization updated" },
+      ],
+    },
+    shell: true,
+    skipVisual: true,
+  },
+  {
     id: "active-projects-empty-guidance",
     name: "active projects empty guidance",
     path: "/dashboard/drilldown/active-projects?browserAuth=authenticated",
@@ -329,6 +382,7 @@ class CdpClient {
     this.nextId = 1;
     this.pending = new Map();
     this.listeners = new Map();
+    this.onceListeners = new Map();
     socket.addEventListener("message", (event) => {
       const message = JSON.parse(String(event.data));
       if (message.id) {
@@ -340,8 +394,9 @@ class CdpClient {
         return;
       }
       const listeners = this.listeners.get(message.method) ?? [];
-      this.listeners.delete(message.method);
-      for (const listener of listeners) listener(message.params);
+      const onceListeners = this.onceListeners.get(message.method) ?? [];
+      this.onceListeners.delete(message.method);
+      for (const listener of [...listeners, ...onceListeners]) listener(message.params);
     });
   }
 
@@ -366,15 +421,26 @@ class CdpClient {
     return new Promise((resolve, reject) => {
       const listener = (params) => {
         clearTimeout(timeout);
+        const listeners = this.onceListeners.get(method) ?? [];
+        this.onceListeners.set(method, listeners.filter((candidate) => candidate !== listener));
         resolve(params);
       };
       const timeout = setTimeout(() => {
-        const listeners = this.listeners.get(method) ?? [];
-        this.listeners.set(method, listeners.filter((candidate) => candidate !== listener));
+        const listeners = this.onceListeners.get(method) ?? [];
+        this.onceListeners.set(method, listeners.filter((candidate) => candidate !== listener));
         reject(new Error(`Timed out waiting for ${method}`));
       }, timeoutMs);
-      this.listeners.set(method, [...(this.listeners.get(method) ?? []), listener]);
+      this.onceListeners.set(method, [...(this.onceListeners.get(method) ?? []), listener]);
     });
+  }
+
+  on(method, listener) {
+    const listeners = this.listeners.get(method) ?? [];
+    this.listeners.set(method, [...listeners, listener]);
+    return () => {
+      const current = this.listeners.get(method) ?? [];
+      this.listeners.set(method, current.filter((candidate) => candidate !== listener));
+    };
   }
 
   close() {
@@ -584,6 +650,99 @@ async function inspectDialog(client, routeCase, viewport) {
   throw new Error(`${routeCase.name} (${viewport.name}): dialog close control did not close the dialog`);
 }
 
+async function inspectInlineEditor(client, routeCase, viewport) {
+  const editorCase = routeCase.inlineEditor;
+  if (!editorCase) return;
+
+  const opened = await evaluate(client, `(() => {
+    const opener = document.querySelector(${JSON.stringify(editorCase.openSelector)});
+    if (!(opener instanceof HTMLElement)) return false;
+    opener.click();
+    return true;
+  })()`);
+  if (!opened) {
+    throw new Error(`${routeCase.name} (${viewport.name}): inline editor opener missing (${editorCase.openSelector})`);
+  }
+
+  await waitFor(
+    client,
+    `${routeCase.name} inline editor`,
+    `(() => ({
+      ready: Boolean(document.querySelector(${JSON.stringify(editorCase.requiredSelector)})),
+    }))()`,
+  );
+
+  await evaluate(client, `(() => {
+    const submit = document.querySelector(${JSON.stringify(editorCase.submitSelector)});
+    if (submit instanceof HTMLElement) submit.scrollIntoView({ block: "nearest", inline: "nearest" });
+    return true;
+  })()`);
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  const initialState = await evaluate(client, `(() => {
+    const submit = document.querySelector(${JSON.stringify(editorCase.submitSelector)});
+    const visible = (element) => {
+      if (!(element instanceof HTMLElement)) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0
+        && rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.left < innerWidth
+        && rect.bottom > 0 && rect.top < innerHeight;
+    };
+    return {
+      submitVisible: visible(submit),
+      submitLabel: submit?.textContent?.trim() ?? "",
+    };
+  })()`);
+  if (!initialState.submitVisible) {
+    throw new Error(`${routeCase.name} (${viewport.name}): inline editor submit action is not visible`);
+  }
+  if (initialState.submitLabel !== editorCase.submitLabel) {
+    throw new Error(`${routeCase.name} (${viewport.name}): inline editor submit label "${initialState.submitLabel}" instead of "${editorCase.submitLabel}"`);
+  }
+
+  const fields = editorCase.fields ?? [{ selector: editorCase.fieldSelector, value: editorCase.fieldValue }];
+  const filled = await evaluate(client, `(() => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) return false;
+    const fields = ${JSON.stringify(fields)};
+    for (const fieldCase of fields) {
+      const field = document.querySelector(fieldCase.selector);
+      if (!(field instanceof HTMLInputElement)) return false;
+      setter.call(field, fieldCase.value);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    return true;
+  })()`);
+  if (!filled) {
+    throw new Error(`${routeCase.name} (${viewport.name}): inline editor field missing`);
+  }
+
+  const submitted = await evaluate(client, `(() => {
+    const submit = document.querySelector(${JSON.stringify(editorCase.submitSelector)});
+    if (!(submit instanceof HTMLElement)) return false;
+    submit.click();
+    return true;
+  })()`);
+  if (!submitted) {
+    throw new Error(`${routeCase.name} (${viewport.name}): inline editor submit action missing`);
+  }
+
+  await waitFor(
+    client,
+    `${routeCase.name} save feedback`,
+    `(() => {
+      const feedback = document.querySelector(${JSON.stringify(editorCase.feedbackSelector)});
+      return {
+        ready: feedback?.textContent?.trim() === ${JSON.stringify(editorCase.feedbackText)},
+        text: feedback?.textContent?.trim() ?? "",
+      };
+    })()`,
+  );
+  await evaluate(client, `window.scrollTo({ top: 0, left: 0, behavior: "auto" })`);
+}
+
 async function inspectSearchTransition(client, routeCase, viewport) {
   if (!routeCase.searchTransition) return;
 
@@ -648,6 +807,7 @@ async function inspect(client, routeCase, viewport) {
   }
 
   await inspectDialog(client, routeCase, viewport);
+  await inspectInlineEditor(client, routeCase, viewport);
   await inspectSearchTransition(client, routeCase, viewport);
 
   return evaluate(client, `(() => {
@@ -763,6 +923,19 @@ async function captureAndCompareVisual(client, routeCase, viewport) {
   }
 }
 
+function describeBrowserError(kind, params) {
+  if (kind === "runtime exception") {
+    return params.exceptionDetails?.exception?.description
+      ?? params.exceptionDetails?.text
+      ?? "Unhandled browser exception";
+  }
+  if (kind === "console error") {
+    return params.args?.map((argument) => argument.value ?? argument.description ?? "").join(" ")
+      || "console.error";
+  }
+  return params.entry?.text ?? "Browser log error";
+}
+
 async function visit(routeCase, viewport) {
   const targetResponse = await fetch(
     `http://127.0.0.1:${debuggingPort}/json/new?${encodeURIComponent(`${baseUrl}${routeCase.path}`)}`,
@@ -771,10 +944,25 @@ async function visit(routeCase, viewport) {
   if (!targetResponse.ok) throw new Error(`Could not create Chromium target: ${targetResponse.status}`);
   const target = await targetResponse.json();
   const client = await CdpClient.connect(target.webSocketDebuggerUrl);
+  const browserErrors = [];
+  const removeExceptionListener = client.on("Runtime.exceptionThrown", (params) => {
+    browserErrors.push(`runtime exception: ${describeBrowserError("runtime exception", params)}`);
+  });
+  const removeConsoleListener = client.on("Runtime.consoleAPICalled", (params) => {
+    if (params.type === "error") {
+      browserErrors.push(`console error: ${describeBrowserError("console error", params)}`);
+    }
+  });
+  const removeLogListener = client.on("Log.entryAdded", (params) => {
+    if (params.entry?.level === "error") {
+      browserErrors.push(`browser log: ${describeBrowserError("browser log", params)}`);
+    }
+  });
   try {
     await Promise.all([
       client.command("Page.enable"),
       client.command("Runtime.enable"),
+      client.command("Log.enable"),
       client.command("Emulation.setDeviceMetricsOverride", {
         width: viewport.width,
         height: viewport.height,
@@ -788,6 +976,10 @@ async function visit(routeCase, viewport) {
     await stabilize(client);
     await waitForRenderedPage(client, routeCase);
     const result = await inspect(client, routeCase, viewport);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    if (browserErrors.length) {
+      throw new Error(`${routeCase.name} (${viewport.name}): unexpected browser errors: ${[...new Set(browserErrors)].join(" | ")}`);
+    }
     const failures = [];
     if (result.effectiveOverflow > 1) {
       failures.push(`horizontal overflow of ${result.effectiveOverflow}px${result.overflowing.length ? ` from ${result.overflowing.join(", ")}` : ""}`);
@@ -801,6 +993,9 @@ async function visit(routeCase, viewport) {
     if (!routeCase.skipVisual && !skipVisualComparison) await captureAndCompareVisual(client, routeCase, viewport);
     console.log(`✔ ${routeCase.name} at ${viewport.width}×${viewport.height}`);
   } finally {
+    removeExceptionListener();
+    removeConsoleListener();
+    removeLogListener();
     client.close();
     await fetch(`http://127.0.0.1:${debuggingPort}/json/close/${target.id}`);
   }
