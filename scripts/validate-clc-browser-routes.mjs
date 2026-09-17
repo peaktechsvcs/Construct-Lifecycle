@@ -526,7 +526,7 @@ async function checkProjectDetailReturnSafety() {
   }
   console.log("✔ project detail rejects external, protocol-relative, and malformed returns");
 
-  const validReturn = "/dashboard/drilldown/active-projects?browserAuth=authenticated&sort=value_desc&search=alpha";
+  const validReturn = "/dashboard/drilldown/active-projects?browserAuth=authenticated&sort=value_desc&search=alpha#projects";
   const validTarget = await openTarget(
     `/projects/42?browserAuth=authenticated&browserRole=owner&return=${encodeURIComponent(validReturn)}`,
   );
@@ -553,6 +553,7 @@ async function checkProjectDetailReturnSafety() {
         ready: window.location.origin === ${JSON.stringify(baseUrl)}
           && window.location.pathname === "/dashboard/drilldown/active-projects"
           && window.location.search === "?browserAuth=authenticated&sort=value_desc&search=alpha",
+          && window.location.hash === "#projects",
         url: window.location.href,
       }))()`,
     );
@@ -645,7 +646,7 @@ async function checkProjectDetailReturnSafety() {
 }
 
 async function checkProjectDetailActionsPreserveReturnContext() {
-  const validReturn = "/dashboard/drilldown/active-projects?browserAuth=authenticated&sort=value_desc&search=alpha";
+  const validReturn = "/dashboard/drilldown/active-projects?browserAuth=authenticated&sort=value_desc&search=alpha#projects";
   const actionPath = `/projects/42?browserAuth=authenticated&browserRole=owner&return=${encodeURIComponent(validReturn)}`;
   const assertProjectDetailRoute = (description) => waitFor(
     client,

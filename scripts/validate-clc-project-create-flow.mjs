@@ -961,7 +961,8 @@ async function checkReturnPathSafety() {
   }
   console.log("✔ completing with an unsafe return stays on the project book");
 
-  const validReturn = encodeURIComponent("/dashboard/drilldown/active-projects?sort=value_desc&search=alpha");
+  const validReturnPath = "/dashboard/drilldown/active-projects?sort=value_desc&search=alpha#projects";
+  const validReturn = encodeURIComponent(validReturnPath);
   const validTarget = await openTarget(
     `/projects?browserAuth=authenticated&browserRole=owner&create=1&return=${validReturn}`,
   );
@@ -987,13 +988,15 @@ async function checkReturnPathSafety() {
         ready: window.location.origin === ${JSON.stringify(baseUrl)}
           && window.location.pathname === "/dashboard/drilldown/active-projects"
           && window.location.search === "?sort=value_desc&search=alpha"
+          && window.location.hash === "#projects"
           && document.querySelector('[role="dialog"]') === null,
+        url: window.location.href,
       }))()`,
     );
   } finally {
     await closeTarget(validTarget.target, validTarget.client);
   }
-  console.log("✔ valid internal returns preserve their path and query parameters");
+  console.log("✔ valid internal returns preserve their path, query parameters, and hash");
 }
 
 async function checkRestrictedRole() {
