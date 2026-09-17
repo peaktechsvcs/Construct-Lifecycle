@@ -407,6 +407,22 @@ const standaloneProjectControls = {
   scheduleItems: [browserMilestone],
 };
 
+const browserProjectControlsStorageKey = 'clc-browser-project-controls';
+const browserProjectControlsResetKey = 'clc-browser-project-controls-reset';
+
+function cloneStandaloneProjectControls() {
+  return JSON.parse(JSON.stringify(standaloneProjectControls)) as typeof standaloneProjectControls;
+}
+
+function loadBrowserProjectControls() {
+  try {
+    const stored = window.localStorage.getItem(browserProjectControlsStorageKey);
+    return stored ? JSON.parse(stored) as typeof standaloneProjectControls : cloneStandaloneProjectControls();
+  } catch {
+    return cloneStandaloneProjectControls();
+  }
+}
+
 const browserMailboxIntake = {
   id: 7201,
   tenantId: tenant.id,
@@ -466,6 +482,26 @@ export function installBrowserTestApi() {
   const browserSearchDelay = new URLSearchParams(window.location.search).get('browserSearchDelay') === '1'
     ? 600
     : 0;
+  const browserSearchParams = new URLSearchParams(window.location.search);
+  const browserControlsMode = browserSearchParams.get('browserControls');
+  if (browserControlsMode === 'reload' && browserSearchParams.get('browserControlsReset') === '1') {
+    try {
+      if (!window.sessionStorage.getItem(browserProjectControlsResetKey)) {
+        window.localStorage.removeItem(browserProjectControlsStorageKey);
+        window.sessionStorage.setItem(browserProjectControlsResetKey, '1');
+      }
+    } catch {
+      // Browser test storage may be unavailable in a restricted context.
+    }
+  }
+  const browserControls = browserControlsMode === 'reload'
+    ? loadBrowserProjectControls()
+    : standaloneProjectControls;
+  const persistBrowserProjectControls = () => {
+    if (browserControlsMode === 'reload') {
+      window.localStorage.setItem(browserProjectControlsStorageKey, JSON.stringify(browserControls));
+    }
+  };
   const browserTestWindow = window as Window & {
     __clcBrowserTestDrilldownSearches?: string[];
   };
@@ -554,12 +590,17 @@ export function installBrowserTestApi() {
       } catch {
         // The production form already validates the request before submitting.
       }
-      return json({
-        ...browserContract,
+      const updatedContract = {
+        ...(browserControls.contract ?? browserContract),
         ...requestBody,
-        participants: Array.isArray(requestBody.participants) ? requestBody.participants : [],
+        participants: Array.isArray(requestBody.participants)
+          ? requestBody.participants.map((participant, index) => ({ ...participant, id: 4300 + index }))
+          : [],
         updatedAt: new Date(0).toISOString(),
-      });
+      } as typeof browserContract;
+      browserControls.contract = updatedContract;
+      persistBrowserProjectControls();
+      return json(updatedContract);
     }
     if (url.pathname === `/api/projects/${project.id}/controls/schedule` && requestMethod === 'POST') {
       let requestBody: Record<string, unknown> = {};
@@ -568,7 +609,7 @@ export function installBrowserTestApi() {
       } catch {
         // The production form already validates the request before submitting.
       }
-      return json({
+      const createdMilestone = {
         ...browserMilestone,
         ...requestBody,
         id: 4203,
@@ -576,7 +617,10 @@ export function installBrowserTestApi() {
         itemType: 'milestone',
         createdAt: new Date(0).toISOString(),
         updatedAt: new Date(0).toISOString(),
-      }, 201);
+      };
+      browserControls.scheduleItems = [...browserControls.scheduleItems, createdMilestone];
+      persistBrowserProjectControls();
+      return json(createdMilestone, 201);
     }
     if (url.pathname === `/api/projects/${project.id}/controls/schedule/${browserMilestone.id}` && requestMethod === 'PATCH') {
       let requestBody: Record<string, unknown> = {};
@@ -585,14 +629,19 @@ export function installBrowserTestApi() {
       } catch {
         // The production form already validates the request before submitting.
       }
-      return json({
+      const updatedMilestone = {
         ...browserMilestone,
         ...requestBody,
         id: browserMilestone.id,
         projectId: project.id,
         itemType: 'milestone',
         updatedAt: new Date(0).toISOString(),
-      });
+      };
+      browserControls.scheduleItems = browserControls.scheduleItems.map((item) =>
+        item.id === browserMilestone.id ? updatedMilestone : item,
+      );
+      persistBrowserProjectControls();
+      return json(updatedMilestone);
     }
     if (url.pathname === '/api/itb-intakes') return json([browserMailboxIntake]);
     if (url.pathname === `/api/itb-intakes/${browserMailboxIntake.id}/documents`) return json([]);
@@ -734,8 +783,8 @@ export function installBrowserTestApi() {
     if (url.pathname === '/api/dashboard/activity') return json([]);
     if (url.pathname === '/api/projects/42/activity') return json([]);
     if (url.pathname === '/api/projects/42/controls') {
-      const controls = new URLSearchParams(window.location.search).get('browserControls') === 'standalone'
-        ? standaloneProjectControls
+      const controls = browserControlsMode === 'standalone' || browserControlsMode === 'reload'
+        ? browserControls
         : projectDetailControls;
       return json(controls);
     }

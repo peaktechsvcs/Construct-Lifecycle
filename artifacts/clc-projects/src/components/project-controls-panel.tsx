@@ -98,6 +98,7 @@ function Field({
   type = 'text',
   placeholder = '',
   required = false,
+  testId,
 }: {
   label: string;
   value: string;
@@ -105,6 +106,7 @@ function Field({
   type?: string;
   placeholder?: string;
   required?: boolean;
+  testId?: string;
 }) {
   return (
     <label className="block">
@@ -117,6 +119,7 @@ function Field({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={required}
+        data-testid={testId}
         className="h-9 bg-background text-xs"
       />
     </label>
@@ -358,12 +361,12 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
           </div>
            {formKind === 'milestone' && (
              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-               <Field label="Item number" value={form.number} onChange={(v) => setValue('number', v)} placeholder="M-010" required />
-               <Field label="Milestone" value={form.name} onChange={(v) => setValue('name', v)} placeholder="Owner inspection" required />
+                <Field testId="input-controls-milestone-number" label="Item number" value={form.number} onChange={(v) => setValue('number', v)} placeholder="M-010" required />
+                <Field testId="input-controls-milestone-name" label="Milestone" value={form.name} onChange={(v) => setValue('name', v)} placeholder="Owner inspection" required />
                <label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Type</span><select className={selectClassName} value={form.itemType} onChange={(event) => setValue('itemType', event.target.value)}><option value="milestone">Milestone</option><option value="activity">Activity</option><option value="dependency">Dependency</option></select></label>
-               <Field label="Planned start" type="date" value={form.plannedStart} onChange={(v) => setValue('plannedStart', v)} />
-               <Field label="Planned finish" type="date" value={form.plannedEnd} onChange={(v) => setValue('plannedEnd', v)} />
-               <label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Status</span><select className={selectClassName} value={form.status} onChange={(event) => setValue('status', event.target.value)}><option value="planned">Planned</option><option value="in_progress">In progress</option><option value="complete">Complete</option><option value="delayed">Delayed</option></select></label>
+                <Field testId="input-controls-milestone-planned-start" label="Planned start" type="date" value={form.plannedStart} onChange={(v) => setValue('plannedStart', v)} />
+                <Field testId="input-controls-milestone-planned-end" label="Planned finish" type="date" value={form.plannedEnd} onChange={(v) => setValue('plannedEnd', v)} />
+                <label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Status</span><select data-testid="select-controls-milestone-status" className={selectClassName} value={form.status} onChange={(event) => setValue('status', event.target.value)}><option value="planned">Planned</option><option value="in_progress">In progress</option><option value="complete">Complete</option><option value="delayed">Delayed</option></select></label>
                <Field label="Actual start" type="date" value={form.actualStart} onChange={(v) => setValue('actualStart', v)} />
                <Field label="Actual finish" type="date" value={form.actualEnd} onChange={(v) => setValue('actualEnd', v)} />
                <Field label="Predecessor" value={form.predecessor} onChange={(v) => setValue('predecessor', v)} placeholder="M-005" />
@@ -374,7 +377,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
           {formKind === 'commitment' && <div className="grid gap-3 sm:grid-cols-2"><Field label="Commitment number" value={form.number} onChange={(v) => setValue('number', v)} placeholder="SC-001" /><Field label="Vendor / subcontractor" value={form.vendorName} onChange={(v) => setValue('vendorName', v)} /><Field label="Committed value" type="number" value={form.value} onChange={(v) => setValue('value', v)} /><Field label="Due date" type="date" value={form.dueDate} onChange={(v) => setValue('dueDate', v)} /><div className="sm:col-span-2"><Field label="Scope description" value={form.description} onChange={(v) => setValue('description', v)} /></div></div>}
           {formKind === 'issue' && <div className="grid gap-3 sm:grid-cols-2"><Field label="Subject" value={form.subject} onChange={(v) => setValue('subject', v)} placeholder="Clarify storefront detail" /><Field label="Responsible party" value={form.responsibleParty} onChange={(v) => setValue('responsibleParty', v)} /><Field label="Due date" type="date" value={form.dueDate} onChange={(v) => setValue('dueDate', v)} /><div className="sm:col-span-2"><label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Question</span><Textarea value={form.question} onChange={(event) => setValue('question', event.target.value)} rows={3} className="bg-background text-xs" /></label></div></div>}
           {formKind === 'change' && <div className="grid gap-3 sm:grid-cols-2"><Field label="Change number" value={form.number} onChange={(v) => setValue('number', v)} placeholder="COR-001" /><Field label="Title" value={form.title} onChange={(v) => setValue('title', v)} /><Field label="Proposed value" type="number" value={form.value} onChange={(v) => setValue('value', v)} /><div className="sm:col-span-2"><Field label="Description" value={form.description} onChange={(v) => setValue('description', v)} /></div></div>}
-          <div className="mt-4 flex justify-end"><Button type="submit" disabled={formPending}>{formPending ? 'Saving…' : 'Save control'}</Button></div>
+           <div className="mt-4 flex justify-end"><Button data-testid="button-save-controls-milestone" type="submit" disabled={formPending}>{formPending ? 'Saving…' : 'Save control'}</Button></div>
         </form>
       )}
 
@@ -400,15 +403,15 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
                  </div>
                </>
              ) : <p className="text-xs text-muted-foreground">No control contract has been entered yet. Add the owner agreement and key participants below.</p>}
-             <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-3">
-               <Field label="Contract #" value={contractForm.contractNumber} onChange={(v) => setContract('contractNumber', v)} placeholder="Owner contract number" required />
+              <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-3">
+                <Field testId="input-controls-contract-number" label="Contract #" value={contractForm.contractNumber} onChange={(v) => setContract('contractNumber', v)} placeholder="Owner contract number" required />
                <label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Delivery method</span><select className={selectClassName} value={contractForm.deliveryMethod} onChange={(event) => setContract('deliveryMethod', event.target.value)}><option value="design_bid_build">Design-bid-build</option><option value="design_build">Design-build</option><option value="construction_manager_at_risk">CM at risk</option><option value="negotiated">Negotiated</option></select></label>
                <label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Approval</span><select className={selectClassName} value={contractForm.approvalStatus} onChange={(event) => setContract('approvalStatus', event.target.value)}><option value="draft">Draft</option><option value="pending">Pending review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></label>
                <Field label="Original value" type="number" value={contractForm.originalValue} onChange={(v) => setContract('originalValue', v)} required />
                <Field label="Current value" type="number" value={contractForm.currentValue} onChange={(v) => setContract('currentValue', v)} required />
                <label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Contract status</span><select className={selectClassName} value={contractForm.status} onChange={(event) => setContract('status', event.target.value)}><option value="active">Active</option><option value="suspended">Suspended</option><option value="complete">Complete</option></select></label>
-               <Field label="Contract start" type="date" value={contractForm.contractStart} onChange={(v) => setContract('contractStart', v)} />
-               <Field label="Contract end" type="date" value={contractForm.contractEnd} onChange={(v) => setContract('contractEnd', v)} />
+                <Field testId="input-controls-contract-start" label="Contract start" type="date" value={contractForm.contractStart} onChange={(v) => setContract('contractStart', v)} />
+                <Field testId="input-controls-contract-end" label="Contract end" type="date" value={contractForm.contractEnd} onChange={(v) => setContract('contractEnd', v)} />
                <Field label="Notice to proceed" type="date" value={contractForm.noticeToProceed} onChange={(v) => setContract('noticeToProceed', v)} />
                <Field label="Retainage %" type="number" value={contractForm.retainagePercent} onChange={(v) => setContract('retainagePercent', v)} />
                <Field label="Retainage cap" type="number" value={contractForm.retainageCap} onChange={(v) => setContract('retainageCap', v)} placeholder="Optional" />
@@ -416,21 +419,21 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
                <div className="sm:col-span-2 lg:col-span-3"><label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Payment terms</span><Textarea value={contractForm.paymentTerms} onChange={(event) => setContract('paymentTerms', event.target.value)} rows={2} className="bg-background text-xs" placeholder="Net 30, monthly pay applications, retainage release terms…" /></label></div>
              </div>
              <div className="mt-4 border-t border-border pt-4">
-               <div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-xs font-bold">Contract participants</p><p className="text-[10px] text-muted-foreground">Store only the contacts needed to coordinate this agreement.</p></div><Button type="button" variant="outline" className="px-2.5 py-1.5 text-[10px]" onClick={() => setParticipants((current) => [...current, { ...emptyParticipant }])}><Plus size={12} /> Add participant</Button></div>
-               <div className="space-y-3">
+                <div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-xs font-bold">Contract participants</p><p className="text-[10px] text-muted-foreground">Store only the contacts needed to coordinate this agreement.</p></div><Button data-testid="button-add-controls-participant" type="button" variant="outline" className="px-2.5 py-1.5 text-[10px]" onClick={() => setParticipants((current) => [...current, { ...emptyParticipant }])}><Plus size={12} /> Add participant</Button></div>
+                <div className="space-y-3" data-testid="project-controls-participants">
                  {participants.map((participant, index) => (
                    <div key={index} className="grid gap-2 rounded-md border border-border/70 bg-secondary/25 p-3 sm:grid-cols-2 lg:grid-cols-5">
                      <label className="block"><span className="mb-1 block text-[10px] font-semibold text-muted-foreground">Type</span><select className={selectClassName} value={participant.participantType} onChange={(event) => updateParticipant(index, 'participantType', event.target.value)}><option value="owner">Owner</option><option value="architect">Architect</option><option value="contractor">Contractor</option><option value="consultant">Consultant</option><option value="lender">Lender</option><option value="other">Other</option></select></label>
-                     <Field label="Organization" value={participant.organizationName} onChange={(value) => updateParticipant(index, 'organizationName', value)} required />
-                     <Field label="Contact" value={participant.contactName} onChange={(value) => updateParticipant(index, 'contactName', value)} />
-                     <Field label="Email" type="email" value={participant.contactEmail} onChange={(value) => updateParticipant(index, 'contactEmail', value)} />
-                     <div className="flex items-end gap-2"><div className="min-w-0 flex-1"><Field label="Role" value={participant.role} onChange={(value) => updateParticipant(index, 'role', value)} /></div><button type="button" aria-label={`Remove participant ${index + 1}`} className="mb-0.5 rounded-md p-2 text-muted-foreground hover:bg-status-danger/10 hover:text-status-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setParticipants((current) => current.filter((_, participantIndex) => participantIndex !== index))}>×</button></div>
+                      <Field testId={`input-controls-participant-${index}-organization`} label="Organization" value={participant.organizationName} onChange={(value) => updateParticipant(index, 'organizationName', value)} required />
+                      <Field testId={`input-controls-participant-${index}-contact`} label="Contact" value={participant.contactName} onChange={(value) => updateParticipant(index, 'contactName', value)} />
+                      <Field testId={`input-controls-participant-${index}-email`} label="Email" type="email" value={participant.contactEmail} onChange={(value) => updateParticipant(index, 'contactEmail', value)} />
+                      <div className="flex items-end gap-2"><div className="min-w-0 flex-1"><Field testId={`input-controls-participant-${index}-role`} label="Role" value={participant.role} onChange={(value) => updateParticipant(index, 'role', value)} /></div><button type="button" aria-label={`Remove participant ${index + 1}`} className="mb-0.5 rounded-md p-2 text-muted-foreground hover:bg-status-danger/10 hover:text-status-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setParticipants((current) => current.filter((_, participantIndex) => participantIndex !== index))}>×</button></div>
                    </div>
                  ))}
                  {!participants.length && <p className="text-xs text-muted-foreground">No participants added.</p>}
                </div>
              </div>
-              <Button className="mt-4 px-3 py-2 text-xs" disabled={contractMutation.isPending || !contractForm.contractNumber.trim()} onClick={saveContract}>{contractMutation.isPending ? 'Saving…' : data.contract ? 'Update contract' : 'Save contract'}</Button>
+              <Button data-testid="button-save-controls-contract" className="mt-4 px-3 py-2 text-xs" disabled={contractMutation.isPending || !contractForm.contractNumber.trim()} onClick={saveContract}>{contractMutation.isPending ? 'Saving…' : data.contract ? 'Update contract' : 'Save contract'}</Button>
           </div>
 
           <div className="rounded-lg border border-border p-4">
@@ -454,7 +457,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
                        <p className="text-[10px] text-muted-foreground">{item.ownerName || 'Unassigned'} · {shortDate(item.plannedStart)} → {shortDate(item.plannedEnd)}</p>
                      </div>
                      <Badge tone={toneForStatus(item.status)}>{item.status.replace(/_/g, ' ')}</Badge>
-                     <button type="button" aria-label={`Edit ${item.name}`} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => openMilestoneForm(item)}><Pencil size={13} /></button>
+                      <button data-testid={`button-edit-controls-milestone-${item.id}`} type="button" aria-label={`Edit ${item.name}`} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => openMilestoneForm(item)}><Pencil size={13} /></button>
                    </div>
                  ))}
                </div>

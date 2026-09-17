@@ -66,6 +66,16 @@ const cases = [
     shell: true,
   },
   {
+    id: "project-detail-controls-persistence",
+    name: "project detail controls persistence",
+    path: "/projects/42?browserAuth=authenticated&browserControls=reload&browserControlsReset=1",
+    heading: "Browser Test Project",
+    actions: [],
+    projectControlsPersistence: true,
+    shell: false,
+    skipVisual: true,
+  },
+  {
     id: "contracts-workspace",
     name: "contracts workspace",
     path: "/contracts?browserAuth=authenticated&browserControls=standalone",
@@ -743,6 +753,160 @@ async function inspectInlineEditor(client, routeCase, viewport) {
   await evaluate(client, `window.scrollTo({ top: 0, left: 0, behavior: "auto" })`);
 }
 
+async function inspectProjectControlsPersistence(client, routeCase, viewport) {
+  if (!routeCase.projectControlsPersistence) return;
+
+  const controlsReady = await waitFor(
+    client,
+    `${routeCase.name} controls`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="input-controls-contract-number"]') !== null,
+    }))()`,
+  );
+  if (!controlsReady.ready) throw new Error(`${routeCase.name} (${viewport.name}): project controls did not render`);
+
+  const fillFields = async (fields) => {
+    const filled = await evaluate(client, `(() => {
+      const fields = ${JSON.stringify(fields)};
+      for (const fieldCase of fields) {
+        const field = document.querySelector(fieldCase.selector);
+        if (!(field instanceof HTMLInputElement) && !(field instanceof HTMLSelectElement)) return false;
+        const prototype = field instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+        if (!setter) return false;
+        setter.call(field, fieldCase.value);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      return true;
+    })()`);
+    if (!filled) throw new Error(`${routeCase.name} (${viewport.name}): project control field missing`);
+  };
+
+  const addParticipant = await evaluate(client, `(() => {
+    if (document.querySelector('[data-testid="input-controls-participant-0-organization"]')) return true;
+    const button = document.querySelector('[data-testid="button-add-controls-participant"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!addParticipant) throw new Error(`${routeCase.name} (${viewport.name}): participant control missing`);
+
+  await fillFields([
+    { selector: '[data-testid="input-controls-contract-number"]', value: "CNT-0042-RELOAD" },
+    { selector: '[data-testid="input-controls-contract-start"]', value: "2026-03-01" },
+    { selector: '[data-testid="input-controls-contract-end"]', value: "2026-11-30" },
+    { selector: '[data-testid="input-controls-participant-0-organization"]', value: "Reloaded Owner" },
+    { selector: '[data-testid="input-controls-participant-0-contact"]', value: "Reload Contact" },
+    { selector: '[data-testid="input-controls-participant-0-email"]', value: "reload-owner@example.test" },
+    { selector: '[data-testid="input-controls-participant-0-role"]', value: "Owner representative" },
+  ]);
+
+  const contractSubmitted = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-save-controls-contract"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!contractSubmitted) throw new Error(`${routeCase.name} (${viewport.name}): contract save control missing`);
+  await waitFor(
+    client,
+    `${routeCase.name} contract save`,
+    `(() => ({
+      ready: document.body.innerText.includes("Contract saved.")
+        && document.body.innerText.includes("CNT-0042-RELOAD")
+        && document.body.innerText.includes("Reloaded Owner"),
+    }))()`,
+  );
+
+  const milestoneOpened = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-edit-controls-milestone-4202"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!milestoneOpened) throw new Error(`${routeCase.name} (${viewport.name}): milestone edit control missing`);
+  await waitFor(
+    client,
+    `${routeCase.name} milestone editor`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="input-controls-milestone-number"]') !== null,
+    }))()`,
+  );
+  await fillFields([
+    { selector: '[data-testid="input-controls-milestone-number"]', value: "MS-RELOAD" },
+    { selector: '[data-testid="input-controls-milestone-name"]', value: "Reloaded mobilization" },
+    { selector: '[data-testid="input-controls-milestone-planned-start"]', value: "2026-04-01" },
+    { selector: '[data-testid="input-controls-milestone-planned-end"]', value: "2026-04-30" },
+    { selector: '[data-testid="select-controls-milestone-status"]', value: "complete" },
+  ]);
+
+  const milestoneSubmitted = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-save-controls-milestone"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!milestoneSubmitted) throw new Error(`${routeCase.name} (${viewport.name}): milestone save control missing`);
+  await waitFor(
+    client,
+    `${routeCase.name} milestone save`,
+    `(() => ({
+      ready: document.body.innerText.includes("Control saved.")
+        && document.body.innerText.includes("MS-RELOAD")
+        && document.body.innerText.includes("Reloaded mobilization"),
+    }))()`,
+  );
+
+  const loaded = client.event("Page.loadEventFired");
+  await client.command("Page.reload", { ignoreCache: true });
+  await loaded;
+  await waitForRenderedPage(client, routeCase);
+  await waitFor(
+    client,
+    `${routeCase.name} contract values after reload`,
+    `(() => {
+      const value = (selector) => document.querySelector(selector)?.value ?? null;
+      const body = document.body.innerText;
+      return {
+        ready: value('[data-testid="input-controls-contract-number"]') === "CNT-0042-RELOAD"
+          && value('[data-testid="input-controls-contract-start"]') === "2026-03-01"
+          && value('[data-testid="input-controls-contract-end"]') === "2026-11-30"
+          && value('[data-testid="input-controls-participant-0-organization"]') === "Reloaded Owner"
+          && body.includes("MS-RELOAD")
+          && body.includes("Reloaded mobilization"),
+        values: {
+          contractNumber: value('[data-testid="input-controls-contract-number"]'),
+          contractStart: value('[data-testid="input-controls-contract-start"]'),
+          contractEnd: value('[data-testid="input-controls-contract-end"]'),
+          participant: value('[data-testid="input-controls-participant-0-organization"]'),
+          hasMilestoneNumber: body.includes("MS-RELOAD"),
+          hasMilestoneName: body.includes("Reloaded mobilization"),
+        },
+      };
+    })()`,
+  );
+
+  const milestoneOpenedAfterReload = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-edit-controls-milestone-4202"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!milestoneOpenedAfterReload) throw new Error(`${routeCase.name} (${viewport.name}): milestone editor did not reopen after reload`);
+  await waitFor(
+    client,
+    `${routeCase.name} milestone values after reload`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="input-controls-milestone-number"]')?.value === "MS-RELOAD"
+        && document.querySelector('[data-testid="input-controls-milestone-name"]')?.value === "Reloaded mobilization"
+        && document.querySelector('[data-testid="input-controls-milestone-planned-start"]')?.value === "2026-04-01"
+        && document.querySelector('[data-testid="input-controls-milestone-planned-end"]')?.value === "2026-04-30"
+        && document.querySelector('[data-testid="select-controls-milestone-status"]')?.value === "complete",
+    }))()`,
+  );
+}
+
 async function inspectSearchTransition(client, routeCase, viewport) {
   if (!routeCase.searchTransition) return;
 
@@ -807,6 +971,7 @@ async function inspect(client, routeCase, viewport) {
   }
 
   await inspectDialog(client, routeCase, viewport);
+  await inspectProjectControlsPersistence(client, routeCase, viewport);
   await inspectInlineEditor(client, routeCase, viewport);
   await inspectSearchTransition(client, routeCase, viewport);
 
