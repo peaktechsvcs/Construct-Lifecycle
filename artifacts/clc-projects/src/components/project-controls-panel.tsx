@@ -41,6 +41,11 @@ type ParticipantDraft = {
   role: string;
 };
 
+type Feedback = {
+  tone: 'success' | 'error';
+  message: string;
+};
+
 const emptyParticipant: ParticipantDraft = {
   participantType: 'owner',
   organizationName: '',
@@ -149,7 +154,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
   const accountingSyncMutation = useSyncProjectAccounting();
   const [formKind, setFormKind] = useState<FormKind>();
   const [editingMilestoneId, setEditingMilestoneId] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState('');
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [contractForm, setContractForm] = useState({
     contractNumber: '',
@@ -167,15 +172,19 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
     documentUrl: '',
   });
   const [participants, setParticipants] = useState<ParticipantDraft[]>([]);
+  const [contractFormDirty, setContractFormDirty] = useState(false);
   const [financialForm, setFinancialForm] = useState({ budgetCost: '', forecastCost: '', actualCost: '', forecastRevenue: String(contractValue || 0) });
   const data = query.data;
   const refresh = () => qc.invalidateQueries({ queryKey: getGetProjectControlsQueryKey(projectId) });
-  const setContract = (key: string, value: string) => setContractForm((current) => ({ ...current, [key]: value }));
+  const setContract = (key: string, value: string) => {
+    setContractFormDirty(true);
+    setContractForm((current) => ({ ...current, [key]: value }));
+  };
   const setFinancial = (key: string, value: string) => setFinancialForm((current) => ({ ...current, [key]: value }));
   const setValue = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   useEffect(() => {
-    if (!data?.contract) return;
+    if (!data?.contract || contractFormDirty) return;
     setContractForm({
       contractNumber: data.contract.contractNumber,
       deliveryMethod: data.contract.deliveryMethod,
@@ -198,7 +207,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
       contactEmail: participant.contactEmail ?? '',
       role: participant.role ?? '',
     })));
-  }, [data?.contract]);
+  }, [contractFormDirty, data?.contract]);
 
   const closeForm = () => {
     setFormKind(undefined);
@@ -231,6 +240,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
   };
 
   const updateParticipant = (index: number, key: keyof ParticipantDraft, value: string) => {
+    setContractFormDirty(true);
     setParticipants((current) => current.map((participant, participantIndex) =>
       participantIndex === index ? { ...participant, [key]: value } : participant,
     ));
@@ -266,16 +276,23 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
         participants: participantPayload,
       },
     }, {
-      onSuccess: () => { refresh(); setFeedback('Contract saved.'); },
-      onError: () => setFeedback('The contract could not be saved. Check the fields and try again.'),
+      onSuccess: async () => {
+        await refresh();
+        setContractFormDirty(false);
+        setFeedback({ tone: 'success', message: 'Contract saved.' });
+      },
+      onError: () => {
+        setContractFormDirty(true);
+        setFeedback({ tone: 'error', message: 'The contract could not be saved. Your contract and participant entries are still here. Check the fields and try again.' });
+      },
     });
   };
 
   const submitForm = (event: React.FormEvent) => {
     event.preventDefault();
     const done = {
-      onSuccess: () => { refresh(); setFeedback('Control saved.'); closeForm(); },
-      onError: () => setFeedback('The control could not be saved. Check the fields and try again.'),
+      onSuccess: () => { refresh(); setFeedback({ tone: 'success', message: 'Control saved.' }); closeForm(); },
+      onError: () => setFeedback({ tone: 'error', message: 'The control could not be saved. Check the fields and try again.' }),
     };
     if (formKind === 'milestone') {
       const milestoneData = {
@@ -322,7 +339,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
           <p className="mono text-[10px] uppercase tracking-[.14em] text-accent">General contractor controls</p>
           <h2 className="mt-1 text-xl font-bold tracking-tight">Control center</h2>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Track the contract, commitments, decisions, changes, billing position, and closeout readiness without leaving this project.</p>
-          {feedback && <p role={feedback.startsWith('The') ? 'alert' : 'status'} aria-live="polite" className={`mt-2 text-xs ${feedback.startsWith('The') ? 'text-destructive' : 'text-status-success'}`}>{feedback}</p>}
+          {feedback && <p data-testid="status-controls-feedback" role={feedback.tone === 'error' ? 'alert' : 'status'} aria-live="polite" className={`mt-2 text-xs ${feedback.tone === 'error' ? 'text-destructive' : 'text-status-success'}`}>{feedback.message}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           {([
@@ -383,7 +400,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
 
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
         <div className="space-y-5">
-          <div className="rounded-lg border border-border p-4">
+           <div className="rounded-lg border border-border p-4">
             <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><Landmark size={15} className="text-primary" /><h3 className="text-sm font-bold">Contract & participants</h3></div>{data.contract && <Badge tone={toneForStatus(data.contract.approvalStatus)}>{data.contract.approvalStatus}</Badge>}</div>
              {data.contract ? (
                <>
@@ -419,7 +436,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
                <div className="sm:col-span-2 lg:col-span-3"><label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Payment terms</span><Textarea value={contractForm.paymentTerms} onChange={(event) => setContract('paymentTerms', event.target.value)} rows={2} className="bg-background text-xs" placeholder="Net 30, monthly pay applications, retainage release terms…" /></label></div>
              </div>
              <div className="mt-4 border-t border-border pt-4">
-                <div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-xs font-bold">Contract participants</p><p className="text-[10px] text-muted-foreground">Store only the contacts needed to coordinate this agreement.</p></div><Button data-testid="button-add-controls-participant" type="button" variant="outline" className="px-2.5 py-1.5 text-[10px]" onClick={() => setParticipants((current) => [...current, { ...emptyParticipant }])}><Plus size={12} /> Add participant</Button></div>
+                 <div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-xs font-bold">Contract participants</p><p className="text-[10px] text-muted-foreground">Store only the contacts needed to coordinate this agreement.</p></div><Button data-testid="button-add-controls-participant" type="button" variant="outline" className="px-2.5 py-1.5 text-[10px]" onClick={() => { setContractFormDirty(true); setParticipants((current) => [...current, { ...emptyParticipant }]); }}><Plus size={12} /> Add participant</Button></div>
                 <div className="space-y-3" data-testid="project-controls-participants">
                  {participants.map((participant, index) => (
                    <div key={index} className="grid gap-2 rounded-md border border-border/70 bg-secondary/25 p-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -427,7 +444,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
                       <Field testId={`input-controls-participant-${index}-organization`} label="Organization" value={participant.organizationName} onChange={(value) => updateParticipant(index, 'organizationName', value)} required />
                       <Field testId={`input-controls-participant-${index}-contact`} label="Contact" value={participant.contactName} onChange={(value) => updateParticipant(index, 'contactName', value)} />
                       <Field testId={`input-controls-participant-${index}-email`} label="Email" type="email" value={participant.contactEmail} onChange={(value) => updateParticipant(index, 'contactEmail', value)} />
-                      <div className="flex items-end gap-2"><div className="min-w-0 flex-1"><Field testId={`input-controls-participant-${index}-role`} label="Role" value={participant.role} onChange={(value) => updateParticipant(index, 'role', value)} /></div><button type="button" aria-label={`Remove participant ${index + 1}`} className="mb-0.5 rounded-md p-2 text-muted-foreground hover:bg-status-danger/10 hover:text-status-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setParticipants((current) => current.filter((_, participantIndex) => participantIndex !== index))}>×</button></div>
+                       <div className="flex items-end gap-2"><div className="min-w-0 flex-1"><Field testId={`input-controls-participant-${index}-role`} label="Role" value={participant.role} onChange={(value) => updateParticipant(index, 'role', value)} /></div><button type="button" aria-label={`Remove participant ${index + 1}`} className="mb-0.5 rounded-md p-2 text-muted-foreground hover:bg-status-danger/10 hover:text-status-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { setContractFormDirty(true); setParticipants((current) => current.filter((_, participantIndex) => participantIndex !== index)); }}>×</button></div>
                    </div>
                  ))}
                  {!participants.length && <p className="text-xs text-muted-foreground">No participants added.</p>}
@@ -440,7 +457,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
             <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><Receipt size={15} className="text-primary" /><h3 className="text-sm font-bold">Budget & forecast</h3></div><Badge tone={forecastMargin >= 0 ? 'green' : 'red'}>{forecastMargin >= 0 ? 'On plan' : 'At risk'}</Badge></div>
             <div className="grid gap-3 sm:grid-cols-3"><Metric label="Budget" value={currency.format(data.financials?.budgetCost ?? 0)} detail="Approved cost plan" /><Metric label="Actual" value={currency.format(data.financials?.actualCost ?? 0)} detail="Recorded to date" /><Metric label="Billed" value={currency.format(data.metrics.billedToDate)} detail={`${currency.format(data.metrics.retainageHeld)} held`} /></div>
             <div className="mt-4 grid gap-3 sm:grid-cols-3"><Field label="Budget cost" type="number" value={financialForm.budgetCost} onChange={(v) => setFinancial('budgetCost', v)} /><Field label="Forecast cost" type="number" value={financialForm.forecastCost} onChange={(v) => setFinancial('forecastCost', v)} /><Field label="Actual cost" type="number" value={financialForm.actualCost} onChange={(v) => setFinancial('actualCost', v)} /></div>
-             <Button className="mt-3 px-3 py-2 text-xs" disabled={financialMutation.isPending || !financialForm.budgetCost || !financialForm.forecastCost} onClick={() => financialMutation.mutate({ projectId, data: { budgetCost: Number(financialForm.budgetCost), forecastCost: Number(financialForm.forecastCost), actualCost: Number(financialForm.actualCost) || 0, forecastRevenue: Number(financialForm.forecastRevenue) || contractValue, asOfDate: new Date().toISOString().slice(0, 10) } }, { onSuccess: () => { refresh(); setFeedback('Forecast saved.'); }, onError: () => setFeedback('The forecast could not be saved.') })}>{financialMutation.isPending ? 'Saving…' : 'Update forecast'}</Button>
+             <Button className="mt-3 px-3 py-2 text-xs" disabled={financialMutation.isPending || !financialForm.budgetCost || !financialForm.forecastCost} onClick={() => financialMutation.mutate({ projectId, data: { budgetCost: Number(financialForm.budgetCost), forecastCost: Number(financialForm.forecastCost), actualCost: Number(financialForm.actualCost) || 0, forecastRevenue: Number(financialForm.forecastRevenue) || contractValue, asOfDate: new Date().toISOString().slice(0, 10) } }, { onSuccess: () => { refresh(); setFeedback({ tone: 'success', message: 'Forecast saved.' }); }, onError: () => setFeedback({ tone: 'error', message: 'The forecast could not be saved.' }) })}>{financialMutation.isPending ? 'Saving…' : 'Update forecast'}</Button>
           </div>
         </div>
 
@@ -487,7 +504,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
 
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
         <div className="rounded-lg border border-border p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><Receipt size={15} className="text-primary" /><h3 className="text-sm font-bold">Owner pay applications</h3></div><div className="flex flex-wrap items-center justify-end gap-2"><Badge tone={data.payApplications.some((item) => item.status === 'rejected') ? 'red' : 'teal'}>{data.payApplications.length} submitted</Badge><Button variant="outline" className="px-2.5 py-1.5 text-[10px]" disabled={accountingSyncMutation.isPending} onClick={() => accountingSyncMutation.mutate({ projectId, data: { providerKey: 'quickbooks' } }, { onSuccess: () => { refresh(); setFeedback('QuickBooks sync completed.'); }, onError: () => setFeedback('QuickBooks sync could not be completed. Check the provider connection and try again.') })}><Landmark size={12} />{accountingSyncMutation.isPending ? 'Syncing…' : 'Sync QuickBooks'}</Button></div></div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><Receipt size={15} className="text-primary" /><h3 className="text-sm font-bold">Owner pay applications</h3></div><div className="flex flex-wrap items-center justify-end gap-2"><Badge tone={data.payApplications.some((item) => item.status === 'rejected') ? 'red' : 'teal'}>{data.payApplications.length} submitted</Badge><Button variant="outline" className="px-2.5 py-1.5 text-[10px]" disabled={accountingSyncMutation.isPending} onClick={() => accountingSyncMutation.mutate({ projectId, data: { providerKey: 'quickbooks' } }, { onSuccess: () => { refresh(); setFeedback({ tone: 'success', message: 'QuickBooks sync completed.' }); }, onError: () => setFeedback({ tone: 'error', message: 'QuickBooks sync could not be completed. Check the provider connection and try again.' }) })}><Landmark size={12} />{accountingSyncMutation.isPending ? 'Syncing…' : 'Sync QuickBooks'}</Button></div></div>
           {data.payApplications.length ? <div className="divide-y divide-border">{data.payApplications.slice(0, 4).map((item) => <div key={item.id} className="flex items-center gap-3 py-2.5"><div className="min-w-0 flex-1"><p className="text-xs font-semibold">{item.applicationNumber} · {currency.format(item.netAmount)}</p><p className="text-[10px] text-muted-foreground">{shortDate(item.periodEnd)} · {currency.format(item.retainageAmount)} retainage</p></div><Badge tone={toneForStatus(item.status)}>{item.status}</Badge></div>)}</div> : <p className="text-xs text-muted-foreground">No owner pay applications have been prepared.</p>}
           <div className="mt-3 flex items-center justify-between border-t border-border/70 pt-2 text-[10px] text-muted-foreground"><span>Accounting status</span><span className="font-semibold">{latestAccountingSync ? latestAccountingSync.syncStatus.replace(/_/g, ' ') : 'not synced'}</span></div>
         </div>
