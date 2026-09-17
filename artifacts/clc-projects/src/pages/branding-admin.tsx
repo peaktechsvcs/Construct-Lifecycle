@@ -17,6 +17,7 @@ import {
 } from '@/lib/color-utils';
 import { getContrastRatio } from '@/lib/accessibility';
 import { getSafeBrandingLogoUrl } from '@/lib/branding-logo';
+import { BRANDING_SAVE_ERROR_MESSAGE } from '@/lib/branding-save';
 
 export function BrandingAdmin() {
   const qc = useQueryClient();
@@ -53,16 +54,25 @@ export function BrandingAdmin() {
     }
   }, [brandingQuery.data]);
 
+  const saveCurrentDraft = (draft: BrandingInput) => {
+    saveDraft.mutate({ data: draft }, {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getGetBrandingQueryKey() });
+      }
+    });
+  };
+
   const handleChange = (key: keyof BrandingInput, value: string) => {
     const newForm = { ...form, [key]: value };
     setForm(newForm);
     if (getInvalidBrandingColorFields(newForm).length > 0) return;
     // Auto-save draft logic (debounced)
-    saveDraft.mutate({ data: newForm }, {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getGetBrandingQueryKey() });
-      }
-    });
+    saveCurrentDraft(newForm);
+  };
+
+  const handleRetrySave = () => {
+    if (getInvalidBrandingColorFields(form).length > 0) return;
+    saveCurrentDraft(form);
   };
 
   const handlePublish = () => {
@@ -195,6 +205,29 @@ export function BrandingAdmin() {
               <div role="status" className="mt-5 flex items-start gap-2 rounded-lg border border-status-warning/30 bg-status-warning/10 p-3 text-xs text-status-warning">
                 <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                 <span>Draft saved with pending accessibility corrections. Publishing remains blocked until the highlighted contrast pair reaches WCAG AA.</span>
+              </div>
+            )}
+
+            {saveDraft.isError && (
+              <div
+                data-testid="branding-save-error"
+                role="alert"
+                aria-live="assertive"
+                className="mt-5 flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive"
+              >
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
+                  <span>{BRANDING_SAVE_ERROR_MESSAGE}</span>
+                  <Button
+                    data-testid="branding-save-retry"
+                    variant="outline"
+                    className="h-7 shrink-0 border-destructive/30 px-2 py-0 text-[11px] text-destructive hover:bg-destructive/10"
+                    onClick={handleRetrySave}
+                    disabled={saveDraft.isPending || hasInvalidColorFields}
+                  >
+                    Retry save
+                  </Button>
+                </div>
               </div>
             )}
             

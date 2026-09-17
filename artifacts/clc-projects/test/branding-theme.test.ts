@@ -10,6 +10,7 @@ import {
   sanitizeBrandingColors,
 } from '../src/lib/color-utils.ts';
 import { getSafeBrandingLogoUrl } from '../src/lib/branding-logo.ts';
+import { BRANDING_SAVE_ERROR_MESSAGE } from '../src/lib/branding-save.ts';
 import { getContrastRatio } from '../src/lib/accessibility.ts';
 
 test('branding colors accept only finite hex values before entering CSS variables', () => {
@@ -78,4 +79,9 @@ test('branding draft guidance distinguishes malformed values from contrast failu
   assert.match(issues.primaryColor?.[0] ?? '', /White text on this action color/);
   assert.match(issues.foregroundColor?.[0] ?? '', /Page text contrast/);
   assert.match(issues.backgroundColor?.[0] ?? '', /Page text contrast/);
+});
+
+test('branding save errors explain that the current draft is not persisted and can be retried', () => {
+  assert.match(BRANDING_SAVE_ERROR_MESSAGE, /not persisted/);
+  assert.match(BRANDING_SAVE_ERROR_MESSAGE, /Retry saving/);
 });

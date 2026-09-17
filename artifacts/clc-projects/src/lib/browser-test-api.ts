@@ -1,5 +1,5 @@
 type BrowserAuthMode = 'authenticated' | 'platform' | 'signed-out' | 'no-tenant';
-type BrowserBrandingMode = 'default' | 'valid' | 'empty' | 'broken' | 'invalid-draft' | 'unreachable-draft';
+type BrowserBrandingMode = 'default' | 'valid' | 'empty' | 'broken' | 'invalid-draft' | 'unreachable-draft' | 'save-error';
 type BrowserRole = 'owner' | 'admin' | 'member' | 'viewer';
 type BrowserProcurementFailure = 'products' | 'vendors' | 'quotes' | 'orders' | 'deliveries' | 'receiving' | null;
 
@@ -19,7 +19,7 @@ function mode(): BrowserAuthMode {
 
 function brandingMode(): BrowserBrandingMode {
   const value = new URLSearchParams(window.location.search).get('browserBranding');
-  return value === 'valid' || value === 'empty' || value === 'broken' || value === 'invalid-draft' || value === 'unreachable-draft'
+  return value === 'valid' || value === 'empty' || value === 'broken' || value === 'invalid-draft' || value === 'unreachable-draft' || value === 'save-error'
     ? value
     : 'default';
 }
@@ -659,6 +659,7 @@ const browserMailboxMessage = {
 export function installBrowserTestApi() {
   const originalFetch = window.fetch.bind(window);
   let browserProcurementFailureUsed = false;
+  let brandingSaveAttempts = 0;
   const browserSearchDelay = new URLSearchParams(window.location.search).get('browserSearchDelay') === '1'
     ? 600
     : 0;
@@ -736,6 +737,20 @@ export function installBrowserTestApi() {
       return json({ published: [] });
     }
     if (url.pathname === '/api/tenant/branding') {
+      if (String(init?.method ?? 'GET').toUpperCase() === 'PUT') {
+        if (brandingMode() === 'save-error' && brandingSaveAttempts++ === 0) {
+          return json({ error: 'Browser test save failure' }, 503);
+        }
+        let draft = {};
+        if (typeof init?.body === 'string') {
+          try {
+            draft = JSON.parse(init.body);
+          } catch {
+            // The real API client always sends JSON; keep the fixture response valid if that changes.
+          }
+        }
+        return json({ draft, published: [] });
+      }
       if (brandingMode() === 'invalid-draft' || brandingMode() === 'unreachable-draft') {
         return json({
           draft: {

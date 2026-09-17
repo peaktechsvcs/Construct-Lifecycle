@@ -8,6 +8,7 @@
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "test": "node --experimental-strip-types --test test/*.test.ts",
+    "test:branding-save": "node ../../scripts/validate-clc-branding-save.mjs",
     "test:browser-routes": "node ../../scripts/validate-clc-browser-routes.mjs",
     "test:project-create-flow": "node ../../scripts/validate-clc-project-create-flow.mjs",
     "test:responsive": "node ../../scripts/validate-clc-responsive-layouts.mjs",
