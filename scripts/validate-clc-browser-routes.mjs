@@ -1164,7 +1164,7 @@ async function checkMailboxRecoveryFlows() {
           `${flow.name} detail`,
           `(() => ({
             ready: document.querySelector('[role="dialog"]') === null
-              && document.querySelector("h2")?.textContent?.trim() === "ITB Browser Mailbox Recovery",
+              && [...document.querySelectorAll("h2")].some((heading) => heading.textContent?.trim() === "ITB Browser Mailbox Recovery"),
           }))()`,
         );
       } else if (flow.expectedState === "duplicate") {
@@ -1190,7 +1190,7 @@ async function checkMailboxRecoveryFlows() {
           `${flow.name} detail`,
           `(() => ({
             ready: document.querySelector('[role="dialog"]') === null
-              && document.querySelector("h2")?.textContent?.trim() === "ITB Browser Mailbox Recovery",
+              && [...document.querySelectorAll("h2")].some((heading) => heading.textContent?.trim() === "ITB Browser Mailbox Recovery"),
           }))()`,
         );
       } else {

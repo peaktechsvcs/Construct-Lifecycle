@@ -14,3 +14,9 @@ Mailbox provider changes must clear the prior preview state, apply the provider'
 **Why:** Gmail and Microsoft Graph use different search contracts; retaining a previous query or ambiguous provider state can show stale evidence or send the wrong request after a provider switch.
 
 **How to apply:** Guard controlled provider changes against redundant callbacks, include the provider in the query key, and exercise selection plus Preview for each supported provider in browser coverage.
+
+Automatic mailbox monitoring must remain a managed-connector background job: it imports matching messages into the review queue, records connector health, and never approves an intake or creates pipeline records without human review.
+
+**Why:** Scheduled provider work has no human actor and can process untrusted email repeatedly; the connector lifecycle and existing review gate must remain the source of authorization and business mutation.
+
+**How to apply:** Store bounded monitor settings with the managed integration, claim sweeps tenant- and environment-scoped, deduplicate by source message, keep system activity in integration job history, and preserve the platform audit actor requirement for user-triggered imports.

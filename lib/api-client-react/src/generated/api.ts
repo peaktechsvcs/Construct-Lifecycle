@@ -101,6 +101,9 @@ import type {
   ItbIntakeUpdate,
   ItbMailboxImportInput,
   ItbMailboxMessage,
+  ItbMailboxMonitor,
+  ItbMailboxMonitorInput,
+  ItbMailboxProvider,
   ListBidsParams,
   ListBusinessCustomersParams,
   ListEstimatesParams,
@@ -6623,6 +6626,155 @@ export function usePreviewItbMailbox<TData = Awaited<ReturnType<typeof previewIt
 
 
 
+
+export const getListItbMailboxMonitorsUrl = () => {
+
+
+
+
+  return `/api/itb-intakes/mailbox/monitor`
+}
+
+/**
+ * @summary List configured ITB mailbox monitors
+ */
+export const listItbMailboxMonitors = async ( options?: Parameters<typeof customFetch>[1]): Promise<ItbMailboxMonitor[]> => {
+
+  return customFetch<ItbMailboxMonitor[]>(getListItbMailboxMonitorsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListItbMailboxMonitorsQueryKey = () => {
+    return [
+    `/api/itb-intakes/mailbox/monitor`
+    ] as const;
+    }
+
+
+export const getListItbMailboxMonitorsQueryOptions = <TData = Awaited<ReturnType<typeof listItbMailboxMonitors>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listItbMailboxMonitors>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListItbMailboxMonitorsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listItbMailboxMonitors>>> = ({ signal }) => listItbMailboxMonitors({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listItbMailboxMonitors>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListItbMailboxMonitorsQueryResult = NonNullable<Awaited<ReturnType<typeof listItbMailboxMonitors>>>
+export type ListItbMailboxMonitorsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List configured ITB mailbox monitors
+ */
+
+export function useListItbMailboxMonitors<TData = Awaited<ReturnType<typeof listItbMailboxMonitors>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listItbMailboxMonitors>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListItbMailboxMonitorsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateItbMailboxMonitorUrl = (provider: ItbMailboxProvider,) => {
+
+
+
+
+  return `/api/itb-intakes/mailbox/monitor/${provider}`
+}
+
+/**
+ * @summary Configure an ITB mailbox monitor
+ */
+export const updateItbMailboxMonitor = async (provider: ItbMailboxProvider,
+    itbMailboxMonitorInput: ItbMailboxMonitorInput, options?: Parameters<typeof customFetch>[1]): Promise<ItbMailboxMonitor> => {
+
+  return customFetch<ItbMailboxMonitor>(getUpdateItbMailboxMonitorUrl(provider),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(itbMailboxMonitorInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateItbMailboxMonitorMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateItbMailboxMonitor>>, TError,{provider: ItbMailboxProvider;data: BodyType<ItbMailboxMonitorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateItbMailboxMonitor>>, TError,{provider: ItbMailboxProvider;data: BodyType<ItbMailboxMonitorInput>}, TContext> => {
+
+const mutationKey = ['updateItbMailboxMonitor'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateItbMailboxMonitor>>, {provider: ItbMailboxProvider;data: BodyType<ItbMailboxMonitorInput>}> = (props) => {
+          const {provider,data} = props ?? {};
+
+          return  updateItbMailboxMonitor(provider,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateItbMailboxMonitorMutationResult = NonNullable<Awaited<ReturnType<typeof updateItbMailboxMonitor>>>
+    export type UpdateItbMailboxMonitorMutationBody = BodyType<ItbMailboxMonitorInput>
+    export type UpdateItbMailboxMonitorMutationError = ErrorType<void>
+
+    /**
+ * @summary Configure an ITB mailbox monitor
+ */
+export const useUpdateItbMailboxMonitor = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateItbMailboxMonitor>>, TError,{provider: ItbMailboxProvider;data: BodyType<ItbMailboxMonitorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateItbMailboxMonitor>>,
+        TError,
+        {provider: ItbMailboxProvider;data: BodyType<ItbMailboxMonitorInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateItbMailboxMonitorMutationOptions(options));
+    }
 
 export const getImportItbMailboxMessageUrl = () => {
 

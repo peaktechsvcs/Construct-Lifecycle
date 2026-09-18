@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { configureProvisioningProvider, createProvisioningProviderFromEnv } from "./lib/provisioning";
 import { assertRuntimeProcessConfiguration, configureRuntimeReplayGuard } from "./middlewares/runtimeContext";
 import { startProvisioningRecoveryWorker } from "./workers/provisioning-recovery";
+import { startItbMailboxMonitorWorker } from "./workers/itb-mailbox-monitor";
 import { ensureClamAvDatabase } from "./lib/clamav";
 
 const rawPort = process.env["PORT"];
@@ -54,6 +55,7 @@ if (!process.env.RUNTIME_ENVIRONMENT_ID) {
 }
 
 let stopProvisioningRecovery: (() => void) | undefined;
+let stopItbMailboxMonitor: (() => void) | undefined;
 const server = app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
@@ -64,10 +66,12 @@ const server = app.listen(port, (err) => {
   if (!process.env.RUNTIME_ENVIRONMENT_ID) {
     stopProvisioningRecovery = startProvisioningRecoveryWorker();
   }
+  stopItbMailboxMonitor = startItbMailboxMonitorWorker();
 });
 
 const shutdown = () => {
   stopProvisioningRecovery?.();
+  stopItbMailboxMonitor?.();
   server.close(() => process.exit(0));
 };
 process.once("SIGTERM", shutdown);

@@ -4886,6 +4886,77 @@ export const PreviewItbMailboxResponse = zod.array(PreviewItbMailboxResponseItem
 
 
 /**
+ * @summary List configured ITB mailbox monitors
+ */
+export const listItbMailboxMonitorsResponseQueryMax = 180;
+
+export const listItbMailboxMonitorsResponseIntervalSecondsMin = 60;
+export const listItbMailboxMonitorsResponseIntervalSecondsMax = 3600;
+
+
+
+export const ListItbMailboxMonitorsResponseItem = zod.object({
+  "provider": zod.enum(['google-mail', 'outlook']),
+  "providerKey": zod.string(),
+  "connected": zod.boolean(),
+  "enabled": zod.boolean(),
+  "mailbox": zod.string(),
+  "query": zod.string().max(listItbMailboxMonitorsResponseQueryMax),
+  "intervalSeconds": zod.number().int().min(listItbMailboxMonitorsResponseIntervalSecondsMin).max(listItbMailboxMonitorsResponseIntervalSecondsMax),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "lastSuccessfulRunAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable()
+})
+export const ListItbMailboxMonitorsResponse = zod.array(ListItbMailboxMonitorsResponseItem)
+
+
+/**
+ * @summary Configure an ITB mailbox monitor
+ */
+export const UpdateItbMailboxMonitorParams = zod.object({
+  "provider": zod.enum(['google-mail', 'outlook'])
+})
+
+export const updateItbMailboxMonitorBodyMailboxMax = 120;
+
+
+export const updateItbMailboxMonitorBodyMailboxRegExp = new RegExp('^[a-zA-Z0-9._-]+$');
+export const updateItbMailboxMonitorBodyQueryMax = 180;
+
+export const updateItbMailboxMonitorBodyIntervalSecondsMin = 60;
+export const updateItbMailboxMonitorBodyIntervalSecondsMax = 3600;
+
+
+
+export const UpdateItbMailboxMonitorBody = zod.object({
+  "enabled": zod.boolean().optional(),
+  "mailbox": zod.string().min(1).max(updateItbMailboxMonitorBodyMailboxMax).regex(updateItbMailboxMonitorBodyMailboxRegExp).optional(),
+  "query": zod.string().min(1).max(updateItbMailboxMonitorBodyQueryMax).optional(),
+  "intervalSeconds": zod.number().int().min(updateItbMailboxMonitorBodyIntervalSecondsMin).max(updateItbMailboxMonitorBodyIntervalSecondsMax).optional()
+})
+
+export const updateItbMailboxMonitorResponseQueryMax = 180;
+
+export const updateItbMailboxMonitorResponseIntervalSecondsMin = 60;
+export const updateItbMailboxMonitorResponseIntervalSecondsMax = 3600;
+
+
+
+export const UpdateItbMailboxMonitorResponse = zod.object({
+  "provider": zod.enum(['google-mail', 'outlook']),
+  "providerKey": zod.string(),
+  "connected": zod.boolean(),
+  "enabled": zod.boolean(),
+  "mailbox": zod.string(),
+  "query": zod.string().max(updateItbMailboxMonitorResponseQueryMax),
+  "intervalSeconds": zod.number().int().min(updateItbMailboxMonitorResponseIntervalSecondsMin).max(updateItbMailboxMonitorResponseIntervalSecondsMax),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "lastSuccessfulRunAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable()
+})
+
+
+/**
  * @summary Import one connected-mailbox message into ITB review
  */
 export const importItbMailboxMessageBodyThreadIdMax = 240;

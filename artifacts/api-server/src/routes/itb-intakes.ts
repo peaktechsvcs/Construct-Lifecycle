@@ -11,6 +11,8 @@ import {
   itbDocumentsTable,
   itbIntakesTable,
   itbMailboxCursorsTable,
+  integrationAuditEventsTable,
+  integrationsTable,
   membershipsTable,
   opportunitiesTable,
   platformAuditEventsTable,
@@ -34,6 +36,7 @@ import {
   ListItbDocumentEvidenceMappingsParams,
   MapItbDocumentEvidenceParams,
   MapItbDocumentEvidenceBody,
+  UpdateItbMailboxMonitorBody,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
@@ -50,6 +53,12 @@ import {
   type DocumentFinding,
 } from "../lib/itb-document-parsing";
 import { createItbMailboxClient, type MailboxProvider } from "../lib/itb-mailbox";
+import { ingestItbMailboxMessage } from "../lib/itb-mailbox-ingestion";
+import {
+  mailboxIntegrationKey,
+  parseItbMailboxMonitorConfig,
+  withItbMailboxMonitorConfig,
+} from "../lib/itb-mailbox-monitor-config";
 import {
   getAvailableIntegration,
   markIntegrationJobFailed,
@@ -478,6 +487,103 @@ router.get("/itb-intakes/mailbox/preview", requireRole("owner", "admin"), async 
   }
 });
 
+router.get("/itb-intakes/mailbox/monitor", async (req: TenantRequest, res) => {
+  const integrations = await db.select().from(integrationsTable).where(and(
+    eq(integrationsTable.tenantId, req.tenantId!),
+    eq(integrationsTable.environmentId, req.environmentId!),
+  ));
+  const byProvider = new Map(integrations.map((integration) => [integration.providerKey, integration]));
+  res.json((["google-mail", "outlook"] as const).map((provider) => {
+    const providerKey = mailboxIntegrationKey(provider);
+    const integration = byProvider.get(providerKey);
+    const config = parseItbMailboxMonitorConfig(integration?.configuration, provider);
+    return {
+      provider,
+      providerKey,
+      connected: integration?.status === "connected",
+      ...config,
+      lastRunAt: integration?.lastSyncAt ?? null,
+      lastSuccessfulRunAt: integration?.lastSuccessfulSyncAt ?? null,
+      lastError: integration?.lastError ?? null,
+    };
+  }));
+});
+
+router.put("/itb-intakes/mailbox/monitor/:provider", requireRole("owner", "admin"), async (req: TenantRequest, res): Promise<void> => {
+  const provider = parseMailboxProvider(req.params.provider);
+  if (!provider) {
+    res.status(400).json({ error: "Unsupported mailbox provider" });
+    return;
+  }
+  const parsedBody = UpdateItbMailboxMonitorBody.safeParse(req.body);
+  if (!parsedBody.success) {
+    res.status(400).json({ error: "Invalid mailbox monitor configuration", details: parsedBody.error.issues });
+    return;
+  }
+  const body = parsedBody.data;
+  const integrationKey = mailboxIntegrationKey(provider);
+  const [integration] = await db.select().from(integrationsTable).where(and(
+    eq(integrationsTable.tenantId, req.tenantId!),
+    eq(integrationsTable.environmentId, req.environmentId!),
+    eq(integrationsTable.providerKey, integrationKey),
+  )).limit(1);
+  if (!integration || integration.status !== "connected") {
+    res.status(409).json({ error: `Connect ${provider === "outlook" ? "Microsoft 365" : "Google Workspace"} before enabling mailbox monitoring` });
+    return;
+  }
+  const enabled = body.enabled === undefined ? undefined : body.enabled === true;
+  const query = body.query === undefined ? undefined : typeof body.query === "string" ? body.query : "";
+  const mailbox = body.mailbox === undefined ? undefined : typeof body.mailbox === "string" ? body.mailbox : "";
+  const intervalSeconds = body.intervalSeconds === undefined
+    ? undefined
+    : Number(body.intervalSeconds);
+  if (query !== undefined && (!query.trim() || query.length > 180)) {
+    res.status(400).json({ error: "Mailbox query must be between 1 and 180 characters" });
+    return;
+  }
+  if (mailbox !== undefined && !/^[a-zA-Z0-9._-]{1,120}$/.test(mailbox.trim())) {
+    res.status(400).json({ error: "Mailbox identifier is invalid" });
+    return;
+  }
+  if (intervalSeconds !== undefined && (!Number.isInteger(intervalSeconds) || intervalSeconds < 60 || intervalSeconds > 3600)) {
+    res.status(400).json({ error: "Monitor interval must be between 60 and 3600 seconds" });
+    return;
+  }
+  const configuration = withItbMailboxMonitorConfig(integration.configuration, provider, {
+    ...(enabled === undefined ? {} : { enabled }),
+    ...(query === undefined ? {} : { query }),
+    ...(mailbox === undefined ? {} : { mailbox }),
+    ...(intervalSeconds === undefined ? {} : { intervalSeconds }),
+  });
+  const [updated] = await db.update(integrationsTable).set({
+    configuration,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(integrationsTable.id, integration.id),
+    eq(integrationsTable.tenantId, req.tenantId!),
+    eq(integrationsTable.environmentId, req.environmentId!),
+  )).returning();
+  await db.insert(integrationAuditEventsTable).values({
+    tenantId: req.tenantId!,
+    environmentId: req.environmentId!,
+    integrationId: updated.id,
+    providerKey: integrationKey,
+    action: enabled === false ? "itb_mailbox_monitor_disabled" : "itb_mailbox_monitor_configured",
+    details: JSON.stringify({ provider, enabled: parseItbMailboxMonitorConfig(configuration, provider).enabled }),
+    actorUserId: req.localUserId!,
+  });
+  const next = parseItbMailboxMonitorConfig(updated.configuration, provider);
+  res.json({
+    provider,
+    providerKey: integrationKey,
+    connected: true,
+    ...next,
+    lastRunAt: updated.lastSyncAt,
+    lastSuccessfulRunAt: updated.lastSuccessfulSyncAt,
+    lastError: updated.lastError,
+  });
+});
+
 router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async (req: TenantRequest, res) => {
   const parsed = ImportItbMailboxMessageBody.safeParse(req.body);
   if (!parsed.success) {
@@ -490,8 +596,6 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
     res.status(409).json({ error: "Mailbox integration is not connected for this environment" });
     return;
   }
-  const storedObjectPaths: string[] = [];
-  let persistenceCommitted = false;
   try {
     const requestedMessageId = parsed.data.messageId?.trim();
     if (requestedMessageId) {
@@ -503,72 +607,22 @@ router.post("/itb-intakes/mailbox/import", requireRole("owner", "admin"), async 
       }
     }
     const message = await mailboxClient.importMessage(provider, parsed.data.threadId, parsed.data.messageId);
-    const result = await db.transaction(async (tx) => {
-      const lockKey = `${req.tenantId}:${req.environmentId}:${message.sourceProvider}:${message.sourceMessageId}`;
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
-      const existing = await tx.select({ id: itbIntakesTable.id }).from(itbIntakesTable).where(and(
-        eq(itbIntakesTable.tenantId, req.tenantId!),
-        eq(itbIntakesTable.environmentId, req.environmentId!),
-        eq(itbIntakesTable.sourceProvider, message.sourceProvider),
-        eq(itbIntakesTable.sourceMessageId, message.sourceMessageId),
-      )).limit(1);
-      if (existing.length) return { existingId: existing[0].id };
-
-      const { extraction, warnings } = extractItbFromSource(message.sourceSubject, message.sourceBody);
-      const storedAttachments: Array<{ originalName: string; contentType: string; size: number; objectPath: string; sourceAttachmentId: string }> = [];
-      for (const attachment of message.attachments) {
-        try {
-          const stored = await objectStorage.storeBytes("itb-intakes", attachment.bytes, attachment.contentType);
-          storedObjectPaths.push(stored.objectPath);
-          storedAttachments.push({
-            originalName: attachment.originalName,
-            contentType: attachment.contentType,
-            size: attachment.size,
-            objectPath: stored.objectPath,
-            sourceAttachmentId: attachment.sourceAttachmentId,
-          });
-        } catch (error) {
-          req.log.warn({ err: error, attachmentName: attachment.originalName }, "ITB mailbox attachment could not be stored");
-        }
-      }
-      const [created] = await tx.insert(itbIntakesTable).values({
-        tenantId: req.tenantId!,
-        environmentId: req.environmentId!,
-        sourceType: message.sourceType,
-        sourceProvider: message.sourceProvider,
-        sourceMessageId: message.sourceMessageId,
-        sourceThreadId: message.sourceThreadId,
-        sourceFingerprint: fingerprint([message.sourceProvider, message.sourceMessageId]),
-        sourceSender: message.sourceSender,
-        sourceSenderEmail: message.sourceSenderEmail,
-        sourceSubject: message.sourceSubject,
-        sourceReceivedAt: new Date(message.sourceReceivedAt),
-        sourceBody: message.sourceBody,
-        extractionJson: JSON.stringify(extraction),
-        extractionWarningsJson: JSON.stringify(warnings),
-        createdByUserId: req.localUserId!,
-      }).returning();
-      if (storedAttachments.length) {
-        await tx.insert(itbIntakeAttachmentsTable).values(storedAttachments.map((attachment) => ({ ...attachment, intakeId: created.id })));
-      }
-      await tx.insert(platformAuditEventsTable).values({
-        actorUserId: req.localUserId!,
-        tenantId: req.tenantId!,
-        action: "itb_mailbox_message_imported",
-        details: JSON.stringify({ intakeId: created.id, messageId: message.sourceMessageId, provider: message.sourceProvider, environmentId: req.environmentId }),
-      });
-      return { created, attachments: await tx.select().from(itbIntakeAttachmentsTable).where(eq(itbIntakeAttachmentsTable.intakeId, created.id)) };
+    const result = await ingestItbMailboxMessage(message, {
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+      sourceMailbox: "me",
+      createdByUserId: req.localUserId!,
+      auditAction: "itb_mailbox_message_imported",
     });
-    if ("existingId" in result) {
+    if (result.kind === "existing") {
       await markIntegrationJobSucceeded(mailboxJob.scope, mailboxJob.job);
-      res.status(409).json({ error: "This mailbox message was already imported", intakeId: result.existingId });
+      res.status(409).json({ error: "This mailbox message was already imported", intakeId: result.intakeId });
       return;
     }
-    persistenceCommitted = true;
     await markIntegrationJobSucceeded(mailboxJob.scope, mailboxJob.job);
-    res.status(201).json(serialize(result.created, result.attachments));
+    const created = await getIntake(req, result.intakeId);
+    res.status(201).json(serialize(created!, await getAttachments(result.intakeId)));
   } catch (error) {
-    if (!persistenceCommitted) await cleanupMailboxObjects(req, storedObjectPaths);
     await markIntegrationJobFailed(mailboxJob.scope, mailboxJob.job, error);
     const status = (error as { status?: number }).status;
     req.log.warn({ err: error, connectorStatus: status }, "ITB mailbox import unavailable");

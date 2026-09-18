@@ -1519,6 +1519,41 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/ItbMailboxMessage" }
         "424": { description: Mailbox connector is not authorized or unavailable }
+  /itb-intakes/mailbox/monitor:
+    get:
+      operationId: listItbMailboxMonitors
+      tags: [itb-intakes]
+      summary: List configured ITB mailbox monitors
+      responses:
+        "200":
+          description: Configured mailbox monitors
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ItbMailboxMonitor" }
+  /itb-intakes/mailbox/monitor/{provider}:
+    put:
+      operationId: updateItbMailboxMonitor
+      tags: [itb-intakes]
+      summary: Configure an ITB mailbox monitor
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema: { $ref: "#/components/schemas/ItbMailboxProvider" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItbMailboxMonitorInput" }
+      responses:
+        "200":
+          description: Updated mailbox monitor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItbMailboxMonitor" }
+        "409": { description: Mailbox provider is not connected }
   /itb-intakes/mailbox/import:
     post:
       operationId: importItbMailboxMessage
@@ -4947,6 +4982,27 @@ components:
         provider: { $ref: "#/components/schemas/ItbMailboxProvider" }
         threadId: { type: string, minLength: 1, maxLength: 240 }
         messageId: { type: string, maxLength: 240 }
+    ItbMailboxMonitor:
+      type: object
+      required: [provider, providerKey, connected, enabled, mailbox, query, intervalSeconds, lastRunAt, lastSuccessfulRunAt, lastError]
+      properties:
+        provider: { $ref: "#/components/schemas/ItbMailboxProvider" }
+        providerKey: { type: string }
+        connected: { type: boolean }
+        enabled: { type: boolean }
+        mailbox: { type: string }
+        query: { type: string, maxLength: 180 }
+        intervalSeconds: { type: integer, minimum: 60, maximum: 3600 }
+        lastRunAt: { type: ["string", "null"], format: date-time }
+        lastSuccessfulRunAt: { type: ["string", "null"], format: date-time }
+        lastError: { type: ["string", "null"] }
+    ItbMailboxMonitorInput:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        mailbox: { type: string, minLength: 1, maxLength: 120, pattern: "^[a-zA-Z0-9._-]+$" }
+        query: { type: string, minLength: 1, maxLength: 180 }
+        intervalSeconds: { type: integer, minimum: 60, maximum: 3600 }
     Opportunity:
       type: object
       required: [id, environmentId, opportunityNumber, businessCustomerId, customerName, name, stage, estimatedValue, expectedCloseDate, ownerUserId, owner, leadSource, contactName, contactEmail, contactPhone, qualification, nextAction, nextActionDate, lastContactedAt, crmProviderKey, crmIntegrationStatus, crmExternalReference, crmLastSyncedAt, createdAt, updatedAt]

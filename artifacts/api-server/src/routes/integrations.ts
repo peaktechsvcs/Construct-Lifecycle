@@ -25,6 +25,12 @@ import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
 import { connectorCatalog, getConnectorDefinition } from "../lib/integrations/catalog";
 import {
+  defaultItbMailboxMonitorConfig,
+  mailboxProviderFromIntegrationKey,
+  parseItbMailboxMonitorConfig,
+  withItbMailboxMonitorConfig,
+} from "../lib/itb-mailbox-monitor-config";
+import {
   managedCredentialsReference,
   selectManagedConnection,
   summarizeIntegrationHealth,
@@ -358,6 +364,15 @@ router.post("/integrations/:providerKey/connect", requireRole("owner", "admin"),
       : existing
         ? "reconnected"
         : "connected";
+    const mailboxProvider = mailboxProviderFromIntegrationKey(definition.providerKey);
+    const connectorConfiguration = JSON.stringify({ connectorName: definition.managedConnectorName });
+    const configuration = mailboxProvider
+      ? withItbMailboxMonitorConfig(
+        connectorConfiguration,
+        mailboxProvider,
+        existing ? parseItbMailboxMonitorConfig(existing.configuration, mailboxProvider) : defaultItbMailboxMonitorConfig(mailboxProvider),
+      )
+      : connectorConfiguration;
     const connected = await db.transaction(async (tx) => {
       const [row] = await tx.insert(integrationsTable).values({
         tenantId: req.tenantId!,
@@ -366,7 +381,7 @@ router.post("/integrations/:providerKey/connect", requireRole("owner", "admin"),
         providerCategory: definition.category,
         status: "connected",
         connectionType: "replit_managed_oauth",
-        configuration: JSON.stringify({ connectorName: definition.managedConnectorName }),
+        configuration,
         credentialsReference,
         lastError: null,
       }).onConflictDoUpdate({
@@ -379,7 +394,7 @@ router.post("/integrations/:providerKey/connect", requireRole("owner", "admin"),
           providerCategory: definition.category,
           status: "connected",
           connectionType: "replit_managed_oauth",
-          configuration: JSON.stringify({ connectorName: definition.managedConnectorName }),
+          configuration,
           credentialsReference,
           lastError: null,
           updatedAt: new Date(),

@@ -492,6 +492,47 @@ export interface ItbMailboxImportInput {
   messageId?: string;
 }
 
+export interface ItbMailboxMonitor {
+  provider: ItbMailboxProvider;
+  providerKey: string;
+  connected: boolean;
+  enabled: boolean;
+  mailbox: string;
+  /** @maxLength 180 */
+  query: string;
+  /**
+     * @minimum 60
+     * @maximum 3600
+     */
+  intervalSeconds: number;
+  /** @nullable */
+  lastRunAt: string | null;
+  /** @nullable */
+  lastSuccessfulRunAt: string | null;
+  /** @nullable */
+  lastError: string | null;
+}
+
+export interface ItbMailboxMonitorInput {
+  enabled?: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     * @pattern ^[a-zA-Z0-9._-]+$
+     */
+  mailbox?: string;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  query?: string;
+  /**
+     * @minimum 60
+     * @maximum 3600
+     */
+  intervalSeconds?: number;
+}
+
 export type OpportunityQualification = typeof OpportunityQualification[keyof typeof OpportunityQualification];
 
 

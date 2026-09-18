@@ -701,6 +701,32 @@ export function installBrowserTestApi() {
   const originalFetch = window.fetch.bind(window);
   let browserProcurementFailureUsed = false;
   let brandingSaveAttempts = 0;
+  let browserMailboxMonitors = [
+    {
+      provider: 'google-mail',
+      providerKey: 'google_workspace',
+      connected: true,
+      enabled: false,
+      mailbox: 'me',
+      query: 'newer_than:30d (bid OR tender OR invitation)',
+      intervalSeconds: 300,
+      lastRunAt: null,
+      lastSuccessfulRunAt: null,
+      lastError: null,
+    },
+    {
+      provider: 'outlook',
+      providerKey: 'microsoft_365',
+      connected: false,
+      enabled: false,
+      mailbox: 'me',
+      query: 'newer_than:30d bid tender invitation',
+      intervalSeconds: 300,
+      lastRunAt: null,
+      lastSuccessfulRunAt: null,
+      lastError: null,
+    },
+  ];
   const browserSearchDelay = new URLSearchParams(window.location.search).get('browserSearchDelay') === '1'
     ? 600
     : 0;
@@ -929,14 +955,26 @@ export function installBrowserTestApi() {
     if (url.pathname === '/api/itb-intakes') return json([browserMailboxIntake]);
     if (url.pathname === `/api/itb-intakes/${browserMailboxIntake.id}/documents`) return json([]);
     if (url.pathname === `/api/itb-intakes/${browserMailboxIntake.id}`) return json(browserMailboxIntake);
+    if (url.pathname === '/api/itb-intakes/mailbox/monitor' && requestMethod === 'GET') return json(browserMailboxMonitors);
+    if (url.pathname.startsWith('/api/itb-intakes/mailbox/monitor/') && requestMethod === 'PUT') {
+      const provider = url.pathname.endsWith('/outlook') ? 'outlook' : 'google-mail';
+      let requestBody: Record<string, unknown> = {};
+      try {
+        requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      } catch {
+        // The production form already validates the request before submitting.
+      }
+      browserMailboxMonitors = browserMailboxMonitors.map((monitor) => monitor.provider === provider
+        ? { ...monitor, ...requestBody }
+        : monitor);
+      return json(browserMailboxMonitors.find((monitor) => monitor.provider === provider));
+    }
     if (url.pathname === '/api/itb-intakes/mailbox/preview') {
       const scenario = browserMailboxScenario();
       const provider = url.searchParams.get('provider') === 'outlook' ? 'outlook' : 'google-mail';
       return json([{
         ...browserMailboxMessage,
         provider,
-        messageId: `browser-${provider}-message`,
-        threadId: `browser-${provider}-thread`,
         imported: scenario === 'existing',
         intakeId: scenario === 'existing' ? browserMailboxIntake.id : null,
       }]);

@@ -7,7 +7,9 @@ import {
 } from 'lucide-react';
 import {
   ItbIntake, ItbIntakeApprovalInput, ItbIntakeInput, ItbIntakeStatus,
+  ItbMailboxMonitor,
   useApproveItbIntake, useCreateItbIntake, useGetItbIntake, useImportItbMailboxMessage, useMergeItbIntake,
+  useListItbMailboxMonitors, useUpdateItbMailboxMonitor,
   useListBids, useListBusinessCustomers, useListItbDocumentEvidenceMappings, useListItbDocuments, useListItbIntakes,
   useListOpportunities, useListProjects, useMapItbDocumentEvidence, usePreviewItbMailbox,
   useApplyItbDocumentFindings, useProcessItbDocument, useRetryItbDocument, useReviewItbDocumentFindings,
@@ -20,6 +22,8 @@ import { Button, Badge, EmptyState, ErrorPanel, LoadingPanel, Modal, PageTitle }
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
 import { Textarea } from '@workspace/construct-lifecycle-design-system/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/construct-lifecycle-design-system/components/ui/select';
+import { Checkbox } from '@workspace/construct-lifecycle-design-system/components/ui/checkbox';
+import { useTenant } from '@/providers/tenant-provider';
 
 const tone = (status: string) => status === 'approved' ? 'green' as const : status === 'rejected' || status === 'failed' ? 'red' as const : status === 'archived' ? 'neutral' as const : 'orange' as const;
 const label = (status: string) => status.replace('_', ' ');
@@ -117,6 +121,50 @@ function Mailbox({ onImported }: { onImported: (id: number) => void }) {
     {importError?.kind === 'provider' && <p data-testid="mailbox-import-error" role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">The mailbox provider could not import this message. Check the connection and try again.</p>}
     {preview.isLoading ? <LoadingPanel lines={4} /> : preview.isError ? <ErrorPanel onRetry={() => preview.refetch()} /> : run && (preview.data ?? []).length === 0 ? <EmptyState icon={Mail} title="No messages found" text={`Try a narrower or more recent ${mailboxProviderLabel(provider)} query.`} /> : <div className="divide-y divide-border rounded-lg border border-border">{(preview.data ?? []).map((message) => <div key={`${message.provider}-${message.messageId}`} data-testid="mailbox-preview-result" data-mailbox-provider={message.provider} className="flex items-start gap-3 p-3"><Mail size={16} className="mt-1 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{message.subject || '(No subject)'}</p><p className="text-xs text-muted-foreground">{message.sender} · {new Date(message.receivedAt).toLocaleDateString()}</p><p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{message.snippet}</p></div><Button variant="outline" data-testid={`mailbox-import-${message.messageId}`} disabled={(message.imported && !message.intakeId) || importMessage.isPending} onClick={() => { if (message.imported && message.intakeId) { onImported(message.intakeId); return; } setImportError(undefined); importMessage.mutate({ data: { provider, threadId: message.threadId, messageId: message.messageId } }, { onSuccess: (intake) => onImported(intake.id), onError: (error) => setImportError(getMailboxImportError(error)) }); }}>{message.imported ? message.intakeId ? 'Open existing intake' : 'Imported' : 'Import'}</Button></div>)}</div>}
   </div></Modal>;
+}
+
+function MailboxMonitorSettings() {
+  const { activeRole } = useTenant();
+  const canManage = activeRole === 'owner' || activeRole === 'admin';
+  const monitors = useListItbMailboxMonitors();
+  const update = useUpdateItbMailboxMonitor();
+  const [draftQueries, setDraftQueries] = useState<Record<string, string>>({});
+  const items = monitors.data ?? [];
+  const save = (monitor: ItbMailboxMonitor, patch: Record<string, unknown>) => {
+    update.mutate({ provider: monitor.provider, data: patch }, {
+      onSuccess: () => monitors.refetch(),
+    });
+  };
+  return <section className="rounded-xl border border-accent/20 bg-accent/5 p-4">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <p className="mono text-[10px] uppercase tracking-[.14em] text-accent">Automatic mailbox watch</p>
+        <h2 className="mt-1 text-base font-bold">Monitor connected inboxes for new ITBs</h2>
+        <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Matching messages are imported into review only. Nothing creates an opportunity or bid until a team member approves the intake.</p>
+      </div>
+      <Badge tone={items.some((item) => item.enabled) ? 'green' : 'neutral'}>{items.some((item) => item.enabled) ? 'Monitoring enabled' : 'Not monitoring'}</Badge>
+    </div>
+    {monitors.isLoading ? <div className="mt-4"><LoadingPanel lines={2} /></div> : monitors.isError ? <div className="mt-4"><ErrorPanel onRetry={() => monitors.refetch()} /></div> : (
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {items.map((monitor) => {
+          const query = draftQueries[monitor.provider] ?? monitor.query;
+          return <div key={monitor.provider} className="rounded-lg border border-border bg-card p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2"><Mail size={15} className="text-accent" /><div><p className="text-sm font-semibold">{mailboxProviderLabel(monitor.provider)}</p><p className="text-[11px] text-muted-foreground">{monitor.connected ? monitor.mailbox === 'me' ? 'Connected account inbox' : monitor.mailbox : 'Connect this provider in Settings first'}</p></div></div>
+              <Checkbox aria-label={`Enable ${mailboxProviderLabel(monitor.provider)} monitoring`} checked={monitor.enabled} disabled={!monitor.connected || !canManage || update.isPending} onCheckedChange={(checked) => save(monitor, { enabled: checked === true, query })} />
+            </div>
+            <div className="mt-3 space-y-2">
+              <label className="block"><span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Bounded search</span><Input value={query} maxLength={180} disabled={!monitor.connected || !canManage} onChange={(event) => setDraftQueries((current) => ({ ...current, [monitor.provider]: event.target.value }))} /></label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] text-muted-foreground">{monitor.lastSuccessfulRunAt ? `Last checked ${new Date(monitor.lastSuccessfulRunAt).toLocaleString()}` : 'Not checked yet'}{monitor.lastError ? ` · ${monitor.lastError}` : ''}</p>
+                <Button variant="outline" className="h-8 text-xs" disabled={!monitor.connected || !canManage || update.isPending || !query.trim()} onClick={() => save(monitor, { query, enabled: monitor.enabled })}>{update.isPending ? 'Saving…' : 'Save query'}</Button>
+              </div>
+            </div>
+          </div>;
+        })}
+      </div>
+    )}
+  </section>;
 }
 
 type EvidenceTarget = 'opportunity' | 'bid' | 'project';
@@ -300,6 +348,7 @@ export function ItbIntakes() {
   const params = useMemo(() => status ? { status: status as ItbIntakeStatus } : undefined, [status]); const query = useListItbIntakes(params, { query: { queryKey: getListItbIntakesQueryKey(params) } }); const intakes = query.data ?? [];
   const refresh = () => qc.invalidateQueries({ queryKey: getListItbIntakesQueryKey(params) });
   return <div className="animate-rise space-y-5"><PageTitle eyebrow="Pre-construction intake desk" title="ITB intakes" description="Turn invitation-to-bid messages into reviewable opportunities. Evidence stays visible until a human approves the handoff." action={<div className="flex flex-wrap gap-2"><Button variant="outline" data-testid="button-mailbox-preview" onClick={() => setMailbox(true)}><Mail size={15} /> Mailbox preview</Button><Button onClick={() => setManual(true)}><Plus size={15} /> Add intake</Button></div>} />
+     <MailboxMonitorSettings />
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:flex-row"><div className="flex items-center gap-2 text-xs text-muted-foreground"><Inbox size={15} className="text-accent" /><strong className="text-foreground">{intakes.length}</strong> visible intakes</div><Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? '' : value)}><SelectTrigger className="h-9 sm:ml-auto sm:w-44"><SelectValue /></SelectTrigger><SelectContent className="bg-popover"><SelectItem value="all">All statuses</SelectItem>{Object.values(ItbIntakeStatus).map((item) => <SelectItem key={item} value={item}>{label(item)}</SelectItem>)}</SelectContent></Select><Button variant="ghost" className="h-9" onClick={refresh}><RefreshCw size={14} /> Refresh</Button></div>
      <div className="grid gap-5 lg:grid-cols-[minmax(280px,390px)_1fr]">{query.isLoading ? <LoadingPanel lines={6} /> : query.isError ? <ErrorPanel onRetry={() => query.refetch()} /> : <section className="overflow-hidden rounded-xl border border-border bg-card"><div className="border-b border-border bg-secondary/45 px-4 py-3"><span className="mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">Review queue</span></div>{intakes.length === 0 ? <EmptyState icon={Inbox} title="Queue is clear" text="Add an intake manually or preview a connected Google Workspace or Microsoft 365 mailbox." /> : <div className="divide-y divide-border">{intakes.map((item) => <button key={item.id} onClick={() => setSelected(item.id)} className={`flex w-full items-start gap-3 p-4 text-left transition-colors hover:bg-secondary/45 ${selected === item.id ? 'bg-accent/5' : ''}`}><div className="mt-0.5 rounded-md bg-secondary p-2"><FileText size={16} className="text-accent" /></div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><p className="truncate text-sm font-semibold">{item.sourceSubject || item.extraction.projectName.value || 'Untitled intake'}</p><ChevronRight size={15} className="shrink-0 text-muted-foreground" /></div><p className="mt-1 truncate text-xs text-muted-foreground">{item.sourceSender || 'Unknown sender'}</p><div className="mt-2 flex items-center gap-2"><Badge tone={tone(item.status)}>{label(item.status)}</Badge><span className="mono text-[10px] text-muted-foreground">{new Date(item.createdAt).toLocaleDateString()}</span></div></div></button>)}</div>}</section>}<section className="min-w-0 rounded-xl border border-border bg-card p-5">{selected ? <IntakeDetail id={selected} onChanged={refresh} candidates={intakes} /> : <div className="flex min-h-96 flex-col items-center justify-center text-center"><Inbox size={26} className="mb-3 text-muted-foreground" /><h2 className="text-sm font-bold">Select an intake to review</h2><p className="mt-1 max-w-sm text-xs text-muted-foreground">The source message, extracted fields, confidence, and protected documents will appear here.</p></div>}</section></div>
     {manual && <ManualIntake onClose={() => setManual(false)} onCreated={(id) => { setManual(false); refresh(); setSelected(id); }} />}{mailbox && <Mailbox onImported={(id) => { setMailbox(false); if (id) { refresh(); setSelected(id); } }} />}
