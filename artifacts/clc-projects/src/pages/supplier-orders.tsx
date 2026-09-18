@@ -128,7 +128,8 @@ export function SupplierOrders() {
   const [location, setLocation] = useLocation();
   const [historyVersion, setHistoryVersion] = useState(0);
   const pathname = useMemo(() => location.split('?')[0] || '/procurement', [location]);
-  const routeParams = useMemo(() => new URLSearchParams(window.location.search), [location, historyVersion]);
+  const routeSearch = window.location.search;
+  const routeParams = useMemo(() => new URLSearchParams(routeSearch), [location, historyVersion, routeSearch]);
   const routeMode = useMemo<RouteMode>(() => {
     if (pathname === '/purchase-orders') return 'purchase-orders';
     if (pathname === '/deliveries') return 'deliveries';
@@ -145,8 +146,10 @@ export function SupplierOrders() {
   const [search, setSearch] = useState('');
   const [selectedQuoteId, setSelectedQuoteId] = useState<number>();
   const [selectedOrderId, setSelectedOrderId] = useState<number>();
-  const routeQuoteId = useMemo(() => positiveInteger(routeParams.get('quote')), [routeParams]);
-  const routeOrderId = useMemo(() => positiveInteger(routeParams.get('order')), [routeParams]);
+  const routeQuoteParam = routeParams.get('quote');
+  const routeOrderParam = routeParams.get('order');
+  const routeQuoteId = useMemo(() => positiveInteger(routeQuoteParam), [routeQuoteParam]);
+  const routeOrderId = useMemo(() => positiveInteger(routeOrderParam), [routeOrderParam]);
   const [showProductForm, setShowProductForm] = useState(false);
   const [showVendorForm, setShowVendorForm] = useState(false);
   const [showQuoteForm, setShowQuoteForm] = useState(false);
@@ -243,7 +246,8 @@ export function SupplierOrders() {
 
   useEffect(() => {
     if (routeMode === 'procurement' || !visibleOrders.length) return;
-    const nextOrder = routeOrderId && visibleOrders.find((order) => order.id === routeOrderId) ? visibleOrders.find((order) => order.id === routeOrderId) : visibleOrders[0];
+    if (routeOrderParam !== null && (!routeOrderId || !visibleOrders.some((order) => order.id === routeOrderId))) return;
+    const nextOrder = routeOrderId ? visibleOrders.find((order) => order.id === routeOrderId) : visibleOrders[0];
     if (!nextOrder) return;
     if (selectedOrderId !== nextOrder.id) {
       setSelectedOrderId(nextOrder.id);
@@ -254,7 +258,7 @@ export function SupplierOrders() {
       params.set('order', String(nextOrder.id));
       setLocation(`${pathname}?${params.toString()}`, { replace: true });
     }
-  }, [pathname, routeMode, routeOrderId, selectedOrderId, setLocation, visibleOrders]);
+  }, [pathname, routeMode, routeOrderId, routeOrderParam, selectedOrderId, setLocation, visibleOrders]);
 
   function navigateTab(nextTab: Tab) {
     setTab(nextTab);
@@ -470,6 +474,16 @@ export function SupplierOrders() {
 
   const selectedProduct = products.data?.[0];
   const pageError = products.isError || vendors.isError || quotes.isError || orders.isError;
+  const staleQueueOrder = routeMode !== 'procurement'
+    && routeOrderParam !== null
+    && !orders.isLoading
+    && !orders.isError
+    && (!routeOrderId || !visibleOrders.some((order) => order.id === routeOrderId));
+  const unavailableQuoteLink = tab === 'quotes'
+    && routeQuoteParam !== null
+    && !quotes.isLoading
+    && !quotes.isError
+    && (!routeQuoteId || !quotes.data?.some((quote) => quote.id === routeQuoteId));
 
   return (
     <div className="animate-rise space-y-6">
@@ -593,7 +607,7 @@ export function SupplierOrders() {
             {quotes.isLoading ? <LoadingPanel lines={5} /> : quotes.data?.length ? <QuoteTable quotes={quotes.data} selectedQuoteId={selectedQuoteId} onSelect={selectQuote} /> : <EmptyState icon={Receipt} title="No supplier quotes yet" text="Create a quote from catalog pricing, then convert accepted work into an order." />}
           </Section>
           <Section eyebrow="Conversion" title="Quote detail">
-            {!selectedQuoteId ? <EmptyState icon={Receipt} title="Choose a quote" text="Select a quote to review margin and convert accepted supplier pricing into an order." /> : selectedQuote.isLoading ? <LoadingPanel lines={4} /> : selectedQuote.data ? <div className="space-y-4">
+             {unavailableQuoteLink ? <div data-testid="supplier-quote-unavailable"><EmptyState icon={Receipt} title="Quote unavailable" text="This quote link is invalid or no longer available. Choose a quote from the list instead." /></div> : !selectedQuoteId ? <EmptyState icon={Receipt} title="Choose a quote" text="Select a quote to review margin and convert accepted supplier pricing into an order." /> : selectedQuote.isLoading ? <LoadingPanel lines={4} /> : selectedQuote.data ? <div className="space-y-4">
               <div className="flex items-start justify-between gap-3"><div><p className="mono text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{selectedQuote.data.quoteNumber}</p><h3 className="mt-1 text-base font-bold">{selectedQuote.data.customerName}</h3></div><Badge tone={statusTone(selectedQuote.data.status)}>{labelStatus(selectedQuote.data.status)}</Badge></div>
               <div className="grid grid-cols-3 gap-2"><Metric label="Sell" value={money(selectedQuote.data.totalSell)} /><Metric label="Cost" value={money(selectedQuote.data.totalCost)} /><Metric label="Margin" value={money(selectedQuote.data.grossMargin)} /></div>
                <div className="space-y-2">{selectedQuote.data.lines.map((line) => <div key={line.id} className="rounded-lg border border-border p-3"><div className="flex justify-between gap-2 text-sm"><span className="font-semibold">{line.description}</span><span>{line.quantity} {line.unit}</span></div><p className="mono mt-1 text-[9px] uppercase tracking-[.08em] text-muted-foreground">{vendors.data?.find((vendor) => vendor.id === line.vendorId)?.name ?? 'Unassigned vendor'} · {money(line.unitCost)} cost · {money(line.unitPrice)} sell{line.promisedDate ? ` · ${shortDate(line.promisedDate)}` : ''}</p></div>)}</div>
@@ -613,7 +627,7 @@ export function SupplierOrders() {
             {orders.isLoading ? <LoadingPanel lines={5} /> : visibleOrders.length ? <OrderTable orders={visibleOrders} selectedOrderId={selectedOrderId} onSelect={selectOrder} /> : <EmptyState icon={routeMode === 'receiving' ? Warehouse : Truck} title={routeMode === 'receiving' ? 'No receiving work yet' : routeMode === 'deliveries' ? 'No deliveries scheduled' : 'No orders yet'} text={routeMode === 'receiving' ? 'Delivered, partial, and exception quantities will appear here for disposition.' : routeMode === 'deliveries' ? 'Create a delivery from a purchase order to begin scheduling and tracking fulfillment.' : 'Accepted supplier quotes appear here as purchase orders.'} />}
           </Section>
           <Section eyebrow="Fulfillment control" title="Order detail">
-            {!selectedOrderId ? <EmptyState icon={ClipboardList} title="Choose an order" text="Review promised dates, margin, delivery appointments, receiving, invoices, and audit events." /> : selectedOrder.isLoading ? <LoadingPanel lines={5} /> : selectedOrder.data ? <div className="space-y-5">
+             {staleQueueOrder ? <div data-testid="supplier-order-unavailable"><EmptyState icon={ClipboardList} title="Order unavailable in this queue" text="This order link is stale or the order is no longer in this queue. Choose an order from the list to continue." /></div> : !selectedOrderId ? <EmptyState icon={ClipboardList} title="Choose an order" text="Review promised dates, margin, delivery appointments, receiving, invoices, and audit events." /> : selectedOrder.isLoading ? <LoadingPanel lines={5} /> : selectedOrder.data ? <div className="space-y-5">
               <div className="flex items-start justify-between gap-3"><div><p className="mono text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{selectedOrder.data.orderNumber}</p><h3 className="mt-1 text-base font-bold">{selectedOrder.data.customerName}</h3><p className="mt-1 text-xs text-muted-foreground">{selectedOrder.data.jobsiteInstructions || 'No jobsite instructions shared yet.'}</p></div><Badge tone={statusTone(selectedOrder.data.orderStatus)}>{labelStatus(selectedOrder.data.orderStatus)}</Badge></div>
               <div className="grid grid-cols-3 gap-2"><Metric label="Sell" value={money(selectedOrder.data.totalSell)} /><Metric label="Cost" value={money(selectedOrder.data.totalCost)} /><Metric label="Margin" value={money(selectedOrder.data.grossMargin)} /></div>
               <div className="space-y-2">{selectedOrder.data.lines.map((line) => <div key={line.id} className="rounded-lg border border-border p-3"><div className="flex justify-between gap-2 text-sm"><span className="font-semibold">{line.description}</span><span>{line.receivedQuantity}/{line.quantity} received</span></div><div className="mt-2 flex flex-wrap gap-1.5"><Badge tone={line.backorderedQuantity > 0 ? 'orange' : 'green'}>{line.backorderedQuantity > 0 ? `${line.backorderedQuantity} backordered` : 'fully purchased'}</Badge>{line.approvedSubstitution && <Badge tone="teal">substitution approved</Badge>}</div></div>)}</div>

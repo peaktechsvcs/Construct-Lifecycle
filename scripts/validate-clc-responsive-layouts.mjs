@@ -1189,6 +1189,38 @@ async function inspectProcurementNavigation(client, routeCase, viewport) {
     }))()`,
   );
 
+  const staleQuoteLoaded = client.event("Page.loadEventFired");
+  await client.command("Page.navigate", { url: `${baseUrl}/procurement?tab=quotes&quote=999999&browserAuth=authenticated` });
+  await staleQuoteLoaded;
+  await waitForRenderedPage(client, { name: routeCase.name, heading: "Supplier operations", shell: true });
+  await waitFor(
+    client,
+    `${routeCase.name} stale quote link`,
+    `(() => {
+      const params = new URLSearchParams(window.location.search);
+      const unavailable = document.querySelector('[data-testid="supplier-quote-unavailable"]');
+      return {
+        ready: window.location.pathname === "/procurement"
+          && params.get("tab") === "quotes"
+          && params.get("quote") === "999999"
+          && unavailable?.textContent?.includes("Quote unavailable") === true,
+      };
+    })()`,
+  );
+
+  const selectedQuoteRestored = client.event("Page.loadEventFired");
+  await client.command("Page.navigate", { url: `${baseUrl}/procurement?tab=quotes&quote=8101&browserAuth=authenticated` });
+  await selectedQuoteRestored;
+  await waitForRenderedPage(client, { name: routeCase.name, heading: "Supplier operations", shell: true });
+  await waitFor(
+    client,
+    `${routeCase.name} selected quote restored`,
+    `(() => ({
+      ready: document.body.innerText.includes("Convert to purchase order")
+        && new URLSearchParams(window.location.search).get("quote") === "8101",
+    }))()`,
+  );
+
   const converted = await evaluate(client, `(() => {
     const button = [...document.querySelectorAll("button")]
       .find((candidate) => candidate.textContent?.includes("Convert to purchase order"));
@@ -1261,6 +1293,50 @@ async function inspectProcurementNavigation(client, routeCase, viewport) {
         && document.body.innerText.includes("DEL-8202"),
     }))()`,
   );
+
+  const staleOrderLoaded = client.event("Page.loadEventFired");
+  await client.command("Page.navigate", { url: `${baseUrl}/deliveries?browserAuth=authenticated&order=999999` });
+  await staleOrderLoaded;
+  await waitForRenderedPage(client, { name: routeCase.name, heading: "Delivery control", shell: true });
+  await waitFor(
+    client,
+    `${routeCase.name} stale delivery link`,
+    `(() => {
+      const params = new URLSearchParams(window.location.search);
+      const unavailable = document.querySelector('[data-testid="supplier-order-unavailable"]');
+      return {
+        ready: window.location.pathname === "/deliveries"
+          && params.get("order") === "999999"
+          && unavailable?.textContent?.includes("Order unavailable in this queue") === true
+          && !unavailable?.textContent?.includes("PO-8202"),
+      };
+    })()`,
+  );
+
+  const explicitOrderChoice = await evaluate(client, `(() => {
+    const row = document.querySelector('[data-testid="row-supplier-order-8202"]');
+    if (!(row instanceof HTMLElement)) return false;
+    row.click();
+    return true;
+  })()`);
+  if (!explicitOrderChoice) throw new Error(`${routeCase.name} (${viewport.name}): stale delivery link did not leave an order choice`);
+  await waitFor(
+    client,
+    `${routeCase.name} explicit order choice`,
+    `(() => {
+      const params = new URLSearchParams(window.location.search);
+      const body = document.body.innerText;
+      return {
+        ready: window.location.pathname === "/deliveries"
+          && params.get("order") === "8202"
+          && body.includes("DEL-8202"),
+        url: window.location.href,
+        hasUnavailableState: document.querySelector('[data-testid="supplier-order-unavailable"]') !== null,
+        hasDeliveryDetail: body.includes("DEL-8202"),
+      };
+    })()`,
+  );
+
   await navigate("/receiving?browserAuth=authenticated&order=8202", "Receiving queue", "Receiving closeout");
   const returnLoaded = client.event("Page.loadEventFired");
   await client.command("Page.navigate", { url: `${baseUrl}/procurement?tab=overview&browserAuth=authenticated` });
