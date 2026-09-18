@@ -80,6 +80,16 @@ const cases = [
     skipVisual: true,
   },
   {
+    id: "project-detail-controls-validation",
+    name: "project detail controls validation",
+    path: "/projects/42?browserAuth=authenticated&browserControls=standalone&browserControlsValidationFailure=1",
+    heading: "Browser Test Project",
+    actions: [],
+    projectControlsValidation: true,
+    shell: false,
+    skipVisual: true,
+  },
+  {
     id: "contracts-workspace",
     name: "contracts workspace",
     path: "/contracts?browserAuth=authenticated&browserControls=standalone",
@@ -1099,6 +1109,102 @@ async function inspectProjectControlsPersistence(client, routeCase, viewport) {
   );
 }
 
+async function inspectProjectControlsValidation(client, routeCase, viewport) {
+  if (!routeCase.projectControlsValidation) return;
+
+  await waitFor(
+    client,
+    `${routeCase.name} controls`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="input-controls-contract-number"]') !== null,
+    }))()`,
+  );
+
+  const participantAdded = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-add-controls-participant"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!participantAdded) throw new Error(`${routeCase.name} (${viewport.name}): participant control missing`);
+
+  const setInput = async (selector, value) => {
+    const changed = await evaluate(client, `(() => {
+      const field = document.querySelector(${JSON.stringify(selector)});
+      if (!(field instanceof HTMLInputElement)) return false;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      if (!setter) return false;
+      setter.call(field, ${JSON.stringify(value)});
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    })()`);
+    if (!changed) throw new Error(`${routeCase.name} (${viewport.name}): validation field missing`);
+  };
+
+  await setInput('[data-testid="input-controls-participant-0-organization"]', 'Validation Owner');
+  await setInput('[data-testid="input-controls-document-url"]', 'javascript:invalid');
+  await setInput('[data-testid="input-controls-participant-0-email"]', 'not-an-email');
+
+  const submitted = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-save-controls-contract"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!submitted) throw new Error(`${routeCase.name} (${viewport.name}): contract validation submit control missing`);
+
+  await waitFor(
+    client,
+    `${routeCase.name} field validation`,
+    `(() => {
+      const value = (selector) => document.querySelector(selector)?.value ?? null;
+      const feedback = document.querySelector('[data-testid="status-controls-feedback"]');
+      return {
+        ready: feedback?.getAttribute("role") === "alert"
+          && feedback.textContent?.trim() === "Fix the highlighted contract details and try again."
+          && document.querySelector('[data-testid="input-controls-document-url-error"]')?.textContent?.includes("HTTP or HTTPS") === true
+          && document.querySelector('[data-testid="input-controls-participant-0-email-error"]')?.textContent?.includes("valid email") === true
+          && value('[data-testid="input-controls-document-url"]') === "javascript:invalid"
+          && value('[data-testid="input-controls-participant-0-email"]') === "not-an-email"
+          && !document.body.innerText.includes("Contract saved."),
+        feedback: feedback?.textContent?.trim() ?? "",
+        documentUrl: value('[data-testid="input-controls-document-url"]'),
+        participantEmail: value('[data-testid="input-controls-participant-0-email"]'),
+      };
+    })()`,
+  );
+
+  await setInput('[data-testid="input-controls-document-url"]', 'https://example.test/contracts/42');
+  await setInput('[data-testid="input-controls-participant-0-email"]', 'owner@example.test');
+
+  const retried = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-save-controls-contract"]');
+    if (!(button instanceof HTMLElement) || button.hasAttribute("disabled")) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!retried) throw new Error(`${routeCase.name} (${viewport.name}): corrected contract save control missing`);
+
+  await waitFor(
+    client,
+    `${routeCase.name} corrected contract save`,
+    `(() => {
+      const feedback = document.querySelector('[data-testid="status-controls-feedback"]');
+      return {
+        ready: feedback?.getAttribute("role") === "status"
+          && feedback.textContent?.trim() === "Contract saved."
+          && document.querySelector('[data-testid="status-controls-feedback"][role="alert"]') === null
+          && document.querySelector('[data-testid="input-controls-document-url-error"]') === null
+          && document.querySelector('[data-testid="input-controls-participant-0-email-error"]') === null
+          && document.querySelector('[data-testid="input-controls-document-url"]')?.value === "https://example.test/contracts/42"
+          && document.querySelector('[data-testid="input-controls-participant-0-email"]')?.value === "owner@example.test",
+        feedback: feedback?.textContent?.trim() ?? "",
+      };
+    })()`,
+  );
+}
+
 async function inspectSearchTransition(client, routeCase, viewport) {
   if (!routeCase.searchTransition) return;
 
@@ -1547,6 +1653,7 @@ async function inspect(client, routeCase, viewport) {
 
   await inspectDialog(client, routeCase, viewport);
   await inspectProjectControlsPersistence(client, routeCase, viewport);
+  await inspectProjectControlsValidation(client, routeCase, viewport);
   await inspectInlineEditor(client, routeCase, viewport);
   await inspectInlineEditor(client, routeCase, viewport, "editInlineEditor");
   await inspectSearchTransition(client, routeCase, viewport);

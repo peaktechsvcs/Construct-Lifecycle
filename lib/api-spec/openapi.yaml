@@ -191,6 +191,11 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProjectContract" }
+        "400":
+          description: Contract validation failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectContractValidationError" }
   /projects/{projectId}/controls/schedule:
     post:
       operationId: createProjectScheduleItem
@@ -5996,6 +6001,27 @@ components:
           type: array
           maxItems: 50
           items: { $ref: "#/components/schemas/ContractParticipantInput" }
+    ProjectContractValidationError:
+      type: object
+      required: [error, code, details]
+      properties:
+        error: { type: string }
+        code: { type: string, enum: [VALIDATION_ERROR] }
+        details:
+          type: array
+          items: { $ref: "#/components/schemas/ProjectContractValidationIssue" }
+    ProjectContractValidationIssue:
+      type: object
+      required: [path, code, message]
+      properties:
+        path:
+          type: array
+          items:
+            oneOf:
+              - { type: string }
+              - { type: integer }
+        code: { type: string }
+        message: { type: string }
     ContractParticipant:
       type: object
       required: [id, participantType, organizationName, contactName, contactEmail, role]

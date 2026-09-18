@@ -155,6 +155,7 @@ import type {
   ProjectComplianceRequirementUpdate,
   ProjectContract,
   ProjectContractInput,
+  ProjectContractValidationError,
   ProjectControlsDashboard,
   ProjectControlsSummary,
   ProjectFinancials,
@@ -863,7 +864,7 @@ export const upsertProjectContract = async (projectId: number,
 
 
 
-export const getUpsertProjectContractMutationOptions = <TError = ErrorType<unknown>,
+export const getUpsertProjectContractMutationOptions = <TError = ErrorType<ProjectContractValidationError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertProjectContract>>, TError,{projectId: number;data: BodyType<ProjectContractInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof upsertProjectContract>>, TError,{projectId: number;data: BodyType<ProjectContractInput>}, TContext> => {
 
@@ -892,12 +893,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UpsertProjectContractMutationResult = NonNullable<Awaited<ReturnType<typeof upsertProjectContract>>>
     export type UpsertProjectContractMutationBody = BodyType<ProjectContractInput>
-    export type UpsertProjectContractMutationError = ErrorType<unknown>
+    export type UpsertProjectContractMutationError = ErrorType<ProjectContractValidationError>
 
     /**
  * @summary Create or update the primary project contract
  */
-export const useUpsertProjectContract = <TError = ErrorType<unknown>,
+export const useUpsertProjectContract = <TError = ErrorType<ProjectContractValidationError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertProjectContract>>, TError,{projectId: number;data: BodyType<ProjectContractInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof upsertProjectContract>>,

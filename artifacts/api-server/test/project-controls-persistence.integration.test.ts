@@ -310,6 +310,48 @@ test("contract and milestone edits survive controls reload", async () => {
   assert.equal(milestone.ownerName, "Closeout Team");
 });
 
+test("contract validation identifies fields without changing the saved contract", async () => {
+  const contractPath = `/projects/${projectADtdId}/controls/contract`;
+  const invalidParticipantEmail = await request(clerkIds.ownerA, contractPath, jsonBody({
+    contractNumber: `CON-${runId}-INVALID-PARTICIPANT`,
+    deliveryMethod: "design_bid_build",
+    originalValue: 1,
+    currentValue: 1,
+    participants: [{
+      participantType: "owner",
+      organizationName: "Invalid Participant",
+      contactEmail: "not-an-email",
+    }],
+  }));
+  assert.equal(invalidParticipantEmail.status, 400, JSON.stringify(invalidParticipantEmail.body));
+  const participantError = bodyObject(invalidParticipantEmail.body);
+  assert.equal(participantError.code, "VALIDATION_ERROR");
+  const participantDetails = participantError.details as Array<Record<string, unknown>>;
+  assert(participantDetails.some((detail) =>
+    JSON.stringify(detail.path) === JSON.stringify(["participants", 0, "contactEmail"])
+    && typeof detail.message === "string"
+    && detail.message.toLowerCase().includes("email"),
+  ));
+
+  const invalidDocumentUrl = await request(clerkIds.ownerA, contractPath, jsonBody({
+    contractNumber: `CON-${runId}-INVALID-DOCUMENT`,
+    deliveryMethod: "design_bid_build",
+    originalValue: 1,
+    currentValue: 1,
+    documentUrl: "javascript:invalid",
+  }));
+  assert.equal(invalidDocumentUrl.status, 400, JSON.stringify(invalidDocumentUrl.body));
+  const documentError = bodyObject(invalidDocumentUrl.body);
+  assert.equal(documentError.code, "VALIDATION_ERROR");
+  const documentDetails = documentError.details as Array<Record<string, unknown>>;
+  assert.deepEqual(documentDetails[0]?.path, ["documentUrl"]);
+  assert.equal(documentDetails[0]?.message, "Use a valid HTTP or HTTPS URL.");
+
+  const reloaded = await request(clerkIds.ownerA, `/projects/${projectADtdId}/controls`);
+  assert.equal(reloaded.status, 200, JSON.stringify(reloaded.body));
+  assert.equal(bodyObject(bodyObject(reloaded.body).contract).contractNumber, `CON-${runId}-UPDATED`);
+});
+
 test("contract and milestone controls reject cross-tenant and cross-environment access", async () => {
   const controlsPath = `/projects/${projectADtdId}/controls`;
   const contractPath = `/projects/${projectADtdId}/controls/contract`;

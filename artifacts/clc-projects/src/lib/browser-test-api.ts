@@ -666,6 +666,7 @@ export function installBrowserTestApi() {
   const browserSearchParams = new URLSearchParams(window.location.search);
   const browserControlsMode = browserSearchParams.get('browserControls');
   const browserControlsSaveFailure = browserSearchParams.get('browserControlsSaveFailure') === '1';
+  const browserControlsValidationFailure = browserSearchParams.get('browserControlsValidationFailure') === '1';
   if (browserControlsMode === 'reload' && browserSearchParams.get('browserControlsReset') === '1') {
     try {
       if (!window.sessionStorage.getItem(browserProjectControlsResetKey)) {
@@ -680,6 +681,7 @@ export function installBrowserTestApi() {
     ? loadBrowserProjectControls()
     : standaloneProjectControls;
   let browserContractSaveAttempts = 0;
+  let browserContractValidationAttempts = 0;
   const persistBrowserProjectControls = () => {
     if (browserControlsMode === 'reload') {
       window.localStorage.setItem(browserProjectControlsStorageKey, JSON.stringify(browserControls));
@@ -783,6 +785,16 @@ export function installBrowserTestApi() {
     if (url.pathname === `/api/projects/${project.id}/controls/contract` && requestMethod === 'PUT') {
       if (browserControlsSaveFailure && browserContractSaveAttempts++ === 0) {
         return json({ error: 'Browser test contract save failure' }, 503);
+      }
+      if (browserControlsValidationFailure && browserContractValidationAttempts++ === 0) {
+        return json({
+          error: 'Contract details need attention',
+          code: 'VALIDATION_ERROR',
+          details: [
+            { path: ['documentUrl'], code: 'invalid_format', message: 'Use a valid HTTP or HTTPS URL.' },
+            { path: ['participants', 0, 'contactEmail'], code: 'invalid_format', message: 'Enter a valid email address.' },
+          ],
+        }, 400);
       }
       let requestBody: Record<string, unknown> = {};
       try {

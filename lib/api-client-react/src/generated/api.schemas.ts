@@ -2559,6 +2559,25 @@ export interface ProjectContractInput {
   participants?: ContractParticipantInput[];
 }
 
+export type ProjectContractValidationErrorCode = typeof ProjectContractValidationErrorCode[keyof typeof ProjectContractValidationErrorCode];
+
+
+export const ProjectContractValidationErrorCode = {
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+} as const;
+
+export interface ProjectContractValidationIssue {
+  path: (string | number)[];
+  code: string;
+  message: string;
+}
+
+export interface ProjectContractValidationError {
+  error: string;
+  code: ProjectContractValidationErrorCode;
+  details: ProjectContractValidationIssue[];
+}
+
 export type ProjectScheduleItemItemType = typeof ProjectScheduleItemItemType[keyof typeof ProjectScheduleItemItemType];
 
 

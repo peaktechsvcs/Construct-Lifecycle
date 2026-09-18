@@ -335,11 +335,27 @@ router.get("/dashboard/project-controls", async (req: TenantRequest, res) => {
 router.put("/projects/:projectId/controls/contract", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
   const params = UpsertProjectContractParams.safeParse(req.params);
   const parsed = UpsertProjectContractBody.safeParse(req.body);
-  if (!params.success || !parsed.success) { res.status(400).json({ error: "Invalid contract details" }); return; }
+  if (!params.success) { res.status(400).json({ error: "Invalid project id" }); return; }
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Contract details need attention",
+      code: "VALIDATION_ERROR",
+      details: parsed.error.issues.map(({ path, code, message }) => ({ path, code, message })),
+    });
+    return;
+  }
   if (!await getProject(req, params.data.projectId)) { res.status(404).json({ error: "Project not found" }); return; }
   const data = parsed.data;
   if (data.documentUrl && !safeDocumentUrl(data.documentUrl)) {
-    res.status(400).json({ error: "Contract document URL must use HTTP or HTTPS" });
+    res.status(400).json({
+      error: "Contract details need attention",
+      code: "VALIDATION_ERROR",
+      details: [{
+        path: ["documentUrl"],
+        code: "invalid_format",
+        message: "Use a valid HTTP or HTTPS URL.",
+      }],
+    });
     return;
   }
   const contractValues = {

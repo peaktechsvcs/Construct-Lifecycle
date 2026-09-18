@@ -46,6 +46,8 @@ type Feedback = {
   message: string;
 };
 
+type ContractFieldErrors = Record<string, string>;
+
 const emptyParticipant: ParticipantDraft = {
   participantType: 'owner',
   organizationName: '',
@@ -104,6 +106,7 @@ function Field({
   placeholder = '',
   required = false,
   testId,
+  error,
 }: {
   label: string;
   value: string;
@@ -112,7 +115,9 @@ function Field({
   placeholder?: string;
   required?: boolean;
   testId?: string;
+  error?: string;
 }) {
+  const errorId = testId ? `${testId}-error` : undefined;
   return (
     <label className="block">
       <span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">
@@ -125,10 +130,17 @@ function Field({
         placeholder={placeholder}
         required={required}
         data-testid={testId}
-        className="h-9 bg-background text-xs"
+        aria-invalid={error ? 'true' : undefined}
+        aria-describedby={errorId}
+        className={`h-9 bg-background text-xs ${error ? 'border-status-danger' : ''}`}
       />
+      <InlineFieldError id={errorId ?? `${label}-error`} message={error} />
     </label>
   );
+}
+
+function InlineFieldError({ id, message }: { id: string; message?: string }) {
+  return message ? <span id={id} data-testid={id} className="mt-1 block text-[10px] font-medium text-status-danger">{message}</span> : null;
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -155,6 +167,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
   const [formKind, setFormKind] = useState<FormKind>();
   const [editingMilestoneId, setEditingMilestoneId] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [contractFieldErrors, setContractFieldErrors] = useState<ContractFieldErrors>({});
   const [form, setForm] = useState(emptyForm);
   const [contractForm, setContractForm] = useState({
     contractNumber: '',
@@ -178,6 +191,12 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
   const refresh = () => qc.invalidateQueries({ queryKey: getGetProjectControlsQueryKey(projectId) });
   const setContract = (key: string, value: string) => {
     setContractFormDirty(true);
+    setContractFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
     setContractForm((current) => ({ ...current, [key]: value }));
   };
   const setFinancial = (key: string, value: string) => setFinancialForm((current) => ({ ...current, [key]: value }));
@@ -241,6 +260,13 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
 
   const updateParticipant = (index: number, key: keyof ParticipantDraft, value: string) => {
     setContractFormDirty(true);
+    const fieldKey = `participants.${index}.${key}`;
+    setContractFieldErrors((current) => {
+      if (!current[fieldKey]) return current;
+      const next = { ...current };
+      delete next[fieldKey];
+      return next;
+    });
     setParticipants((current) => current.map((participant, participantIndex) =>
       participantIndex === index ? { ...participant, [key]: value } : participant,
     ));
@@ -257,6 +283,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
     }));
 
   const saveContract = () => {
+    setContractFieldErrors({});
     contractMutation.mutate({
       projectId,
       data: {
@@ -281,9 +308,30 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
         setContractFormDirty(false);
         setFeedback({ tone: 'success', message: 'Contract saved.' });
       },
-      onError: () => {
+      onError: (error) => {
         setContractFormDirty(true);
-        setFeedback({ tone: 'error', message: 'The contract could not be saved. Your contract and participant entries are still here. Check the fields and try again.' });
+        const data = (error as { data?: unknown } | null)?.data;
+        const details = data && typeof data === 'object' && 'code' in data && data.code === 'VALIDATION_ERROR' && 'details' in data && Array.isArray(data.details)
+          ? data.details as Array<{ path?: unknown; message?: unknown }>
+          : [];
+        const nextFieldErrors: ContractFieldErrors = {};
+        for (const detail of details) {
+          if (!Array.isArray(detail.path) || typeof detail.message !== 'string') continue;
+          const [root, index, field] = detail.path;
+          const key = root === 'participants' && typeof index === 'number' && typeof field === 'string'
+            ? `participants.${index}.${field}`
+            : detail.path.length === 1 && typeof root === 'string' ? root : null;
+          if (key && !nextFieldErrors[key]) nextFieldErrors[key] = detail.message;
+        }
+        setContractFieldErrors(nextFieldErrors);
+        setFeedback({
+          tone: 'error',
+          message: Object.keys(nextFieldErrors).length
+            ? 'Fix the highlighted contract details and try again.'
+            : details.length
+              ? 'The contract details could not be validated. Check the fields and try again.'
+            : 'The contract could not be saved. Your contract and participant entries are still here. Check the fields and try again.',
+        });
       },
     });
   };
@@ -421,30 +469,30 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
                </>
              ) : <p className="text-xs text-muted-foreground">No control contract has been entered yet. Add the owner agreement and key participants below.</p>}
               <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Field testId="input-controls-contract-number" label="Contract #" value={contractForm.contractNumber} onChange={(v) => setContract('contractNumber', v)} placeholder="Owner contract number" required />
-               <label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Delivery method</span><select className={selectClassName} value={contractForm.deliveryMethod} onChange={(event) => setContract('deliveryMethod', event.target.value)}><option value="design_bid_build">Design-bid-build</option><option value="design_build">Design-build</option><option value="construction_manager_at_risk">CM at risk</option><option value="negotiated">Negotiated</option></select></label>
-               <label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Approval</span><select className={selectClassName} value={contractForm.approvalStatus} onChange={(event) => setContract('approvalStatus', event.target.value)}><option value="draft">Draft</option><option value="pending">Pending review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></label>
-               <Field label="Original value" type="number" value={contractForm.originalValue} onChange={(v) => setContract('originalValue', v)} required />
-               <Field label="Current value" type="number" value={contractForm.currentValue} onChange={(v) => setContract('currentValue', v)} required />
-               <label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Contract status</span><select className={selectClassName} value={contractForm.status} onChange={(event) => setContract('status', event.target.value)}><option value="active">Active</option><option value="suspended">Suspended</option><option value="complete">Complete</option></select></label>
-                <Field testId="input-controls-contract-start" label="Contract start" type="date" value={contractForm.contractStart} onChange={(v) => setContract('contractStart', v)} />
-                <Field testId="input-controls-contract-end" label="Contract end" type="date" value={contractForm.contractEnd} onChange={(v) => setContract('contractEnd', v)} />
-               <Field label="Notice to proceed" type="date" value={contractForm.noticeToProceed} onChange={(v) => setContract('noticeToProceed', v)} />
-               <Field label="Retainage %" type="number" value={contractForm.retainagePercent} onChange={(v) => setContract('retainagePercent', v)} />
-               <Field label="Retainage cap" type="number" value={contractForm.retainageCap} onChange={(v) => setContract('retainageCap', v)} placeholder="Optional" />
-               <Field label="Document URL" type="url" value={contractForm.documentUrl} onChange={(v) => setContract('documentUrl', v)} placeholder="https://…" />
-               <div className="sm:col-span-2 lg:col-span-3"><label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Payment terms</span><Textarea value={contractForm.paymentTerms} onChange={(event) => setContract('paymentTerms', event.target.value)} rows={2} className="bg-background text-xs" placeholder="Net 30, monthly pay applications, retainage release terms…" /></label></div>
+                 <Field testId="input-controls-contract-number" label="Contract #" value={contractForm.contractNumber} onChange={(v) => setContract('contractNumber', v)} placeholder="Owner contract number" required error={contractFieldErrors.contractNumber} />
+                <label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Delivery method</span><select className={`${selectClassName} ${contractFieldErrors.deliveryMethod ? 'border-status-danger' : ''}`} aria-invalid={contractFieldErrors.deliveryMethod ? 'true' : undefined} aria-describedby="input-controls-delivery-method-error" value={contractForm.deliveryMethod} onChange={(event) => setContract('deliveryMethod', event.target.value)}><option value="design_bid_build">Design-bid-build</option><option value="design_build">Design-build</option><option value="construction_manager_at_risk">CM at risk</option><option value="negotiated">Negotiated</option></select><InlineFieldError id="input-controls-delivery-method-error" message={contractFieldErrors.deliveryMethod} /></label>
+                <label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Approval</span><select className={`${selectClassName} ${contractFieldErrors.approvalStatus ? 'border-status-danger' : ''}`} aria-invalid={contractFieldErrors.approvalStatus ? 'true' : undefined} aria-describedby="input-controls-approval-status-error" value={contractForm.approvalStatus} onChange={(event) => setContract('approvalStatus', event.target.value)}><option value="draft">Draft</option><option value="pending">Pending review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select><InlineFieldError id="input-controls-approval-status-error" message={contractFieldErrors.approvalStatus} /></label>
+                <Field testId="input-controls-contract-original-value" label="Original value" type="number" value={contractForm.originalValue} onChange={(v) => setContract('originalValue', v)} required error={contractFieldErrors.originalValue} />
+                <Field testId="input-controls-contract-current-value" label="Current value" type="number" value={contractForm.currentValue} onChange={(v) => setContract('currentValue', v)} required error={contractFieldErrors.currentValue} />
+                <label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Contract status</span><select className={`${selectClassName} ${contractFieldErrors.status ? 'border-status-danger' : ''}`} aria-invalid={contractFieldErrors.status ? 'true' : undefined} aria-describedby="input-controls-status-error" value={contractForm.status} onChange={(event) => setContract('status', event.target.value)}><option value="active">Active</option><option value="suspended">Suspended</option><option value="complete">Complete</option></select><InlineFieldError id="input-controls-status-error" message={contractFieldErrors.status} /></label>
+                 <Field testId="input-controls-contract-start" label="Contract start" type="date" value={contractForm.contractStart} onChange={(v) => setContract('contractStart', v)} error={contractFieldErrors.contractStart} />
+                 <Field testId="input-controls-contract-end" label="Contract end" type="date" value={contractForm.contractEnd} onChange={(v) => setContract('contractEnd', v)} error={contractFieldErrors.contractEnd} />
+                <Field testId="input-controls-notice-to-proceed" label="Notice to proceed" type="date" value={contractForm.noticeToProceed} onChange={(v) => setContract('noticeToProceed', v)} error={contractFieldErrors.noticeToProceed} />
+                <Field testId="input-controls-retainage-percent" label="Retainage %" type="number" value={contractForm.retainagePercent} onChange={(v) => setContract('retainagePercent', v)} error={contractFieldErrors.retainagePercent} />
+                <Field testId="input-controls-retainage-cap" label="Retainage cap" type="number" value={contractForm.retainageCap} onChange={(v) => setContract('retainageCap', v)} placeholder="Optional" error={contractFieldErrors.retainageCap} />
+                <Field testId="input-controls-document-url" label="Document URL" type="url" value={contractForm.documentUrl} onChange={(v) => setContract('documentUrl', v)} placeholder="https://…" error={contractFieldErrors.documentUrl} />
+               <div className="sm:col-span-2 lg:col-span-3"><label className="block"><span className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Payment terms</span><Textarea id="input-controls-payment-terms" value={contractForm.paymentTerms} onChange={(event) => setContract('paymentTerms', event.target.value)} rows={2} className={`bg-background text-xs ${contractFieldErrors.paymentTerms ? 'border-status-danger' : ''}`} aria-invalid={contractFieldErrors.paymentTerms ? 'true' : undefined} aria-describedby="input-controls-payment-terms-error" placeholder="Net 30, monthly pay applications, retainage release terms…" /><InlineFieldError id="input-controls-payment-terms-error" message={contractFieldErrors.paymentTerms} /></label></div>
              </div>
              <div className="mt-4 border-t border-border pt-4">
                  <div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-xs font-bold">Contract participants</p><p className="text-[10px] text-muted-foreground">Store only the contacts needed to coordinate this agreement.</p></div><Button data-testid="button-add-controls-participant" type="button" variant="outline" className="px-2.5 py-1.5 text-[10px]" onClick={() => { setContractFormDirty(true); setParticipants((current) => [...current, { ...emptyParticipant }]); }}><Plus size={12} /> Add participant</Button></div>
                 <div className="space-y-3" data-testid="project-controls-participants">
                  {participants.map((participant, index) => (
                    <div key={index} className="grid gap-2 rounded-md border border-border/70 bg-secondary/25 p-3 sm:grid-cols-2 lg:grid-cols-5">
-                     <label className="block"><span className="mb-1 block text-[10px] font-semibold text-muted-foreground">Type</span><select className={selectClassName} value={participant.participantType} onChange={(event) => updateParticipant(index, 'participantType', event.target.value)}><option value="owner">Owner</option><option value="architect">Architect</option><option value="contractor">Contractor</option><option value="consultant">Consultant</option><option value="lender">Lender</option><option value="other">Other</option></select></label>
-                      <Field testId={`input-controls-participant-${index}-organization`} label="Organization" value={participant.organizationName} onChange={(value) => updateParticipant(index, 'organizationName', value)} required />
-                      <Field testId={`input-controls-participant-${index}-contact`} label="Contact" value={participant.contactName} onChange={(value) => updateParticipant(index, 'contactName', value)} />
-                      <Field testId={`input-controls-participant-${index}-email`} label="Email" type="email" value={participant.contactEmail} onChange={(value) => updateParticipant(index, 'contactEmail', value)} />
-                       <div className="flex items-end gap-2"><div className="min-w-0 flex-1"><Field testId={`input-controls-participant-${index}-role`} label="Role" value={participant.role} onChange={(value) => updateParticipant(index, 'role', value)} /></div><button type="button" aria-label={`Remove participant ${index + 1}`} className="mb-0.5 rounded-md p-2 text-muted-foreground hover:bg-status-danger/10 hover:text-status-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { setContractFormDirty(true); setParticipants((current) => current.filter((_, participantIndex) => participantIndex !== index)); }}>×</button></div>
+                      <label className="block"><span className="mb-1 block text-[10px] font-semibold text-muted-foreground">Type</span><select className={`${selectClassName} ${contractFieldErrors[`participants.${index}.participantType`] ? 'border-status-danger' : ''}`} aria-invalid={contractFieldErrors[`participants.${index}.participantType`] ? 'true' : undefined} aria-describedby={`input-controls-participant-${index}-type-error`} value={participant.participantType} onChange={(event) => updateParticipant(index, 'participantType', event.target.value)}><option value="owner">Owner</option><option value="architect">Architect</option><option value="contractor">Contractor</option><option value="consultant">Consultant</option><option value="lender">Lender</option><option value="other">Other</option></select><InlineFieldError id={`input-controls-participant-${index}-type-error`} message={contractFieldErrors[`participants.${index}.participantType`]} /></label>
+                       <Field testId={`input-controls-participant-${index}-organization`} label="Organization" value={participant.organizationName} onChange={(value) => updateParticipant(index, 'organizationName', value)} required error={contractFieldErrors[`participants.${index}.organizationName`]} />
+                       <Field testId={`input-controls-participant-${index}-contact`} label="Contact" value={participant.contactName} onChange={(value) => updateParticipant(index, 'contactName', value)} error={contractFieldErrors[`participants.${index}.contactName`]} />
+                       <Field testId={`input-controls-participant-${index}-email`} label="Email" type="email" value={participant.contactEmail} onChange={(value) => updateParticipant(index, 'contactEmail', value)} error={contractFieldErrors[`participants.${index}.contactEmail`]} />
+                        <div className="flex items-end gap-2"><div className="min-w-0 flex-1"><Field testId={`input-controls-participant-${index}-role`} label="Role" value={participant.role} onChange={(value) => updateParticipant(index, 'role', value)} error={contractFieldErrors[`participants.${index}.role`]} /></div><button type="button" aria-label={`Remove participant ${index + 1}`} className="mb-0.5 rounded-md p-2 text-muted-foreground hover:bg-status-danger/10 hover:text-status-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => { setContractFormDirty(true); setParticipants((current) => current.filter((_, participantIndex) => participantIndex !== index)); }}>×</button></div>
                    </div>
                  ))}
                  {!participants.length && <p className="text-xs text-muted-foreground">No participants added.</p>}
