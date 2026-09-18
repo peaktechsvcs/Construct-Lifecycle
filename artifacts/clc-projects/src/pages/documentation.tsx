@@ -84,7 +84,7 @@ function getDocumentRows(packages: SubmittalPackage[]) {
         updatedAt: item.updatedAt,
       });
     }
-    item.documents.forEach((document: SubmittalDocument) => {
+    (item.documents ?? []).forEach((document: SubmittalDocument) => {
       rows.push({
         id: `upload-${document.id}`,
         projectId: pkg.projectId,

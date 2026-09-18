@@ -246,18 +246,27 @@ router.get("/projects/:projectId/controls", async (req: TenantRequest, res) => {
   if (!project) { res.status(404).json({ error: "Project not found" }); return; }
   const projectId = project.id;
   const [contract] = await db.select().from(projectContractsTable).where(and(scope(req, projectContractsTable), eq(projectContractsTable.projectId, projectId))).limit(1);
-  const [scheduleItems, sovLines, commitments, issues, changeOrders, financials, events, payApplications, closeoutRequirements, accountingSyncs] = await Promise.all([
+  const [scheduleItems, sovLines, commitments, issues, changeOrders, financials, recentEvents, changeOrderEvents, payApplications, closeoutRequirements, accountingSyncs] = await Promise.all([
     db.select().from(projectScheduleItemsTable).where(and(scope(req, projectScheduleItemsTable), eq(projectScheduleItemsTable.projectId, projectId))).orderBy(asc(projectScheduleItemsTable.plannedEnd)),
     db.select().from(scheduleOfValuesTable).where(and(scope(req, scheduleOfValuesTable), eq(scheduleOfValuesTable.projectId, projectId))).orderBy(asc(scheduleOfValuesTable.lineNumber)),
     db.select().from(projectCommitmentsTable).where(and(scope(req, projectCommitmentsTable), eq(projectCommitmentsTable.projectId, projectId))).orderBy(desc(projectCommitmentsTable.updatedAt)),
     db.select().from(projectIssuesTable).where(and(scope(req, projectIssuesTable), eq(projectIssuesTable.projectId, projectId))).orderBy(desc(projectIssuesTable.updatedAt)),
     db.select().from(projectChangeOrdersTable).where(and(scope(req, projectChangeOrdersTable), eq(projectChangeOrdersTable.projectId, projectId))).orderBy(desc(projectChangeOrdersTable.updatedAt)),
     db.select().from(projectFinancialsTable).where(and(scope(req, projectFinancialsTable), eq(projectFinancialsTable.projectId, projectId))).limit(1),
-    db.select().from(projectControlEventsTable).where(and(scope(req, projectControlEventsTable), eq(projectControlEventsTable.projectId, projectId))).orderBy(desc(projectControlEventsTable.createdAt)).limit(20),
+    db.select().from(projectControlEventsTable).where(and(scope(req, projectControlEventsTable), eq(projectControlEventsTable.projectId, projectId))).orderBy(desc(projectControlEventsTable.createdAt), desc(projectControlEventsTable.id)).limit(20),
+    db.select().from(projectControlEventsTable).where(and(
+      scope(req, projectControlEventsTable),
+      eq(projectControlEventsTable.projectId, projectId),
+      eq(projectControlEventsTable.entityType, "change_order"),
+    )).orderBy(desc(projectControlEventsTable.createdAt), desc(projectControlEventsTable.id)),
     db.select().from(projectPayApplicationsTable).where(and(scope(req, projectPayApplicationsTable), eq(projectPayApplicationsTable.projectId, projectId))).orderBy(desc(projectPayApplicationsTable.updatedAt)),
     db.select().from(projectCloseoutRequirementsTable).where(and(scope(req, projectCloseoutRequirementsTable), eq(projectCloseoutRequirementsTable.projectId, projectId))).orderBy(asc(projectCloseoutRequirementsTable.dueDate)),
     db.select().from(projectAccountingSyncsTable).where(and(scope(req, projectAccountingSyncsTable), eq(projectAccountingSyncsTable.projectId, projectId))).orderBy(desc(projectAccountingSyncsTable.updatedAt)),
   ]);
+  const eventById = new Map([...recentEvents, ...changeOrderEvents].map((event) => [event.id, event]));
+  const events = [...eventById.values()].sort((left, right) =>
+    right.createdAt.getTime() - left.createdAt.getTime() || right.id - left.id,
+  );
   const eventActorNames = await getEventActorNames(events);
   const participants = contract
     ? await db.select().from(contractParticipantsTable).where(and(scope(req, contractParticipantsTable), eq(contractParticipantsTable.contractId, contract.id))).orderBy(asc(contractParticipantsTable.organizationName))

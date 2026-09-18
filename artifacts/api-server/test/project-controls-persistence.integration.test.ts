@@ -466,6 +466,16 @@ test("change order approval decisions enforce roles, transitions, and scope", as
   });
   assert.equal(crossEnvironmentCreate.status, 404);
 
+  await db.insert(projectControlEventsTable).values(Array.from({ length: 25 }, (_, index) => ({
+    projectId: projectADtdId,
+    entityType: "issue",
+    entityId: 9000 + index,
+    action: `unrelated_event_${index}`,
+    tenantId: tenantAId,
+    environmentId: environmentADtdId,
+    createdAt: new Date(Date.now() + index + 1),
+  })));
+
   const reloaded = await request(clerkIds.ownerA, `/projects/${projectADtdId}/controls`);
   assert.equal(reloaded.status, 200, JSON.stringify(reloaded.body));
   const changes = bodyObject(reloaded.body).changeOrders as Array<Record<string, unknown>>;
@@ -480,6 +490,7 @@ test("change order approval decisions enforce roles, transitions, and scope", as
   assert.equal(changes.find((change) => change.id === rejectionCreated.id)?.approvalStatus, "rejected");
 
   const events = bodyObject(reloaded.body).events as Array<Record<string, unknown>>;
+  assert.equal(events.filter((event) => event.entityType === "issue").length, 20);
   const memberHistory = events.filter((event) => event.entityType === "change_order" && event.entityId === memberChangeOrderId);
   assert.equal(memberHistory.length, 2);
   assert.equal(memberHistory[0]?.actorDisplayName, clerkIds.memberA);
