@@ -665,6 +665,7 @@ export function installBrowserTestApi() {
     : 0;
   const browserSearchParams = new URLSearchParams(window.location.search);
   const browserControlsMode = browserSearchParams.get('browserControls');
+  const browserControlsSaveFailure = browserSearchParams.get('browserControlsSaveFailure') === '1';
   if (browserControlsMode === 'reload' && browserSearchParams.get('browserControlsReset') === '1') {
     try {
       if (!window.sessionStorage.getItem(browserProjectControlsResetKey)) {
@@ -678,6 +679,7 @@ export function installBrowserTestApi() {
   const browserControls = browserControlsMode === 'reload'
     ? loadBrowserProjectControls()
     : standaloneProjectControls;
+  let browserContractSaveAttempts = 0;
   const persistBrowserProjectControls = () => {
     if (browserControlsMode === 'reload') {
       window.localStorage.setItem(browserProjectControlsStorageKey, JSON.stringify(browserControls));
@@ -779,6 +781,9 @@ export function installBrowserTestApi() {
     if (url.pathname === '/api/workflow/config') return json(workflow);
     const requestMethod = String(init?.method ?? 'GET').toUpperCase();
     if (url.pathname === `/api/projects/${project.id}/controls/contract` && requestMethod === 'PUT') {
+      if (browserControlsSaveFailure && browserContractSaveAttempts++ === 0) {
+        return json({ error: 'Browser test contract save failure' }, 503);
+      }
       let requestBody: Record<string, unknown> = {};
       try {
         requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;

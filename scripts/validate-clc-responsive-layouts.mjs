@@ -72,7 +72,7 @@ const cases = [
   {
     id: "project-detail-controls-persistence",
     name: "project detail controls persistence",
-    path: "/projects/42?browserAuth=authenticated&browserControls=reload&browserControlsReset=1",
+    path: "/projects/42?browserAuth=authenticated&browserControls=reload&browserControlsReset=1&browserControlsSaveFailure=1",
     heading: "Browser Test Project",
     actions: [],
     projectControlsPersistence: true,
@@ -957,12 +957,58 @@ async function inspectProjectControlsPersistence(client, routeCase, viewport) {
   if (!contractSubmitted) throw new Error(`${routeCase.name} (${viewport.name}): contract save control missing`);
   await waitFor(
     client,
-    `${routeCase.name} contract save`,
-    `(() => ({
-      ready: document.body.innerText.includes("Contract saved.")
-        && document.body.innerText.includes("CNT-0042-RELOAD")
-        && document.body.innerText.includes("Reloaded Owner"),
-    }))()`,
+    `${routeCase.name} failed contract save`,
+    `(() => {
+      const value = (selector) => document.querySelector(selector)?.value ?? null;
+      const body = document.body.innerText;
+      const feedback = document.querySelector('[data-testid="status-controls-feedback"]');
+      return {
+        ready: feedback?.getAttribute("role") === "alert"
+          && feedback.textContent?.includes("still here") === true
+          && value('[data-testid="input-controls-contract-number"]') === "CNT-0042-RELOAD"
+          && value('[data-testid="input-controls-contract-start"]') === "2026-03-01"
+          && value('[data-testid="input-controls-contract-end"]') === "2026-11-30"
+          && value('[data-testid="input-controls-participant-0-organization"]') === "Reloaded Owner"
+          && value('[data-testid="input-controls-participant-0-contact"]') === "Reload Contact"
+          && value('[data-testid="input-controls-participant-0-email"]') === "reload-owner@example.test"
+          && value('[data-testid="input-controls-participant-0-role"]') === "Owner representative"
+          && !body.includes("Contract saved."),
+        feedback: feedback?.textContent?.trim() ?? "",
+        values: {
+          contractNumber: value('[data-testid="input-controls-contract-number"]'),
+          contractStart: value('[data-testid="input-controls-contract-start"]'),
+          contractEnd: value('[data-testid="input-controls-contract-end"]'),
+          participant: value('[data-testid="input-controls-participant-0-organization"]'),
+          contact: value('[data-testid="input-controls-participant-0-contact"]'),
+          email: value('[data-testid="input-controls-participant-0-email"]'),
+          role: value('[data-testid="input-controls-participant-0-role"]'),
+        },
+      };
+    })()`,
+  );
+
+  const contractRetried = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-save-controls-contract"]');
+    if (!(button instanceof HTMLElement) || button.hasAttribute("disabled")) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!contractRetried) throw new Error(`${routeCase.name} (${viewport.name}): contract retry control missing`);
+  await waitFor(
+    client,
+    `${routeCase.name} retried contract save`,
+    `(() => {
+      const value = (selector) => document.querySelector(selector)?.value ?? null;
+      const feedback = document.querySelector('[data-testid="status-controls-feedback"]');
+      return {
+        ready: feedback?.getAttribute("role") === "status"
+          && feedback.textContent?.trim() === "Contract saved."
+          && document.querySelector('[data-testid="status-controls-feedback"][role="alert"]') === null
+          && value('[data-testid="input-controls-contract-number"]') === "CNT-0042-RELOAD"
+          && value('[data-testid="input-controls-participant-0-organization"]') === "Reloaded Owner",
+        feedback: feedback?.textContent?.trim() ?? "",
+      };
+    })()`,
   );
 
   const milestoneOpened = await evaluate(client, `(() => {
