@@ -3503,6 +3503,94 @@ export const GetSupplierQuoteResponse = zod.object({
 
 
 /**
+ * @summary Update a draft or sent supplier quote
+ */
+export const UpdateSupplierQuoteParams = zod.object({
+  "quoteId": zod.coerce.number().int()
+})
+
+export const updateSupplierQuoteBodyNotesMax = 5000;
+
+export const updateSupplierQuoteBodyLinesItemDescriptionMax = 500;
+
+export const updateSupplierQuoteBodyLinesItemQuantityMin = 0.001;
+
+export const updateSupplierQuoteBodyLinesItemUnitMax = 40;
+
+export const updateSupplierQuoteBodyLinesItemUnitCostMin = 0;
+
+export const updateSupplierQuoteBodyLinesItemUnitPriceMin = 0;
+
+export const updateSupplierQuoteBodyLinesItemApprovedSubstitutionMax = 500;
+
+export const updateSupplierQuoteBodyLinesItemScopeReferenceMax = 120;
+
+export const updateSupplierQuoteBodyLinesMax = 200;
+
+
+
+export const UpdateSupplierQuoteBody = zod.object({
+  "businessCustomerId": zod.number().int(),
+  "projectId": zod.number().int().optional(),
+  "bidId": zod.number().int().optional(),
+  "estimateId": zod.number().int().optional(),
+  "proposalId": zod.number().int().optional(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'rejected', 'expired', 'converted']).optional(),
+  "quoteDate": zod.coerce.date().optional(),
+  "validUntil": zod.coerce.date().optional(),
+  "notes": zod.string().max(updateSupplierQuoteBodyNotesMax).optional(),
+  "lines": zod.array(zod.object({
+  "productId": zod.number().int().optional(),
+  "vendorId": zod.number().int().optional(),
+  "description": zod.string().min(1).max(updateSupplierQuoteBodyLinesItemDescriptionMax),
+  "quantity": zod.number().min(updateSupplierQuoteBodyLinesItemQuantityMin),
+  "unit": zod.string().max(updateSupplierQuoteBodyLinesItemUnitMax).optional(),
+  "unitCost": zod.number().min(updateSupplierQuoteBodyLinesItemUnitCostMin),
+  "unitPrice": zod.number().min(updateSupplierQuoteBodyLinesItemUnitPriceMin),
+  "approvedSubstitution": zod.string().max(updateSupplierQuoteBodyLinesItemApprovedSubstitutionMax).optional(),
+  "promisedDate": zod.coerce.date().optional(),
+  "scopeReference": zod.string().max(updateSupplierQuoteBodyLinesItemScopeReferenceMax).optional()
+})).min(1).max(updateSupplierQuoteBodyLinesMax)
+})
+
+export const UpdateSupplierQuoteResponse = zod.object({
+  "id": zod.number().int(),
+  "quoteNumber": zod.string(),
+  "businessCustomerId": zod.number().int(),
+  "customerName": zod.string(),
+  "projectId": zod.number().int().nullable(),
+  "bidId": zod.number().int().nullable(),
+  "estimateId": zod.number().int().nullable(),
+  "proposalId": zod.number().int().nullable(),
+  "status": zod.enum(['draft', 'sent', 'accepted', 'rejected', 'expired', 'converted']),
+  "quoteDate": zod.coerce.date().nullable(),
+  "validUntil": zod.coerce.date().nullable(),
+  "notes": zod.string().nullable(),
+  "subtotal": zod.number(),
+  "totalCost": zod.number(),
+  "totalSell": zod.number(),
+  "grossMargin": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lines": zod.array(zod.object({
+  "id": zod.number().int(),
+  "quoteId": zod.number().int(),
+  "productId": zod.number().int().nullable(),
+  "vendorId": zod.number().int().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
+  "unitCost": zod.number(),
+  "unitPrice": zod.number(),
+  "approvedSubstitution": zod.string().nullable(),
+  "promisedDate": zod.coerce.date().nullable(),
+  "scopeReference": zod.string().nullable()
+}))
+}))
+
+
+/**
  * @summary Convert an accepted supplier quote into an order
  */
 export const ConvertSupplierQuoteParams = zod.object({

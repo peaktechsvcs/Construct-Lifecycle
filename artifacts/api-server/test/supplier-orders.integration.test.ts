@@ -426,11 +426,59 @@ test("only accepted quotes convert once and fulfillment transitions stay consist
     }),
   });
   assert.equal(draft.response.status, 201, JSON.stringify(draft.body));
+  const updatedDraft = await request(`/supplier-quotes/${(draft.body as { id: number }).id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      businessCustomerId: customerId,
+      status: "draft",
+      lines: [{
+        description: "Draft-only material revised",
+        quantity: 2,
+        unit: "box",
+        unitCost: 5,
+        unitPrice: 9,
+        promisedDate: "2026-11-15",
+      }],
+    }),
+  });
+  assert.equal(updatedDraft.response.status, 200, JSON.stringify(updatedDraft.body));
+  const updatedDraftBody = updatedDraft.body as {
+    totalCost: number;
+    totalSell: number;
+    grossMargin: number;
+    lines: Array<{ description: string; quantity: number; promisedDate: string | null }>;
+  };
+  assert.equal(updatedDraftBody.totalCost, 10);
+  assert.equal(updatedDraftBody.totalSell, 18);
+  assert.equal(updatedDraftBody.grossMargin, 8);
+  assert.equal(updatedDraftBody.lines[0]?.description, "Draft-only material revised");
+  assert.equal(updatedDraftBody.lines[0]?.quantity, 2);
+  assert.equal(updatedDraftBody.lines[0]?.promisedDate, "2026-11-15");
   const draftConversion = await request(`/supplier-quotes/${(draft.body as { id: number }).id}/convert`, {
     method: "POST",
     body: JSON.stringify({}),
   });
   assert.equal(draftConversion.response.status, 400);
+
+  const sent = await request("/supplier-quotes", {
+    method: "POST",
+    body: JSON.stringify({
+      businessCustomerId: customerId,
+      status: "sent",
+      lines: [{ description: "Sent material", quantity: 3, unitCost: 7, unitPrice: 11 }],
+    }),
+  });
+  assert.equal(sent.response.status, 201, JSON.stringify(sent.body));
+  const sentUpdate = await request(`/supplier-quotes/${(sent.body as { id: number }).id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      businessCustomerId: customerId,
+      lines: [{ description: "Sent material revised", quantity: 4, unitCost: 8, unitPrice: 13 }],
+    }),
+  });
+  assert.equal(sentUpdate.response.status, 200, JSON.stringify(sentUpdate.body));
+  assert.equal((sentUpdate.body as { totalCost: number }).totalCost, 32);
+  assert.equal((sentUpdate.body as { totalSell: number }).totalSell, 52);
 
   const accepted = await request("/supplier-quotes", {
     method: "POST",
@@ -451,6 +499,14 @@ test("only accepted quotes convert once and fulfillment transitions stay consist
   assert(Array.isArray(convertedBody.lines) && convertedBody.lines.length > 0, JSON.stringify(converted.body));
   const convertedOrderId = convertedBody.id;
   const convertedOrderLineId = convertedBody.lines[0].id;
+  const protectedUpdate = await request(`/supplier-quotes/${acceptedQuoteId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      businessCustomerId: customerId,
+      lines: [{ description: "Unsafe converted edit", quantity: 99, unitCost: 1, unitPrice: 1 }],
+    }),
+  });
+  assert.equal(protectedUpdate.response.status, 400);
 
   const duplicateConversion = await request(`/supplier-quotes/${acceptedQuoteId}/convert`, {
     method: "POST",

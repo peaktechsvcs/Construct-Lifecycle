@@ -995,8 +995,47 @@ export function installBrowserTestApi() {
       browserSupplierQuotes = [...browserSupplierQuotes, createdQuote];
       return json(createdDetail, 201);
     }
-    if (url.pathname === `/api/supplier-quotes/${browserSupplierQuote.id}`) {
+    if (url.pathname === `/api/supplier-quotes/${browserSupplierQuote.id}` && requestMethod === 'GET') {
       return json({ ...browserSupplierQuote, lines: [browserSupplierQuoteLine] });
+    }
+    if (url.pathname === `/api/supplier-quotes/${browserCreatedSupplierQuoteDetail?.id}` && browserCreatedSupplierQuoteDetail && requestMethod === 'PATCH') {
+      let requestBody: Record<string, unknown> = {};
+      try {
+        requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      } catch {
+        // The production form already validates the request before submitting.
+      }
+      const requestLines = Array.isArray(requestBody.lines) ? requestBody.lines as Array<Record<string, unknown>> : [];
+      const requestLine = requestLines[0] ?? {};
+      const quantity = Number(requestLine.quantity ?? 0);
+      const unitCost = Number(requestLine.unitCost ?? 0);
+      const unitPrice = Number(requestLine.unitPrice ?? 0);
+      const updatedQuote = {
+        ...browserCreatedSupplierQuoteDetail,
+        subtotal: quantity * unitPrice,
+        totalCost: quantity * unitCost,
+        totalSell: quantity * unitPrice,
+        grossMargin: quantity * (unitPrice - unitCost),
+        updatedAt: new Date(0).toISOString(),
+        lines: [{
+          ...(browserCreatedSupplierQuoteDetail.lines as Array<Record<string, unknown>>)[0],
+          ...requestLine,
+          id: 8302,
+          quoteId: 8301,
+          productId: browserSupplierProduct.id,
+          vendorId: browserSupplierVendor.id,
+          quantity,
+          unit: String(requestLine.unit ?? browserSupplierProduct.unit),
+          unitCost,
+          unitPrice,
+          promisedDate: requestLine.promisedDate ? String(requestLine.promisedDate) : null,
+        }],
+      };
+      browserCreatedSupplierQuoteDetail = updatedQuote;
+      browserSupplierQuotes = browserSupplierQuotes.map((quote) => quote.id === 8301
+        ? { ...quote, ...updatedQuote, lines: undefined }
+        : quote);
+      return json(updatedQuote);
     }
     if (url.pathname === `/api/supplier-quotes/${browserCreatedSupplierQuoteDetail?.id}` && browserCreatedSupplierQuoteDetail) {
       return json(browserCreatedSupplierQuoteDetail);

@@ -1200,6 +1200,23 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SupplierQuoteDetail" }
+    patch:
+      operationId: updateSupplierQuote
+      tags: [supplier-orders]
+      summary: Update a draft or sent supplier quote
+      parameters:
+        - $ref: "#/components/parameters/SupplierQuoteId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupplierQuoteInput" }
+      responses:
+        "200":
+          description: Updated supplier quote
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupplierQuoteDetail" }
   /supplier-quotes/{quoteId}/convert:
     post:
       operationId: convertSupplierQuote

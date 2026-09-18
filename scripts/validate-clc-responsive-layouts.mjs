@@ -1587,6 +1587,67 @@ async function inspectSupplierQuoteCreation(client, routeCase, viewport) {
       };
     })()`,
   );
+
+  const editStarted = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-edit-supplier-quote"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!editStarted) throw new Error(`${routeCase.name} (${viewport.name}): quote edit action missing`);
+
+  await waitFor(
+    client,
+    `${routeCase.name} quote line editor`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="input-supplier-quote-edit-0-quantity"]') !== null,
+    }))()`,
+  );
+
+  const editFilled = await evaluate(client, `(() => {
+    const fields = [
+      { selector: '[data-testid="input-supplier-quote-edit-0-quantity"]', value: "9" },
+      { selector: '[data-testid="input-supplier-quote-edit-0-promised-date"]', value: "2026-12-01" },
+      { selector: '[data-testid="input-supplier-quote-edit-0-unit-cost"]', value: "140" },
+      { selector: '[data-testid="input-supplier-quote-edit-0-unit-price"]', value: "260" },
+    ];
+    for (const fieldCase of fields) {
+      const field = document.querySelector(fieldCase.selector);
+      if (!(field instanceof HTMLInputElement)) return false;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      if (!setter) return false;
+      setter.call(field, fieldCase.value);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    return true;
+  })()`);
+  if (!editFilled) throw new Error(`${routeCase.name} (${viewport.name}): quote edit field missing`);
+
+  const editSubmitted = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-save-supplier-quote"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!editSubmitted) throw new Error(`${routeCase.name} (${viewport.name}): quote edit submit action missing`);
+
+  await waitFor(
+    client,
+    `${routeCase.name} updated quote detail`,
+    `(() => {
+      const text = document.body.innerText;
+      const normalizedText = text.toLowerCase();
+      return {
+        ready: normalizedText.includes("updated browser quote line")
+          && normalizedText.includes("9 each")
+          && text.includes("$2,340")
+          && text.includes("$1,260")
+          && text.includes("$1,080")
+          && normalizedText.includes("dec 1"),
+      };
+    })()`,
+  );
 }
 
 async function inspectProcurementFailureRecovery(client, routeCase, viewport) {

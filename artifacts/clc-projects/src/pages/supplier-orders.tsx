@@ -45,6 +45,7 @@ import {
   useListSupplierVendors,
   useListSupplierOrderEvents,
   useConvertSupplierQuote,
+  useUpdateSupplierQuote,
   useUpdateSupplierOrder,
 } from '@workspace/api-client-react';
 import type {
@@ -77,6 +78,19 @@ type ReceivingDraft = {
   returned: string;
   accepted: boolean;
   note: string;
+};
+
+type SupplierQuoteLineDraft = {
+  productId: string;
+  vendorId: string;
+  description: string;
+  quantity: string;
+  unit: string;
+  unitCost: string;
+  unitPrice: string;
+  promisedDate: string;
+  approvedSubstitution: string;
+  scopeReference: string;
 };
 
 const maxDeliveryProofSize = 25 * 1024 * 1024;
@@ -156,6 +170,8 @@ export function SupplierOrders() {
   const [productForm, setProductForm] = useState({ sku: '', name: '', unit: 'each', unitCost: '', listPrice: '', leadTimeDays: '0' });
   const [vendorForm, setVendorForm] = useState({ name: '', leadTimeDays: '0' });
   const [quoteForm, setQuoteForm] = useState({ customerId: '', description: '', quantity: '1', unitCost: '', unitPrice: '', promisedDate: '' });
+  const [editingQuoteId, setEditingQuoteId] = useState<number | null>(null);
+  const [quoteEditLines, setQuoteEditLines] = useState<SupplierQuoteLineDraft[]>([]);
   const [deliveryForm, setDeliveryForm] = useState({ status: 'scheduled', appointmentDate: '', carrier: '', trackingReference: '', notes: '' });
   const [deliveryQuantities, setDeliveryQuantities] = useState<Record<number, string>>({});
   const [receivingDrafts, setReceivingDrafts] = useState<Record<number, ReceivingDraft>>({});
@@ -193,6 +209,7 @@ export function SupplierOrders() {
   const createProduct = useCreateSupplierProduct();
   const createVendor = useCreateSupplierVendor();
   const createQuote = useCreateSupplierQuote();
+  const updateQuote = useUpdateSupplierQuote();
   const convertQuote = useConvertSupplierQuote();
   const updateOrder = useUpdateSupplierOrder();
   const createDelivery = useCreateSupplierDelivery();
@@ -206,6 +223,11 @@ export function SupplierOrders() {
     setSelectedQuoteId(routeQuoteId);
     setSelectedOrderId(routeOrderId);
   }, [routeOrderId, routeQuoteId]);
+
+  useEffect(() => {
+    setEditingQuoteId(null);
+    setQuoteEditLines([]);
+  }, [selectedQuoteId]);
 
   useEffect(() => {
     if (!selectedOrder.data) return;
@@ -230,6 +252,7 @@ export function SupplierOrders() {
     void qc.invalidateQueries({ queryKey: getListSupplierVendorsQueryKey() });
     void qc.invalidateQueries({ queryKey: getListSupplierQuotesQueryKey() });
     void qc.invalidateQueries({ queryKey: getListSupplierOrdersQueryKey() });
+    if (selectedQuoteId) void qc.invalidateQueries({ queryKey: getGetSupplierQuoteQueryKey(selectedQuoteId) });
     if (selectedOrderId) void qc.invalidateQueries({ queryKey: getGetSupplierOrderQueryKey(selectedOrderId) });
     if (selectedOrderId) void qc.invalidateQueries({ queryKey: getListSupplierOrderEventsQueryKey(selectedOrderId) });
   };
@@ -373,6 +396,64 @@ export function SupplierOrders() {
     if (!selectedQuoteId) return;
     convertQuote.mutate({ quoteId: selectedQuoteId, data: { jobsiteInstructions: 'Coordinate delivery appointment with the project team.' } }, {
       onSuccess: (order) => { selectOrder(order.id); refresh(); },
+    });
+  }
+
+  function openQuoteEditor() {
+    if (!selectedQuote.data || !['draft', 'sent'].includes(selectedQuote.data.status)) return;
+    setEditingQuoteId(selectedQuote.data.id);
+    setQuoteEditLines(selectedQuote.data.lines.map((line) => ({
+      productId: line.productId == null ? '' : String(line.productId),
+      vendorId: line.vendorId == null ? '' : String(line.vendorId),
+      description: line.description,
+      quantity: String(line.quantity),
+      unit: line.unit,
+      unitCost: String(line.unitCost),
+      unitPrice: String(line.unitPrice),
+      promisedDate: line.promisedDate ?? '',
+      approvedSubstitution: line.approvedSubstitution ?? '',
+      scopeReference: line.scopeReference ?? '',
+    })));
+  }
+
+  function setQuoteEditLine(index: number, key: keyof SupplierQuoteLineDraft, value: string) {
+    setQuoteEditLines((current) => current.map((line, lineIndex) => lineIndex === index ? { ...line, [key]: value } : line));
+  }
+
+  function saveQuoteEdit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!selectedQuoteId || !selectedQuote.data || !quoteEditLines.length) return;
+    updateQuote.mutate({
+      quoteId: selectedQuoteId,
+      data: {
+        businessCustomerId: selectedQuote.data.businessCustomerId,
+        ...(selectedQuote.data.projectId == null ? {} : { projectId: selectedQuote.data.projectId }),
+        ...(selectedQuote.data.bidId == null ? {} : { bidId: selectedQuote.data.bidId }),
+        ...(selectedQuote.data.estimateId == null ? {} : { estimateId: selectedQuote.data.estimateId }),
+        ...(selectedQuote.data.proposalId == null ? {} : { proposalId: selectedQuote.data.proposalId }),
+        status: selectedQuote.data.status,
+        ...(selectedQuote.data.quoteDate ? { quoteDate: selectedQuote.data.quoteDate } : {}),
+        ...(selectedQuote.data.validUntil ? { validUntil: selectedQuote.data.validUntil } : {}),
+        ...(selectedQuote.data.notes ? { notes: selectedQuote.data.notes } : {}),
+        lines: quoteEditLines.map((line) => ({
+          ...(line.productId ? { productId: Number(line.productId) } : {}),
+          ...(line.vendorId ? { vendorId: Number(line.vendorId) } : {}),
+          description: line.description,
+          quantity: Number(line.quantity || 0),
+          unit: line.unit,
+          unitCost: Number(line.unitCost || 0),
+          unitPrice: Number(line.unitPrice || 0),
+          ...(line.promisedDate ? { promisedDate: line.promisedDate } : {}),
+          ...(line.approvedSubstitution ? { approvedSubstitution: line.approvedSubstitution } : {}),
+          ...(line.scopeReference ? { scopeReference: line.scopeReference } : {}),
+        })),
+      },
+    }, {
+      onSuccess: () => {
+        setEditingQuoteId(null);
+        setQuoteEditLines([]);
+        refresh();
+      },
     });
   }
 
@@ -610,8 +691,36 @@ export function SupplierOrders() {
              {unavailableQuoteLink ? <div data-testid="supplier-quote-unavailable"><EmptyState icon={Receipt} title="Quote unavailable" text="This quote link is invalid or no longer available. Choose a quote from the list instead." /></div> : !selectedQuoteId ? <EmptyState icon={Receipt} title="Choose a quote" text="Select a quote to review margin and convert accepted supplier pricing into an order." /> : selectedQuote.isLoading ? <LoadingPanel lines={4} /> : selectedQuote.data ? <div className="space-y-4">
               <div className="flex items-start justify-between gap-3"><div><p className="mono text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{selectedQuote.data.quoteNumber}</p><h3 className="mt-1 text-base font-bold">{selectedQuote.data.customerName}</h3></div><Badge tone={statusTone(selectedQuote.data.status)}>{labelStatus(selectedQuote.data.status)}</Badge></div>
               <div className="grid grid-cols-3 gap-2"><Metric label="Sell" value={money(selectedQuote.data.totalSell)} /><Metric label="Cost" value={money(selectedQuote.data.totalCost)} /><Metric label="Margin" value={money(selectedQuote.data.grossMargin)} /></div>
-               <div className="space-y-2">{selectedQuote.data.lines.map((line) => <div key={line.id} className="rounded-lg border border-border p-3"><div className="flex justify-between gap-2 text-sm"><span className="font-semibold">{line.description}</span><span>{line.quantity} {line.unit}</span></div><p className="mono mt-1 text-[9px] uppercase tracking-[.08em] text-muted-foreground">{vendors.data?.find((vendor) => vendor.id === line.vendorId)?.name ?? 'Unassigned vendor'} · {money(line.unitCost)} cost · {money(line.unitPrice)} sell{line.promisedDate ? ` · ${shortDate(line.promisedDate)}` : ''}</p></div>)}</div>
-              {selectedQuote.data.status === 'accepted' && <Button onClick={convertSelectedQuote} disabled={convertQuote.isPending}>Convert to purchase order <ArrowRight size={15} /></Button>}
+               {editingQuoteId === selectedQuote.data.id ? (
+                 <form onSubmit={saveQuoteEdit} className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                   <div>
+                     <p className="text-sm font-bold">Edit quote lines</p>
+                     <p className="mt-1 text-xs text-muted-foreground">Correct vendor, quantity, promised date, and pricing before sending or accepting the quote.</p>
+                   </div>
+                   {quoteEditLines.map((line, index) => (
+                     <div key={index} className="grid gap-3 rounded-lg border border-border bg-card p-3 sm:grid-cols-2">
+                       <p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary sm:col-span-2">Line {index + 1}</p>
+                       <Field label="Description"><Input required data-testid={`input-supplier-quote-edit-${index}-description`} value={line.description} onChange={(event) => setQuoteEditLine(index, 'description', event.target.value)} className={inputClass} /></Field>
+                       <Field label="Vendor"><select data-testid={`select-supplier-quote-edit-${index}-vendor`} value={line.vendorId} onChange={(event) => setQuoteEditLine(index, 'vendorId', event.target.value)} className={inputClass}><option value="">Unassigned vendor</option>{vendors.data?.map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.name}</option>)}</select></Field>
+                       <Field label="Quantity"><Input required min="0.001" step="0.001" type="number" data-testid={`input-supplier-quote-edit-${index}-quantity`} value={line.quantity} onChange={(event) => setQuoteEditLine(index, 'quantity', event.target.value)} className={inputClass} /></Field>
+                       <Field label="Unit"><Input required data-testid={`input-supplier-quote-edit-${index}-unit`} value={line.unit} onChange={(event) => setQuoteEditLine(index, 'unit', event.target.value)} className={inputClass} /></Field>
+                       <Field label="Unit cost"><Input required min="0" step="0.01" type="number" data-testid={`input-supplier-quote-edit-${index}-unit-cost`} value={line.unitCost} onChange={(event) => setQuoteEditLine(index, 'unitCost', event.target.value)} className={inputClass} /></Field>
+                       <Field label="Unit sell price"><Input required min="0" step="0.01" type="number" data-testid={`input-supplier-quote-edit-${index}-unit-price`} value={line.unitPrice} onChange={(event) => setQuoteEditLine(index, 'unitPrice', event.target.value)} className={inputClass} /></Field>
+                       <Field label="Promised date"><Input type="date" data-testid={`input-supplier-quote-edit-${index}-promised-date`} value={line.promisedDate} onChange={(event) => setQuoteEditLine(index, 'promisedDate', event.target.value)} className={inputClass} /></Field>
+                     </div>
+                   ))}
+                   {updateQuote.isError && <p role="alert" className="text-xs text-destructive">This quote could not be saved. Draft and sent quotes can be edited before conversion.</p>}
+                   <div className="flex gap-2"><Button type="submit" data-testid="button-save-supplier-quote" disabled={updateQuote.isPending}>{updateQuote.isPending ? 'Saving…' : 'Save quote changes'}</Button><Button type="button" variant="ghost" data-testid="button-cancel-supplier-quote" onClick={() => { setEditingQuoteId(null); setQuoteEditLines([]); }}>Cancel</Button></div>
+                 </form>
+               ) : (
+                 <>
+                   <div className="space-y-2">{selectedQuote.data.lines.map((line) => <div key={line.id} className="rounded-lg border border-border p-3"><div className="flex justify-between gap-2 text-sm"><span className="font-semibold">{line.description}</span><span>{line.quantity} {line.unit}</span></div><p className="mono mt-1 text-[9px] uppercase tracking-[.08em] text-muted-foreground">{vendors.data?.find((vendor) => vendor.id === line.vendorId)?.name ?? 'Unassigned vendor'} · {money(line.unitCost)} cost · {money(line.unitPrice)} sell{line.promisedDate ? ` · ${shortDate(line.promisedDate)}` : ''}</p></div>)}</div>
+                   <div className="flex flex-wrap gap-2">
+                     {['draft', 'sent'].includes(selectedQuote.data.status) && <Button variant="outline" data-testid="button-edit-supplier-quote" onClick={openQuoteEditor}>Edit quote lines</Button>}
+                     {selectedQuote.data.status === 'accepted' && <Button onClick={convertSelectedQuote} disabled={convertQuote.isPending}>Convert to purchase order <ArrowRight size={15} /></Button>}
+                   </div>
+                 </>
+               )}
               {convertQuote.isError && <p role="alert" className="text-xs text-destructive">This quote could not be converted. It may already have an order or is not accepted.</p>}
             </div> : <EmptyState icon={Receipt} title="Quote not found" text="Refresh the workspace and choose another quote." />}
           </Section>

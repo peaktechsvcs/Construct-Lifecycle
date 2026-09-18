@@ -53,6 +53,7 @@ import {
   UpdateSupplierOrderParams,
   UpdateSupplierProductBody,
   UpdateSupplierProductParams,
+  UpdateSupplierQuoteBody,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
 import { requireRole } from "../middlewares/rbac";
@@ -923,6 +924,70 @@ router.get("/supplier-quotes/:quoteId", requireRole("owner", "admin", "member"),
   if (!params.success) { badRequest(res, "Invalid supplier quote"); return; }
   const detail = await serializeQuoteDetail(req, params.data.quoteId);
   if (!detail) { notFound(res, "Supplier quote not found"); return; }
+  res.json(detail);
+});
+
+router.patch("/supplier-quotes/:quoteId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+  const params = GetSupplierQuoteParams.safeParse(req.params);
+  const parsed = UpdateSupplierQuoteBody.safeParse(req.body);
+  if (!params.success || !parsed.success) { badRequest(res, "Invalid supplier quote"); return; }
+  const existing = await getQuote(req, params.data.quoteId);
+  if (!existing) { notFound(res, "Supplier quote not found"); return; }
+  if (!["draft", "sent"].includes(existing.quote.status)) {
+    badRequest(res, "Only draft or sent supplier quotes can be edited");
+    return;
+  }
+  if (parsed.data.status && !["draft", "sent"].includes(parsed.data.status)) {
+    badRequest(res, "Only draft or sent supplier quotes can be saved");
+    return;
+  }
+  if (!await requireCustomer(req, parsed.data.businessCustomerId)) {
+    badRequest(res, "Customer is outside the active environment");
+    return;
+  }
+  const totalCost = money(parsed.data.lines.reduce((sum, line) => sum + line.quantity * line.unitCost, 0));
+  const totalSell = money(parsed.data.lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0));
+  await db.transaction(async (tx) => {
+    await tx.update(supplierQuotesTable).set({
+      businessCustomerId: parsed.data.businessCustomerId,
+      projectId: parsed.data.projectId ?? existing.quote.projectId,
+      bidId: parsed.data.bidId ?? existing.quote.bidId,
+      estimateId: parsed.data.estimateId ?? existing.quote.estimateId,
+      proposalId: parsed.data.proposalId ?? existing.quote.proposalId,
+      status: parsed.data.status ?? existing.quote.status,
+      quoteDate: dateOnly(parsed.data.quoteDate) ?? existing.quote.quoteDate,
+      validUntil: dateOnly(parsed.data.validUntil) ?? existing.quote.validUntil,
+      notes: parsed.data.notes?.trim() ?? existing.quote.notes,
+      subtotal: String(totalSell),
+      totalCost: String(totalCost),
+      totalSell: String(totalSell),
+      grossMargin: String(money(totalSell - totalCost)),
+      updatedAt: new Date(),
+    }).where(and(
+      eq(supplierQuotesTable.id, existing.quote.id),
+      scope(req, supplierQuotesTable),
+    ));
+    await tx.delete(supplierQuoteLinesTable).where(and(
+      eq(supplierQuoteLinesTable.quoteId, existing.quote.id),
+      scope(req, supplierQuoteLinesTable),
+    ));
+    await tx.insert(supplierQuoteLinesTable).values(parsed.data.lines.map((line) => ({
+      quoteId: existing.quote.id,
+      productId: line.productId ?? null,
+      vendorId: line.vendorId ?? null,
+      description: line.description.trim(),
+      quantity: String(line.quantity),
+      unit: line.unit?.trim() || "each",
+      unitCost: String(line.unitCost),
+      unitPrice: String(line.unitPrice),
+      approvedSubstitution: line.approvedSubstitution?.trim() ?? null,
+      promisedDate: dateOnly(line.promisedDate) ?? null,
+      scopeReference: line.scopeReference?.trim() ?? null,
+      tenantId: req.tenantId!,
+      environmentId: req.environmentId!,
+    })));
+  });
+  const detail = await serializeQuoteDetail(req, existing.quote.id);
   res.json(detail);
 });
 

@@ -5274,6 +5274,78 @@ export function useGetSupplierQuote<TData = Awaited<ReturnType<typeof getSupplie
 
 
 
+export const getUpdateSupplierQuoteUrl = (quoteId: number,) => {
+
+
+
+
+  return `/api/supplier-quotes/${quoteId}`
+}
+
+/**
+ * @summary Update a draft or sent supplier quote
+ */
+export const updateSupplierQuote = async (quoteId: number,
+    supplierQuoteInput: SupplierQuoteInput, options?: Parameters<typeof customFetch>[1]): Promise<SupplierQuoteDetail> => {
+
+  return customFetch<SupplierQuoteDetail>(getUpdateSupplierQuoteUrl(quoteId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(supplierQuoteInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateSupplierQuoteMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSupplierQuote>>, TError,{quoteId: number;data: BodyType<SupplierQuoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSupplierQuote>>, TError,{quoteId: number;data: BodyType<SupplierQuoteInput>}, TContext> => {
+
+const mutationKey = ['updateSupplierQuote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSupplierQuote>>, {quoteId: number;data: BodyType<SupplierQuoteInput>}> = (props) => {
+          const {quoteId,data} = props ?? {};
+
+          return  updateSupplierQuote(quoteId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSupplierQuoteMutationResult = NonNullable<Awaited<ReturnType<typeof updateSupplierQuote>>>
+    export type UpdateSupplierQuoteMutationBody = BodyType<SupplierQuoteInput>
+    export type UpdateSupplierQuoteMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a draft or sent supplier quote
+ */
+export const useUpdateSupplierQuote = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSupplierQuote>>, TError,{quoteId: number;data: BodyType<SupplierQuoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSupplierQuote>>,
+        TError,
+        {quoteId: number;data: BodyType<SupplierQuoteInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateSupplierQuoteMutationOptions(options));
+    }
+
 export const getConvertSupplierQuoteUrl = (quoteId: number,) => {
 
 
