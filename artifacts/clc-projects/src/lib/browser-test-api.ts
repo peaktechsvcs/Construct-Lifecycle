@@ -618,6 +618,8 @@ const standaloneProjectControls = {
 
 const browserProjectControlsStorageKey = 'clc-browser-project-controls';
 const browserProjectControlsResetKey = 'clc-browser-project-controls-reset';
+const browserStandaloneProjectControlsStorageKey = 'clc-browser-standalone-project-controls';
+const browserStandaloneProjectControlsResetKey = 'clc-browser-standalone-project-controls-reset';
 
 function cloneStandaloneProjectControls() {
   return JSON.parse(JSON.stringify(standaloneProjectControls)) as typeof standaloneProjectControls;
@@ -626,6 +628,15 @@ function cloneStandaloneProjectControls() {
 function loadBrowserProjectControls() {
   try {
     const stored = window.localStorage.getItem(browserProjectControlsStorageKey);
+    return stored ? JSON.parse(stored) as typeof standaloneProjectControls : cloneStandaloneProjectControls();
+  } catch {
+    return cloneStandaloneProjectControls();
+  }
+}
+
+function loadStandaloneProjectControls() {
+  try {
+    const stored = window.sessionStorage.getItem(browserStandaloneProjectControlsStorageKey);
     return stored ? JSON.parse(stored) as typeof standaloneProjectControls : cloneStandaloneProjectControls();
   } catch {
     return cloneStandaloneProjectControls();
@@ -697,11 +708,18 @@ export function installBrowserTestApi() {
   const browserControlsMode = browserSearchParams.get('browserControls');
   const browserControlsSaveFailure = browserSearchParams.get('browserControlsSaveFailure') === '1';
   const browserControlsValidationFailure = browserSearchParams.get('browserControlsValidationFailure') === '1';
-  if (browserControlsMode === 'reload' && browserSearchParams.get('browserControlsReset') === '1') {
+  if ((browserControlsMode === 'reload' || browserControlsMode === 'standalone') && browserSearchParams.get('browserControlsReset') === '1') {
     try {
-      if (!window.sessionStorage.getItem(browserProjectControlsResetKey)) {
-        window.localStorage.removeItem(browserProjectControlsStorageKey);
-        window.sessionStorage.setItem(browserProjectControlsResetKey, '1');
+      const resetKey = browserControlsMode === 'reload'
+        ? browserProjectControlsResetKey
+        : browserStandaloneProjectControlsResetKey;
+      if (!window.sessionStorage.getItem(resetKey)) {
+        if (browserControlsMode === 'reload') {
+          window.localStorage.removeItem(browserProjectControlsStorageKey);
+        } else {
+          window.sessionStorage.removeItem(browserStandaloneProjectControlsStorageKey);
+        }
+        window.sessionStorage.setItem(resetKey, '1');
       }
     } catch {
       // Browser test storage may be unavailable in a restricted context.
@@ -709,12 +727,16 @@ export function installBrowserTestApi() {
   }
   const browserControls = browserControlsMode === 'reload'
     ? loadBrowserProjectControls()
-    : standaloneProjectControls;
+    : browserControlsMode === 'standalone'
+      ? loadStandaloneProjectControls()
+      : standaloneProjectControls;
   let browserContractSaveAttempts = 0;
   let browserContractValidationAttempts = 0;
   const persistBrowserProjectControls = () => {
     if (browserControlsMode === 'reload') {
       window.localStorage.setItem(browserProjectControlsStorageKey, JSON.stringify(browserControls));
+    } else if (browserControlsMode === 'standalone') {
+      window.sessionStorage.setItem(browserStandaloneProjectControlsStorageKey, JSON.stringify(browserControls));
     }
   };
   const browserTestWindow = window as Window & {

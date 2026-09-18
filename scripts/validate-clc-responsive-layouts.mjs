@@ -115,7 +115,7 @@ const cases = [
   {
     id: "milestones-workspace",
     name: "milestones workspace",
-    path: "/milestones?browserAuth=authenticated&browserControls=standalone",
+    path: "/milestones?browserAuth=authenticated&browserControls=standalone&browserControlsReset=1",
     heading: "Milestones",
     actions: [
       'button[data-testid="button-add-milestone-42"]',
@@ -148,6 +148,7 @@ const cases = [
       fields: [
         { selector: 'input[data-testid="input-milestone-name"]', value: "Site mobilization edited" },
       ],
+      reloadAfterSave: true,
     },
     shell: true,
   },
@@ -906,6 +907,59 @@ async function inspectInlineEditor(client, routeCase, viewport, editorKey = "inl
       };
     })()`,
   );
+
+  if (editorCase.reloadAfterSave) {
+    const loaded = client.event("Page.loadEventFired");
+    await client.command("Page.reload", { ignoreCache: true });
+    await loaded;
+    await waitForRenderedPage(client, routeCase);
+
+    const reopened = await evaluate(client, `(() => {
+      const opener = document.querySelector(${JSON.stringify(editorCase.openSelector)});
+      if (!(opener instanceof HTMLElement)) return false;
+      opener.click();
+      return true;
+    })()`);
+    if (!reopened) {
+      throw new Error(`${routeCase.name} (${viewport.name}): edited milestone did not reopen after reload`);
+    }
+
+    await waitFor(
+      client,
+      `${routeCase.name} editor after reload`,
+      `(() => ({
+        ready: Boolean(document.querySelector(${JSON.stringify(editorCase.requiredSelector)})),
+      }))()`,
+    );
+
+    await waitFor(
+      client,
+      `${routeCase.name} edited values after reload`,
+      `(() => {
+        const fields = ${JSON.stringify(fields)};
+        return {
+          ready: fields.every((fieldCase) => document.querySelector(fieldCase.selector)?.value === fieldCase.value),
+          values: fields.map((fieldCase) => ({
+            selector: fieldCase.selector,
+            value: document.querySelector(fieldCase.selector)?.value ?? null,
+          })),
+        };
+      })()`,
+    );
+
+    if (routeCase.shell && viewport.name === "mobile") {
+      const menuReopened = await evaluate(client, `(() => {
+        const button = document.querySelector('[data-testid="button-open-menu"]');
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()`);
+      if (!menuReopened) {
+        throw new Error(`${routeCase.name} (${viewport.name}): mobile navigation did not reopen after reload`);
+      }
+    }
+  }
+
   await evaluate(client, `window.scrollTo({ top: 0, left: 0, behavior: "auto" })`);
 }
 
