@@ -247,6 +247,8 @@ test("contract and milestone edits survive controls reload", async () => {
   const createdMilestoneBody = bodyObject(createdMilestone.body);
   const milestoneId = createdMilestoneBody.id;
   assert.equal(typeof milestoneId, "number");
+  const staleUpdatedAt = createdMilestoneBody.updatedAt;
+  assert.equal(typeof staleUpdatedAt, "string");
 
   const milestoneUpdate = await request(clerkIds.ownerA, `/projects/${projectADtdId}/controls/schedule/${milestoneId}`, {
     method: "PATCH",
@@ -260,18 +262,43 @@ test("contract and milestone edits survive controls reload", async () => {
       actualEnd: "2027-07-20",
       status: "complete",
       ownerName: "Closeout Team",
+       expectedUpdatedAt: staleUpdatedAt,
     }),
   });
   assert.equal(milestoneUpdate.status, 200, JSON.stringify(milestoneUpdate.body));
+  const milestoneUpdateBody = bodyObject(milestoneUpdate.body);
 
   const crossEnvironmentMilestoneUpdate = await request(clerkIds.productionOwnerA, `/projects/${projectADtdId}/controls/schedule/${milestoneId}`, {
     method: "PATCH",
     body: JSON.stringify({
       name: "Cross-environment mutation",
       status: "delayed",
+         expectedUpdatedAt: milestoneUpdateBody.updatedAt,
     }),
   });
   assert.equal(crossEnvironmentMilestoneUpdate.status, 404);
+
+  const concurrentMilestoneUpdate = await request(clerkIds.ownerA, `/projects/${projectADtdId}/controls/schedule/${milestoneId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      name: "Newer server value",
+      expectedUpdatedAt: milestoneUpdateBody.updatedAt,
+    }),
+  });
+  assert.equal(concurrentMilestoneUpdate.status, 200, JSON.stringify(concurrentMilestoneUpdate.body));
+
+  const staleMilestoneUpdate = await request(clerkIds.ownerA, `/projects/${projectADtdId}/controls/schedule/${milestoneId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      name: "Stale overwrite attempt",
+      expectedUpdatedAt: milestoneUpdateBody.updatedAt,
+    }),
+  });
+  assert.equal(staleMilestoneUpdate.status, 409, JSON.stringify(staleMilestoneUpdate.body));
+  assert.deepEqual(staleMilestoneUpdate.body, {
+    error: "This schedule item changed since you opened it",
+    code: "SCHEDULE_ITEM_CONFLICT",
+  });
 
   const reloaded = await request(clerkIds.ownerA, controlsPath);
   assert.equal(reloaded.status, 200, JSON.stringify(reloaded.body));
@@ -301,7 +328,7 @@ test("contract and milestone edits survive controls reload", async () => {
   const milestone = scheduleItems.find((item) => item.id === milestoneId);
   assert(milestone);
   assert.equal(milestone.itemNumber, "M-01");
-  assert.equal(milestone.name, "Substantial Completion Achieved");
+   assert.equal(milestone.name, "Newer server value");
   assert.equal(milestone.plannedStart, "2026-11-15");
   assert.equal(milestone.plannedEnd, "2027-07-15");
   assert.equal(milestone.actualStart, "2026-11-20");

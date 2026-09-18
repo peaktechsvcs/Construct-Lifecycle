@@ -2682,6 +2682,7 @@ export const ProjectScheduleItemUpdateStatus = {
 } as const;
 
 export interface ProjectScheduleItemUpdate {
+  expectedUpdatedAt: string;
   /**
      * @minLength 1
      * @maxLength 30
@@ -7280,6 +7281,18 @@ export const ListProjectsScope = {
   all: 'all',
   mine: 'mine',
 } as const;
+
+export type UpdateProjectScheduleItem409Code = typeof UpdateProjectScheduleItem409Code[keyof typeof UpdateProjectScheduleItem409Code];
+
+
+export const UpdateProjectScheduleItem409Code = {
+  SCHEDULE_ITEM_CONFLICT: 'SCHEDULE_ITEM_CONFLICT',
+} as const;
+
+export type UpdateProjectScheduleItem409 = {
+  error: string;
+  code: UpdateProjectScheduleItem409Code;
+};
 
 export type ListTradePartnersParams = {
 /**

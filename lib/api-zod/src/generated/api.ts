@@ -765,6 +765,7 @@ export const updateProjectScheduleItemBodyOwnerNameMax = 180;
 
 
 export const UpdateProjectScheduleItemBody = zod.object({
+  "expectedUpdatedAt": zod.coerce.date(),
   "itemNumber": zod.string().min(1).max(updateProjectScheduleItemBodyItemNumberMax).optional(),
   "name": zod.string().min(1).max(updateProjectScheduleItemBodyNameMax).optional(),
   "itemType": zod.enum(['milestone', 'activity', 'dependency']).optional(),

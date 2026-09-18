@@ -233,6 +233,16 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProjectScheduleItem" }
+        "409":
+          description: Schedule item changed since the client loaded it
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, code]
+                properties:
+                  error: { type: string }
+                  code: { type: string, enum: [SCHEDULE_ITEM_CONFLICT] }
   /projects/{projectId}/controls/sov:
     post:
       operationId: createScheduleOfValue
@@ -6092,7 +6102,9 @@ components:
         ownerName: { type: string, maxLength: 180 }
     ProjectScheduleItemUpdate:
       type: object
+      required: [expectedUpdatedAt]
       properties:
+        expectedUpdatedAt: { type: string, format: date-time }
         itemNumber: { type: string, minLength: 1, maxLength: 30 }
         name: { type: string, minLength: 1, maxLength: 180 }
         itemType: { type: string, enum: [milestone, activity, dependency] }

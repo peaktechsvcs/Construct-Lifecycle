@@ -273,6 +273,7 @@ import type {
   TradePartnerUpdate,
   UpdatePlatformCustomerInput,
   UpdatePlatformCustomerMemberInput,
+  UpdateProjectScheduleItem409,
   UpdateTenantBusinessProfileInput,
   UpdateTenantMemberInput,
   WorkflowConfigInput,
@@ -1010,7 +1011,7 @@ export const updateProjectScheduleItem = async (projectId: number,
 
 
 
-export const getUpdateProjectScheduleItemMutationOptions = <TError = ErrorType<unknown>,
+export const getUpdateProjectScheduleItemMutationOptions = <TError = ErrorType<UpdateProjectScheduleItem409>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProjectScheduleItem>>, TError,{projectId: number;itemId: number;data: BodyType<ProjectScheduleItemUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateProjectScheduleItem>>, TError,{projectId: number;itemId: number;data: BodyType<ProjectScheduleItemUpdate>}, TContext> => {
 
@@ -1039,12 +1040,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UpdateProjectScheduleItemMutationResult = NonNullable<Awaited<ReturnType<typeof updateProjectScheduleItem>>>
     export type UpdateProjectScheduleItemMutationBody = BodyType<ProjectScheduleItemUpdate>
-    export type UpdateProjectScheduleItemMutationError = ErrorType<unknown>
+    export type UpdateProjectScheduleItemMutationError = ErrorType<UpdateProjectScheduleItem409>
 
     /**
  * @summary Update a project milestone or schedule item
  */
-export const useUpdateProjectScheduleItem = <TError = ErrorType<unknown>,
+export const useUpdateProjectScheduleItem = <TError = ErrorType<UpdateProjectScheduleItem409>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProjectScheduleItem>>, TError,{projectId: number;itemId: number;data: BodyType<ProjectScheduleItemUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateProjectScheduleItem>>,

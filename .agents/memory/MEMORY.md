@@ -31,6 +31,7 @@
 - [ITB OCR runtime](itb-ocr-runtime.md) — scanned-document OCR uses system Tesseract/Poppler tools and must cancel child work at the request deadline.
 - [Integration job lifecycle](integration-job-lifecycle.md) — provider work must use canonical scoped job transitions so integration health cannot stay empty or leak connector errors.
 - [Recovery operation durability](recovery-operation-durability.md) — destructive recovery must outlive browser polling and survive interrupted provider startup.
+- [Schedule edit concurrency](schedule-edit-concurrency.md) — client-visible timestamp versions need millisecond normalization when database timestamps retain finer precision.
 - [CLC browser route coverage](clc-browser-route-coverage.md) — use system Chromium with test-only Clerk/API fixtures when browser dependencies are unavailable.
 - [Owner invitation retry behavior](owner-invitation-retry.md) — post-commit invitation failure is explicit partial success; tenant-scoped locking prevents duplicate active retries.
 - [Release gate validation harness](release-gate-validation-harness.md) — exercise the real release command through a temporary pnpm shim while preventing recursive self-validation.

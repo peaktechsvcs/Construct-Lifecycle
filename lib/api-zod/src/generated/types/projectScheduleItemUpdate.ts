@@ -9,6 +9,7 @@ import type { ProjectScheduleItemUpdateItemType } from './projectScheduleItemUpd
 import type { ProjectScheduleItemUpdateStatus } from './projectScheduleItemUpdateStatus';
 
 export interface ProjectScheduleItemUpdate {
+  expectedUpdatedAt: Date;
   /**
      * @minLength 1
      * @maxLength 30

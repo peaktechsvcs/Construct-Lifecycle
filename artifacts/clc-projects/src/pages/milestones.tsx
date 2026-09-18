@@ -10,7 +10,7 @@ import {
 import { Input } from '@workspace/construct-lifecycle-design-system/components/ui/input';
 import { Badge, Button, EmptyState, ErrorPanel, LoadingPanel, PageTitle, shortDate } from '@/components/app-ui';
 
-type Draft = { itemNumber: string; name: string; itemType: string; plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string; status: string; ownerName: string; predecessor: string };
+type Draft = { itemNumber: string; name: string; itemType: string; plannedStart: string; plannedEnd: string; actualStart: string; actualEnd: string; status: string; ownerName: string; predecessor: string; expectedUpdatedAt?: string };
 const empty: Draft = { itemNumber: '', name: '', itemType: 'milestone', plannedStart: '', plannedEnd: '', actualStart: '', actualEnd: '', status: 'planned', ownerName: '', predecessor: '' };
 const dateValue = (value?: string | null) => value ? new Date(value).toISOString().slice(0, 10) : '';
 const tone = (value: string) => value === 'complete' ? 'green' as const : value === 'delayed' ? 'red' as const : value === 'in_progress' ? 'orange' as const : 'teal' as const;
@@ -18,9 +18,12 @@ const tone = (value: string) => value === 'complete' ? 'green' as const : value 
 function getMilestoneSaveError(error: unknown) {
   if (error && typeof error === 'object') {
     const apiError = error as { status?: unknown; data?: unknown };
-    const data = apiError.data && typeof apiError.data === 'object' ? apiError.data as { error?: unknown } : undefined;
+    const data = apiError.data && typeof apiError.data === 'object' ? apiError.data as { error?: unknown; code?: unknown } : undefined;
     if (apiError.status === 400 && data?.error === 'Invalid schedule update') {
       return 'Milestone details are not valid. Check the milestone number, name, dates, and status.';
+    }
+    if (apiError.status === 409 && data?.code === 'SCHEDULE_ITEM_CONFLICT') {
+      return 'This milestone changed since you opened it. Your edits are still here; reload the milestone before trying again.';
     }
     if (apiError.status === 403) {
       return 'You do not have permission to edit milestones in this workspace. Ask a workspace administrator for access.';
@@ -48,7 +51,7 @@ function MilestoneProject({ project }: { project: Project }) {
   const items = (controls.data?.scheduleItems ?? []).filter((item) => item.itemType === 'milestone');
   const open = (item?: ProjectScheduleItem) => {
     setEditingId(item?.id ?? null);
-    setDraft(item ? { itemNumber: item.itemNumber, name: item.name, itemType: item.itemType, plannedStart: dateValue(item.plannedStart), plannedEnd: dateValue(item.plannedEnd), actualStart: dateValue(item.actualStart), actualEnd: dateValue(item.actualEnd), status: item.status, ownerName: item.ownerName ?? '', predecessor: item.predecessor ?? '' } : { ...empty });
+    setDraft(item ? { itemNumber: item.itemNumber, name: item.name, itemType: item.itemType, plannedStart: dateValue(item.plannedStart), plannedEnd: dateValue(item.plannedEnd), actualStart: dateValue(item.actualStart), actualEnd: dateValue(item.actualEnd), status: item.status, ownerName: item.ownerName ?? '', predecessor: item.predecessor ?? '', expectedUpdatedAt: item.updatedAt } : { ...empty });
     setFeedback('');
     setSaveError(false);
   };
@@ -59,7 +62,7 @@ function MilestoneProject({ project }: { project: Project }) {
       status: draft.status as ProjectScheduleItemInput['status'], ownerName: draft.ownerName.trim() || undefined, predecessor: draft.predecessor.trim() || undefined,
     };
     const done = { onSuccess: () => { qc.invalidateQueries({ queryKey: getGetProjectControlsQueryKey(project.id) }); setEditingId(null); setDraft(empty); setFeedback('Milestone saved.'); setSaveError(false); }, onError: (error: unknown) => { setFeedback(getMilestoneSaveError(error)); setSaveError(true); } };
-    if (editingId) update.mutate({ projectId: project.id, itemId: editingId, data: data as ProjectScheduleItemUpdate }, done);
+    if (editingId) update.mutate({ projectId: project.id, itemId: editingId, data: { ...data, expectedUpdatedAt: draft.expectedUpdatedAt } as ProjectScheduleItemUpdate }, done);
     else create.mutate({ projectId: project.id, data }, done);
   };
   if (controls.isLoading) return <div className="rounded-xl border border-border bg-card p-5"><LoadingPanel lines={3} /></div>;

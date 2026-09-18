@@ -235,6 +235,36 @@ const cases = [
     },
   },
   {
+    id: "milestones-conflict",
+    name: "milestone stale edit conflict recovery",
+    path: "/milestones?browserAuth=authenticated&browserControls=standalone&browserControlsReset=1&browserMilestoneSaveFailure=conflict",
+    heading: "Milestones",
+    actions: [
+      'button[data-testid="button-add-milestone-42"]',
+      'a[data-testid="link-milestone-project-42"]',
+    ],
+    requiredSelectors: [
+      '[data-testid="milestone-status-4202"]',
+      'button[data-testid="button-edit-milestone-4202"]',
+    ],
+    requiredTexts: ["Browser Test Project", "MS-001", "Site mobilization"],
+    editInlineEditor: {
+      openSelector: 'button[data-testid="button-edit-milestone-4202"]',
+      requiredSelector: 'input[data-testid="input-milestone-itemNumber"]',
+      submitSelector: 'button[data-testid="button-save-milestone"]',
+      submitLabel: "Save milestone",
+      feedbackSelector: '[data-testid="milestone-save-feedback"]',
+      feedbackText: "Milestone saved.",
+      fields: [
+        { selector: 'input[data-testid="input-milestone-name"]', value: "Stale browser edit" },
+      ],
+      failureRecovery: {
+        errorText: "This milestone changed since you opened it. Your edits are still here; reload the milestone before trying again.",
+        retry: false,
+      },
+    },
+  },
+  {
     id: "procurement-workspace",
     name: "procurement workspace",
     path: "/procurement?browserAuth=authenticated",
@@ -1006,6 +1036,8 @@ async function inspectInlineEditor(client, routeCase, viewport, editorKey = "inl
         };
       })()`,
     );
+
+    if (editorCase.failureRecovery.retry === false) return;
 
     const retried = await evaluate(client, `(() => {
       const submit = document.querySelector(${JSON.stringify(editorCase.submitSelector)});
@@ -1857,6 +1889,8 @@ async function inspectProcurementFailureRecovery(client, routeCase, viewport) {
         && [...document.querySelectorAll('[data-testid="${recovery.errorTestId}"] button')].some((button) => button.textContent?.trim() === "Retry"),
     }))()`,
   );
+
+    if (editorCase.failureRecovery.retry === false) return;
 
   const retried = await evaluate(client, `(() => {
     const button = document.querySelector('[data-testid="${recovery.errorTestId}"] button');

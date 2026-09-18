@@ -425,6 +425,7 @@ router.post("/projects/:projectId/controls/schedule", requireRole("owner", "admi
     ownerName: parsed.data.ownerName ?? null,
     tenantId: req.tenantId!,
     environmentId: req.environmentId!,
+    updatedAt: new Date(),
   }).returning();
   await appendEvent(req, params.data.projectId, "schedule", row.id, "schedule_item_created");
   res.status(201).json(toScheduleItem(row));
@@ -434,16 +435,31 @@ router.patch("/projects/:projectId/controls/schedule/:itemId", requireRole("owne
   const params = UpdateProjectScheduleItemParams.safeParse({ projectId: req.params.projectId, itemId: req.params.itemId });
   const parsed = UpdateProjectScheduleItemBody.safeParse(req.body);
   if (!params.success || !parsed.success) { res.status(400).json({ error: "Invalid schedule update" }); return; }
+  const { expectedUpdatedAt, ...scheduleItemUpdate } = parsed.data;
   const [row] = await db.update(projectScheduleItemsTable).set({
-    ...parsed.data,
-    predecessor: parsed.data.predecessor === undefined ? undefined : parsed.data.predecessor,
-    plannedStart: parsed.data.plannedStart === undefined ? undefined : nullableDate(parsed.data.plannedStart),
-    plannedEnd: parsed.data.plannedEnd === undefined ? undefined : nullableDate(parsed.data.plannedEnd),
-    actualStart: parsed.data.actualStart === undefined ? undefined : nullableDate(parsed.data.actualStart),
-    actualEnd: parsed.data.actualEnd === undefined ? undefined : nullableDate(parsed.data.actualEnd),
+    ...scheduleItemUpdate,
+    predecessor: scheduleItemUpdate.predecessor === undefined ? undefined : scheduleItemUpdate.predecessor,
+    plannedStart: scheduleItemUpdate.plannedStart === undefined ? undefined : nullableDate(scheduleItemUpdate.plannedStart),
+    plannedEnd: scheduleItemUpdate.plannedEnd === undefined ? undefined : nullableDate(scheduleItemUpdate.plannedEnd),
+    actualStart: scheduleItemUpdate.actualStart === undefined ? undefined : nullableDate(scheduleItemUpdate.actualStart),
+    actualEnd: scheduleItemUpdate.actualEnd === undefined ? undefined : nullableDate(scheduleItemUpdate.actualEnd),
     updatedAt: new Date(),
-  }).where(and(scope(req, projectScheduleItemsTable), eq(projectScheduleItemsTable.projectId, params.data.projectId), eq(projectScheduleItemsTable.id, params.data.itemId))).returning();
-  if (!row) { res.status(404).json({ error: "Schedule item not found" }); return; }
+  }).where(and(
+    scope(req, projectScheduleItemsTable),
+    eq(projectScheduleItemsTable.projectId, params.data.projectId),
+    eq(projectScheduleItemsTable.id, params.data.itemId),
+    sql`date_trunc('milliseconds', ${projectScheduleItemsTable.updatedAt}) = ${expectedUpdatedAt}`,
+  )).returning();
+  if (!row) {
+    const [existing] = await db.select({ id: projectScheduleItemsTable.id }).from(projectScheduleItemsTable).where(and(
+      scope(req, projectScheduleItemsTable),
+      eq(projectScheduleItemsTable.projectId, params.data.projectId),
+      eq(projectScheduleItemsTable.id, params.data.itemId),
+    ));
+    if (!existing) { res.status(404).json({ error: "Schedule item not found" }); return; }
+    res.status(409).json({ error: "This schedule item changed since you opened it", code: "SCHEDULE_ITEM_CONFLICT" });
+    return;
+  }
   await appendEvent(req, params.data.projectId, "schedule", row.id, "schedule_item_updated");
   res.json(toScheduleItem(row));
 });

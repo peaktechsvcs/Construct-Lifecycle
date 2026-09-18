@@ -896,6 +896,14 @@ export function installBrowserTestApi() {
         if (browserMilestoneSaveFailure === 'permission') {
           return json({ error: 'Insufficient workspace permissions for this operation' }, 403);
         }
+        if (browserMilestoneSaveFailure === 'conflict') {
+          const serverMilestone = browserControls.scheduleItems.find((item) => item.id === browserMilestone.id);
+          if (serverMilestone) {
+            serverMilestone.name = 'Server updated milestone';
+            serverMilestone.updatedAt = new Date(1).toISOString();
+          }
+          return json({ error: 'This schedule item changed since you opened it', code: 'SCHEDULE_ITEM_CONFLICT' }, 409);
+        }
         return json({ error: 'Browser test milestone save failure' }, 503);
       }
       let requestBody: Record<string, unknown> = {};

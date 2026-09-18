@@ -79,6 +79,19 @@ const emptyForm: Record<string, string> = {
 const dateInputValue = (value?: string | Date | null) =>
   value ? new Date(value).toISOString().slice(0, 10) : '';
 
+function getScheduleSaveMessage(error: unknown) {
+  if (error && typeof error === 'object') {
+    const apiError = error as { status?: unknown; data?: unknown };
+    const data = apiError.data && typeof apiError.data === 'object'
+      ? apiError.data as { code?: unknown }
+      : undefined;
+    if (apiError.status === 409 && data?.code === 'SCHEDULE_ITEM_CONFLICT') {
+      return 'This milestone changed since you opened it. Your edits are still here; reload the milestone before trying again.';
+    }
+  }
+  return 'The control could not be saved. Check the fields and try again.';
+}
+
 const selectClassName = 'h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
 
 function toneForStatus(status: string) {
@@ -166,6 +179,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
   const accountingSyncMutation = useSyncProjectAccounting();
   const [formKind, setFormKind] = useState<FormKind>();
   const [editingMilestoneId, setEditingMilestoneId] = useState<number | null>(null);
+  const [milestoneExpectedUpdatedAt, setMilestoneExpectedUpdatedAt] = useState('');
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [contractFieldErrors, setContractFieldErrors] = useState<ContractFieldErrors>({});
   const [form, setForm] = useState(emptyForm);
@@ -231,12 +245,14 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
   const closeForm = () => {
     setFormKind(undefined);
     setEditingMilestoneId(null);
+    setMilestoneExpectedUpdatedAt('');
     setForm(emptyForm);
   };
 
   const openMilestoneForm = (item?: ProjectScheduleItem) => {
     setFormKind('milestone');
     setEditingMilestoneId(item?.id ?? null);
+    setMilestoneExpectedUpdatedAt(item?.updatedAt ?? '');
     setForm(item ? {
       number: item.itemNumber,
       name: item.name,
@@ -340,7 +356,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
     event.preventDefault();
     const done = {
       onSuccess: () => { refresh(); setFeedback({ tone: 'success', message: 'Control saved.' }); closeForm(); },
-      onError: () => setFeedback({ tone: 'error', message: 'The control could not be saved. Check the fields and try again.' }),
+      onError: (error: unknown) => setFeedback({ tone: 'error', message: getScheduleSaveMessage(error) }),
     };
     if (formKind === 'milestone') {
       const milestoneData = {
@@ -356,7 +372,7 @@ export function ProjectControlsPanel({ projectId, contractValue, closeoutStatus 
         ownerName: form.responsibleParty.trim() || undefined,
       };
       if (editingMilestoneId) {
-        updateScheduleMutation.mutate({ projectId, itemId: editingMilestoneId, data: milestoneData }, done);
+        updateScheduleMutation.mutate({ projectId, itemId: editingMilestoneId, data: { ...milestoneData, expectedUpdatedAt: milestoneExpectedUpdatedAt } }, done);
       } else {
         scheduleMutation.mutate({ projectId, data: milestoneData }, done);
       }

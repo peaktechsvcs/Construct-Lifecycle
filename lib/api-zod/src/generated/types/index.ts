@@ -547,6 +547,8 @@ export * from './updatePlatformCustomerInput';
 export * from './updatePlatformCustomerInputStatus';
 export * from './updatePlatformCustomerMemberInput';
 export * from './updatePlatformCustomerMemberInputRole';
+export * from './updateProjectScheduleItem409';
+export * from './updateProjectScheduleItem409Code';
 export * from './updateTenantBusinessProfileInput';
 export * from './updateTenantMemberInput';
 export * from './updateTenantMemberInputRole';
