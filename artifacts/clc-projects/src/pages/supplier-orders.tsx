@@ -166,6 +166,10 @@ export function SupplierOrders() {
   const [tab, setTab] = useState<Tab>(routeTab);
   useEffect(() => setTab(routeTab), [routeTab]);
   const [search, setSearch] = useState('');
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | SupplierOrderStatus>('all');
+  const [receivingQueueFilter, setReceivingQueueFilter] = useState<'all' | 'needs_receiving' | 'exceptions' | 'complete'>('all');
+  const [operationMessage, setOperationMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const [selectedQuoteId, setSelectedQuoteId] = useState<number>();
   const [selectedOrderId, setSelectedOrderId] = useState<number>();
   const routeQuoteParam = routeParams.get('quote');
@@ -265,7 +269,7 @@ export function SupplierOrders() {
     if (selectedOrderId) void qc.invalidateQueries({ queryKey: getListSupplierOrderEventsQueryKey(selectedOrderId) });
   };
 
-  const visibleOrders = useMemo(() => {
+  const queueOrders = useMemo(() => {
     const rows = orders.data ?? [];
     // The list contract intentionally returns order summaries. Use lifecycle
     // state as the queue index, then load the selected detail for delivery
@@ -275,10 +279,26 @@ export function SupplierOrders() {
     return rows;
   }, [orders.data, routeMode]);
 
+  const visibleOrders = useMemo(() => {
+    const normalized = orderSearch.trim().toLowerCase();
+    return queueOrders.filter((order) => {
+      const matchesSearch = !normalized
+        || order.orderNumber.toLowerCase().includes(normalized)
+        || order.customerName.toLowerCase().includes(normalized);
+      const matchesStatus = orderStatusFilter === 'all' || order.orderStatus === orderStatusFilter;
+      const matchesReceivingFilter = routeMode !== 'receiving'
+        || receivingQueueFilter === 'all'
+        || (receivingQueueFilter === 'needs_receiving' && order.orderStatus === 'partially_fulfilled')
+        || (receivingQueueFilter === 'complete' && ['fulfilled', 'closed'].includes(order.orderStatus))
+        || (receivingQueueFilter === 'exceptions' && order.orderStatus === 'partially_fulfilled');
+      return matchesSearch && matchesStatus && matchesReceivingFilter;
+    });
+  }, [queueOrders, orderSearch, orderStatusFilter, receivingQueueFilter, routeMode]);
+
   useEffect(() => {
-    if (routeMode === 'procurement' || !visibleOrders.length) return;
-    if (routeOrderParam !== null && (!routeOrderId || !visibleOrders.some((order) => order.id === routeOrderId))) return;
-    const nextOrder = routeOrderId ? visibleOrders.find((order) => order.id === routeOrderId) : visibleOrders[0];
+    if (routeMode === 'procurement' || !queueOrders.length) return;
+    if (routeOrderParam !== null && (!routeOrderId || !queueOrders.some((order) => order.id === routeOrderId))) return;
+    const nextOrder = routeOrderId ? queueOrders.find((order) => order.id === routeOrderId) : queueOrders[0];
     if (!nextOrder) return;
     if (selectedOrderId !== nextOrder.id) {
       setSelectedOrderId(nextOrder.id);
@@ -289,7 +309,7 @@ export function SupplierOrders() {
       params.set('order', String(nextOrder.id));
       setLocation(`${pathname}?${params.toString()}`, { replace: true });
     }
-  }, [pathname, routeMode, routeOrderId, routeOrderParam, selectedOrderId, setLocation, visibleOrders]);
+  }, [pathname, routeMode, routeOrderId, routeOrderParam, selectedOrderId, setLocation, queueOrders]);
 
   function navigateTab(nextTab: Tab) {
     setTab(nextTab);
@@ -468,7 +488,11 @@ export function SupplierOrders() {
   function saveOrderStatus(event: React.FormEvent) {
     event.preventDefault();
     if (!selectedOrderId) return;
-    updateOrder.mutate({ orderId: selectedOrderId, data: { orderStatus } }, { onSuccess: refresh });
+    setOperationMessage(null);
+    updateOrder.mutate({ orderId: selectedOrderId, data: { orderStatus } }, {
+      onSuccess: () => { setOperationMessage({ tone: 'success', text: 'Purchase order status updated.' }); refresh(); },
+      onError: () => setOperationMessage({ tone: 'error', text: 'Status could not be updated. Your selection is still available to retry.' }),
+    });
   }
 
   function saveDelivery(event: React.FormEvent) {
@@ -491,11 +515,15 @@ export function SupplierOrders() {
         notes: deliveryForm.notes || undefined,
         lines,
       },
-    }, { onSuccess: refresh });
+    }, {
+      onSuccess: () => { setOperationMessage({ tone: 'success', text: 'Delivery recorded and fulfillment totals refreshed.' }); refresh(); },
+      onError: () => setOperationMessage({ tone: 'error', text: 'Delivery could not be recorded. Your delivery draft was kept.' }),
+    });
   }
 
   function saveReceiving(event: React.FormEvent, delivery: SupplierDelivery) {
     event.preventDefault();
+    const validationErrors: string[] = [];
     const lines = (delivery.lines ?? []).map((line) => {
       const draft = receivingDrafts[line.id] ?? {
         received: String(line.quantityReceived),
@@ -505,6 +533,18 @@ export function SupplierOrders() {
         accepted: line.acceptedByUserId !== null,
         note: line.exceptionNote ?? '',
       };
+      const quantities = [
+        ['accepted', draft.received],
+        ['damaged', draft.damaged],
+        ['short', draft.short],
+        ['returned', draft.returned],
+      ] as const;
+      const invalid = quantities.find(([, value]) => value.trim() === '' || !Number.isFinite(Number(value)) || Number(value) < 0);
+      if (invalid) {
+        validationErrors.push(`Line ${line.id}: ${invalid[0]} must be a non-negative number.`);
+      } else if (quantities.reduce((sum, [, value]) => sum + Number(value), 0) > line.quantityDelivered) {
+        validationErrors.push(`Line ${line.id}: accepted, damaged, short, and returned cannot exceed ${line.quantityDelivered} delivered.`);
+      }
       return {
         deliveryLineId: line.id,
         quantityReceived: Number(draft.received || 0),
@@ -516,7 +556,15 @@ export function SupplierOrders() {
       };
     });
     if (!selectedOrderId || !lines.length) return;
-    recordReceiving.mutate({ deliveryId: delivery.id, data: { lines } }, { onSuccess: refresh });
+    if (validationErrors.length) {
+      setOperationMessage({ tone: 'error', text: validationErrors[0] });
+      return;
+    }
+    setOperationMessage(null);
+    recordReceiving.mutate({ deliveryId: delivery.id, data: { lines } }, {
+      onSuccess: () => { setOperationMessage({ tone: 'success', text: 'Receiving disposition saved.' }); refresh(); },
+      onError: () => setOperationMessage({ tone: 'error', text: 'Receiving could not be saved. Your entered quantities and notes were kept.' }),
+    });
   }
 
   async function uploadProof(deliveryId: number, file: File) {
@@ -558,7 +606,10 @@ export function SupplierOrders() {
         waiverReference: invoiceForm.waiverReference || undefined,
         status: invoiceForm.status as 'draft' | 'submitted' | 'approved' | 'partially_paid' | 'paid' | 'disputed' | 'void',
       },
-    }, { onSuccess: refresh });
+    }, {
+      onSuccess: () => { setOperationMessage({ tone: 'success', text: 'Invoice added to the purchase order.' }); refresh(); },
+      onError: () => setOperationMessage({ tone: 'error', text: 'Invoice could not be added. Your invoice draft was kept.' }),
+    });
   }
 
   const selectedProduct = products.data?.[0];
@@ -566,12 +617,30 @@ export function SupplierOrders() {
     && routeOrderParam !== null
     && !orders.isLoading
     && !orders.isError
-    && (!routeOrderId || !visibleOrders.some((order) => order.id === routeOrderId));
+    && (!routeOrderId || !queueOrders.some((order) => order.id === routeOrderId));
   const unavailableQuoteLink = tab === 'quotes'
     && routeQuoteParam !== null
     && !quotes.isLoading
     && !quotes.isError
     && (!routeQuoteId || !quotes.data?.some((quote) => quote.id === routeQuoteId));
+  const visibleOpenCost = visibleOrders
+    .filter((order) => !['fulfilled', 'closed', 'canceled'].includes(order.orderStatus))
+    .reduce((sum, order) => sum + order.totalCost, 0);
+  const receivingMetrics = useMemo(() => {
+    const detail = selectedOrder.data;
+    const detailLines = detail?.deliveries.flatMap((delivery) => delivery.lines ?? []) ?? [];
+    const accounted = detailLines.reduce((sum, line) => sum + line.quantityReceived + line.quantityDamaged + line.quantityShort + line.quantityReturned, 0);
+    const delivered = detailLines.reduce((sum, line) => sum + line.quantityDelivered, 0);
+    const exceptionLines = detailLines.filter((line) => line.quantityDamaged > 0 || line.quantityShort > 0 || line.quantityReturned > 0 || Boolean(line.exceptionNote)).length;
+    const fullyReceived = detail ? detail.lines.every((line) => line.receivedQuantity >= line.quantity) : false;
+    return {
+      visibleOrders: visibleOrders.length,
+      openDeliveredUnits: Math.max(0, delivered - accounted),
+      exceptionLines,
+      fullyReceivedOrders: detail && fullyReceived ? 1 : 0,
+      hasDetail: Boolean(detail),
+    };
+  }, [selectedOrder.data, visibleOrders.length]);
 
   return (
     <div className="animate-rise space-y-6">
@@ -740,14 +809,93 @@ export function SupplierOrders() {
             eyebrow={routeMode === 'deliveries' ? 'Appointments and tracking' : routeMode === 'receiving' ? 'Delivered quantities and exceptions' : 'Purchasing and fulfillment'}
             title={routeMode === 'deliveries' ? 'Delivery schedule' : routeMode === 'receiving' ? 'Receiving dispositions' : 'Supplier orders'}
           >
-            {orders.isError ? <SupplierDataError testId="supplier-orders-error" title="Supplier order queue unavailable" text="The order queue could not be loaded. Retry to review purchasing and fulfillment." onRetry={() => { void orders.refetch(); }} /> : orders.isLoading ? <LoadingPanel lines={5} /> : visibleOrders.length ? <OrderTable orders={visibleOrders} selectedOrderId={selectedOrderId} onSelect={selectOrder} /> : <EmptyState icon={routeMode === 'receiving' ? Warehouse : Truck} title={routeMode === 'receiving' ? 'No receiving work yet' : routeMode === 'deliveries' ? 'No deliveries scheduled' : 'No orders yet'} text={routeMode === 'receiving' ? 'Delivered, partial, and exception quantities will appear here for disposition.' : routeMode === 'deliveries' ? 'Create a delivery from a purchase order to begin scheduling and tracking fulfillment.' : 'Accepted supplier quotes appear here as purchase orders.'} />}
+             {routeMode === 'purchase-orders' && (
+               <div className="mb-4 space-y-3 rounded-lg border border-border bg-secondary/30 p-3">
+                 <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
+                   <Field label="Search purchase orders">
+                     <div className="relative">
+                       <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                       <Input data-testid="input-purchase-order-search" value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder="PO number or customer" className={`${inputClass} pl-9`} />
+                     </div>
+                   </Field>
+                   <Field label="Lifecycle status">
+                     <select data-testid="select-purchase-order-status" value={orderStatusFilter} onChange={(event) => setOrderStatusFilter(event.target.value as 'all' | SupplierOrderStatus)} className={inputClass}>
+                       <option value="all">All statuses</option>
+                       {['draft', 'pending_approval', 'approved', 'purchasing', 'partially_fulfilled', 'fulfilled', 'closed', 'canceled'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}
+                     </select>
+                   </Field>
+                 </div>
+                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                   <span data-testid="text-purchase-order-result-count"><strong className="text-foreground">{visibleOrders.length}</strong> visible {visibleOrders.length === 1 ? 'order' : 'orders'}</span>
+                   <span data-testid="text-purchase-order-open-cost"><strong className="text-foreground">{money(visibleOpenCost)}</strong> open cost exposure</span>
+                   {(orderSearch || orderStatusFilter !== 'all') && <Button type="button" variant="ghost" data-testid="button-clear-purchase-order-filters" onClick={() => { setOrderSearch(''); setOrderStatusFilter('all'); }}>Clear filters</Button>}
+                 </div>
+               </div>
+             )}
+              {routeMode === 'receiving' && (
+                <>
+                  <div className="mb-4 space-y-3 rounded-lg border border-border bg-secondary/30 p-3">
+                    <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
+                      <Field label="Search receiving queue">
+                        <div className="relative">
+                          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                          <Input data-testid="input-receiving-search" value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder="PO number or customer" className={`${inputClass} pl-9`} />
+                        </div>
+                      </Field>
+                      <Field label="Queue view">
+                        <select data-testid="select-receiving-filter" value={receivingQueueFilter} onChange={(event) => setReceivingQueueFilter(event.target.value as typeof receivingQueueFilter)} className={inputClass}>
+                          <option value="all">All work</option>
+                          <option value="needs_receiving">Needs receiving</option>
+                          <option value="exceptions">Exceptions</option>
+                          <option value="complete">Complete</option>
+                        </select>
+                      </Field>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span data-testid="text-receiving-result-count"><strong className="text-foreground">{receivingMetrics.visibleOrders}</strong> visible {receivingMetrics.visibleOrders === 1 ? 'order' : 'orders'}</span>
+                      {(orderSearch || receivingQueueFilter !== 'all') && <Button type="button" variant="ghost" data-testid="button-clear-receiving-filters" onClick={() => { setOrderSearch(''); setReceivingQueueFilter('all'); }}>Clear filters</Button>}
+                    </div>
+                  </div>
+                  <div className="mb-4 grid grid-cols-2 gap-2 xl:grid-cols-4">
+                    <Metric label="Visible orders" value={String(receivingMetrics.visibleOrders)} />
+                    <Metric label="Open delivered units" value={receivingMetrics.hasDetail ? String(receivingMetrics.openDeliveredUnits) : '—'} />
+                    <Metric label="Exception lines" value={receivingMetrics.hasDetail ? String(receivingMetrics.exceptionLines) : '—'} />
+                    <Metric label="Fully received orders" value={receivingMetrics.hasDetail ? String(receivingMetrics.fullyReceivedOrders) : '—'} />
+                  </div>
+                </>
+              )}
+              {orders.isError ? <SupplierDataError testId="supplier-orders-error" title="Supplier order queue unavailable" text="The order queue could not be loaded. Retry to review purchasing and fulfillment." onRetry={() => { void orders.refetch(); }} /> : orders.isLoading ? <LoadingPanel lines={5} /> : visibleOrders.length ? <OrderTable orders={visibleOrders} selectedOrderId={selectedOrderId} onSelect={selectOrder} /> : <EmptyState icon={routeMode === 'receiving' ? Warehouse : Truck} title={(routeMode === 'purchase-orders' && (orderSearch || orderStatusFilter !== 'all')) || (routeMode === 'receiving' && (orderSearch || receivingQueueFilter !== 'all')) ? `No matching ${routeMode === 'receiving' ? 'receiving orders' : 'purchase orders'}` : routeMode === 'receiving' ? 'No receiving work yet' : routeMode === 'deliveries' ? 'No deliveries scheduled' : 'No orders yet'} text={(routeMode === 'purchase-orders' && (orderSearch || orderStatusFilter !== 'all')) || (routeMode === 'receiving' && (orderSearch || receivingQueueFilter !== 'all')) ? 'Try a different PO number, customer, or queue view.' : routeMode === 'receiving' ? 'Delivered, partial, and exception quantities will appear here for disposition.' : routeMode === 'deliveries' ? 'Create a delivery from a purchase order to begin scheduling and tracking fulfillment.' : 'Accepted supplier quotes appear here as purchase orders.'} />}
           </Section>
           <Section eyebrow="Fulfillment control" title="Order detail">
+             {operationMessage && <p data-testid="status-purchase-order-operation" role={operationMessage.tone === 'error' ? 'alert' : 'status'} className={`rounded-lg border p-3 text-xs font-semibold ${operationMessage.tone === 'error' ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'border-primary/30 bg-primary/5 text-primary'}`}>{operationMessage.text}</p>}
              {staleQueueOrder ? <div data-testid="supplier-order-unavailable"><EmptyState icon={ClipboardList} title="Order unavailable in this queue" text="This order link is stale or the order is no longer in this queue. Choose an order from the list to continue." /></div> : !selectedOrderId ? <EmptyState icon={ClipboardList} title="Choose an order" text="Review promised dates, margin, delivery appointments, receiving, invoices, and audit events." /> : selectedOrder.isError ? <SupplierDataError testId="supplier-order-detail-error" title="Supplier order detail unavailable" text="The selected order could not be loaded. Retry to review fulfillment and receiving details." onRetry={() => { void selectedOrder.refetch(); }} /> : selectedOrder.isLoading ? <LoadingPanel lines={5} /> : selectedOrder.data ? <div className="space-y-5">
-              <div className="flex items-start justify-between gap-3"><div><p className="mono text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{selectedOrder.data.orderNumber}</p><h3 className="mt-1 text-base font-bold">{selectedOrder.data.customerName}</h3><p className="mt-1 text-xs text-muted-foreground">{selectedOrder.data.jobsiteInstructions || 'No jobsite instructions shared yet.'}</p></div><Badge tone={statusTone(selectedOrder.data.orderStatus)}>{labelStatus(selectedOrder.data.orderStatus)}</Badge></div>
+               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="mono text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{selectedOrder.data.orderNumber}</p><h3 className="mt-1 text-base font-bold">{selectedOrder.data.customerName}</h3><p className="mt-1 text-xs text-muted-foreground">{selectedOrder.data.projectId ? `Project ${selectedOrder.data.projectId}` : 'No project linked'} · Customer account {selectedOrder.data.businessCustomerId}</p><p className="mt-1 text-xs text-muted-foreground">{selectedOrder.data.jobsiteInstructions || 'No jobsite instructions shared yet.'}</p></div><div className="flex flex-wrap gap-2"><Badge tone={statusTone(selectedOrder.data.orderStatus)}>{labelStatus(selectedOrder.data.orderStatus)}</Badge><Badge tone={statusTone(selectedOrder.data.paymentStatus)}>{labelStatus(selectedOrder.data.paymentStatus)}</Badge></div></div>
+               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><Metric label="Order date" value={shortDate(selectedOrder.data.orderDate)} /><Metric label="Promised" value={shortDate(selectedOrder.data.promisedDate)} /><Metric label="Payment" value={labelStatus(selectedOrder.data.paymentStatus)} /><Metric label="Customer context" value={selectedOrder.data.projectId ? `Project ${selectedOrder.data.projectId}` : 'Account only'} /></div>
               <div className="grid grid-cols-3 gap-2"><Metric label="Sell" value={money(selectedOrder.data.totalSell)} /><Metric label="Cost" value={money(selectedOrder.data.totalCost)} /><Metric label="Margin" value={money(selectedOrder.data.grossMargin)} /></div>
-              <div className="space-y-2">{selectedOrder.data.lines.map((line) => <div key={line.id} className="rounded-lg border border-border p-3"><div className="flex justify-between gap-2 text-sm"><span className="font-semibold">{line.description}</span><span>{line.receivedQuantity}/{line.quantity} received</span></div><div className="mt-2 flex flex-wrap gap-1.5"><Badge tone={line.backorderedQuantity > 0 ? 'orange' : 'green'}>{line.backorderedQuantity > 0 ? `${line.backorderedQuantity} backordered` : 'fully purchased'}</Badge>{line.approvedSubstitution && <Badge tone="teal">substitution approved</Badge>}</div></div>)}</div>
-              <form onSubmit={saveOrderStatus} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_auto] sm:items-end"><Field label="Order status"><select value={orderStatus} onChange={(event) => setOrderStatus(event.target.value as SupplierOrderStatus)} className={inputClass}>{['draft', 'pending_approval', 'approved', 'purchasing', 'partially_fulfilled', 'fulfilled', 'closed', 'canceled'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Button type="submit" disabled={updateOrder.isPending}>Save status</Button></form>
+                {routeMode === 'receiving' && (() => {
+                  const detailLines = selectedOrder.data.deliveries.flatMap((delivery) => delivery.lines ?? []);
+                  const delivered = detailLines.reduce((sum, line) => sum + line.quantityDelivered, 0);
+                  const accepted = detailLines.reduce((sum, line) => sum + line.quantityReceived, 0);
+                  const exception = detailLines.reduce((sum, line) => sum + line.quantityDamaged + line.quantityShort + line.quantityReturned, 0);
+                  return <div className="rounded-lg border border-primary/20 bg-primary/5 p-3" data-testid="receiving-summary">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <div><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary">Receiving summary</p><p className="mt-1 text-xs text-muted-foreground">{detailLines.length ? 'Reconcile every delivered unit before closeout.' : 'No delivery has been recorded for this order.'}</p></div>
+                      {detailLines.length > 0 && <Badge tone={exception > 0 ? 'orange' : 'green'}>{exception > 0 ? 'Exceptions to review' : 'No exception quantities'}</Badge>}
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <Metric label="Delivered" value={String(delivered)} />
+                      <Metric label="Accepted" value={String(accepted)} />
+                      <Metric label="Exception" value={String(exception)} />
+                      <Metric label="Remaining" value={String(Math.max(0, delivered - accepted - exception))} />
+                    </div>
+                  </div>;
+                })()}
+               <div className="space-y-2">{selectedOrder.data.lines.map((line) => {
+                 const purchasedPercent = line.quantity > 0 ? Math.min(100, (line.purchasedQuantity / line.quantity) * 100) : 0;
+                 const receivedPercent = line.quantity > 0 ? Math.min(100, (line.receivedQuantity / line.quantity) * 100) : 0;
+                 return <div key={line.id} className="rounded-lg border border-border p-3"><div className="flex flex-wrap justify-between gap-2 text-sm"><span className="font-semibold">{line.description}</span><span>{line.receivedQuantity}/{line.quantity} received</span></div><div className="mt-3 space-y-2" aria-label={`Purchase and receive progress for ${line.description}`}><ProgressRow label="Purchased" value={line.purchasedQuantity} total={line.quantity} percent={purchasedPercent} tone="bg-primary" /><ProgressRow label="Received" value={line.receivedQuantity} total={line.quantity} percent={receivedPercent} tone="bg-success" /></div><div className="mt-2 flex flex-wrap gap-1.5"><Badge tone={line.backorderedQuantity > 0 ? 'orange' : 'green'}>{line.backorderedQuantity > 0 ? `${line.backorderedQuantity} backordered` : 'fully purchased'}</Badge>{line.backorderedQuantity > 0 && <Badge tone="orange">receiving risk</Badge>}{line.approvedSubstitution && <Badge tone="teal">substitution approved</Badge>}</div></div>;
+               })}</div>
+               <form onSubmit={saveOrderStatus} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_auto] sm:items-end"><Field label="Order status"><select data-testid="select-order-detail-status" value={orderStatus} onChange={(event) => setOrderStatus(event.target.value as SupplierOrderStatus)} className={inputClass}>{['draft', 'pending_approval', 'approved', 'purchasing', 'partially_fulfilled', 'fulfilled', 'closed', 'canceled'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Button type="submit" disabled={updateOrder.isPending}>{updateOrder.isPending ? 'Updating…' : 'Save status'}</Button></form>
                <form onSubmit={saveDelivery} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2">
                  <p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary sm:col-span-2">Schedule delivery / partial fulfillment</p>
                  {selectedOrder.data.lines.map((line) => <Field key={line.id} label={`Quantity delivered · ${line.description}`}><Input type="number" min="0" max={Math.max(0, line.quantity - line.deliveredQuantity)} step="0.001" value={deliveryQuantities[line.id] ?? String(Math.max(0, line.quantity - line.deliveredQuantity))} onChange={(event) => setDeliveryQuantities({ ...deliveryQuantities, [line.id]: event.target.value })} className={inputClass} /></Field>)}
@@ -758,9 +906,9 @@ export function SupplierOrders() {
                </form>
                 <section className="space-y-3">
                   <div><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary">{routeMode === 'deliveries' ? 'Delivery evidence' : 'Receiving closeout'}</p><h4 className="mt-1 text-sm font-bold">{routeMode === 'deliveries' ? 'Proof, appointments, and exceptions' : 'Proof, exceptions, and returns'}</h4><p className="mt-1 text-xs text-muted-foreground">{routeMode === 'deliveries' ? 'Keep appointment status, proof, and exceptions attached to the order as fulfillment moves.' : 'Record the final quantity disposition for every delivery line. Order received totals are recalculated from these entries.'}</p></div>
-                 {selectedOrder.data.deliveries.length ? selectedOrder.data.deliveries.map((delivery) => <DeliveryReceivingCard key={delivery.id} delivery={delivery} orderLines={selectedOrder.data!.lines} drafts={receivingDrafts} onDraftChange={(lineId, draft) => setReceivingDrafts((current) => ({ ...current, [lineId]: draft }))} onSave={saveReceiving} onUpload={uploadProof} proofError={proofError} isSaving={recordReceiving.isPending} isUploading={requestProofUpload.isPending || completeProofUpload.isPending} />) : <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground">Record a delivery above to start receiving.</div>}
+                   {selectedOrder.data.deliveries.length ? selectedOrder.data.deliveries.map((delivery) => <DeliveryReceivingCard key={delivery.id} delivery={delivery} orderLines={selectedOrder.data!.lines} drafts={receivingDrafts} onDraftChange={(lineId, draft) => setReceivingDrafts((current) => ({ ...current, [lineId]: draft }))} onFillRemaining={(line, draft) => setReceivingDrafts((current) => ({ ...current, [line.id]: { ...draft, received: String(Math.max(0, line.quantityDelivered - Number(draft.damaged || 0) - Number(draft.short || 0) - Number(draft.returned || 0))) } }))} onSave={saveReceiving} onUpload={uploadProof} proofError={proofError} isSaving={recordReceiving.isPending} isUploading={requestProofUpload.isPending || completeProofUpload.isPending} />) : <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground" data-testid="receiving-no-delivery">No delivery has been recorded. Record a delivery above to start receiving.</div>}
                </section>
-              <form onSubmit={saveInvoice} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2"><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary sm:col-span-2">Supplier invoice</p><Field label="Invoice number"><Input required value={invoiceForm.invoiceNumber} onChange={(event) => setInvoiceForm({ ...invoiceForm, invoiceNumber: event.target.value })} className={inputClass} /></Field><Field label="Total amount"><Input required type="number" min="0" step="0.01" value={invoiceForm.totalAmount} onChange={(event) => setInvoiceForm({ ...invoiceForm, totalAmount: event.target.value })} className={inputClass} /></Field><Field label="Due date"><Input type="date" value={invoiceForm.dueDate} onChange={(event) => setInvoiceForm({ ...invoiceForm, dueDate: event.target.value })} className={inputClass} /></Field><Field label="Payment status"><select value={invoiceForm.status} onChange={(event) => setInvoiceForm({ ...invoiceForm, status: event.target.value })} className={inputClass}>{['submitted', 'approved', 'partially_paid', 'paid', 'disputed'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Field label="Amount paid"><Input type="number" min="0" step="0.01" value={invoiceForm.paidAmount} onChange={(event) => setInvoiceForm({ ...invoiceForm, paidAmount: event.target.value })} className={inputClass} /></Field><Field label="Payment reference"><Input value={invoiceForm.paymentReference} onChange={(event) => setInvoiceForm({ ...invoiceForm, paymentReference: event.target.value })} placeholder="Check, ACH, or remittance reference" className={inputClass} /></Field><Field label="Waiver status"><select value={invoiceForm.waiverStatus} onChange={(event) => setInvoiceForm({ ...invoiceForm, waiverStatus: event.target.value })} className={inputClass}>{['not_required', 'pending', 'received', 'approved', 'rejected'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Field label="Waiver reference"><Input value={invoiceForm.waiverReference} onChange={(event) => setInvoiceForm({ ...invoiceForm, waiverReference: event.target.value })} className={inputClass} /></Field><div className="sm:col-span-2"><Button type="submit" disabled={createInvoice.isPending}>Add invoice</Button></div></form>
+               <form onSubmit={saveInvoice} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2"><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary sm:col-span-2">Supplier invoice</p><Field label="Invoice number"><Input required value={invoiceForm.invoiceNumber} onChange={(event) => setInvoiceForm({ ...invoiceForm, invoiceNumber: event.target.value })} className={inputClass} /></Field><Field label="Total amount"><Input required type="number" min="0" step="0.01" value={invoiceForm.totalAmount} onChange={(event) => setInvoiceForm({ ...invoiceForm, totalAmount: event.target.value })} className={inputClass} /></Field><Field label="Due date"><Input type="date" value={invoiceForm.dueDate} onChange={(event) => setInvoiceForm({ ...invoiceForm, dueDate: event.target.value })} className={inputClass} /></Field><Field label="Payment status"><select value={invoiceForm.status} onChange={(event) => setInvoiceForm({ ...invoiceForm, status: event.target.value })} className={inputClass}>{['submitted', 'approved', 'partially_paid', 'paid', 'disputed'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Field label="Amount paid"><Input type="number" min="0" step="0.01" value={invoiceForm.paidAmount} onChange={(event) => setInvoiceForm({ ...invoiceForm, paidAmount: event.target.value })} className={inputClass} /></Field><Field label="Payment reference"><Input value={invoiceForm.paymentReference} onChange={(event) => setInvoiceForm({ ...invoiceForm, paymentReference: event.target.value })} placeholder="Check, ACH, or remittance reference" className={inputClass} /></Field><Field label="Waiver status"><select value={invoiceForm.waiverStatus} onChange={(event) => setInvoiceForm({ ...invoiceForm, waiverStatus: event.target.value })} className={inputClass}>{['not_required', 'pending', 'received', 'approved', 'rejected'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Field label="Waiver reference"><Input value={invoiceForm.waiverReference} onChange={(event) => setInvoiceForm({ ...invoiceForm, waiverReference: event.target.value })} className={inputClass} /></Field><div className="sm:col-span-2"><Button type="submit" disabled={createInvoice.isPending}>{createInvoice.isPending ? 'Adding invoice…' : 'Add invoice'}</Button></div></form>
               {selectedOrder.data.invoices.length > 0 && <div><p className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-muted-foreground">Invoices</p><div className="space-y-2">{selectedOrder.data.invoices.map((invoice) => <div key={invoice.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm"><span className="font-semibold">{invoice.invoiceNumber}</span><span>{money(invoice.totalAmount)} <Badge tone={statusTone(invoice.status)}>{labelStatus(invoice.status)}</Badge></span></div>)}</div></div>}
               {events.data?.length ? <div><p className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-muted-foreground">Audit history</p><div className="space-y-2">{events.data.slice(0, 6).map((event) => <div key={event.id} className="flex gap-3 rounded-lg border border-border p-3 text-xs"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" /><div><p className="font-semibold">{labelStatus(event.action)}</p><p className="text-muted-foreground">{event.details || `${event.fromStatus || '—'} → ${event.toStatus || '—'}`} · {shortDate(event.createdAt.toString())}</p></div></div>)}</div></div> : null}
             </div> : <EmptyState icon={ClipboardList} title="Order not found" text="Refresh the workspace and choose another order." />}
@@ -776,6 +924,7 @@ function DeliveryReceivingCard({
   orderLines,
   drafts,
   onDraftChange,
+   onFillRemaining,
   onSave,
   onUpload,
   proofError,
@@ -786,6 +935,7 @@ function DeliveryReceivingCard({
   orderLines: SupplierOrderLine[];
   drafts: Record<number, ReceivingDraft>;
   onDraftChange: (lineId: number, draft: ReceivingDraft) => void;
+  onFillRemaining: (line: SupplierDeliveryLine, draft: ReceivingDraft) => void;
   onSave: (event: React.FormEvent, delivery: SupplierDelivery) => void;
   onUpload: (deliveryId: number, file: File) => void;
   proofError: string;
@@ -820,17 +970,21 @@ function DeliveryReceivingCard({
             note: line.exceptionNote ?? '',
           };
           const accounted = Number(draft.received || 0) + Number(draft.damaged || 0) + Number(draft.short || 0) + Number(draft.returned || 0);
+           const fullyAccounted = Number.isFinite(accounted) && accounted === line.quantityDelivered;
+           const remaining = Math.max(0, line.quantityDelivered - Number(draft.damaged || 0) - Number(draft.short || 0) - Number(draft.returned || 0));
           return <div key={line.id} className="rounded-lg border border-border bg-card p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div><p className="text-sm font-semibold">{orderLine?.description || `Order line ${line.orderLineId}`}</p><p className="mono mt-1 text-[9px] uppercase tracking-[.08em] text-muted-foreground">{accounted} / {line.quantityDelivered} accounted for</p></div>
-              {accounted > line.quantityDelivered && <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-destructive"><AlertTriangle size={12} /> Over delivery</span>}
+               {accounted > line.quantityDelivered ? <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-destructive"><AlertTriangle size={12} /> Over delivery</span> : <Badge tone={fullyAccounted ? 'green' : 'orange'}>{fullyAccounted ? 'Fully accounted' : 'Needs disposition'}</Badge>}
             </div>
+             <p className="mt-2 text-xs text-muted-foreground">{draft.received} accepted · {Number(draft.damaged || 0) + Number(draft.short || 0) + Number(draft.returned || 0)} exception units</p>
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Field label="Accepted"><Input type="number" min="0" max={line.quantityDelivered} step="0.001" value={draft.received} onChange={(event) => onDraftChange(line.id, { ...draft, received: event.target.value })} className={inputClass} /></Field>
               <Field label="Damaged"><Input type="number" min="0" max={line.quantityDelivered} step="0.001" value={draft.damaged} onChange={(event) => onDraftChange(line.id, { ...draft, damaged: event.target.value })} className={inputClass} /></Field>
               <Field label="Short"><Input type="number" min="0" max={line.quantityDelivered} step="0.001" value={draft.short} onChange={(event) => onDraftChange(line.id, { ...draft, short: event.target.value })} className={inputClass} /></Field>
               <Field label="Returned"><Input type="number" min="0" max={line.quantityDelivered} step="0.001" value={draft.returned} onChange={(event) => onDraftChange(line.id, { ...draft, returned: event.target.value })} className={inputClass} /></Field>
             </div>
+             <Button type="button" variant="outline" data-testid={`button-fill-remaining-${line.id}`} onClick={() => onFillRemaining(line, draft)} className="mt-3 text-xs">Fill remaining accepted ({remaining})</Button>
             <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-muted-foreground"><input type="checkbox" checked={draft.accepted} onChange={(event) => onDraftChange(line.id, { ...draft, accepted: event.target.checked })} /> Accept this line for receiving</label>
             <Input value={draft.note} onChange={(event) => onDraftChange(line.id, { ...draft, note: event.target.value })} placeholder="Exception note for damage, shortage, or return" className={`mt-3 ${inputClass}`} />
           </div>;
@@ -850,6 +1004,16 @@ function Signal({ label, value, detail }: { label: string; value: number; detail
 
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="rounded-lg bg-secondary/60 p-2.5"><p className="mono text-[9px] uppercase tracking-[.08em] text-muted-foreground">{label}</p><p className="mt-1 text-sm font-bold">{value}</p></div>;
+}
+
+function ProgressRow({ label, value, total, percent, tone }: { label: string; value: number; total: number; percent: number; tone: string }) {
+  return <div className="grid grid-cols-[4.5rem_1fr_auto] items-center gap-2 text-[10px]">
+    <span className="font-semibold text-muted-foreground">{label}</span>
+    <div className="h-1.5 overflow-hidden rounded-full bg-secondary" role="progressbar" aria-label={`${label} progress`} aria-valuemin={0} aria-valuemax={total} aria-valuenow={value}>
+      <div className={`h-full rounded-full ${tone}`} style={{ width: `${percent}%` }} />
+    </div>
+    <span className="mono text-muted-foreground">{value}/{total}</span>
+  </div>;
 }
 
 function ProductTable({ products }: { products: SupplierProduct[] }) {
