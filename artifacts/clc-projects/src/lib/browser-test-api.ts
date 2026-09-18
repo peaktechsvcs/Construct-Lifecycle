@@ -931,8 +931,12 @@ export function installBrowserTestApi() {
     if (url.pathname === `/api/itb-intakes/${browserMailboxIntake.id}`) return json(browserMailboxIntake);
     if (url.pathname === '/api/itb-intakes/mailbox/preview') {
       const scenario = browserMailboxScenario();
+      const provider = url.searchParams.get('provider') === 'outlook' ? 'outlook' : 'google-mail';
       return json([{
         ...browserMailboxMessage,
+        provider,
+        messageId: `browser-${provider}-message`,
+        threadId: `browser-${provider}-thread`,
         imported: scenario === 'existing',
         intakeId: scenario === 'existing' ? browserMailboxIntake.id : null,
       }]);

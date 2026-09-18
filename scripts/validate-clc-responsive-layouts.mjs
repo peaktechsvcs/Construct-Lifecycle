@@ -265,6 +265,17 @@ const cases = [
     },
   },
   {
+    id: "itb-mailbox-outlook-preview",
+    name: "ITB Outlook mailbox preview",
+    path: "/itb-intakes?browserAuth=authenticated&browserMailbox=existing",
+    heading: "ITB intakes",
+    actions: ['button[data-testid="button-mailbox-preview"]'],
+    requiredTexts: ["ITB intakes"],
+    mailboxPreview: true,
+    shell: true,
+    skipVisual: true,
+  },
+  {
     id: "procurement-workspace",
     name: "procurement workspace",
     path: "/procurement?browserAuth=authenticated",
@@ -1157,6 +1168,83 @@ async function inspectInlineEditor(client, routeCase, viewport, editorKey = "inl
   await evaluate(client, `window.scrollTo({ top: 0, left: 0, behavior: "auto" })`);
 }
 
+async function inspectMailboxPreview(client, routeCase, viewport) {
+  if (!routeCase.mailboxPreview) return;
+
+  const opened = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-mailbox-preview"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!opened) throw new Error(`${routeCase.name} (${viewport.name}): mailbox preview opener missing`);
+
+  await waitFor(
+    client,
+    `${routeCase.name} mailbox dialog`,
+    `(() => ({
+      ready: document.body.innerText.includes("Preview connected Google Workspace / Gmail mailbox"),
+    }))()`,
+  );
+
+  const openedProvider = await evaluate(client, `(() => {
+    const trigger = document.querySelector('[aria-label="Mailbox provider"]');
+    if (!(trigger instanceof HTMLElement)) return false;
+    trigger.click();
+    return true;
+  })()`);
+  if (!openedProvider) throw new Error(`${routeCase.name} (${viewport.name}): mailbox provider selector missing`);
+
+  const outlookOption = await waitFor(
+    client,
+    `${routeCase.name} Outlook option`,
+    `(() => ({
+      ready: [...document.querySelectorAll('[role="option"]')].some((option) => option.textContent?.includes("Microsoft 365 / Outlook")),
+    }))()`,
+  );
+  if (!outlookOption.ready) throw new Error(`${routeCase.name} (${viewport.name}): Outlook option missing`);
+
+  const selectedOutlook = await evaluate(client, `(() => {
+    const option = [...document.querySelectorAll('[role="option"]')].find((item) => item.textContent?.includes("Microsoft 365 / Outlook"));
+    if (!(option instanceof HTMLElement)) return false;
+    option.click();
+    return true;
+  })()`);
+  if (!selectedOutlook) throw new Error(`${routeCase.name} (${viewport.name}): Outlook option could not be selected`);
+
+  const selectedState = await waitFor(
+    client,
+    `${routeCase.name} Outlook selection`,
+    `(() => {
+      const trigger = document.querySelector('[aria-label="Mailbox provider"]');
+      const query = document.querySelector('input[placeholder*="Search Outlook"]');
+      return {
+        ready: document.body.innerText.includes("Preview connected Microsoft 365 / Outlook mailbox")
+          && trigger?.textContent?.includes("Microsoft 365 / Outlook")
+          && query instanceof HTMLInputElement
+          && query.value === "newer_than:30d bid tender invitation",
+      };
+    })()`,
+  );
+  if (!selectedState.ready) throw new Error(`${routeCase.name} (${viewport.name}): Outlook selection did not reset its bounded query`);
+
+  const previewClicked = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-mailbox-preview-run"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!previewClicked) throw new Error(`${routeCase.name} (${viewport.name}): mailbox Preview action missing`);
+
+  await waitFor(
+    client,
+    `${routeCase.name} Outlook preview result`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="mailbox-preview-result"][data-mailbox-provider="outlook"]') !== null,
+    }))()`,
+  );
+}
+
 async function inspectProjectControlsPersistence(client, routeCase, viewport) {
   if (!routeCase.projectControlsPersistence) return;
 
@@ -1984,6 +2072,7 @@ async function inspect(client, routeCase, viewport) {
   await inspectInlineEditor(client, routeCase, viewport);
   await inspectInlineEditor(client, routeCase, viewport, "editInlineEditor");
   await inspectSearchTransition(client, routeCase, viewport);
+  await inspectMailboxPreview(client, routeCase, viewport);
   await inspectSupplierQuoteCreation(client, routeCase, viewport);
   await inspectProcurementFailureRecovery(client, routeCase, viewport);
   await inspectProcurementNavigation(client, routeCase, viewport);

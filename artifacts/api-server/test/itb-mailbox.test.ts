@@ -50,6 +50,7 @@ test("previews Gmail threads through the managed connector response shape", asyn
     receivedAt: "2026-09-12T10:00:00Z",
     snippet: "Please bid.",
     imported: false,
+    intakeId: null,
   }]);
 });
 
@@ -85,6 +86,7 @@ test("previews Outlook messages with Graph search, recent-date filtering, and pa
     receivedAt: "2026-09-12T11:00:00Z",
     snippet: "Bid due September 30.",
     imported: false,
+    intakeId: null,
   });
 });
 
