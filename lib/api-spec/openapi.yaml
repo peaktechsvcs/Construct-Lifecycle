@@ -8572,6 +8572,9 @@ components:
       type: object
       properties:
         status: { type: string, enum: [scheduled, confirmed, in_transit, delivered, partial, exception, returned, canceled] }
+        appointmentDate: { type: ["string", "null"], format: date }
+        carrier: { type: ["string", "null"], maxLength: 120 }
+        trackingReference: { type: ["string", "null"], maxLength: 180 }
         recipientName: { type: ["string", "null"], maxLength: 180 }
         notes: { type: ["string", "null"], maxLength: 5000 }
     SupplierDeliveryLineInput:

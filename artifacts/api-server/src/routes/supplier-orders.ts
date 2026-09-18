@@ -1243,8 +1243,11 @@ router.patch("/supplier-deliveries/:deliveryId", requireRole("owner", "admin", "
   if (!existing) { notFound(res, "Supplier delivery not found"); return; }
   const [row] = await db.update(supplierDeliveriesTable).set({
     ...(parsed.data.status === undefined ? {} : { status: parsed.data.status }),
-    ...(parsed.data.recipientName === undefined ? {} : { recipientName: parsed.data.recipientName }),
-    ...(parsed.data.notes === undefined ? {} : { notes: parsed.data.notes }),
+    ...(parsed.data.appointmentDate === undefined ? {} : { appointmentDate: dateOnly(parsed.data.appointmentDate) ?? null }),
+    ...(parsed.data.carrier === undefined ? {} : { carrier: parsed.data.carrier?.trim() || null }),
+    ...(parsed.data.trackingReference === undefined ? {} : { trackingReference: parsed.data.trackingReference?.trim() || null }),
+    ...(parsed.data.recipientName === undefined ? {} : { recipientName: parsed.data.recipientName?.trim() || null }),
+    ...(parsed.data.notes === undefined ? {} : { notes: parsed.data.notes?.trim() || null }),
     ...(parsed.data.status && ["delivered", "partial"].includes(parsed.data.status) ? { deliveredAt: existing.deliveredAt ?? new Date() } : {}),
     updatedAt: new Date(),
   }).where(and(eq(supplierDeliveriesTable.id, path.data.deliveryId), scope(req, supplierDeliveriesTable))).returning();

@@ -9,6 +9,18 @@ import type { SupplierDeliveryUpdateStatus } from './supplierDeliveryUpdateStatu
 
 export interface SupplierDeliveryUpdate {
   status?: SupplierDeliveryUpdateStatus;
+  /** @nullable */
+  appointmentDate?: Date | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  carrier?: string | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  trackingReference?: string | null;
   /**
      * @maxLength 180
      * @nullable

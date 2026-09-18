@@ -6749,6 +6749,18 @@ export const SupplierDeliveryUpdateStatus = {
 
 export interface SupplierDeliveryUpdate {
   status?: SupplierDeliveryUpdateStatus;
+  /** @nullable */
+  appointmentDate?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  carrier?: string | null;
+  /**
+     * @maxLength 180
+     * @nullable
+     */
+  trackingReference?: string | null;
   /**
      * @maxLength 180
      * @nullable

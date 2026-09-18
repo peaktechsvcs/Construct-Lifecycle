@@ -4071,6 +4071,10 @@ export const UpdateSupplierDeliveryParams = zod.object({
   "deliveryId": zod.coerce.number().int()
 })
 
+export const updateSupplierDeliveryBodyCarrierMax = 120;
+
+export const updateSupplierDeliveryBodyTrackingReferenceMax = 180;
+
 export const updateSupplierDeliveryBodyRecipientNameMax = 180;
 
 export const updateSupplierDeliveryBodyNotesMax = 5000;
@@ -4079,6 +4083,9 @@ export const updateSupplierDeliveryBodyNotesMax = 5000;
 
 export const UpdateSupplierDeliveryBody = zod.object({
   "status": zod.enum(['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned', 'canceled']).optional(),
+  "appointmentDate": zod.coerce.date().nullish(),
+  "carrier": zod.string().max(updateSupplierDeliveryBodyCarrierMax).nullish(),
+  "trackingReference": zod.string().max(updateSupplierDeliveryBodyTrackingReferenceMax).nullish(),
   "recipientName": zod.string().max(updateSupplierDeliveryBodyRecipientNameMax).nullish(),
   "notes": zod.string().max(updateSupplierDeliveryBodyNotesMax).nullish()
 })
