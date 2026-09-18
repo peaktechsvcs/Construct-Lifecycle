@@ -11,6 +11,7 @@ const {
   environmentsTable,
   membershipsTable,
   pool,
+  projectChangeOrdersTable,
   projectContractsTable,
   projectControlEventsTable,
   projectsTable,
@@ -26,6 +27,9 @@ const clerkIds = {
   ownerA: `controls-owner-a-${runId}`,
   productionOwnerA: `controls-production-owner-a-${runId}`,
   ownerB: `controls-owner-b-${runId}`,
+  adminA: `controls-admin-a-${runId}`,
+  memberA: `controls-member-a-${runId}`,
+  platformAdmin: `controls-platform-admin-${runId}`,
 };
 
 type JsonBody = Record<string, unknown> | unknown[];
@@ -91,27 +95,39 @@ before(async () => {
   environmentAProductionId = environmentAProduction.id;
   environmentBDtdId = environmentBDtd.id;
 
-  const [ownerA, productionOwnerA, ownerB] = await db.insert(usersTable).values([
+  const [ownerA, productionOwnerA, ownerB, adminA, memberA, platformAdmin] = await db.insert(usersTable).values([
     { clerkUserId: clerkIds.ownerA, email: `${clerkIds.ownerA}@integration.test`, displayName: "Controls Owner A" },
     { clerkUserId: clerkIds.productionOwnerA, email: `${clerkIds.productionOwnerA}@integration.test`, displayName: "Controls Production Owner A" },
     { clerkUserId: clerkIds.ownerB, email: `${clerkIds.ownerB}@integration.test`, displayName: "Controls Owner B" },
+    { clerkUserId: clerkIds.adminA, email: `${clerkIds.adminA}@integration.test`, displayName: "Controls Admin A" },
+    { clerkUserId: clerkIds.memberA, email: `${clerkIds.memberA}@integration.test`, displayName: "Controls Member A" },
+    { clerkUserId: clerkIds.platformAdmin, email: `${clerkIds.platformAdmin}@integration.test`, displayName: "Controls Platform Admin", isPlatformAdmin: true },
   ]).returning();
 
   await db.insert(membershipsTable).values([
     { tenantId: tenantAId, userId: ownerA.id, role: "owner", environmentAccessConfigured: true },
     { tenantId: tenantAId, userId: productionOwnerA.id, role: "owner", environmentAccessConfigured: true },
     { tenantId: tenantBId, userId: ownerB.id, role: "owner", environmentAccessConfigured: true },
+    { tenantId: tenantAId, userId: adminA.id, role: "admin", environmentAccessConfigured: true },
+    { tenantId: tenantAId, userId: memberA.id, role: "member", environmentAccessConfigured: true },
+    { tenantId: tenantAId, userId: platformAdmin.id, role: "admin", environmentAccessConfigured: true },
   ]);
   await db.insert(tenantEnvironmentAccessTable).values([
     { tenantId: tenantAId, environmentId: environmentADtdId, userId: ownerA.id, grantedByUserId: ownerA.id },
     { tenantId: tenantAId, environmentId: environmentAProductionId, userId: ownerA.id, grantedByUserId: ownerA.id },
     { tenantId: tenantAId, environmentId: environmentAProductionId, userId: productionOwnerA.id, grantedByUserId: productionOwnerA.id },
     { tenantId: tenantBId, environmentId: environmentBDtdId, userId: ownerB.id, grantedByUserId: ownerB.id },
+    { tenantId: tenantAId, environmentId: environmentADtdId, userId: adminA.id, grantedByUserId: ownerA.id },
+    { tenantId: tenantAId, environmentId: environmentADtdId, userId: memberA.id, grantedByUserId: ownerA.id },
+    { tenantId: tenantAId, environmentId: environmentADtdId, userId: platformAdmin.id, grantedByUserId: ownerA.id },
   ]);
   await db.insert(userTenantContextTable).values([
     { userId: ownerA.id, activeTenantId: tenantAId, activeEnvironmentId: environmentADtdId },
     { userId: productionOwnerA.id, activeTenantId: tenantAId, activeEnvironmentId: environmentAProductionId },
     { userId: ownerB.id, activeTenantId: tenantBId, activeEnvironmentId: environmentBDtdId },
+    { userId: adminA.id, activeTenantId: tenantAId, activeEnvironmentId: environmentADtdId },
+    { userId: memberA.id, activeTenantId: tenantAId, activeEnvironmentId: environmentADtdId },
+    { userId: platformAdmin.id, activeTenantId: tenantAId, activeEnvironmentId: environmentADtdId },
   ]);
 
   const [projectA] = await db.insert(projectsTable).values({
@@ -335,6 +351,142 @@ test("contract and milestone edits survive controls reload", async () => {
   assert.equal(milestone.actualEnd, "2027-07-20");
   assert.equal(milestone.status, "complete");
   assert.equal(milestone.ownerName, "Closeout Team");
+});
+
+test("change order approval decisions enforce roles, transitions, and scope", async () => {
+  const changeOrdersPath = `/projects/${projectADtdId}/controls/change-orders`;
+  const changeOrderBody = (changeNumber: string, title: string) => ({
+    changeNumber,
+    changeType: "change_order",
+    title,
+    description: "API approval boundary coverage",
+    status: "under_review",
+    proposedValue: 12500,
+    scheduleImpactDays: 2,
+    requestedBy: "Controls Member A",
+  });
+  const createPending = async (changeNumber: string, title: string) => {
+    const response = await request(clerkIds.memberA, changeOrdersPath, {
+      method: "POST",
+      body: JSON.stringify(changeOrderBody(changeNumber, title)),
+    });
+    assert.equal(response.status, 201, JSON.stringify(response.body));
+    const body = bodyObject(response.body);
+    assert.equal(body.approvalStatus, "pending");
+    assert.equal(body.status, "under_review");
+    assert.equal(typeof body.id, "number");
+    return body;
+  };
+
+  const memberCreated = await createPending(`CO-${runId}-MEMBER`, "Member editable change");
+  const memberChangeOrderId = memberCreated.id as number;
+  const memberApproval = await request(clerkIds.memberA, `${changeOrdersPath}/${memberChangeOrderId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ approvalStatus: "approved", status: "approved", approvedValue: 12500 }),
+  });
+  assert.equal(memberApproval.status, 403);
+  assert.deepEqual(memberApproval.body, { error: "Only customer administrators can approve a change order." });
+
+  const memberRejection = await request(clerkIds.memberA, `${changeOrdersPath}/${memberChangeOrderId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ approvalStatus: "rejected", status: "rejected" }),
+  });
+  assert.equal(memberRejection.status, 403);
+  assert.deepEqual(memberRejection.body, { error: "Only customer administrators can approve a change order." });
+
+  const memberEdit = await request(clerkIds.memberA, `${changeOrdersPath}/${memberChangeOrderId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title: "Member edited change", proposedValue: 13000 }),
+  });
+  assert.equal(memberEdit.status, 200, JSON.stringify(memberEdit.body));
+  const memberEditBody = bodyObject(memberEdit.body);
+  assert.equal(memberEditBody.title, "Member edited change");
+  assert.equal(memberEditBody.proposedValue, 13000);
+  assert.equal(memberEditBody.approvalStatus, "pending");
+  assert.equal(memberEditBody.status, "under_review");
+
+  const ownerCreated = await createPending(`CO-${runId}-OWNER`, "Owner approval change");
+  const ownerApproval = await request(clerkIds.ownerA, `${changeOrdersPath}/${ownerCreated.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ approvalStatus: "approved", status: "approved", approvedValue: 12500 }),
+  });
+  assert.equal(ownerApproval.status, 200, JSON.stringify(ownerApproval.body));
+  const ownerApprovalBody = bodyObject(ownerApproval.body);
+  assert.equal(ownerApprovalBody.approvalStatus, "approved");
+  assert.equal(ownerApprovalBody.status, "approved");
+  assert.equal(ownerApprovalBody.approvedValue, 12500);
+
+  const adminCreated = await createPending(`CO-${runId}-ADMIN`, "Admin approval change");
+  const adminApproval = await request(clerkIds.adminA, `${changeOrdersPath}/${adminCreated.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ approvalStatus: "approved", status: "approved", approvedValue: 12500 }),
+  });
+  assert.equal(adminApproval.status, 200, JSON.stringify(adminApproval.body));
+  const adminApprovalBody = bodyObject(adminApproval.body);
+  assert.equal(adminApprovalBody.approvalStatus, "approved");
+  assert.equal(adminApprovalBody.status, "approved");
+  assert.equal(adminApprovalBody.approvedValue, 12500);
+
+  const platformCreated = await createPending(`CO-${runId}-PLATFORM`, "Platform approval change");
+  const platformApproval = await request(clerkIds.platformAdmin, `${changeOrdersPath}/${platformCreated.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ approvalStatus: "approved", status: "approved", approvedValue: 12500 }),
+  });
+  assert.equal(platformApproval.status, 200, JSON.stringify(platformApproval.body));
+  const platformApprovalBody = bodyObject(platformApproval.body);
+  assert.equal(platformApprovalBody.approvalStatus, "approved");
+  assert.equal(platformApprovalBody.status, "approved");
+  assert.equal(platformApprovalBody.approvedValue, 12500);
+
+  const rejectionCreated = await createPending(`CO-${runId}-REJECT`, "Admin rejection change");
+  const adminRejection = await request(clerkIds.adminA, `${changeOrdersPath}/${rejectionCreated.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ approvalStatus: "rejected", status: "rejected" }),
+  });
+  assert.equal(adminRejection.status, 200, JSON.stringify(adminRejection.body));
+  const adminRejectionBody = bodyObject(adminRejection.body);
+  assert.equal(adminRejectionBody.approvalStatus, "rejected");
+  assert.equal(adminRejectionBody.status, "rejected");
+
+  const crossTenantUpdate = await request(clerkIds.ownerB, `${changeOrdersPath}/${memberChangeOrderId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title: "Cross-tenant overwrite" }),
+  });
+  assert.equal(crossTenantUpdate.status, 404);
+
+  const crossEnvironmentUpdate = await request(clerkIds.productionOwnerA, `${changeOrdersPath}/${memberChangeOrderId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title: "Cross-environment overwrite" }),
+  });
+  assert.equal(crossEnvironmentUpdate.status, 404);
+
+  const crossEnvironmentCreate = await request(clerkIds.productionOwnerA, changeOrdersPath, {
+    method: "POST",
+    body: JSON.stringify(changeOrderBody(`CO-${runId}-PRODUCTION`, "Wrong environment change")),
+  });
+  assert.equal(crossEnvironmentCreate.status, 404);
+
+  const reloaded = await request(clerkIds.ownerA, `/projects/${projectADtdId}/controls`);
+  assert.equal(reloaded.status, 200, JSON.stringify(reloaded.body));
+  const changes = bodyObject(reloaded.body).changeOrders as Array<Record<string, unknown>>;
+  const persistedMemberChange = changes.find((change) => change.id === memberChangeOrderId);
+  assert(persistedMemberChange);
+  assert.equal(persistedMemberChange.title, "Member edited change");
+  assert.equal(persistedMemberChange.approvalStatus, "pending");
+  assert.equal(persistedMemberChange.status, "under_review");
+  assert.equal(changes.find((change) => change.id === ownerCreated.id)?.approvalStatus, "approved");
+  assert.equal(changes.find((change) => change.id === adminCreated.id)?.approvalStatus, "approved");
+  assert.equal(changes.find((change) => change.id === platformCreated.id)?.approvalStatus, "approved");
+  assert.equal(changes.find((change) => change.id === rejectionCreated.id)?.approvalStatus, "rejected");
+
+  const persistedRows = await db.select().from(projectChangeOrdersTable).where(and(
+    eq(projectChangeOrdersTable.projectId, projectADtdId),
+    eq(projectChangeOrdersTable.tenantId, tenantAId),
+    eq(projectChangeOrdersTable.environmentId, environmentADtdId),
+  ));
+  assert.equal(persistedRows.length, 5);
+  assert.equal(persistedRows.some((row) => row.title === "Cross-tenant overwrite"), false);
+  assert.equal(persistedRows.some((row) => row.title === "Cross-environment overwrite"), false);
 });
 
 test("contract validation identifies fields without changing the saved contract", async () => {

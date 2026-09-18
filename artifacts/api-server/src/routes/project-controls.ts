@@ -59,7 +59,7 @@ import {
   SyncProjectAccountingResponse,
 } from "@workspace/api-zod";
 import type { TenantRequest } from "../middlewares/tenantContext";
-import { getCurrentTenantRole, requireRole } from "../middlewares/rbac";
+import { getCurrentTenantRole, requireRole, requireWorkflowManager } from "../middlewares/rbac";
 import { canApproveProjectChange } from "../lib/project-control-policy";
 import { AccountingSyncError, syncProjectAccounting } from "../lib/accounting/sync";
 
@@ -173,6 +173,13 @@ async function getProject(req: TenantRequest, projectId: number) {
     eq(projectsTable.environmentId, req.environmentId!),
   ));
   return project;
+}
+
+async function canApproveChangeOrder(req: TenantRequest) {
+  const role = req.isPlatformAdmin
+    ? "platform_admin"
+    : await getCurrentTenantRole(req);
+  return canApproveProjectChange(role as "owner" | "admin" | "member" | "platform_admin");
 }
 
 async function appendEvent(req: TenantRequest, projectId: number, entityType: string, entityId: number, action: string, details?: string, fromStatus?: string | null, toStatus?: string | null, database: DatabaseClient = db) {
@@ -608,12 +615,12 @@ router.patch("/projects/:projectId/controls/issues/:issueId", requireRole("owner
   res.json(toIssue(row));
 });
 
-router.post("/projects/:projectId/controls/change-orders", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+router.post("/projects/:projectId/controls/change-orders", requireWorkflowManager("owner", "admin", "member"), async (req: TenantRequest, res) => {
   const params = CreateProjectChangeOrderParams.safeParse(req.params);
   const parsed = CreateProjectChangeOrderBody.safeParse(req.body);
   if (!params.success || !parsed.success) { res.status(400).json({ error: "Invalid change order" }); return; }
   if (!await getProject(req, params.data.projectId)) { res.status(404).json({ error: "Project not found" }); return; }
-  if (parsed.data.approvalStatus === "approved" && !canApproveProjectChange(await getCurrentTenantRole(req) as "owner" | "admin" | "member" | "platform_admin")) {
+  if (parsed.data.approvalStatus && !await canApproveChangeOrder(req)) {
     res.status(403).json({ error: "Only customer administrators can approve a change order." });
     return;
   }
@@ -636,14 +643,14 @@ router.post("/projects/:projectId/controls/change-orders", requireRole("owner", 
   res.status(201).json(toChangeOrder(row));
 });
 
-router.patch("/projects/:projectId/controls/change-orders/:changeOrderId", requireRole("owner", "admin", "member"), async (req: TenantRequest, res) => {
+router.patch("/projects/:projectId/controls/change-orders/:changeOrderId", requireWorkflowManager("owner", "admin", "member"), async (req: TenantRequest, res) => {
   const params = UpdateProjectChangeOrderParams.safeParse({ projectId: req.params.projectId, changeOrderId: req.params.changeOrderId });
   const parsed = UpdateProjectChangeOrderBody.safeParse(req.body);
   if (!params.success || !parsed.success) { res.status(400).json({ error: "Invalid change order update" }); return; }
   const [previous] = await db.select().from(projectChangeOrdersTable).where(and(scope(req, projectChangeOrdersTable), eq(projectChangeOrdersTable.projectId, params.data.projectId), eq(projectChangeOrdersTable.id, params.data.changeOrderId)));
   if (!previous) { res.status(404).json({ error: "Change order not found" }); return; }
   const data = parsed.data;
-  if (data.approvalStatus === "approved" && !canApproveProjectChange(await getCurrentTenantRole(req) as "owner" | "admin" | "member" | "platform_admin")) {
+  if (data.approvalStatus && !await canApproveChangeOrder(req)) {
     res.status(403).json({ error: "Only customer administrators can approve a change order." });
     return;
   }
