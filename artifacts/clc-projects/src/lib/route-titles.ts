@@ -66,6 +66,30 @@ export const routeMetadata = {
     title('Margin'),
     'Analyze quoted and purchased work, forecast margin, and margin risk across your construction workspace.',
   ),
+  revenue: metadata(
+    title('Revenue'),
+    'Track contracted, invoiced, and received project revenue with forecast context across your construction workspace.',
+  ),
+  changeOrders: metadata(
+    title('Change orders'),
+    'Control construction scope, price, and schedule changes with a clear approval trail.',
+  ),
+  commitments: metadata(
+    title('Commitments'),
+    'Track committed spend, invoices, payments, and outstanding obligations across your construction workspace.',
+  ),
+  costs: metadata(
+    title('Costs'),
+    'Compare planned, committed, forecast, and recorded project costs across your construction workspace.',
+  ),
+  openItems: metadata(
+    title('Open Items'),
+    'Coordinate RFIs and project issues across your construction workspace.',
+  ),
+  finalBilling: metadata(
+    title('Final Billing'),
+    'Manage the owner pay-application register and financial handoff for project closeout.',
+  ),
 } as const;
 
 export const routeTitles = {
@@ -82,6 +106,12 @@ export const routeTitles = {
   error: routeMetadata.error.title,
   notFound: routeMetadata.notFound.title,
   margin: routeMetadata.margin.title,
+  revenue: routeMetadata.revenue.title,
+  changeOrders: routeMetadata.changeOrders.title,
+  commitments: routeMetadata.commitments.title,
+  costs: routeMetadata.costs.title,
+  openItems: routeMetadata.openItems.title,
+  finalBilling: routeMetadata.finalBilling.title,
 } as const;
 
 export function comingSoonTitle(label: string) {

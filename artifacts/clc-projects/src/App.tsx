@@ -42,6 +42,12 @@ import { PricingCanceledPage, PricingPage, PricingSuccessPage } from '@/pages/pr
 import { SupplierOrders } from '@/pages/supplier-orders';
 import { ItbIntakes } from '@/pages/itb-intakes';
 import { Margin } from '@/pages/margin';
+import { Revenue } from '@/pages/revenue';
+import { ChangeOrders } from '@/pages/change-orders';
+import { Commitments } from '@/pages/commitments';
+import { Costs } from '@/pages/costs';
+import { OpenItems } from '@/pages/open-items';
+import { FinalBilling } from '@/pages/final-billing';
 import { routeMetadata, useRouteMetadata } from '@/lib/route-titles';
 
 const queryClient = new QueryClient();
@@ -274,6 +280,9 @@ function AppRouter() {
         <Route path="/projects">
           <Shell><ProtectedRoute component={Projects} /></Shell>
         </Route>
+        <Route path="/change-orders">
+          <Shell><ProtectedRoute component={ChangeOrders} /></Shell>
+        </Route>
         <Route path="/projects/:id">
           <Shell><ProtectedRoute component={ProjectDetail} /></Shell>
         </Route>
@@ -340,6 +349,21 @@ function AppRouter() {
         <Route path="/margin">
           <Shell><ProtectedRoute component={Margin} /></Shell>
         </Route>
+        <Route path="/revenue">
+          <Shell><ProtectedRoute component={Revenue} /></Shell>
+        </Route>
+        <Route path="/commitments">
+          <Shell><ProtectedRoute component={Commitments} /></Shell>
+        </Route>
+        <Route path="/costs">
+          <Shell><ProtectedRoute component={Costs} /></Shell>
+        </Route>
+        <Route path="/open-items">
+          <Shell><ProtectedRoute component={OpenItems} /></Shell>
+        </Route>
+        <Route path="/final-billing">
+          <Shell><ProtectedRoute component={FinalBilling} /></Shell>
+        </Route>
         <Route path="/follow-ups">
           <Shell><ProtectedRoute component={FollowUps} /></Shell>
         </Route>
@@ -384,6 +408,24 @@ function AppRouter() {
         </Route>
         <Route path="/coming-soon/margin">
           <Redirect to="/margin" />
+        </Route>
+        <Route path="/coming-soon/revenue">
+          <Redirect to="/revenue" />
+        </Route>
+        <Route path="/coming-soon/change-orders">
+          <Redirect to="/change-orders" />
+        </Route>
+        <Route path="/coming-soon/commitments">
+          <Redirect to="/commitments" />
+        </Route>
+        <Route path="/coming-soon/costs">
+          <Redirect to="/costs" />
+        </Route>
+        <Route path="/coming-soon/open-items">
+          <Redirect to="/open-items" />
+        </Route>
+        <Route path="/coming-soon/final-billing">
+          <Redirect to="/final-billing" />
         </Route>
         <Route path="/administration/platform/customers">
           <Shell><PlatformAdminRoute component={PlatformCustomers} /></Shell>

@@ -613,6 +613,10 @@ router.post("/projects/:projectId/controls/change-orders", requireRole("owner", 
   const parsed = CreateProjectChangeOrderBody.safeParse(req.body);
   if (!params.success || !parsed.success) { res.status(400).json({ error: "Invalid change order" }); return; }
   if (!await getProject(req, params.data.projectId)) { res.status(404).json({ error: "Project not found" }); return; }
+  if (parsed.data.approvalStatus === "approved" && !canApproveProjectChange(await getCurrentTenantRole(req) as "owner" | "admin" | "member" | "platform_admin")) {
+    res.status(403).json({ error: "Only customer administrators can approve a change order." });
+    return;
+  }
   const [row] = await db.insert(projectChangeOrdersTable).values({
     ...parsed.data,
     projectId: params.data.projectId,
