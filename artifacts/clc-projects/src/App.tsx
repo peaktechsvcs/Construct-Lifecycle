@@ -4,6 +4,7 @@ import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from 'wouter';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { ThemeProvider } from 'next-themes';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@workspace/construct-lifecycle-design-system/components/ui/toaster';
 import { TooltipProvider } from '@workspace/construct-lifecycle-design-system/components/ui/tooltip';
@@ -75,20 +76,20 @@ const clerkAppearance = {
     logoImageUrl: `${window.location.origin}${basePath}/logo-full-slogan.svg`,
   },
   variables: {
-    colorPrimary: "hsl(198, 80%, 43%)", // Construct Blue
-    colorBackground: "hsl(0, 0%, 100%)",
-    colorForeground: "hsl(222, 47%, 11%)",
-    colorMutedForeground: "hsl(215, 16%, 47%)",
-    colorInput: "hsl(214, 32%, 91%)",
-    colorInputForeground: "hsl(222, 47%, 11%)",
-    colorDanger: "hsl(0, 84%, 60%)",
-    colorNeutral: "hsl(214, 32%, 91%)",
+    colorPrimary: "hsl(var(--primary))",
+    colorBackground: "hsl(var(--background))",
+    colorForeground: "hsl(var(--foreground))",
+    colorMutedForeground: "hsl(var(--muted-foreground))",
+    colorInput: "hsl(var(--input))",
+    colorInputForeground: "hsl(var(--foreground))",
+    colorDanger: "hsl(var(--destructive))",
+    colorNeutral: "hsl(var(--secondary))",
     fontFamily: "Inter, sans-serif",
     borderRadius: "0.5rem",
   },
   elements: {
     rootBox: "w-full flex justify-center",
-    cardBox: "bg-white rounded-2xl w-[440px] max-w-full overflow-hidden border border-border shadow-lg",
+    cardBox: "bg-card rounded-2xl w-[440px] max-w-full overflow-hidden border border-border shadow-lg",
     card: "!shadow-none !border-0 !bg-transparent !rounded-none",
     footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
     headerTitle: "text-foreground font-bold text-2xl tracking-tight",
@@ -415,29 +416,37 @@ function AppRouter() {
 function App() {
   const [, setLocation] = useLocation();
   return (
-    <ClerkProvider
-      publishableKey={clerkPubKey}
-      proxyUrl={clerkProxyUrl}
-      appearance={clerkAppearance}
-      signInUrl={`${basePath}/sign-in`}
-      signUpUrl={`${basePath}/sign-up`}
-      localization={{
-        signIn: { start: { title: "Welcome back", subtitle: "Construct Lifecycle — From Bid to Closeout" } },
-        signUp: { start: { title: "Create your account", subtitle: "Construct Lifecycle — From Bid to Closeout" } },
-      }}
-      routerPush={(to) => setLocation(stripBase(to))}
-      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="light"
+      enableSystem={false}
+      storageKey="construct-lifecycle-theme"
+      disableTransitionOnChange
     >
-      <QueryClientProvider client={queryClient}>
-        <ClerkQueryClientCacheInvalidator />
-        <TenantProvider>
-          <TooltipProvider>
-            <AppRouter />
-            <Toaster />
-          </TooltipProvider>
-        </TenantProvider>
-      </QueryClientProvider>
-    </ClerkProvider>
+      <ClerkProvider
+        publishableKey={clerkPubKey}
+        proxyUrl={clerkProxyUrl}
+        appearance={clerkAppearance}
+        signInUrl={`${basePath}/sign-in`}
+        signUpUrl={`${basePath}/sign-up`}
+        localization={{
+          signIn: { start: { title: "Welcome back", subtitle: "Construct Lifecycle — From Bid to Closeout" } },
+          signUp: { start: { title: "Create your account", subtitle: "Construct Lifecycle — From Bid to Closeout" } },
+        }}
+        routerPush={(to) => setLocation(stripBase(to))}
+        routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+      >
+        <QueryClientProvider client={queryClient}>
+          <ClerkQueryClientCacheInvalidator />
+          <TenantProvider>
+            <TooltipProvider>
+              <AppRouter />
+              <Toaster />
+            </TooltipProvider>
+          </TenantProvider>
+        </QueryClientProvider>
+      </ClerkProvider>
+    </ThemeProvider>
   );
 }
 

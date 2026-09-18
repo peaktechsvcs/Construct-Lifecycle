@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation, Link } from 'wouter';
 import {
   LayoutDashboard, BriefcaseBusiness, Building2,
-  Bell, Menu, Sparkles, LogOut, ChevronDown, Check, Settings,
+  Bell, Menu, Sparkles, LogOut, ChevronDown, Check, Settings, Sun, Moon,
   FlaskConical, Globe, PanelLeftClose, PanelLeftOpen, X,
   Lightbulb, Gavel, Calculator, FileText, FolderKanban, FileCheck2, Milestone,
   Package, ListChecks, ShoppingCart, ClipboardList,
@@ -20,6 +20,7 @@ import {
   useSwitchTenant,
 } from '@workspace/api-client-react';
 import { useUser, useClerk } from '@clerk/react';
+import { useTheme } from 'next-themes';
 import { useQueryClient } from '@tanstack/react-query';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from '@workspace/construct-lifecycle-design-system/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@workspace/construct-lifecycle-design-system/components/ui/tooltip';
@@ -154,6 +155,25 @@ function HeaderEnvironmentPill() {
         You are viewing Design / Test / Demo data. Changes here do not affect Production.
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === 'dark';
+  const nextTheme = isDark ? 'light' : 'dark';
+
+  return (
+    <button
+      type="button"
+      data-testid="button-theme-toggle"
+      aria-label={`Switch to ${nextTheme} mode`}
+      title={`Switch to ${nextTheme} mode`}
+      onClick={() => setTheme(nextTheme)}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {isDark ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
   );
 }
 
@@ -642,6 +662,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <HeaderEnvironmentPill />
             <div className="hidden text-right sm:block">
               <p className="text-xs font-semibold">
