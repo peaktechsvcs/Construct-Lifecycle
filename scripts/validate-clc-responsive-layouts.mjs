@@ -1579,10 +1579,13 @@ async function inspectSupplierQuoteCreation(client, routeCase, viewport) {
           && normalizedText.includes("sq-8301")
           && normalizedText.includes("updated browser quote line")
           && normalizedText.includes("browser test supplier")
+          && normalizedText.includes("browser alternate supplier")
+          && normalizedText.includes("browser test fasteners")
           && normalizedText.includes("7 each")
-          && text.includes("$1,575")
-          && text.includes("$875")
-          && text.includes("$700")
+          && normalizedText.includes("3 box")
+          && text.includes("$1,815")
+          && text.includes("$1,025")
+          && text.includes("$790")
           && normalizedText.includes("nov 20"),
       };
     })()`,
@@ -1641,9 +1644,12 @@ async function inspectSupplierQuoteCreation(client, routeCase, viewport) {
       return {
         ready: normalizedText.includes("updated browser quote line")
           && normalizedText.includes("9 each")
-          && text.includes("$2,340")
-          && text.includes("$1,260")
-          && text.includes("$1,080")
+          && normalizedText.includes("browser alternate supplier")
+          && normalizedText.includes("browser test fasteners")
+          && normalizedText.includes("3 box")
+          && text.includes("$2,580")
+          && text.includes("$1,410")
+          && text.includes("$1,170")
           && normalizedText.includes("dec 1"),
       };
     })()`,

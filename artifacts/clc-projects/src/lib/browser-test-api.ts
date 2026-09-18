@@ -384,6 +384,24 @@ const browserSupplierProduct = {
   updatedAt: new Date(0).toISOString(),
 };
 
+const browserSecondarySupplierProduct = {
+  id: 8111,
+  sku: 'MAT-011',
+  name: 'Browser Test Fasteners',
+  description: 'Second procurement browser fixture material',
+  category: 'Hardware',
+  unit: 'box',
+  defaultVendorId: 8112,
+  leadTimeDays: 7,
+  unitCost: 50,
+  listPrice: 80,
+  availableQuantity: 40,
+  backorderedQuantity: 0,
+  status: 'active',
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+};
+
 const browserSupplierVendor = {
   id: 8102,
   name: 'Browser Test Supplier',
@@ -391,6 +409,18 @@ const browserSupplierVendor = {
   email: 'supplier@example.test',
   phone: null,
   leadTimeDays: 14,
+  status: 'active',
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+};
+
+const browserSecondarySupplierVendor = {
+  id: 8112,
+  name: 'Browser Alternate Supplier',
+  contactName: 'Alternate Supplier Contact',
+  email: 'alternate-supplier@example.test',
+  phone: null,
+  leadTimeDays: 7,
   status: 'active',
   createdAt: new Date(0).toISOString(),
   updatedAt: new Date(0).toISOString(),
@@ -925,14 +955,14 @@ export function installBrowserTestApi() {
         browserProcurementFailureUsed = true;
         return json({ error: 'Supplier product catalog is temporarily unavailable' }, 503);
       }
-      return json([browserSupplierProduct]);
+      return json([browserSupplierProduct, browserSecondarySupplierProduct]);
     }
     if (url.pathname === '/api/supplier-vendors') {
       if (browserProcurementFailure() === 'vendors' && !browserProcurementFailureUsed) {
         browserProcurementFailureUsed = true;
         return json({ error: 'Supplier vendor directory is temporarily unavailable' }, 503);
       }
-      return json([browserSupplierVendor]);
+      return json([browserSupplierVendor, browserSecondarySupplierVendor]);
     }
     if (url.pathname === '/api/supplier-customer-terms') return json([]);
     if (url.pathname === '/api/supplier-quotes' && requestMethod === 'GET') {
@@ -954,6 +984,9 @@ export function installBrowserTestApi() {
       const quantity = Number(requestLine.quantity ?? 0);
       const unitCost = Number(requestLine.unitCost ?? 0);
       const unitPrice = Number(requestLine.unitPrice ?? 0);
+      const secondaryQuantity = 3;
+      const secondaryUnitCost = 50;
+      const secondaryUnitPrice = 80;
       const createdQuote = {
         id: 8301,
         quoteNumber: 'SQ-8301',
@@ -967,10 +1000,10 @@ export function installBrowserTestApi() {
         quoteDate: '2026-09-17',
         validUntil: null,
         notes: null,
-        subtotal: quantity * unitPrice,
-        totalCost: quantity * unitCost,
-        totalSell: quantity * unitPrice,
-        grossMargin: quantity * (unitPrice - unitCost),
+        subtotal: quantity * unitPrice + secondaryQuantity * secondaryUnitPrice,
+        totalCost: quantity * unitCost + secondaryQuantity * secondaryUnitCost,
+        totalSell: quantity * unitPrice + secondaryQuantity * secondaryUnitPrice,
+        grossMargin: quantity * (unitPrice - unitCost) + secondaryQuantity * (secondaryUnitPrice - secondaryUnitCost),
         createdAt: new Date(0).toISOString(),
         updatedAt: new Date(0).toISOString(),
       };
@@ -989,6 +1022,19 @@ export function installBrowserTestApi() {
           approvedSubstitution: null,
           promisedDate: requestLine.promisedDate ? String(requestLine.promisedDate) : null,
           scopeReference: null,
+         }, {
+           id: 8303,
+           quoteId: createdQuote.id,
+           productId: browserSecondarySupplierProduct.id,
+           vendorId: browserSecondarySupplierVendor.id,
+           description: browserSecondarySupplierProduct.name,
+           quantity: secondaryQuantity,
+           unit: browserSecondarySupplierProduct.unit,
+           unitCost: secondaryUnitCost,
+           unitPrice: secondaryUnitPrice,
+           approvedSubstitution: null,
+           promisedDate: null,
+           scopeReference: null,
         }],
       };
       browserCreatedSupplierQuoteDetail = createdDetail;
@@ -1006,30 +1052,26 @@ export function installBrowserTestApi() {
         // The production form already validates the request before submitting.
       }
       const requestLines = Array.isArray(requestBody.lines) ? requestBody.lines as Array<Record<string, unknown>> : [];
-      const requestLine = requestLines[0] ?? {};
-      const quantity = Number(requestLine.quantity ?? 0);
-      const unitCost = Number(requestLine.unitCost ?? 0);
-      const unitPrice = Number(requestLine.unitPrice ?? 0);
+      const lines = requestLines.map((line, index) => ({
+        ...line,
+        id: 8302 + index,
+        quoteId: 8301,
+        productId: line.productId == null ? (index === 0 ? browserSupplierProduct.id : browserSecondarySupplierProduct.id) : Number(line.productId),
+        vendorId: line.vendorId == null ? (index === 0 ? browserSupplierVendor.id : browserSecondarySupplierVendor.id) : Number(line.vendorId),
+        quantity: Number(line.quantity ?? 0),
+        unit: String(line.unit ?? (index === 0 ? browserSupplierProduct.unit : browserSecondarySupplierProduct.unit)),
+        unitCost: Number(line.unitCost ?? 0),
+        unitPrice: Number(line.unitPrice ?? 0),
+        promisedDate: line.promisedDate ? String(line.promisedDate) : null,
+      }));
       const updatedQuote = {
         ...browserCreatedSupplierQuoteDetail,
-        subtotal: quantity * unitPrice,
-        totalCost: quantity * unitCost,
-        totalSell: quantity * unitPrice,
-        grossMargin: quantity * (unitPrice - unitCost),
+        subtotal: lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0),
+        totalCost: lines.reduce((sum, line) => sum + line.quantity * line.unitCost, 0),
+        totalSell: lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0),
+        grossMargin: lines.reduce((sum, line) => sum + line.quantity * (line.unitPrice - line.unitCost), 0),
         updatedAt: new Date(0).toISOString(),
-        lines: [{
-          ...(browserCreatedSupplierQuoteDetail.lines as Array<Record<string, unknown>>)[0],
-          ...requestLine,
-          id: 8302,
-          quoteId: 8301,
-          productId: browserSupplierProduct.id,
-          vendorId: browserSupplierVendor.id,
-          quantity,
-          unit: String(requestLine.unit ?? browserSupplierProduct.unit),
-          unitCost,
-          unitPrice,
-          promisedDate: requestLine.promisedDate ? String(requestLine.promisedDate) : null,
-        }],
+        lines,
       };
       browserCreatedSupplierQuoteDetail = updatedQuote;
       browserSupplierQuotes = browserSupplierQuotes.map((quote) => quote.id === 8301
