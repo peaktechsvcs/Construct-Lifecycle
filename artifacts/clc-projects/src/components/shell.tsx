@@ -267,7 +267,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
     label: 'Closeout',
     items: [
       { href: '/open-items', label: 'Open Items', icon: ListChecks },
-      { href: '/coming-soon/documentation', label: 'Documentation', icon: Files },
+      { href: '/documentation', label: 'Documentation', icon: Files },
       { href: '/final-billing', label: 'Final Billing', icon: ReceiptText },
       { href: '/coming-soon/closed-projects', label: 'Closed Projects', icon: Archive },
     ],
@@ -309,6 +309,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/costs': 'Costs',
   '/open-items': 'Open Items',
   '/final-billing': 'Final Billing',
+  '/documentation': 'Documentation',
   '/settings': 'Settings',
   '/settings/profile': 'Organization Profile',
   '/settings/branding': 'Branding',

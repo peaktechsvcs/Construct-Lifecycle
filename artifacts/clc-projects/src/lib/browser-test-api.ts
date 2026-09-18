@@ -180,6 +180,78 @@ const businessCustomer = {
   updatedAt: new Date(0).toISOString(),
 };
 
+const browserSubmittalPackages = [{
+  id: 7701,
+  environmentId: 1,
+  packageNumber: 'SUB-0042',
+  projectId: 42,
+  projectNumber: 'P-0042',
+  projectName: 'Browser Test Project',
+  customerName: 'Browser Test Customer',
+  sourceBidId: null,
+  sourceBidNumber: null,
+  originType: 'contract',
+  name: 'Storefront closeout records',
+  description: 'Browser test closeout documentation.',
+  specificationSection: '01 78 00',
+  responsibleParty: 'Browser Test Team',
+  status: 'approved',
+  dueDate: '2026-09-20',
+  revision: 1,
+  reviewerName: 'Browser Test Reviewer',
+  reviewComments: null,
+  submittedAt: '2026-09-15T15:00:00.000Z',
+  reviewedAt: '2026-09-15T16:00:00.000Z',
+  itemCount: 1,
+  items: [{
+    id: 77011,
+    packageId: 7701,
+    itemNumber: '01',
+    sortOrder: 0,
+    itemType: 'warranty',
+    name: 'Storefront warranty',
+    description: 'Warranty record for the storefront installation.',
+    status: 'accepted',
+    documentName: 'storefront-warranty.pdf',
+    documentUrl: 'https://example.test/storefront-warranty.pdf',
+    sourceBidAttachmentId: null,
+    documents: [{
+      id: 770111,
+      itemId: 77011,
+      originalName: 'storefront-warranty.pdf',
+      contentType: 'application/pdf',
+      size: 245760,
+      pageCount: 2,
+      pageOrder: null,
+      version: 1,
+      status: 'uploaded',
+      scanStatus: 'clean',
+      scanMessage: 'Security scan passed.',
+      providerKey: null,
+      externalId: null,
+      sourceUrl: null,
+      importStatus: 'not_imported',
+      failureReason: null,
+      uploadedAt: '2026-09-15T16:00:00.000Z',
+      createdAt: '2026-09-15T16:00:00.000Z',
+      downloadUrl: '/api/submittal-documents/770111',
+    }],
+    revision: 1,
+    reviewerName: 'Browser Test Reviewer',
+    reviewComments: null,
+    createdAt: '2026-09-15T15:00:00.000Z',
+    updatedAt: '2026-09-15T16:00:00.000Z',
+  }],
+  revisions: [],
+  transmittals: [],
+  assemblies: [],
+  signatureProviderAvailable: false,
+  signatureProviders: [],
+  signatureRequests: [],
+  createdAt: '2026-09-15T15:00:00.000Z',
+  updatedAt: '2026-09-15T16:00:00.000Z',
+}];
+
 const alternateBusinessCustomer = {
   ...businessCustomer,
   id: 43,
@@ -634,6 +706,8 @@ const browserChangeOrderCreatedEvent: BrowserControlEvent = {
   },
   createdAt: '2026-09-15T15:02:00.000Z',
 };
+const browserCreatedChangeOrderEventAt = '2026-09-15T15:03:00.000Z';
+const browserUpdatedChangeOrderEventAt = '2026-09-15T15:04:00.000Z';
 
 const projectDetailControls = {
   projectId: project.id,
@@ -858,6 +932,7 @@ export function installBrowserTestApi() {
         },
       });
     }
+    if (url.pathname === '/api/submittals') return json(browserSubmittalPackages);
     if (url.pathname === '/api/tenant/branding/published') {
       const currentBrandingMode = brandingMode();
       if (currentBrandingMode === 'valid' || currentBrandingMode === 'broken') {
@@ -988,7 +1063,7 @@ export function installBrowserTestApi() {
             approvalStatus: { from: null, to: createdChangeOrder.approvalStatus },
             workflowStatus: { from: null, to: createdChangeOrder.status },
           },
-          createdAt: new Date(0).toISOString(),
+          createdAt: browserCreatedChangeOrderEventAt,
         },
       ];
       persistBrowserProjectControls();
@@ -1040,7 +1115,7 @@ export function installBrowserTestApi() {
             approvalStatus: { from: previousApprovalStatus, to: updatedChangeOrder.approvalStatus },
             workflowStatus: { from: previousWorkflowStatus, to: updatedChangeOrder.status },
           },
-          createdAt: new Date(0).toISOString(),
+          createdAt: browserUpdatedChangeOrderEventAt,
         },
       ];
       persistBrowserProjectControls();

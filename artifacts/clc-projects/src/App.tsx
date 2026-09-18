@@ -48,6 +48,7 @@ import { Commitments } from '@/pages/commitments';
 import { Costs } from '@/pages/costs';
 import { OpenItems } from '@/pages/open-items';
 import { FinalBilling } from '@/pages/final-billing';
+import { Documentation } from '@/pages/documentation';
 import { routeMetadata, useRouteMetadata } from '@/lib/route-titles';
 
 const queryClient = new QueryClient();
@@ -363,6 +364,12 @@ function AppRouter() {
         </Route>
         <Route path="/final-billing">
           <Shell><ProtectedRoute component={FinalBilling} /></Shell>
+        </Route>
+        <Route path="/documentation">
+          <Shell><ProtectedRoute component={Documentation} /></Shell>
+        </Route>
+        <Route path="/coming-soon/documentation">
+          <Redirect to="/documentation" />
         </Route>
         <Route path="/follow-ups">
           <Shell><ProtectedRoute component={FollowUps} /></Shell>

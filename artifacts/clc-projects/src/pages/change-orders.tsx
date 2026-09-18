@@ -314,6 +314,7 @@ function ProjectChangeOrders({
             getGetProjectControlsQueryKey(project.id),
             (current) => current ? { ...current, changeOrders: current.changeOrders.map((candidate) => candidate.id === value.id ? value : candidate) } : current,
           );
+          queryClient.invalidateQueries({ queryKey: getGetProjectControlsQueryKey(project.id) });
           setFeedback(`${item.changeNumber} marked ${humanize(approvalStatus)}.`);
         },
         onError: (error) => setFeedback(getMutationErrorMessage(error)),

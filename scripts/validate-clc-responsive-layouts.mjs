@@ -56,6 +56,20 @@ const cases = [
     shell: true,
   },
   {
+    id: "documentation-workspace",
+    name: "documentation workspace",
+    path: "/documentation?browserAuth=authenticated",
+    heading: "Documentation",
+    actions: ['a[href="/submittals"]'],
+    requiredSelectors: [
+      '[data-testid="documentation-summary-metrics"]',
+      '[data-testid="documentation-row-upload-770111"]',
+    ],
+    requiredTexts: ["Browser Test Project", "SUB-0042", "storefront-warranty.pdf", "Warranty", "Accepted"],
+    shell: true,
+    skipVisual: true,
+  },
+  {
     id: "project-detail",
     name: "project detail",
     path: "/projects/42?browserAuth=authenticated",
@@ -95,8 +109,13 @@ const cases = [
     path: "/change-orders?browserAuth=authenticated&browserRole=member&browserControls=standalone&browserControlsReset=1",
     heading: "Change orders",
     actions: [],
-    requiredSelectors: ['[data-testid="change-order-row-4204"]', 'button[data-testid="button-edit-change-4204"]'],
-    requiredTexts: ["Browser Test Project", "CO-0042", "Additional storefront concrete", "Pending"],
+    requiredSelectors: [
+      '[data-testid="change-order-row-4204"]',
+      'button[data-testid="button-edit-change-4204"]',
+      '[data-testid="change-order-history-4204"]',
+      '[data-testid="change-order-history-entry-42040"]',
+    ],
+    requiredTexts: ["Browser Test Project", "CO-0042", "Additional storefront concrete", "Pending", "Approval history", "Browser Test User", "Sep 15, 2026"],
     changeOrderFlow: { role: "member" },
     shell: true,
     skipVisual: true,
@@ -107,8 +126,13 @@ const cases = [
     path: "/change-orders?browserAuth=authenticated&browserRole=owner&browserControls=standalone&browserControlsReset=1&browserChangeOrderSaveFailure=1",
     heading: "Change orders",
     actions: [],
-    requiredSelectors: ['[data-testid="change-order-row-4204"]', 'button[data-testid="button-edit-change-4204"]'],
-    requiredTexts: ["Browser Test Project", "CO-0042", "Additional storefront concrete", "Pending"],
+    requiredSelectors: [
+      '[data-testid="change-order-row-4204"]',
+      'button[data-testid="button-edit-change-4204"]',
+      '[data-testid="change-order-history-4204"]',
+      '[data-testid="change-order-history-entry-42040"]',
+    ],
+    requiredTexts: ["Browser Test Project", "CO-0042", "Additional storefront concrete", "Pending", "Approval history", "Browser Test User", "Sep 15, 2026"],
     changeOrderFlow: { role: "owner" },
     shell: true,
     skipVisual: true,
@@ -2082,6 +2106,24 @@ async function inspectChangeOrders(client, routeCase, viewport) {
   const flow = routeCase.changeOrderFlow;
   if (!flow) return;
 
+  const assertHistory = async (changeOrderId, label, expectedEntries) => {
+    const expected = JSON.stringify(expectedEntries);
+    await waitFor(
+      client,
+      `${routeCase.name} ${label}`,
+      `(() => {
+        const root = document.querySelector('[data-testid="change-order-history-${changeOrderId}"]');
+        const entries = [...(root?.querySelectorAll('[data-testid^="change-order-history-entry-"]') ?? [])]
+          .map((entry) => entry.textContent?.replace(/\\s+/g, " ").trim() ?? "");
+        const normalize = (value) => value.replace(/\\s+/g, " ").trim();
+        const expectedEntries = ${expected};
+        const ready = root instanceof HTMLElement
+          && expectedEntries.every((parts) => entries.some((entry) => parts.every((part) => entry.includes(normalize(part)))));
+        return { ready, entries };
+      })()`,
+    );
+  };
+
   let rowState;
   try {
     rowState = await waitFor(
@@ -2102,6 +2144,10 @@ async function inspectChangeOrders(client, routeCase, viewport) {
     })`);
     throw new Error(`${error.message}; diagnostic=${JSON.stringify(diagnostic)}`);
   }
+
+  await assertHistory(4204, "initial approval history", [
+    ["Approval: — → Pending", "Workflow: — → Under Review", "Browser Test User", "Sep 15, 2026"],
+  ]);
 
   if (flow.role === "member") {
     if (rowState.hasApprove) {
@@ -2171,6 +2217,9 @@ async function inspectChangeOrders(client, routeCase, viewport) {
         && document.querySelector('[data-testid="change-order-form"]') === null,
     }))()`,
   );
+  await assertHistory(4205, "created change order history", [
+    ["Approval: — → Pending", "Workflow: — → Draft", "Browser Test User", "Sep 15, 2026"],
+  ]);
 
   const editOpened = await evaluate(client, `(() => {
     const button = document.querySelector('[data-testid="button-edit-change-4205"]');
@@ -2201,7 +2250,6 @@ async function inspectChangeOrders(client, routeCase, viewport) {
       ready: document.querySelector('[role="alert"]')?.textContent?.trim() === "The change could not be saved. Check the fields and try again.",
     }))()`,
   );
-
   const retriedEdit = await evaluate(client, `(() => {
     const button = document.querySelector('[data-testid="button-save-change-order"]');
     if (!(button instanceof HTMLElement) || button.hasAttribute("disabled")) return false;
@@ -2217,6 +2265,28 @@ async function inspectChangeOrders(client, routeCase, viewport) {
         && document.querySelector('[data-testid="change-order-form"]') === null,
     }))()`,
   );
+  await assertHistory(4205, "edited change order history", [
+    ["Approval: Pending → Pending", "Workflow: Draft → Draft", "Browser Test User", "Sep 15, 2026"],
+  ]);
+
+  const rejected = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-reject-change-4205"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!rejected) throw new Error(`${routeCase.name} (${viewport.name}): owner reject action missing`);
+  await waitFor(
+    client,
+    `${routeCase.name} rejected created change order`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="change-order-feedback-42"]')?.textContent?.trim() === "CO-0043 marked Rejected."
+        && document.querySelector('[data-testid="change-order-row-4205"]')?.textContent?.includes("Rejected") === true,
+    }))()`,
+  );
+  await assertHistory(4205, "rejected change order history", [
+    ["Approval: Pending → Rejected", "Workflow: Draft → Rejected", "Browser Test User", "Sep 15, 2026"],
+  ]);
 
   const approved = await evaluate(client, `(() => {
     const button = document.querySelector('[data-testid="button-approve-change-4204"]');
@@ -2233,6 +2303,31 @@ async function inspectChangeOrders(client, routeCase, viewport) {
         && document.querySelector('[data-testid="change-order-row-4204"]')?.textContent?.includes("Approved") === true,
     }))()`,
   );
+  await assertHistory(4204, "approved change order history", [
+    ["Approval: Pending → Approved", "Workflow: Under Review → Approved", "Browser Test User", "Sep 15, 2026"],
+  ]);
+
+  const reloaded = client.event("Page.loadEventFired");
+  await client.command("Page.reload", { ignoreCache: true });
+  await reloaded;
+  await stabilize(client);
+  await waitForRenderedPage(client, routeCase);
+  await assertHistory(4204, "approved history after reload", [
+    ["Approval: Pending → Approved", "Workflow: Under Review → Approved", "Browser Test User", "Sep 15, 2026"],
+  ]);
+  await assertHistory(4205, "rejected history after reload", [
+    ["Approval: Pending → Rejected", "Workflow: Draft → Rejected", "Browser Test User", "Sep 15, 2026"],
+  ]);
+  if (viewport.name === "mobile") {
+    const reopened = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-open-menu"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!reopened) throw new Error(`${routeCase.name} (${viewport.name}): mobile navigation did not reopen after history reload`);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
 }
 
 async function inspect(client, routeCase, viewport) {

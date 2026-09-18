@@ -90,6 +90,10 @@ export const routeMetadata = {
     title('Final Billing'),
     'Manage the owner pay-application register and financial handoff for project closeout.',
   ),
+  documentation: metadata(
+    title('Documentation'),
+    'Find closeout documents, warranties, certificates, and project records across your construction workspace.',
+  ),
 } as const;
 
 export const routeTitles = {
@@ -112,6 +116,7 @@ export const routeTitles = {
   costs: routeMetadata.costs.title,
   openItems: routeMetadata.openItems.title,
   finalBilling: routeMetadata.finalBilling.title,
+  documentation: routeMetadata.documentation.title,
 } as const;
 
 export function comingSoonTitle(label: string) {
