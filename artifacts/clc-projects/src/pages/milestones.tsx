@@ -15,6 +15,20 @@ const empty: Draft = { itemNumber: '', name: '', itemType: 'milestone', plannedS
 const dateValue = (value?: string | null) => value ? new Date(value).toISOString().slice(0, 10) : '';
 const tone = (value: string) => value === 'complete' ? 'green' as const : value === 'delayed' ? 'red' as const : value === 'in_progress' ? 'orange' as const : 'teal' as const;
 
+function getMilestoneSaveError(error: unknown) {
+  if (error && typeof error === 'object') {
+    const apiError = error as { status?: unknown; data?: unknown };
+    const data = apiError.data && typeof apiError.data === 'object' ? apiError.data as { error?: unknown } : undefined;
+    if (apiError.status === 400 && data?.error === 'Invalid schedule update') {
+      return 'Milestone details are not valid. Check the milestone number, name, dates, and status.';
+    }
+    if (apiError.status === 403) {
+      return 'You do not have permission to edit milestones in this workspace. Ask a workspace administrator for access.';
+    }
+  }
+  return 'The milestone could not be saved. Check the fields and try again.';
+}
+
 function MilestoneEditor({ draft, setDraft, onSave, pending, editing }: { draft: Draft; setDraft: (draft: Draft) => void; onSave: () => void; pending: boolean; editing: boolean }) {
   const field = (label: string, key: keyof Draft, type = 'text') => <label className="block"><span className="mb-1 block text-[10px] font-semibold text-muted-foreground">{label}</span><Input data-testid={`input-milestone-${key}`} type={type} value={draft[key]} onChange={(event) => setDraft({ ...draft, [key]: event.target.value })} className="h-9 bg-background text-xs" /></label>;
   return <div className="mt-4 border-t border-border pt-4"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{field('Milestone number', 'itemNumber')}{field('Name', 'name')}{field('Planned start', 'plannedStart', 'date')}{field('Planned finish', 'plannedEnd', 'date')}{field('Actual start', 'actualStart', 'date')}{field('Actual finish', 'actualEnd', 'date')}{field('Owner', 'ownerName')}{field('Predecessor', 'predecessor')}
@@ -44,7 +58,7 @@ function MilestoneProject({ project }: { project: Project }) {
       plannedStart: draft.plannedStart || undefined, plannedEnd: draft.plannedEnd || undefined, actualStart: draft.actualStart || undefined, actualEnd: draft.actualEnd || undefined,
       status: draft.status as ProjectScheduleItemInput['status'], ownerName: draft.ownerName.trim() || undefined, predecessor: draft.predecessor.trim() || undefined,
     };
-    const done = { onSuccess: () => { qc.invalidateQueries({ queryKey: getGetProjectControlsQueryKey(project.id) }); setEditingId(null); setDraft(empty); setFeedback('Milestone saved.'); setSaveError(false); }, onError: () => { setFeedback('The milestone could not be saved. Check the fields and try again.'); setSaveError(true); } };
+    const done = { onSuccess: () => { qc.invalidateQueries({ queryKey: getGetProjectControlsQueryKey(project.id) }); setEditingId(null); setDraft(empty); setFeedback('Milestone saved.'); setSaveError(false); }, onError: (error: unknown) => { setFeedback(getMilestoneSaveError(error)); setSaveError(true); } };
     if (editingId) update.mutate({ projectId: project.id, itemId: editingId, data: data as ProjectScheduleItemUpdate }, done);
     else create.mutate({ projectId: project.id, data }, done);
   };

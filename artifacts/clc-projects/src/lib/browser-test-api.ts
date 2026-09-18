@@ -708,7 +708,7 @@ export function installBrowserTestApi() {
   const browserControlsMode = browserSearchParams.get('browserControls');
   const browserControlsSaveFailure = browserSearchParams.get('browserControlsSaveFailure') === '1';
   const browserControlsValidationFailure = browserSearchParams.get('browserControlsValidationFailure') === '1';
-  const browserMilestoneSaveFailure = browserSearchParams.get('browserMilestoneSaveFailure') === '1';
+  const browserMilestoneSaveFailure = browserSearchParams.get('browserMilestoneSaveFailure');
   if ((browserControlsMode === 'reload' || browserControlsMode === 'standalone') && browserSearchParams.get('browserControlsReset') === '1') {
     try {
       const resetKey = browserControlsMode === 'reload'
@@ -890,6 +890,12 @@ export function installBrowserTestApi() {
     }
     if (url.pathname === `/api/projects/${project.id}/controls/schedule/${browserMilestone.id}` && requestMethod === 'PATCH') {
       if (browserMilestoneSaveFailure && browserMilestoneSaveAttempts++ === 0) {
+        if (browserMilestoneSaveFailure === 'validation') {
+          return json({ error: 'Invalid schedule update' }, 400);
+        }
+        if (browserMilestoneSaveFailure === 'permission') {
+          return json({ error: 'Insufficient workspace permissions for this operation' }, 403);
+        }
         return json({ error: 'Browser test milestone save failure' }, 503);
       }
       let requestBody: Record<string, unknown> = {};

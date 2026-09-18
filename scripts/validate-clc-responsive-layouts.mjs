@@ -194,6 +194,47 @@ const cases = [
     },
   },
   {
+    id: "milestones-validation-failure",
+    name: "milestone validation failure recovery",
+    path: "/milestones?browserAuth=authenticated&browserControls=standalone&browserControlsReset=1&browserMilestoneSaveFailure=validation",
+    heading: "Milestones",
+    actions: [
+      'button[data-testid="button-add-milestone-42"]',
+      'a[data-testid="link-milestone-project-42"]',
+    ],
+    requiredSelectors: [
+      '[data-testid="milestone-status-4202"]',
+      'button[data-testid="button-edit-milestone-4202"]',
+    ],
+    requiredTexts: ["Browser Test Project", "MS-001", "Site mobilization"],
+    inlineEditor: {
+      openSelector: 'button[data-testid="button-add-milestone-42"]',
+      requiredSelector: 'input[data-testid="input-milestone-itemNumber"]',
+      submitSelector: 'button[data-testid="button-save-milestone"]',
+      submitLabel: "Add milestone",
+      feedbackSelector: '[data-testid="milestone-save-feedback"]',
+      feedbackText: "Milestone saved.",
+      fields: [
+        { selector: 'input[data-testid="input-milestone-itemNumber"]', value: "MS-002" },
+        { selector: 'input[data-testid="input-milestone-name"]', value: "Site mobilization updated" },
+      ],
+    },
+    editInlineEditor: {
+      openSelector: 'button[data-testid="button-edit-milestone-4202"]',
+      requiredSelector: 'input[data-testid="input-milestone-itemNumber"]',
+      submitSelector: 'button[data-testid="button-save-milestone"]',
+      submitLabel: "Save milestone",
+      feedbackSelector: '[data-testid="milestone-save-feedback"]',
+      feedbackText: "Milestone saved.",
+      fields: [
+        { selector: 'input[data-testid="input-milestone-name"]', value: "Site mobilization validation retry" },
+      ],
+      failureRecovery: {
+        errorText: "Milestone details are not valid. Check the milestone number, name, dates, and status.",
+      },
+    },
+  },
+  {
     id: "procurement-workspace",
     name: "procurement workspace",
     path: "/procurement?browserAuth=authenticated",
