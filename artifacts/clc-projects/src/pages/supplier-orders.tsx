@@ -35,6 +35,7 @@ import {
   useRecordSupplierReceiving,
   useRequestSupplierDeliveryProofUpload,
   useCompleteSupplierDeliveryProofUpload,
+  useUpdateSupplierDelivery,
   useGetSupplierOrder,
   useGetSupplierQuote,
   useListBusinessCustomers,
@@ -78,6 +79,15 @@ type ReceivingDraft = {
   returned: string;
   accepted: boolean;
   note: string;
+};
+
+type DeliveryTrackingDraft = {
+  status: SupplierDelivery['status'];
+  appointmentDate: string;
+  carrier: string;
+  trackingReference: string;
+  recipientName: string;
+  notes: string;
 };
 
 type SupplierQuoteLineDraft = {
@@ -192,6 +202,7 @@ export function SupplierOrders() {
   const [deliveryForm, setDeliveryForm] = useState({ status: 'scheduled', appointmentDate: '', carrier: '', trackingReference: '', notes: '' });
   const [deliveryQuantities, setDeliveryQuantities] = useState<Record<number, string>>({});
   const [receivingDrafts, setReceivingDrafts] = useState<Record<number, ReceivingDraft>>({});
+  const [deliveryTrackingDrafts, setDeliveryTrackingDrafts] = useState<Record<number, DeliveryTrackingDraft>>({});
   const [proofError, setProofError] = useState('');
   const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: '', totalAmount: '', dueDate: '', status: 'submitted', paidAmount: '', paymentReference: '', waiverStatus: 'not_required', waiverReference: '' });
   const [termsForm, setTermsForm] = useState({ customerId: '', paymentTerms: 'Net 30', creditLimit: '0', discountPercent: '0', retainageRequired: '0', waiverRequired: false });
@@ -233,6 +244,7 @@ export function SupplierOrders() {
   const recordReceiving = useRecordSupplierReceiving();
   const requestProofUpload = useRequestSupplierDeliveryProofUpload();
   const completeProofUpload = useCompleteSupplierDeliveryProofUpload();
+  const updateDelivery = useUpdateSupplierDelivery();
   const createInvoice = useCreateSupplierInvoice();
   const createTerms = useCreateSupplierCustomerTerms();
 
@@ -249,7 +261,16 @@ export function SupplierOrders() {
   useEffect(() => {
     if (!selectedOrder.data) return;
     const next: Record<number, ReceivingDraft> = {};
+    const tracking: Record<number, DeliveryTrackingDraft> = {};
     for (const delivery of selectedOrder.data.deliveries ?? []) {
+      tracking[delivery.id] = {
+        status: delivery.status,
+        appointmentDate: delivery.appointmentDate ?? '',
+        carrier: delivery.carrier ?? '',
+        trackingReference: delivery.trackingReference ?? '',
+        recipientName: delivery.recipientName ?? '',
+        notes: delivery.notes ?? '',
+      };
       for (const line of delivery.lines ?? []) {
         next[line.id] = {
           received: String(line.quantityReceived),
@@ -262,6 +283,7 @@ export function SupplierOrders() {
       }
     }
     setReceivingDrafts(next);
+    setDeliveryTrackingDrafts(tracking);
   }, [selectedOrder.data?.id, selectedOrder.data?.updatedAt]);
 
   const refresh = () => {
@@ -569,6 +591,30 @@ export function SupplierOrders() {
     recordReceiving.mutate({ deliveryId: delivery.id, data: { lines } }, {
       onSuccess: () => { setOperationMessage({ tone: 'success', text: 'Receiving disposition saved.' }); refresh(); },
       onError: () => setOperationMessage({ tone: 'error', text: 'Receiving could not be saved. Your entered quantities and notes were kept.' }),
+    });
+  }
+
+  function saveDeliveryTracking(event: React.FormEvent, delivery: SupplierDelivery) {
+    event.preventDefault();
+    const draft = deliveryTrackingDrafts[delivery.id];
+    if (!draft) return;
+    setOperationMessage(null);
+    updateDelivery.mutate({
+      deliveryId: delivery.id,
+      data: {
+        status: draft.status,
+        appointmentDate: draft.appointmentDate || null,
+        carrier: draft.carrier.trim() || null,
+        trackingReference: draft.trackingReference.trim() || null,
+        recipientName: draft.recipientName.trim() || null,
+        notes: draft.notes.trim() || null,
+      },
+    }, {
+      onSuccess: () => {
+        setOperationMessage({ tone: 'success', text: `${delivery.deliveryNumber} tracking updated.` });
+        refresh();
+      },
+      onError: () => setOperationMessage({ tone: 'error', text: 'Delivery tracking could not be updated. Your changes were kept.' }),
     });
   }
 
@@ -911,7 +957,7 @@ export function SupplierOrders() {
                </form>
                 <section className="space-y-3">
                   <div><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary">{routeMode === 'deliveries' ? 'Delivery evidence' : 'Receiving closeout'}</p><h4 className="mt-1 text-sm font-bold">{routeMode === 'deliveries' ? 'Proof, appointments, and exceptions' : 'Proof, exceptions, and returns'}</h4><p className="mt-1 text-xs text-muted-foreground">{routeMode === 'deliveries' ? 'Keep appointment status, proof, and exceptions attached to the order as fulfillment moves.' : 'Record the final quantity disposition for every delivery line. Order received totals are recalculated from these entries.'}</p></div>
-                   {selectedOrder.data.deliveries.length ? selectedOrder.data.deliveries.map((delivery) => <DeliveryReceivingCard key={delivery.id} delivery={delivery} orderLines={selectedOrder.data!.lines} drafts={receivingDrafts} onDraftChange={(lineId, draft) => setReceivingDrafts((current) => ({ ...current, [lineId]: draft }))} onFillRemaining={(line, draft) => setReceivingDrafts((current) => ({ ...current, [line.id]: { ...draft, received: String(Math.max(0, line.quantityDelivered - Number(draft.damaged || 0) - Number(draft.short || 0) - Number(draft.returned || 0))) } }))} onSave={saveReceiving} onUpload={uploadProof} proofError={proofError} isSaving={recordReceiving.isPending} isUploading={requestProofUpload.isPending || completeProofUpload.isPending} />) : <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground" data-testid="receiving-no-delivery">No delivery has been recorded. Record a delivery above to start receiving.</div>}
+                   {selectedOrder.data.deliveries.length ? selectedOrder.data.deliveries.map((delivery) => <DeliveryReceivingCard key={delivery.id} delivery={delivery} orderLines={selectedOrder.data!.lines} drafts={receivingDrafts} trackingDraft={deliveryTrackingDrafts[delivery.id]} onDraftChange={(lineId, draft) => setReceivingDrafts((current) => ({ ...current, [lineId]: draft }))} onTrackingDraftChange={(draft) => setDeliveryTrackingDrafts((current) => ({ ...current, [delivery.id]: draft }))} onFillRemaining={(line, draft) => setReceivingDrafts((current) => ({ ...current, [line.id]: { ...draft, received: String(Math.max(0, line.quantityDelivered - Number(draft.damaged || 0) - Number(draft.short || 0) - Number(draft.returned || 0))) } }))} onSave={saveReceiving} onSaveTracking={saveDeliveryTracking} onUpload={uploadProof} proofError={proofError} isSaving={recordReceiving.isPending} isTrackingSaving={updateDelivery.isPending} isUploading={requestProofUpload.isPending || completeProofUpload.isPending} />) : <div className="rounded-lg border border-dashed border-border p-4 text-xs text-muted-foreground" data-testid="receiving-no-delivery">No delivery has been recorded. Record a delivery above to start receiving.</div>}
                </section>
                <form onSubmit={saveInvoice} className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2"><p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary sm:col-span-2">Supplier invoice</p><Field label="Invoice number"><Input required value={invoiceForm.invoiceNumber} onChange={(event) => setInvoiceForm({ ...invoiceForm, invoiceNumber: event.target.value })} className={inputClass} /></Field><Field label="Total amount"><Input required type="number" min="0" step="0.01" value={invoiceForm.totalAmount} onChange={(event) => setInvoiceForm({ ...invoiceForm, totalAmount: event.target.value })} className={inputClass} /></Field><Field label="Due date"><Input type="date" value={invoiceForm.dueDate} onChange={(event) => setInvoiceForm({ ...invoiceForm, dueDate: event.target.value })} className={inputClass} /></Field><Field label="Payment status"><select value={invoiceForm.status} onChange={(event) => setInvoiceForm({ ...invoiceForm, status: event.target.value })} className={inputClass}>{['submitted', 'approved', 'partially_paid', 'paid', 'disputed'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Field label="Amount paid"><Input type="number" min="0" step="0.01" value={invoiceForm.paidAmount} onChange={(event) => setInvoiceForm({ ...invoiceForm, paidAmount: event.target.value })} className={inputClass} /></Field><Field label="Payment reference"><Input value={invoiceForm.paymentReference} onChange={(event) => setInvoiceForm({ ...invoiceForm, paymentReference: event.target.value })} placeholder="Check, ACH, or remittance reference" className={inputClass} /></Field><Field label="Waiver status"><select value={invoiceForm.waiverStatus} onChange={(event) => setInvoiceForm({ ...invoiceForm, waiverStatus: event.target.value })} className={inputClass}>{['not_required', 'pending', 'received', 'approved', 'rejected'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}</select></Field><Field label="Waiver reference"><Input value={invoiceForm.waiverReference} onChange={(event) => setInvoiceForm({ ...invoiceForm, waiverReference: event.target.value })} className={inputClass} /></Field><div className="sm:col-span-2"><Button type="submit" disabled={createInvoice.isPending}>{createInvoice.isPending ? 'Adding invoice…' : 'Add invoice'}</Button></div></form>
               {selectedOrder.data.invoices.length > 0 && <div><p className="mb-2 text-xs font-bold uppercase tracking-[.1em] text-muted-foreground">Invoices</p><div className="space-y-2">{selectedOrder.data.invoices.map((invoice) => <div key={invoice.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm"><span className="font-semibold">{invoice.invoiceNumber}</span><span>{money(invoice.totalAmount)} <Badge tone={statusTone(invoice.status)}>{labelStatus(invoice.status)}</Badge></span></div>)}</div></div>}
@@ -928,28 +974,69 @@ function DeliveryReceivingCard({
   delivery,
   orderLines,
   drafts,
+  trackingDraft,
   onDraftChange,
+  onTrackingDraftChange,
    onFillRemaining,
   onSave,
+  onSaveTracking,
   onUpload,
   proofError,
   isSaving,
+  isTrackingSaving,
   isUploading,
 }: {
   delivery: SupplierDelivery;
   orderLines: SupplierOrderLine[];
   drafts: Record<number, ReceivingDraft>;
+  trackingDraft?: DeliveryTrackingDraft;
   onDraftChange: (lineId: number, draft: ReceivingDraft) => void;
+  onTrackingDraftChange: (draft: DeliveryTrackingDraft) => void;
   onFillRemaining: (line: SupplierDeliveryLine, draft: ReceivingDraft) => void;
   onSave: (event: React.FormEvent, delivery: SupplierDelivery) => void;
+  onSaveTracking: (event: React.FormEvent, delivery: SupplierDelivery) => void;
   onUpload: (deliveryId: number, file: File) => void;
   proofError: string;
   isSaving: boolean;
+  isTrackingSaving: boolean;
   isUploading: boolean;
 }) {
   const lines = delivery.lines ?? [];
+  const currentTracking = trackingDraft ?? {
+    status: delivery.status,
+    appointmentDate: delivery.appointmentDate ?? '',
+    carrier: delivery.carrier ?? '',
+    trackingReference: delivery.trackingReference ?? '',
+    recipientName: delivery.recipientName ?? '',
+    notes: delivery.notes ?? '',
+  };
   return (
-    <form onSubmit={(event) => onSave(event, delivery)} className="rounded-lg border border-border bg-secondary/20 p-3">
+    <div className="space-y-3">
+      <form onSubmit={(event) => onSaveTracking(event, delivery)} className="rounded-lg border border-primary/20 bg-primary/5 p-3" data-testid={`form-delivery-tracking-${delivery.id}`}>
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="mono text-[9px] font-bold uppercase tracking-[.12em] text-primary">Delivery tracking</p>
+            <p className="mt-1 text-xs text-muted-foreground">Keep the delivery status, carrier reference, appointment, and handoff details current.</p>
+          </div>
+          <Badge tone={statusTone(currentTracking.status)}>{labelStatus(currentTracking.status)}</Badge>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <Field label="Delivery status">
+            <select data-testid={`select-delivery-tracking-status-${delivery.id}`} value={currentTracking.status} onChange={(event) => onTrackingDraftChange({ ...currentTracking, status: event.target.value as SupplierDelivery['status'] })} className={inputClass}>
+              {['scheduled', 'confirmed', 'in_transit', 'delivered', 'partial', 'exception', 'returned', 'canceled'].map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}
+            </select>
+          </Field>
+          <Field label="Appointment date"><Input type="date" data-testid={`input-delivery-appointment-${delivery.id}`} value={currentTracking.appointmentDate} onChange={(event) => onTrackingDraftChange({ ...currentTracking, appointmentDate: event.target.value })} className={inputClass} /></Field>
+          <Field label="Carrier"><Input data-testid={`input-delivery-carrier-${delivery.id}`} value={currentTracking.carrier} onChange={(event) => onTrackingDraftChange({ ...currentTracking, carrier: event.target.value })} placeholder="Freight carrier or supplier" className={inputClass} /></Field>
+          <Field label="Tracking reference"><Input data-testid={`input-delivery-tracking-reference-${delivery.id}`} value={currentTracking.trackingReference} onChange={(event) => onTrackingDraftChange({ ...currentTracking, trackingReference: event.target.value })} placeholder="PRO, tracking, or confirmation number" className={inputClass} /></Field>
+          <Field label="Received by"><Input data-testid={`input-delivery-recipient-${delivery.id}`} value={currentTracking.recipientName} onChange={(event) => onTrackingDraftChange({ ...currentTracking, recipientName: event.target.value })} placeholder="Name of site recipient" className={inputClass} /></Field>
+          <Field label="Tracking notes"><textarea data-testid={`input-delivery-tracking-notes-${delivery.id}`} value={currentTracking.notes} onChange={(event) => onTrackingDraftChange({ ...currentTracking, notes: event.target.value })} maxLength={5000} rows={2} placeholder="Appointment changes, delays, or handoff notes" className={`${inputClass} resize-y`} /></Field>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <Button type="submit" data-testid={`button-save-delivery-tracking-${delivery.id}`} disabled={isTrackingSaving}>{isTrackingSaving ? 'Saving tracking…' : 'Save tracking'}</Button>
+        </div>
+      </form>
+      <form onSubmit={(event) => onSave(event, delivery)} className="rounded-lg border border-border bg-secondary/20 p-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -999,7 +1086,8 @@ function DeliveryReceivingCard({
           <Button type="submit" disabled={isSaving}>{isSaving ? 'Saving receiving…' : 'Save receiving'}</Button>
         </div>
       </div> : <p className="mt-3 text-xs text-muted-foreground">This delivery has no receiving lines.</p>}
-    </form>
+      </form>
+    </div>
   );
 }
 
