@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProjectControlEventDetails } from './projectControlEventDetails';
 
 export interface ProjectControlEvent {
   id: number;
@@ -12,10 +13,14 @@ export interface ProjectControlEvent {
   entityId: number;
   action: string;
   /** @nullable */
+  actorUserId: number | null;
+  actorDisplayName: string;
+  /** @nullable */
   fromStatus: string | null;
   /** @nullable */
   toStatus: string | null;
   /** @nullable */
   comments: string | null;
+  details: ProjectControlEventDetails;
   createdAt: Date;
 }

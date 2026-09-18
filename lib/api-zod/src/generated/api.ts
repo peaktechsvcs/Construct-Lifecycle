@@ -600,9 +600,12 @@ export const GetProjectControlsResponse = zod.object({
   "entityType": zod.string(),
   "entityId": zod.number().int(),
   "action": zod.string(),
+  "actorUserId": zod.number().int().nullable(),
+  "actorDisplayName": zod.string(),
   "fromStatus": zod.string().nullable(),
   "toStatus": zod.string().nullable(),
   "comments": zod.string().nullable(),
+  "details": zod.record(zod.string(), zod.unknown()),
   "createdAt": zod.coerce.date()
 }))
 })

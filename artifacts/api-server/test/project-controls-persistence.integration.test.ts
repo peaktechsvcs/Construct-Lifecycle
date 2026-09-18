@@ -479,6 +479,40 @@ test("change order approval decisions enforce roles, transitions, and scope", as
   assert.equal(changes.find((change) => change.id === platformCreated.id)?.approvalStatus, "approved");
   assert.equal(changes.find((change) => change.id === rejectionCreated.id)?.approvalStatus, "rejected");
 
+  const events = bodyObject(reloaded.body).events as Array<Record<string, unknown>>;
+  const memberHistory = events.filter((event) => event.entityType === "change_order" && event.entityId === memberChangeOrderId);
+  assert.equal(memberHistory.length, 2);
+  assert.equal(memberHistory[0]?.actorDisplayName, clerkIds.memberA);
+  assert.deepEqual(memberHistory[0]?.details, {
+    approvalStatus: { from: "pending", to: "pending" },
+    workflowStatus: { from: "under_review", to: "under_review" },
+  });
+  assert.equal(memberHistory[1]?.actorDisplayName, clerkIds.memberA);
+  assert.deepEqual(memberHistory[1]?.details, {
+    approvalStatus: { from: null, to: "pending" },
+    workflowStatus: { from: null, to: "under_review" },
+  });
+  const approvedHistory = events.find((event) =>
+    event.entityType === "change_order"
+    && event.entityId === ownerCreated.id
+    && (event.details as Record<string, unknown>)?.approvalStatus
+      && JSON.stringify((event.details as Record<string, unknown>).approvalStatus) === JSON.stringify({ from: "pending", to: "approved" }),
+  );
+  assert(approvedHistory);
+  assert.equal(approvedHistory.actorDisplayName, clerkIds.ownerA);
+  assert.deepEqual((approvedHistory.details as Record<string, unknown>).workflowStatus, {
+    from: "under_review",
+    to: "approved",
+  });
+  const rejectedHistory = events.find((event) =>
+    event.entityType === "change_order"
+    && event.entityId === rejectionCreated.id
+    && JSON.stringify((event.details as Record<string, unknown>)?.approvalStatus) === JSON.stringify({ from: "pending", to: "rejected" }),
+  );
+  assert(rejectedHistory);
+  assert.equal(rejectedHistory.actorDisplayName, clerkIds.adminA);
+  assert.equal(typeof rejectedHistory.createdAt, "string");
+
   const persistedRows = await db.select().from(projectChangeOrdersTable).where(and(
     eq(projectChangeOrdersTable.projectId, projectADtdId),
     eq(projectChangeOrdersTable.tenantId, tenantAId),

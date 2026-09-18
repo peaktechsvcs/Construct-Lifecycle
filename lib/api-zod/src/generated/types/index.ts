@@ -305,6 +305,7 @@ export * from './projectContractValidationError';
 export * from './projectContractValidationErrorCode';
 export * from './projectContractValidationIssue';
 export * from './projectControlEvent';
+export * from './projectControlEventDetails';
 export * from './projectControlsDashboard';
 export * from './projectControlsMetrics';
 export * from './projectControlsSummary';

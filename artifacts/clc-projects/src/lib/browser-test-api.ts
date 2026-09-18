@@ -604,6 +604,37 @@ const browserChangeOrder = {
   updatedAt: new Date(0).toISOString(),
 };
 
+type BrowserControlEvent = {
+  id: number;
+  entityType: string;
+  entityId: number;
+  action: string;
+  actorUserId: number | null;
+  actorDisplayName: string;
+  fromStatus: string | null;
+  toStatus: string | null;
+  comments: string | null;
+  details: Record<string, unknown>;
+  createdAt: string;
+};
+
+const browserChangeOrderCreatedEvent: BrowserControlEvent = {
+  id: 42040,
+  entityType: 'change_order',
+  entityId: browserChangeOrder.id,
+  action: 'change_order_created',
+  actorUserId: 1001,
+  actorDisplayName: 'Browser Test User',
+  fromStatus: null,
+  toStatus: 'pending',
+  comments: null,
+  details: {
+    approvalStatus: { from: null, to: 'pending' },
+    workflowStatus: { from: null, to: 'under_review' },
+  },
+  createdAt: '2026-09-15T15:02:00.000Z',
+};
+
 const projectDetailControls = {
   projectId: project.id,
   contract: null,
@@ -613,7 +644,7 @@ const projectDetailControls = {
   issues: [],
   changeOrders: [browserChangeOrder],
   closeoutRequirements: [],
-  events: [],
+  events: [browserChangeOrderCreatedEvent] as BrowserControlEvent[],
   payApplications: [],
   sovLines: [],
   metrics: {
@@ -778,11 +809,13 @@ export function installBrowserTestApi() {
     : browserControlsMode === 'standalone'
       ? loadStandaloneProjectControls()
       : standaloneProjectControls;
+  if (!Array.isArray(browserControls.events)) browserControls.events = [];
   let browserContractSaveAttempts = 0;
   let browserContractValidationAttempts = 0;
   let browserMilestoneSaveAttempts = 0;
   let browserChangeOrderSaveAttempts = 0;
   let browserCreatedChangeOrderId = 4205;
+  let browserCreatedControlEventId = 42041;
   const persistBrowserProjectControls = () => {
     if (browserControlsMode === 'reload') {
       window.localStorage.setItem(browserProjectControlsStorageKey, JSON.stringify(browserControls));
@@ -939,6 +972,25 @@ export function installBrowserTestApi() {
         updatedAt: new Date(0).toISOString(),
       };
       browserControls.changeOrders = [...browserControls.changeOrders, createdChangeOrder];
+      browserControls.events = [
+        ...browserControls.events,
+        {
+          id: browserCreatedControlEventId++,
+          entityType: 'change_order',
+          entityId: createdChangeOrder.id,
+          action: 'change_order_created',
+          actorUserId: 1001,
+          actorDisplayName: 'Browser Test User',
+          fromStatus: null,
+          toStatus: createdChangeOrder.approvalStatus,
+          comments: null,
+          details: {
+            approvalStatus: { from: null, to: createdChangeOrder.approvalStatus },
+            workflowStatus: { from: null, to: createdChangeOrder.status },
+          },
+          createdAt: new Date(0).toISOString(),
+        },
+      ];
       persistBrowserProjectControls();
       return json(createdChangeOrder, 201);
     }
@@ -960,6 +1012,8 @@ export function installBrowserTestApi() {
       if (!existing) return json({ error: 'Change order not found' }, 404);
       const requestedApprovalStatus = typeof requestBody.approvalStatus === 'string' ? requestBody.approvalStatus : undefined;
       const requestedApprovedValue = typeof requestBody.approvedValue === 'number' ? requestBody.approvedValue : undefined;
+      const previousApprovalStatus = existing.approvalStatus;
+      const previousWorkflowStatus = existing.status;
       const updatedChangeOrder = {
         ...existing,
         ...requestBody,
@@ -970,6 +1024,25 @@ export function installBrowserTestApi() {
         updatedAt: new Date(0).toISOString(),
       };
       browserControls.changeOrders = browserControls.changeOrders.map((item) => item.id === changeOrderId ? updatedChangeOrder : item);
+      browserControls.events = [
+        ...browserControls.events,
+        {
+          id: browserCreatedControlEventId++,
+          entityType: 'change_order',
+          entityId: existing.id,
+          action: 'change_order_updated',
+          actorUserId: 1001,
+          actorDisplayName: 'Browser Test User',
+          fromStatus: previousApprovalStatus,
+          toStatus: updatedChangeOrder.approvalStatus,
+          comments: null,
+          details: {
+            approvalStatus: { from: previousApprovalStatus, to: updatedChangeOrder.approvalStatus },
+            workflowStatus: { from: previousWorkflowStatus, to: updatedChangeOrder.status },
+          },
+          createdAt: new Date(0).toISOString(),
+        },
+      ];
       persistBrowserProjectControls();
       return json(updatedChangeOrder);
     }

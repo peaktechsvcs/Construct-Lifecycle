@@ -3,6 +3,7 @@ import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Check, Clock3, FileText, Pencil, Plus, Search, X } from 'lucide-react';
 import {
   type Project,
+  type ProjectControlEvent,
   type ProjectChangeOrder,
   type ProjectChangeOrderInput,
   type ProjectChangeOrderUpdate,
@@ -36,6 +37,32 @@ const statusTone = (value: string) =>
       : value === 'under_review' || value === 'pending'
         ? 'orange' as const
         : 'teal' as const;
+const historyDateTime = (value: string) =>
+  new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value));
+
+function historyStatus(event: ProjectControlEvent, key: 'approvalStatus' | 'workflowStatus') {
+  const value = event.details?.[key];
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const pair = value as { from?: unknown; to?: unknown };
+    return {
+      from: typeof pair.from === 'string' ? pair.from : null,
+      to: typeof pair.to === 'string' ? pair.to : null,
+    };
+  }
+  return key === 'approvalStatus'
+    ? { from: event.fromStatus, to: event.toStatus }
+    : { from: null, to: null };
+}
+
+function historyEventLabel(action: string) {
+  return action === 'change_order_created' ? 'Change Order created' : 'Change Order updated';
+}
 
 const emptyForm = {
   changeNumber: '',
@@ -314,7 +341,7 @@ function ProjectChangeOrders({
               <p className="truncate text-xs text-muted-foreground">
                 {item.requestedBy || 'Requested by project team'}{item.scheduleImpactDays ? ` · +${item.scheduleImpactDays} days` : ''}
               </p>
-              {item.documentUrl && <a href={item.documentUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-[10px] font-semibold text-primary hover:underline">Open supporting document</a>}
+              {item.documentUrl && <a data-testid={`link-change-order-document-${item.id}`} href={item.documentUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-[10px] font-semibold text-primary hover:underline">Open supporting document</a>}
             </div>
             <Badge tone={statusTone(item.status)}>{humanize(item.status)}</Badge>
             <Badge tone={statusTone(item.approvalStatus)}>{humanize(item.approvalStatus)}</Badge>
@@ -329,6 +356,47 @@ function ProjectChangeOrders({
                 </>
               )}
             </div>
+            {(() => {
+              const history = controls.events
+                .filter((event) => event.entityType === 'change_order' && event.entityId === item.id)
+                .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+              return (
+                <details open className="md:col-span-6 rounded-lg border border-border/70 bg-secondary/25 px-3 py-2.5" data-testid={`change-order-history-${item.id}`}>
+                  <summary className="cursor-pointer list-none text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">
+                    Approval history <span className="ml-1 font-normal normal-case tracking-normal">({history.length} {history.length === 1 ? 'entry' : 'entries'})</span>
+                  </summary>
+                  {history.length ? (
+                    <div className="mt-3 space-y-3">
+                      {history.map((event) => {
+                        const approval = historyStatus(event, 'approvalStatus');
+                        const workflow = historyStatus(event, 'workflowStatus');
+                        return (
+                          <div key={event.id} data-testid={`change-order-history-entry-${event.id}`} className="relative flex gap-3 border-l-2 border-primary/30 pl-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold">{historyEventLabel(event.action)}</p>
+                              <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
+                                Approval: <span className="font-semibold text-foreground">{humanize(approval.from ?? '—')}</span>
+                                {' → '}
+                                <span className="font-semibold text-foreground">{humanize(approval.to ?? '—')}</span>
+                                {' · '}
+                                Workflow: <span className="font-semibold text-foreground">{humanize(workflow.from ?? '—')}</span>
+                                {' → '}
+                                <span className="font-semibold text-foreground">{humanize(workflow.to ?? '—')}</span>
+                              </p>
+                              <p className="mono mt-1 text-[9px] uppercase tracking-[.07em] text-muted-foreground">
+                                {event.actorDisplayName} · {historyDateTime(event.createdAt)}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-muted-foreground">No approval history has been recorded.</p>
+                  )}
+                </details>
+              );
+            })()}
           </div>
         ))}
       </div>

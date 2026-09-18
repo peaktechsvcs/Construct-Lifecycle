@@ -18,6 +18,7 @@ import {
   scheduleOfValuesTable,
   submittalPackagesTable,
   contractParticipantsTable,
+  usersTable,
 } from "@workspace/db";
 import {
   CreateProjectChangeOrderBody,
@@ -166,6 +167,26 @@ function toAccountingSync(row: typeof projectAccountingSyncsTable.$inferSelect) 
   return { ...row, metadata };
 }
 
+function parseEventDetails(value: string | null) {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function getEventActorNames(events: (typeof projectControlEventsTable.$inferSelect)[]) {
+  const actorIds = [...new Set(events.flatMap((event) => event.actorUserId == null ? [] : [event.actorUserId]))];
+  if (!actorIds.length) return new Map<number, string>();
+  const actors = await db
+    .select({ id: usersTable.id, displayName: usersTable.displayName })
+    .from(usersTable)
+    .where(inArray(usersTable.id, actorIds));
+  return new Map(actors.map((actor) => [actor.id, actor.displayName?.trim() || "Unavailable user"]));
+}
+
 async function getProject(req: TenantRequest, projectId: number) {
   const [project] = await db.select().from(projectsTable).where(and(
     eq(projectsTable.id, projectId),
@@ -237,6 +258,7 @@ router.get("/projects/:projectId/controls", async (req: TenantRequest, res) => {
     db.select().from(projectCloseoutRequirementsTable).where(and(scope(req, projectCloseoutRequirementsTable), eq(projectCloseoutRequirementsTable.projectId, projectId))).orderBy(asc(projectCloseoutRequirementsTable.dueDate)),
     db.select().from(projectAccountingSyncsTable).where(and(scope(req, projectAccountingSyncsTable), eq(projectAccountingSyncsTable.projectId, projectId))).orderBy(desc(projectAccountingSyncsTable.updatedAt)),
   ]);
+  const eventActorNames = await getEventActorNames(events);
   const participants = contract
     ? await db.select().from(contractParticipantsTable).where(and(scope(req, contractParticipantsTable), eq(contractParticipantsTable.contractId, contract.id))).orderBy(asc(contractParticipantsTable.organizationName))
     : [];
@@ -301,9 +323,14 @@ router.get("/projects/:projectId/controls", async (req: TenantRequest, res) => {
       entityType: event.entityType,
       entityId: event.entityId,
       action: event.action,
+      actorUserId: event.actorUserId,
+      actorDisplayName: event.actorUserId == null
+        ? "Legacy actor"
+        : eventActorNames.get(event.actorUserId) ?? "Unavailable user",
       fromStatus: event.fromStatus,
       toStatus: event.toStatus,
       comments: event.comments,
+      details: parseEventDetails(event.details),
       createdAt: event.createdAt,
     })),
   });
@@ -639,7 +666,19 @@ router.post("/projects/:projectId/controls/change-orders", requireWorkflowManage
     tenantId: req.tenantId!,
     environmentId: req.environmentId!,
   }).returning();
-  await appendEvent(req, params.data.projectId, "change_order", row.id, "change_order_created", undefined, undefined, row.approvalStatus);
+  await appendEvent(
+    req,
+    params.data.projectId,
+    "change_order",
+    row.id,
+    "change_order_created",
+    JSON.stringify({
+      approvalStatus: { from: null, to: row.approvalStatus },
+      workflowStatus: { from: null, to: row.status },
+    }),
+    undefined,
+    row.approvalStatus,
+  );
   res.status(201).json(toChangeOrder(row));
 });
 
@@ -663,7 +702,19 @@ router.patch("/projects/:projectId/controls/change-orders/:changeOrderId", requi
     approvedAt: data.approvalStatus === "approved" ? new Date() : data.approvalStatus ? null : undefined,
     updatedAt: new Date(),
   }).where(and(scope(req, projectChangeOrdersTable), eq(projectChangeOrdersTable.projectId, params.data.projectId), eq(projectChangeOrdersTable.id, params.data.changeOrderId))).returning();
-  await appendEvent(req, params.data.projectId, "change_order", row.id, "change_order_updated", undefined, previous.approvalStatus, row.approvalStatus);
+  await appendEvent(
+    req,
+    params.data.projectId,
+    "change_order",
+    row.id,
+    "change_order_updated",
+    JSON.stringify({
+      approvalStatus: { from: previous.approvalStatus, to: row.approvalStatus },
+      workflowStatus: { from: previous.status, to: row.status },
+    }),
+    previous.approvalStatus,
+    row.approvalStatus,
+  );
   res.json(toChangeOrder(row));
 });
 

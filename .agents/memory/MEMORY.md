@@ -47,3 +47,4 @@
 - [Tenant role resolution](tenant-role-resolution.md) — prefer the API's active tenant role when gating tenant-scoped actions.
 - [Responsive browser coverage](responsive-browser-coverage.md) — strict CDP error capture turns invalid markup and empty asset URLs into actionable release failures.
 - [Responsive procurement flow checks](responsive-procurement-flow.md) — reset state after cross-route supplier flows and avoid viewport-specific text casing assertions.
+- [Integration test actor names](integration-test-actor-names.md) — test auth headers hydrate display names from the Clerk test ID, so actor assertions should use that stable identity.

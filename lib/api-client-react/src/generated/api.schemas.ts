@@ -3597,17 +3597,23 @@ export interface ProjectCloseoutRequirementUpdate {
   documentUrl?: string | null;
 }
 
+export type ProjectControlEventDetails = { [key: string]: unknown };
+
 export interface ProjectControlEvent {
   id: number;
   entityType: string;
   entityId: number;
   action: string;
   /** @nullable */
+  actorUserId: number | null;
+  actorDisplayName: string;
+  /** @nullable */
   fromStatus: string | null;
   /** @nullable */
   toStatus: string | null;
   /** @nullable */
   comments: string | null;
+  details: ProjectControlEventDetails;
   createdAt: string;
 }
 

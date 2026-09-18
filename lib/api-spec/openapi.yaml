@@ -6515,15 +6515,18 @@ components:
         documentUrl: { type: ["string", "null"], maxLength: 2000 }
     ProjectControlEvent:
       type: object
-      required: [id, entityType, entityId, action, fromStatus, toStatus, comments, createdAt]
+      required: [id, entityType, entityId, action, actorUserId, actorDisplayName, fromStatus, toStatus, comments, details, createdAt]
       properties:
         id: { type: integer }
         entityType: { type: string }
         entityId: { type: integer }
         action: { type: string }
+        actorUserId: { type: ["integer", "null"] }
+        actorDisplayName: { type: string }
         fromStatus: { type: ["string", "null"] }
         toStatus: { type: ["string", "null"] }
         comments: { type: ["string", "null"] }
+        details: { type: object, additionalProperties: true }
         createdAt: { type: string, format: date-time }
     ProjectControlsMetrics:
       type: object
