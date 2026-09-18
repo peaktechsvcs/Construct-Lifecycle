@@ -40,6 +40,7 @@ import { Notifications } from '@/pages/notifications';
 import { PricingCanceledPage, PricingPage, PricingSuccessPage } from '@/pages/pricing';
 import { SupplierOrders } from '@/pages/supplier-orders';
 import { ItbIntakes } from '@/pages/itb-intakes';
+import { Margin } from '@/pages/margin';
 import { routeMetadata, useRouteMetadata } from '@/lib/route-titles';
 
 const queryClient = new QueryClient();
@@ -335,6 +336,9 @@ function AppRouter() {
         <Route path="/receiving">
           <Shell><ProtectedRoute component={SupplierOrders} /></Shell>
         </Route>
+        <Route path="/margin">
+          <Shell><ProtectedRoute component={Margin} /></Shell>
+        </Route>
         <Route path="/follow-ups">
           <Shell><ProtectedRoute component={FollowUps} /></Shell>
         </Route>
@@ -376,6 +380,9 @@ function AppRouter() {
         </Route>
         <Route path="/coming-soon/milestones">
           <Redirect to="/milestones" />
+        </Route>
+        <Route path="/coming-soon/margin">
+          <Redirect to="/margin" />
         </Route>
         <Route path="/administration/platform/customers">
           <Shell><PlatformAdminRoute component={PlatformCustomers} /></Shell>

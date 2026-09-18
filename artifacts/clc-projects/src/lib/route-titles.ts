@@ -62,6 +62,10 @@ export const routeMetadata = {
     title('404 Page Not Found'),
     'The Construct Lifecycle page you requested could not be found.',
   ),
+  margin: metadata(
+    title('Margin'),
+    'Analyze quoted and purchased work, forecast margin, and margin risk across your construction workspace.',
+  ),
 } as const;
 
 export const routeTitles = {
@@ -77,6 +81,7 @@ export const routeTitles = {
   platformAccess: routeMetadata.platformAccess.title,
   error: routeMetadata.error.title,
   notFound: routeMetadata.notFound.title,
+  margin: routeMetadata.margin.title,
 } as const;
 
 export function comingSoonTitle(label: string) {

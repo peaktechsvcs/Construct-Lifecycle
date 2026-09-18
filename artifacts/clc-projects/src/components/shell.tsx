@@ -240,7 +240,7 @@ const NAVIGATION_GROUPS: NavigationGroup[] = [
       { href: '/coming-soon/costs', label: 'Costs', icon: Receipt },
       { href: '/coming-soon/billing', label: 'Billing', icon: BadgeDollarSign },
       { href: '/coming-soon/change-orders', label: 'Change Orders', icon: FilePenLine },
-      { href: '/coming-soon/margin', label: 'Margin', icon: Percent },
+      { href: '/margin', label: 'Margin', icon: Percent },
     ],
   },
   {
@@ -283,6 +283,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/purchase-orders': 'Purchase orders',
   '/deliveries': 'Deliveries',
   '/receiving': 'Receiving',
+  '/margin': 'Margin',
   '/settings': 'Settings',
   '/settings/profile': 'Organization Profile',
   '/settings/branding': 'Branding',
