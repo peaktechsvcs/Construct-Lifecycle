@@ -434,6 +434,171 @@ async function checkDirectProjectBookCreation() {
   }
 }
 
+async function checkPendingActiveProjectSave() {
+  const activeProjectsPath =
+    "/dashboard/drilldown/active-projects?browserAuth=authenticated&browserRole=owner&sort=value_desc";
+  const { target, client } = await openTarget(activeProjectsPath);
+  try {
+    await waitFor(
+      client,
+      "pending-save Active Projects empty-state action",
+      `(() => ({
+        ready: document.body?.innerText?.includes("No in flight projects") === true
+          && document.querySelector('a[href^="/projects?create=1"]') !== null,
+      }))()`,
+    );
+
+    const opened = await evaluate(client, `(() => {
+      const action = document.querySelector('a[href^="/projects?create=1"]');
+      if (!(action instanceof HTMLElement)) return false;
+      action.click();
+      return true;
+    })()`);
+    if (!opened) throw new Error("pending-save Active Projects could not open the project form");
+    await waitFor(
+      client,
+      "pending-save Active Projects project form",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project",
+      }))()`,
+    );
+
+    const delayInstalled = await evaluate(client, `(() => {
+      const originalFetch = window.fetch;
+      let releaseResponse;
+      let requestCount = 0;
+      const responseReady = new Promise((resolve) => { releaseResponse = resolve; });
+      window.__clcProjectCreatePending = {
+        get requestCount() { return requestCount; },
+        release: () => releaseResponse(),
+      };
+      window.fetch = async (input, init = {}) => {
+        const requestUrl = typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+        const requestMethod = String(
+          init.method
+            ?? (typeof input === "string" || input instanceof URL ? "GET" : input.method),
+        ).toUpperCase();
+        const requestPath = new URL(requestUrl, window.location.origin).pathname;
+        if (requestPath === "/api/projects" && requestMethod === "POST") {
+          requestCount += 1;
+          await responseReady;
+          return new Response(
+            JSON.stringify({ id: 43, projectNumber: "P-0043", projectName: "Browser Pending Project" }),
+            { status: 201, headers: { "content-type": "application/json" } },
+          );
+        }
+        return originalFetch(input, init);
+      };
+      return true;
+    })()`);
+    if (!delayInstalled) throw new Error("pending-save browser response could not be held");
+
+    const customerFocused = await evaluate(client, `(() => {
+      const input = document.querySelector('[data-testid="input-business-customer"]');
+      if (!(input instanceof HTMLInputElement)) return false;
+      input.focus();
+      input.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+      return true;
+    })()`);
+    if (!customerFocused) throw new Error("pending-save flow could not focus the customer selector");
+    await waitFor(
+      client,
+      "pending-save customer selector",
+      `(() => ({
+        ready: [...document.querySelectorAll('[role="option"]')]
+          .some((option) => option.textContent?.includes("Browser Test Customer")),
+      }))()`,
+    );
+    const customerSelected = await evaluate(client, `(() => {
+      const option = [...document.querySelectorAll('[role="option"]')]
+        .find((candidate) => candidate.textContent?.includes("Browser Test Customer"));
+      if (!(option instanceof HTMLElement)) return false;
+      option.click();
+      return true;
+    })()`);
+    if (!customerSelected) throw new Error("pending-save flow could not select the customer");
+
+    const projectNameFocused = await evaluate(client, `(() => {
+      const input = document.querySelector('[data-testid="input-project-projectName"]');
+      if (!(input instanceof HTMLInputElement)) return false;
+      input.focus();
+      return true;
+    })()`);
+    if (!projectNameFocused) throw new Error("pending-save flow could not focus the project name");
+    await client.command("Input.insertText", { text: "Browser Pending Project" });
+
+    const submitted = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-save-project"]');
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!submitted) throw new Error("pending-save flow could not submit the project form");
+
+    await waitFor(
+      client,
+      "pending project save state",
+      `(() => ({
+        ready: document.querySelector('[role="dialog"] h2')?.textContent?.trim() === "Create a new project"
+          && document.querySelector('[role="dialog"] [data-testid="button-save-project"]')?.textContent?.includes("Saving…") === true
+          && document.querySelector('[role="dialog"] [data-testid="button-save-project"]')?.disabled === true
+          && document.querySelector('[role="dialog"] [data-testid="button-cancel-project"]')?.disabled === true
+          && window.__clcProjectCreatePending?.requestCount === 1,
+        requestCount: window.__clcProjectCreatePending?.requestCount ?? 0,
+      }))()`,
+    );
+
+    const closeAttempt = await evaluate(client, `(() => {
+      const close = document.querySelector('[role="dialog"] button[aria-label="Close modal"]');
+      if (!(close instanceof HTMLElement)) return { dialogOpen: false };
+      close.click();
+      const save = document.querySelector('[role="dialog"] [data-testid="button-save-project"]');
+      const cancel = document.querySelector('[role="dialog"] [data-testid="button-cancel-project"]');
+      return {
+        dialogOpen: document.querySelector('[role="dialog"]') !== null,
+        saveDisabled: save instanceof HTMLButtonElement && save.disabled,
+        cancelDisabled: cancel instanceof HTMLButtonElement && cancel.disabled,
+        requestCount: window.__clcProjectCreatePending?.requestCount ?? 0,
+      };
+    })()`);
+    if (!closeAttempt.dialogOpen || !closeAttempt.saveDisabled || !closeAttempt.cancelDisabled || closeAttempt.requestCount !== 1) {
+      throw new Error(`pending-save close attempt changed the form state: ${JSON.stringify(closeAttempt)}`);
+    }
+
+    const duplicateAttempt = await evaluate(client, `(() => {
+      const button = document.querySelector('[role="dialog"] [data-testid="button-save-project"]');
+      if (!(button instanceof HTMLElement)) return -1;
+      button.click();
+      return window.__clcProjectCreatePending?.requestCount ?? 0;
+    })()`);
+    if (duplicateAttempt !== 1) throw new Error(`pending-save submitted more than once: ${duplicateAttempt}`);
+
+    const released = await evaluate(client, `(() => {
+      if (typeof window.__clcProjectCreatePending?.release !== "function") return false;
+      window.__clcProjectCreatePending.release();
+      return true;
+    })()`);
+    if (!released) throw new Error("pending-save response could not be released");
+    await waitFor(
+      client,
+      "pending-save Active Projects return",
+      `(() => ({
+        ready: window.location.pathname === "/dashboard/drilldown/active-projects"
+          && window.location.search === "?browserAuth=authenticated&browserRole=owner&sort=value_desc"
+          && document.querySelector('[role="dialog"]') === null,
+        url: window.location.href,
+      }))()`,
+    );
+    console.log("✔ pending project saves stay single-submit and return to Active Projects");
+  } finally {
+    await closeTarget(target, client);
+  }
+}
+
 async function checkFailedActiveProjectSaveCancellation() {
   const activeProjectsPath =
     "/dashboard/drilldown/active-projects?browserAuth=authenticated&browserRole=owner&sort=value_desc";
@@ -1089,6 +1254,7 @@ try {
   await checkCustomerDetailProjectShortcut("viewer", false);
   await checkRestrictedRole();
   await checkDirectProjectBookCreation();
+  await checkPendingActiveProjectSave();
   await checkFailedActiveProjectSaveCancellation();
   await checkMobileCancellation();
   await checkPermittedQueryCleanup();

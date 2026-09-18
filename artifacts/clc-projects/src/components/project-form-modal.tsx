@@ -181,6 +181,9 @@ export function ProjectFormModal({
 
   const pending = create.isPending || update.isPending;
   const mutationError = create.error || update.error;
+  const close = () => {
+    if (!pending) onClose();
+  };
 
   const input = (key: keyof ProjectForm, label: string, type = 'text', placeholder = '') => (
     <label className="block">
@@ -269,7 +272,7 @@ export function ProjectFormModal({
   );
 
   return (
-    <Modal title={project ? `Edit ${project.projectNumber}` : 'Create a new project'} onClose={onClose}>
+    <Modal title={project ? `Edit ${project.projectNumber}` : 'Create a new project'} onClose={close}>
       <form onSubmit={submit} className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2">
           <CustomerSelector
@@ -326,7 +329,7 @@ export function ProjectFormModal({
           {input('billingDetails', 'Billing notes', 'text', 'Deposit, invoice timing, terms')}
         </div>
         <div className="flex justify-end gap-3 border-t border-border pt-5">
-          <Button data-testid="button-cancel-project" type="button" variant="ghost" onClick={onClose}>
+          <Button data-testid="button-cancel-project" type="button" variant="ghost" disabled={pending} onClick={close}>
             Cancel
           </Button>
           <Button
