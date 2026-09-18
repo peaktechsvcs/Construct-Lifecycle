@@ -584,6 +584,26 @@ const browserMilestone = {
   updatedAt: new Date(0).toISOString(),
 };
 
+const browserChangeOrder = {
+  id: 4204,
+  projectId: project.id,
+  changeNumber: 'CO-0042',
+  changeType: 'change_request',
+  title: 'Additional storefront concrete',
+  description: 'Representative pending change for approval coverage.',
+  status: 'under_review',
+  approvalStatus: 'pending',
+  proposedValue: 18500,
+  approvedValue: 0,
+  scheduleImpactDays: 3,
+  requestedBy: 'Browser Test User',
+  dueDate: '2026-09-25',
+  approvedAt: null as string | null,
+  documentUrl: 'https://example.test/change-orders/CO-0042',
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+};
+
 const projectDetailControls = {
   projectId: project.id,
   contract: null,
@@ -591,7 +611,7 @@ const projectDetailControls = {
   financials: null,
   commitments: [],
   issues: [],
-  changeOrders: [],
+  changeOrders: [browserChangeOrder],
   closeoutRequirements: [],
   events: [],
   payApplications: [],
@@ -735,6 +755,7 @@ export function installBrowserTestApi() {
   const browserControlsSaveFailure = browserSearchParams.get('browserControlsSaveFailure') === '1';
   const browserControlsValidationFailure = browserSearchParams.get('browserControlsValidationFailure') === '1';
   const browserMilestoneSaveFailure = browserSearchParams.get('browserMilestoneSaveFailure');
+  const browserChangeOrderSaveFailure = browserSearchParams.get('browserChangeOrderSaveFailure') === '1';
   if ((browserControlsMode === 'reload' || browserControlsMode === 'standalone') && browserSearchParams.get('browserControlsReset') === '1') {
     try {
       const resetKey = browserControlsMode === 'reload'
@@ -760,6 +781,8 @@ export function installBrowserTestApi() {
   let browserContractSaveAttempts = 0;
   let browserContractValidationAttempts = 0;
   let browserMilestoneSaveAttempts = 0;
+  let browserChangeOrderSaveAttempts = 0;
+  let browserCreatedChangeOrderId = 4205;
   const persistBrowserProjectControls = () => {
     if (browserControlsMode === 'reload') {
       window.localStorage.setItem(browserProjectControlsStorageKey, JSON.stringify(browserControls));
@@ -893,6 +916,62 @@ export function installBrowserTestApi() {
       browserControls.contract = updatedContract;
       persistBrowserProjectControls();
       return json(updatedContract);
+    }
+    if (url.pathname === `/api/projects/${project.id}/controls/change-orders` && requestMethod === 'POST') {
+      let requestBody: Record<string, unknown> = {};
+      try {
+        requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      } catch {
+        // The production form validates the request before submitting.
+      }
+      const createdApprovalStatus = typeof requestBody.approvalStatus === 'string' ? requestBody.approvalStatus : 'pending';
+      const createdStatus = typeof requestBody.status === 'string' ? requestBody.status : 'draft';
+      const createdChangeOrder = {
+        ...browserChangeOrder,
+        ...requestBody,
+        id: browserCreatedChangeOrderId++,
+        projectId: project.id,
+        approvedValue: Number(requestBody.approvedValue ?? 0),
+        approvalStatus: createdApprovalStatus,
+        status: createdStatus,
+        approvedAt: null,
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+      };
+      browserControls.changeOrders = [...browserControls.changeOrders, createdChangeOrder];
+      persistBrowserProjectControls();
+      return json(createdChangeOrder, 201);
+    }
+    if (url.pathname.startsWith(`/api/projects/${project.id}/controls/change-orders/`) && requestMethod === 'PATCH') {
+      const changeOrderId = Number(url.pathname.split('/').pop());
+      let requestBody: Record<string, unknown> = {};
+      try {
+        requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      } catch {
+        // The production form validates the request before submitting.
+      }
+      if (requestBody.approvalStatus && !['owner', 'admin'].includes(browserRole()) && mode() !== 'platform') {
+        return json({ error: 'Only customer administrators can approve a change order.' }, 403);
+      }
+      if (browserChangeOrderSaveFailure && browserChangeOrderSaveAttempts++ === 0) {
+        return json({ error: 'Browser test change-order save failure' }, 503);
+      }
+      const existing = browserControls.changeOrders.find((item) => item.id === changeOrderId);
+      if (!existing) return json({ error: 'Change order not found' }, 404);
+      const requestedApprovalStatus = typeof requestBody.approvalStatus === 'string' ? requestBody.approvalStatus : undefined;
+      const requestedApprovedValue = typeof requestBody.approvedValue === 'number' ? requestBody.approvedValue : undefined;
+      const updatedChangeOrder = {
+        ...existing,
+        ...requestBody,
+        id: existing.id,
+        projectId: project.id,
+        approvedValue: requestedApprovedValue ?? (requestedApprovalStatus === 'approved' ? existing.proposedValue : existing.approvedValue),
+        approvedAt: requestedApprovalStatus === 'approved' ? new Date(0).toISOString() : existing.approvedAt,
+        updatedAt: new Date(0).toISOString(),
+      };
+      browserControls.changeOrders = browserControls.changeOrders.map((item) => item.id === changeOrderId ? updatedChangeOrder : item);
+      persistBrowserProjectControls();
+      return json(updatedChangeOrder);
     }
     if (url.pathname === `/api/projects/${project.id}/controls/schedule` && requestMethod === 'POST') {
       let requestBody: Record<string, unknown> = {};

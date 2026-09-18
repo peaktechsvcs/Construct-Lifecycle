@@ -154,6 +154,7 @@ function ChangeOrderForm({
     <label className="block">
       <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{label}</span>
       <Input
+        data-testid={`input-change-order-${key}`}
         {...props}
         value={form[key]}
         onChange={(event) => set(key, event.target.value)}
@@ -166,7 +167,7 @@ function ChangeOrderForm({
 
   return (
     <Modal title={item ? `Edit ${item.changeNumber}` : 'New change'} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
+      <form data-testid="change-order-form" onSubmit={submit} className="space-y-4">
         {!item && (
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Project</span>
@@ -209,7 +210,7 @@ function ChangeOrderForm({
         </div>
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Description</span>
-          <Textarea rows={3} value={form.description} onChange={(event) => set('description', event.target.value)} placeholder="Scope, pricing assumptions, and schedule notes" />
+          <Textarea data-testid="textarea-change-order-description" rows={3} value={form.description} onChange={(event) => set('description', event.target.value)} placeholder="Scope, pricing assumptions, and schedule notes" />
         </label>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="block">
@@ -236,7 +237,7 @@ function ChangeOrderForm({
         {error && <p role="alert" className="text-xs text-destructive">{getMutationErrorMessage(error)}</p>}
         <div className="flex justify-end gap-3 border-t border-border pt-4">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={pending || !selectedProject || !form.changeNumber.trim() || !form.title.trim() || !form.proposedValue}>
+          <Button data-testid="button-save-change-order" type="submit" disabled={pending || !selectedProject || !form.changeNumber.trim() || !form.title.trim() || !form.proposedValue}>
             {pending ? 'Saving…' : item ? 'Save changes' : 'Create change'}
           </Button>
         </div>
@@ -301,12 +302,12 @@ function ProjectChangeOrders({
           <h2 className="text-sm font-bold">{project.projectName}</h2>
           <p className="text-xs text-muted-foreground">{project.customerName}</p>
         </div>
-        {canManage && <Button variant="outline" onClick={onCreate}><Plus size={15} /> Add change</Button>}
+        {canManage && <Button data-testid={`button-add-change-${project.id}`} variant="outline" onClick={onCreate}><Plus size={15} /> Add change</Button>}
       </div>
-      {feedback && <p role="status" aria-live="polite" className="border-b border-border px-5 py-2 text-xs text-muted-foreground">{feedback}</p>}
+      {feedback && <p data-testid={`change-order-feedback-${project.id}`} role="status" aria-live="polite" className="border-b border-border px-5 py-2 text-xs text-muted-foreground">{feedback}</p>}
       <div className="divide-y divide-border">
         {items.map((item) => (
-          <div key={item.id} className="group grid gap-3 px-5 py-4 transition-colors hover:bg-secondary/35 md:grid-cols-[1.35fr_110px_130px_110px_145px_auto] md:items-center md:gap-4">
+          <div key={item.id} data-testid={`change-order-row-${item.id}`} className="group grid gap-3 px-5 py-4 transition-colors hover:bg-secondary/35 md:grid-cols-[1.35fr_110px_130px_110px_145px_auto] md:items-center md:gap-4">
             <div className="min-w-0">
               <p className="mono text-[10px] text-accent">{item.changeNumber} · {humanize(item.changeType)}</p>
               <p className="truncate text-sm font-bold">{item.title}</p>
@@ -320,11 +321,11 @@ function ProjectChangeOrders({
             <p className="mono text-sm font-medium">{currency.format(item.proposedValue)}</p>
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays size={13} />{shortDate(item.dueDate)}</p>
             <div className="flex justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-              {canManage && <Button variant="ghost" className="p-2" aria-label={`Edit ${item.changeNumber}`} onClick={() => onEdit(item)}><Pencil size={15} /></Button>}
+              {canManage && <Button data-testid={`button-edit-change-${item.id}`} variant="ghost" className="p-2" aria-label={`Edit ${item.changeNumber}`} onClick={() => onEdit(item)}><Pencil size={15} /></Button>}
               {canApprove && item.approvalStatus === 'pending' && (
                 <>
-                  <Button variant="ghost" className="p-2 text-status-success" aria-label={`Approve ${item.changeNumber}`} onClick={() => transition(item, 'approved')} disabled={update.isPending}><Check size={15} /></Button>
-                  <Button variant="ghost" className="p-2 text-status-danger" aria-label={`Reject ${item.changeNumber}`} onClick={() => transition(item, 'rejected')} disabled={update.isPending}><X size={15} /></Button>
+                  <Button data-testid={`button-approve-change-${item.id}`} variant="ghost" className="p-2 text-status-success" aria-label={`Approve ${item.changeNumber}`} onClick={() => transition(item, 'approved')} disabled={update.isPending}><Check size={15} /></Button>
+                  <Button data-testid={`button-reject-change-${item.id}`} variant="ghost" className="p-2 text-status-danger" aria-label={`Reject ${item.changeNumber}`} onClick={() => transition(item, 'rejected')} disabled={update.isPending}><X size={15} /></Button>
                 </>
               )}
             </div>
@@ -393,7 +394,7 @@ export function ChangeOrders() {
         eyebrow="Project controls"
         title="Change orders"
         description="Control scope, price, and schedule changes with an approval trail across projects."
-        action={canManage ? <Button onClick={() => setForm({})} disabled={!projects.length}><Plus size={16} /> New change</Button> : undefined}
+        action={canManage ? <Button data-testid="button-new-change-order" onClick={() => setForm({})} disabled={!projects.length}><Plus size={16} /> New change</Button> : undefined}
       />
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-border bg-card p-4"><p className="mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">Changes in view</p><p className="mt-2 text-2xl font-semibold">{controlsLoading ? '—' : totalChanges}</p></div>

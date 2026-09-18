@@ -90,6 +90,30 @@ const cases = [
     skipVisual: true,
   },
   {
+    id: "change-orders-member",
+    name: "change orders member approval boundary",
+    path: "/change-orders?browserAuth=authenticated&browserRole=member&browserControls=standalone&browserControlsReset=1",
+    heading: "Change orders",
+    actions: [],
+    requiredSelectors: ['[data-testid="change-order-row-4204"]', 'button[data-testid="button-edit-change-4204"]'],
+    requiredTexts: ["Browser Test Project", "CO-0042", "Additional storefront concrete", "Pending"],
+    changeOrderFlow: { role: "member" },
+    shell: true,
+    skipVisual: true,
+  },
+  {
+    id: "change-orders-owner",
+    name: "change orders owner approval and mutations",
+    path: "/change-orders?browserAuth=authenticated&browserRole=owner&browserControls=standalone&browserControlsReset=1&browserChangeOrderSaveFailure=1",
+    heading: "Change orders",
+    actions: [],
+    requiredSelectors: ['[data-testid="change-order-row-4204"]', 'button[data-testid="button-edit-change-4204"]'],
+    requiredTexts: ["Browser Test Project", "CO-0042", "Additional storefront concrete", "Pending"],
+    changeOrderFlow: { role: "owner" },
+    shell: true,
+    skipVisual: true,
+  },
+  {
     id: "contracts-workspace",
     name: "contracts workspace",
     path: "/contracts?browserAuth=authenticated&browserControls=standalone",
@@ -2054,6 +2078,163 @@ async function inspectProcurementFailureRecovery(client, routeCase, viewport) {
   );
 }
 
+async function inspectChangeOrders(client, routeCase, viewport) {
+  const flow = routeCase.changeOrderFlow;
+  if (!flow) return;
+
+  let rowState;
+  try {
+    rowState = await waitFor(
+      client,
+      `${routeCase.name} representative change order`,
+      `(() => {
+        const row = document.querySelector('[data-testid="change-order-row-4204"]');
+        return {
+          ready: row instanceof HTMLElement,
+          hasApprove: document.querySelector('[data-testid="button-approve-change-4204"]') !== null,
+        };
+      })()`,
+    );
+  } catch (error) {
+    const diagnostic = await evaluate(client, `({
+      url: location.href,
+      body: document.body.innerText.slice(0, 1200),
+    })`);
+    throw new Error(`${error.message}; diagnostic=${JSON.stringify(diagnostic)}`);
+  }
+
+  if (flow.role === "member") {
+    if (rowState.hasApprove) {
+      throw new Error(`${routeCase.name} (${viewport.name}): member can see the approve action`);
+    }
+    if (viewport.name !== "mobile") return;
+    const forbidden = await evaluate(client, `fetch("/api/projects/42/controls/change-orders/4204", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ approvalStatus: "approved", status: "approved" }),
+    }).then((response) => response.status)`);
+    if (forbidden !== 403) {
+      throw new Error(`${routeCase.name} (${viewport.name}): member approval request returned ${forbidden} instead of 403`);
+    }
+    return;
+  }
+
+  if (viewport.name !== "mobile") return;
+
+  const newChangeOpened = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-new-change-order"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!newChangeOpened) throw new Error(`${routeCase.name} (${viewport.name}): new change action missing`);
+  await waitFor(
+    client,
+    `${routeCase.name} create editor`,
+    `(() => ({ ready: document.querySelector('[data-testid="change-order-form"]') !== null }))()`,
+  );
+
+  const fillInputs = async (fields) => {
+    const filled = await evaluate(client, `(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      if (!setter) return false;
+      const fields = ${JSON.stringify(fields)};
+      for (const fieldCase of fields) {
+        const field = document.querySelector(fieldCase.selector);
+        if (!(field instanceof HTMLInputElement)) return false;
+        setter.call(field, fieldCase.value);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      return true;
+    })()`);
+    if (!filled) throw new Error(`${routeCase.name} (${viewport.name}): change-order editor field missing`);
+  };
+
+  await fillInputs([
+    { selector: '[data-testid="input-change-order-changeNumber"]', value: "CO-0043" },
+    { selector: '[data-testid="input-change-order-title"]', value: "Created storefront change" },
+    { selector: '[data-testid="input-change-order-proposedValue"]', value: "22500" },
+  ]);
+  const created = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-save-change-order"]');
+    if (!(button instanceof HTMLElement) || button.hasAttribute("disabled")) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!created) throw new Error(`${routeCase.name} (${viewport.name}): create change submit action missing`);
+  await waitFor(
+    client,
+    `${routeCase.name} created change order`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="change-order-row-4205"]')?.textContent?.includes("Created storefront change") === true
+        && document.querySelector('[data-testid="change-order-form"]') === null,
+    }))()`,
+  );
+
+  const editOpened = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-edit-change-4205"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!editOpened) throw new Error(`${routeCase.name} (${viewport.name}): created change edit action missing`);
+  await waitFor(
+    client,
+    `${routeCase.name} edit editor`,
+    `(() => ({ ready: document.querySelector('[data-testid="change-order-form"]') !== null }))()`,
+  );
+  await fillInputs([
+    { selector: '[data-testid="input-change-order-title"]', value: "Edited storefront change" },
+  ]);
+  const firstEditSubmit = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-save-change-order"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!firstEditSubmit) throw new Error(`${routeCase.name} (${viewport.name}): edit submit action missing`);
+  await waitFor(
+    client,
+    `${routeCase.name} edit failure feedback`,
+    `(() => ({
+      ready: document.querySelector('[role="alert"]')?.textContent?.trim() === "The change could not be saved. Check the fields and try again.",
+    }))()`,
+  );
+
+  const retriedEdit = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-save-change-order"]');
+    if (!(button instanceof HTMLElement) || button.hasAttribute("disabled")) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!retriedEdit) throw new Error(`${routeCase.name} (${viewport.name}): edit retry action missing`);
+  await waitFor(
+    client,
+    `${routeCase.name} edited change order`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="change-order-row-4205"]')?.textContent?.includes("Edited storefront change") === true
+        && document.querySelector('[data-testid="change-order-form"]') === null,
+    }))()`,
+  );
+
+  const approved = await evaluate(client, `(() => {
+    const button = document.querySelector('[data-testid="button-approve-change-4204"]');
+    if (!(button instanceof HTMLElement)) return false;
+    button.click();
+    return true;
+  })()`);
+  if (!approved) throw new Error(`${routeCase.name} (${viewport.name}): owner approve action missing`);
+  await waitFor(
+    client,
+    `${routeCase.name} approved change order`,
+    `(() => ({
+      ready: document.querySelector('[data-testid="change-order-feedback-42"]')?.textContent?.trim() === "CO-0042 marked Approved."
+        && document.querySelector('[data-testid="change-order-row-4204"]')?.textContent?.includes("Approved") === true,
+    }))()`,
+  );
+}
+
 async function inspect(client, routeCase, viewport) {
   if (routeCase.shell && viewport.name === "mobile") {
     const opened = await evaluate(client, `(() => {
@@ -2076,6 +2257,7 @@ async function inspect(client, routeCase, viewport) {
   await inspectSupplierQuoteCreation(client, routeCase, viewport);
   await inspectProcurementFailureRecovery(client, routeCase, viewport);
   await inspectProcurementNavigation(client, routeCase, viewport);
+  await inspectChangeOrders(client, routeCase, viewport);
 
   return evaluate(client, `(() => {
     const visible = (selector) => {
