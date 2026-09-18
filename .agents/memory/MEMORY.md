@@ -40,6 +40,7 @@
 - [Node strip-types import resolution](node-strip-types-imports.md) — direct Node tests need explicit `.ts` extensions for local TypeScript imports.
 - [SPA query-state handoffs](spa-query-state.md) — modal and deep-link flags need a browser search fallback when router location omits query strings.
 - [Supplier queue deep links](supplier-queue-deep-links.md) — same-path query changes must refresh route state, and stale queue IDs must never auto-select the first visible record.
+- [Supplier response nullability](supplier-response-nullability.md) — nested supplier order collections may be omitted and must be treated as empty at render boundaries.
 - [Static route metadata shells](static-route-metadata-shells.md) — crawler-visible SPA metadata needs exact route files emitted alongside the fallback index.
 - [Post-merge database setup](post-merge-database-setup.md) — noninteractive Drizzle schema pushes need an explicit force flag and enough timeout for schema introspection.
 - [Development workspace bootstrap](development-workspace-bootstrap.md) — the first dev user may already be platform admin when tenant resolution runs, so bootstrap must repair tenant and environment state for that path.

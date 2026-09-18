@@ -2130,6 +2130,19 @@ async function visit(routeCase, viewport) {
         mobile: viewport.name === "mobile",
       }),
     ]);
+    await client.command("Page.addScriptToEvaluateOnNewDocument", {
+      source: `(() => {
+        const OriginalDate = Date;
+        const fixedNow = ${Date.parse("2026-09-16T12:00:00.000Z")};
+        const StableDate = new Proxy(OriginalDate, {
+          construct(target, args) {
+            return new target(...(args.length ? args : [fixedNow]));
+          },
+        });
+        StableDate.now = () => fixedNow;
+        window.Date = StableDate;
+      })();`,
+    });
     const loaded = client.event("Page.loadEventFired");
     await client.command("Page.reload", { ignoreCache: true });
     await loaded;

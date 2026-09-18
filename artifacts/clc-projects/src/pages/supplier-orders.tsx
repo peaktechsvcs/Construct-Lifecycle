@@ -249,7 +249,7 @@ export function SupplierOrders() {
   useEffect(() => {
     if (!selectedOrder.data) return;
     const next: Record<number, ReceivingDraft> = {};
-    for (const delivery of selectedOrder.data.deliveries) {
+    for (const delivery of selectedOrder.data.deliveries ?? []) {
       for (const line of delivery.lines ?? []) {
         next[line.id] = {
           received: String(line.quantityReceived),
@@ -633,11 +633,11 @@ export function SupplierOrders() {
     .reduce((sum, order) => sum + order.totalCost, 0);
   const receivingMetrics = useMemo(() => {
     const detail = selectedOrder.data;
-    const detailLines = detail?.deliveries.flatMap((delivery) => delivery.lines ?? []) ?? [];
+    const detailLines = detail?.deliveries?.flatMap((delivery) => delivery.lines ?? []) ?? [];
     const accounted = detailLines.reduce((sum, line) => sum + line.quantityReceived + line.quantityDamaged + line.quantityShort + line.quantityReturned, 0);
     const delivered = detailLines.reduce((sum, line) => sum + line.quantityDelivered, 0);
     const exceptionLines = detailLines.filter((line) => line.quantityDamaged > 0 || line.quantityShort > 0 || line.quantityReturned > 0 || Boolean(line.exceptionNote)).length;
-    const fullyReceived = detail ? detail.lines.every((line) => line.receivedQuantity >= line.quantity) : false;
+    const fullyReceived = detail?.lines ? detail.lines.every((line) => line.receivedQuantity >= line.quantity) : false;
     return {
       visibleOrders: visibleOrders.length,
       openDeliveredUnits: Math.max(0, delivered - accounted),
@@ -878,7 +878,7 @@ export function SupplierOrders() {
                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><Metric label="Order date" value={shortDate(selectedOrder.data.orderDate)} /><Metric label="Promised" value={shortDate(selectedOrder.data.promisedDate)} /><Metric label="Payment" value={labelStatus(selectedOrder.data.paymentStatus)} /><Metric label="Customer context" value={selectedOrder.data.projectId ? `Project ${selectedOrder.data.projectId}` : 'Account only'} /></div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><Metric label="Sell" value={money(selectedOrder.data.totalSell)} /><Metric label="Cost" value={money(selectedOrder.data.totalCost)} /><Metric label="Margin" value={money(selectedOrder.data.grossMargin)} /><Metric label="Margin %" value={marginPercent(selectedOrder.data.grossMargin, selectedOrder.data.totalSell)} /></div>
                 {routeMode === 'receiving' && (() => {
-                  const detailLines = selectedOrder.data.deliveries.flatMap((delivery) => delivery.lines ?? []);
+                  const detailLines = selectedOrder.data.deliveries?.flatMap((delivery) => delivery.lines ?? []) ?? [];
                   const delivered = detailLines.reduce((sum, line) => sum + line.quantityDelivered, 0);
                   const accepted = detailLines.reduce((sum, line) => sum + line.quantityReceived, 0);
                   const exception = detailLines.reduce((sum, line) => sum + line.quantityDamaged + line.quantityShort + line.quantityReturned, 0);
