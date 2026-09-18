@@ -81,6 +81,9 @@ export function Dashboard() {
   const followUps = followQuery.data?.filter((item) => item.status === FollowUpStatus.open).slice(0, 4) ?? [];
   const controls = controlsQuery.data;
   const maxStage = Math.max(...(summary?.stageCounts.map((item) => item.count) ?? [1]), 1);
+  const forecastMarginPercent = controls?.contractValue && controls.contractValue > 0
+    ? Math.round((controls.forecastMargin / controls.contractValue) * 100)
+    : null;
 
   const dateStr = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date());
 
@@ -312,7 +315,7 @@ export function Dashboard() {
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
             <div className="rounded-lg bg-secondary/55 p-3"><p className="mono text-[9px] uppercase text-muted-foreground">Committed</p><p className="mt-2 text-lg font-bold">{currency.format(controls.committedCost)}</p><p className="text-[10px] text-muted-foreground">{controls.activeProjects} active projects</p></div>
-            <div className="rounded-lg bg-secondary/55 p-3"><p className="mono text-[9px] uppercase text-muted-foreground">Forecast margin</p><p className={`mt-2 text-lg font-bold ${controls.forecastMargin < 0 ? 'text-status-danger' : 'text-status-success'}`}>{currency.format(controls.forecastMargin)}</p><p className="text-[10px] text-muted-foreground">Across current work</p></div>
+             <div className="rounded-lg bg-secondary/55 p-3"><p className="mono text-[9px] uppercase text-muted-foreground">Forecast margin</p><p data-testid="text-dashboard-forecast-margin" className={`mt-2 text-lg font-bold ${controls.forecastMargin < 0 ? 'text-status-danger' : 'text-status-success'}`}>{currency.format(controls.forecastMargin)}{forecastMarginPercent === null ? '' : ` · ${forecastMarginPercent}%`}</p><p className="text-[10px] text-muted-foreground">Against contract value</p></div>
             <div className="rounded-lg bg-status-warning/8 p-3"><p className="mono text-[9px] uppercase text-status-warning">Decisions</p><p className="mt-2 text-lg font-bold">{controls.openDecisions}</p><p className="text-[10px] text-muted-foreground">{controls.pendingChanges} changes pending</p></div>
             <div className="rounded-lg bg-status-warning/8 p-3"><p className="mono text-[9px] uppercase text-status-warning">Schedule risk</p><p className="mt-2 text-lg font-bold">{controls.scheduleRiskDays} days</p><p className="text-[10px] text-muted-foreground">From issues and changes</p></div>
             <div className="rounded-lg bg-secondary/55 p-3"><p className="mono text-[9px] uppercase text-muted-foreground">Billing pending</p><p className="mt-2 text-lg font-bold">{currency.format(controls.billingPending)}</p><p className="text-[10px] text-muted-foreground">Invoiced less received</p></div>
