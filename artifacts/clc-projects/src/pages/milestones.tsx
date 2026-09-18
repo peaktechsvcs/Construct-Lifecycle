@@ -30,11 +30,13 @@ function MilestoneProject({ project }: { project: Project }) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState<Draft>(empty);
   const [feedback, setFeedback] = useState('');
+  const [saveError, setSaveError] = useState(false);
   const items = (controls.data?.scheduleItems ?? []).filter((item) => item.itemType === 'milestone');
   const open = (item?: ProjectScheduleItem) => {
     setEditingId(item?.id ?? null);
     setDraft(item ? { itemNumber: item.itemNumber, name: item.name, itemType: item.itemType, plannedStart: dateValue(item.plannedStart), plannedEnd: dateValue(item.plannedEnd), actualStart: dateValue(item.actualStart), actualEnd: dateValue(item.actualEnd), status: item.status, ownerName: item.ownerName ?? '', predecessor: item.predecessor ?? '' } : { ...empty });
     setFeedback('');
+    setSaveError(false);
   };
   const saveItem = () => {
     const data = {
@@ -42,14 +44,14 @@ function MilestoneProject({ project }: { project: Project }) {
       plannedStart: draft.plannedStart || undefined, plannedEnd: draft.plannedEnd || undefined, actualStart: draft.actualStart || undefined, actualEnd: draft.actualEnd || undefined,
       status: draft.status as ProjectScheduleItemInput['status'], ownerName: draft.ownerName.trim() || undefined, predecessor: draft.predecessor.trim() || undefined,
     };
-    const done = { onSuccess: () => { qc.invalidateQueries({ queryKey: getGetProjectControlsQueryKey(project.id) }); setEditingId(null); setDraft(empty); setFeedback('Milestone saved.'); }, onError: () => setFeedback('The milestone could not be saved. Check the fields and try again.') };
+    const done = { onSuccess: () => { qc.invalidateQueries({ queryKey: getGetProjectControlsQueryKey(project.id) }); setEditingId(null); setDraft(empty); setFeedback('Milestone saved.'); setSaveError(false); }, onError: () => { setFeedback('The milestone could not be saved. Check the fields and try again.'); setSaveError(true); } };
     if (editingId) update.mutate({ projectId: project.id, itemId: editingId, data: data as ProjectScheduleItemUpdate }, done);
     else create.mutate({ projectId: project.id, data }, done);
   };
   if (controls.isLoading) return <div className="rounded-xl border border-border bg-card p-5"><LoadingPanel lines={3} /></div>;
   if (controls.isError) return <ErrorPanel title={`${project.projectName} schedule unavailable`} text="Milestones could not be loaded." onRetry={() => controls.refetch()} />;
   return <article className="rounded-xl border border-border bg-card p-4 md:p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="mono text-[10px] text-accent">{project.projectNumber}</p><Link href={`/projects/${project.id}`} data-testid={`link-milestone-project-${project.id}`} className="text-base font-bold hover:text-primary hover:underline">{project.projectName}</Link><p className="text-xs text-muted-foreground">{project.customerName}</p></div><div className="flex gap-2"><Button data-testid={`button-add-milestone-${project.id}`} variant="outline" className="px-3 py-1.5 text-xs" onClick={() => open()}><Plus size={13} /> Add milestone</Button><Link href={`/projects/${project.id}`} className="rounded-md px-2 py-1.5 text-xs font-semibold text-primary hover:bg-secondary">Project detail</Link></div></div>
-     {feedback && <p data-testid="milestone-save-feedback" role="status" className="mt-3 text-xs text-status-success">{feedback}</p>}
+      {feedback && <p data-testid="milestone-save-feedback" role={saveError ? 'alert' : 'status'} className={`mt-3 text-xs ${saveError ? 'text-destructive' : 'text-status-success'}`}>{feedback}</p>}
     {editingId === null && draft !== empty && <MilestoneEditor draft={draft} setDraft={setDraft} onSave={saveItem} pending={create.isPending || update.isPending} editing={false} />}
      {items.length === 0 ? <p className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">No milestones have been entered for this project.</p> : <div className="mt-4 overflow-x-auto border-t border-border pt-2"><div className="min-w-[720px] divide-y divide-border">{items.map((item) => <div key={item.id} className="grid grid-cols-[90px_1.4fr_110px_120px_120px_42px] items-center gap-3 py-3"><p className="mono text-[10px] text-muted-foreground">{item.itemNumber}</p><p className="text-sm font-semibold">{item.name}<span className="block text-[10px] font-normal text-muted-foreground">{item.ownerName || 'Owner not assigned'}</span></p><span data-testid={`milestone-status-${item.id}`}><Badge tone={tone(item.status)}>{item.status.replace(/_/g, ' ')}</Badge></span><p className="text-xs">{shortDate(item.plannedStart)} — {shortDate(item.plannedEnd)}</p><p className="text-xs text-muted-foreground">{item.actualEnd ? `Actual ${shortDate(item.actualEnd)}` : 'Not complete'}</p><Button data-testid={`button-edit-milestone-${item.id}`} variant="ghost" aria-label={`Edit ${item.name}`} className="px-2" onClick={() => open(item)}><Pencil size={14} /></Button></div>)}</div></div>}
     {editingId !== null && <MilestoneEditor draft={draft} setDraft={setDraft} onSave={saveItem} pending={create.isPending || update.isPending} editing />}

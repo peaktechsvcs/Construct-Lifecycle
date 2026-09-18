@@ -153,6 +153,47 @@ const cases = [
     shell: true,
   },
   {
+    id: "milestones-save-failure",
+    name: "milestone save failure recovery",
+    path: "/milestones?browserAuth=authenticated&browserControls=standalone&browserControlsReset=1&browserMilestoneSaveFailure=1",
+    heading: "Milestones",
+    actions: [
+      'button[data-testid="button-add-milestone-42"]',
+      'a[data-testid="link-milestone-project-42"]',
+    ],
+    requiredSelectors: [
+      '[data-testid="milestone-status-4202"]',
+      'button[data-testid="button-edit-milestone-4202"]',
+    ],
+    requiredTexts: ["Browser Test Project", "MS-001", "Site mobilization"],
+    inlineEditor: {
+      openSelector: 'button[data-testid="button-add-milestone-42"]',
+      requiredSelector: 'input[data-testid="input-milestone-itemNumber"]',
+      submitSelector: 'button[data-testid="button-save-milestone"]',
+      submitLabel: "Add milestone",
+      feedbackSelector: '[data-testid="milestone-save-feedback"]',
+      feedbackText: "Milestone saved.",
+      fields: [
+        { selector: 'input[data-testid="input-milestone-itemNumber"]', value: "MS-002" },
+        { selector: 'input[data-testid="input-milestone-name"]', value: "Site mobilization updated" },
+      ],
+    },
+    editInlineEditor: {
+      openSelector: 'button[data-testid="button-edit-milestone-4202"]',
+      requiredSelector: 'input[data-testid="input-milestone-itemNumber"]',
+      submitSelector: 'button[data-testid="button-save-milestone"]',
+      submitLabel: "Save milestone",
+      feedbackSelector: '[data-testid="milestone-save-feedback"]',
+      feedbackText: "Milestone saved.",
+      fields: [
+        { selector: 'input[data-testid="input-milestone-name"]', value: "Site mobilization edited after retry" },
+      ],
+      failureRecovery: {
+        errorText: "The milestone could not be saved. Check the fields and try again.",
+      },
+    },
+  },
+  {
     id: "procurement-workspace",
     name: "procurement workspace",
     path: "/procurement?browserAuth=authenticated",
@@ -902,11 +943,52 @@ async function inspectInlineEditor(client, routeCase, viewport, editorKey = "inl
     `(() => {
       const feedback = document.querySelector(${JSON.stringify(editorCase.feedbackSelector)});
       return {
-        ready: feedback?.textContent?.trim() === ${JSON.stringify(editorCase.feedbackText)},
+        ready: feedback?.textContent?.trim() === ${JSON.stringify(editorCase.failureRecovery?.errorText ?? editorCase.feedbackText)}
+          && (${editorCase.failureRecovery ? `feedback?.getAttribute("role") === "alert"` : "true"}),
         text: feedback?.textContent?.trim() ?? "",
       };
     })()`,
   );
+
+  if (editorCase.failureRecovery) {
+    await waitFor(
+      client,
+      `${routeCase.name} preserved milestone values`,
+      `(() => {
+        const value = (selector) => document.querySelector(selector)?.value ?? null;
+        const submit = document.querySelector(${JSON.stringify(editorCase.submitSelector)});
+        return {
+          ready: value('[data-testid="input-milestone-name"]') === ${JSON.stringify(fields.find((field) => field.selector.includes("input-milestone-name"))?.value ?? "")}
+            && submit instanceof HTMLElement
+            && !submit.hasAttribute("disabled"),
+          name: value('[data-testid="input-milestone-name"]'),
+        };
+      })()`,
+    );
+
+    const retried = await evaluate(client, `(() => {
+      const submit = document.querySelector(${JSON.stringify(editorCase.submitSelector)});
+      if (!(submit instanceof HTMLElement) || submit.hasAttribute("disabled")) return false;
+      submit.click();
+      return true;
+    })()`);
+    if (!retried) {
+      throw new Error(`${routeCase.name} (${viewport.name}): milestone retry action missing`);
+    }
+
+    await waitFor(
+      client,
+      `${routeCase.name} recovered milestone save`,
+      `(() => {
+        const feedback = document.querySelector(${JSON.stringify(editorCase.feedbackSelector)});
+        return {
+          ready: feedback?.textContent?.trim() === ${JSON.stringify(editorCase.feedbackText)}
+            && feedback?.getAttribute("role") === "status",
+          text: feedback?.textContent?.trim() ?? "",
+        };
+      })()`,
+    );
+  }
 
   if (editorCase.reloadAfterSave) {
     const loaded = client.event("Page.loadEventFired");

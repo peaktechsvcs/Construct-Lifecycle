@@ -708,6 +708,7 @@ export function installBrowserTestApi() {
   const browserControlsMode = browserSearchParams.get('browserControls');
   const browserControlsSaveFailure = browserSearchParams.get('browserControlsSaveFailure') === '1';
   const browserControlsValidationFailure = browserSearchParams.get('browserControlsValidationFailure') === '1';
+  const browserMilestoneSaveFailure = browserSearchParams.get('browserMilestoneSaveFailure') === '1';
   if ((browserControlsMode === 'reload' || browserControlsMode === 'standalone') && browserSearchParams.get('browserControlsReset') === '1') {
     try {
       const resetKey = browserControlsMode === 'reload'
@@ -732,6 +733,7 @@ export function installBrowserTestApi() {
       : standaloneProjectControls;
   let browserContractSaveAttempts = 0;
   let browserContractValidationAttempts = 0;
+  let browserMilestoneSaveAttempts = 0;
   const persistBrowserProjectControls = () => {
     if (browserControlsMode === 'reload') {
       window.localStorage.setItem(browserProjectControlsStorageKey, JSON.stringify(browserControls));
@@ -887,6 +889,9 @@ export function installBrowserTestApi() {
       return json(createdMilestone, 201);
     }
     if (url.pathname === `/api/projects/${project.id}/controls/schedule/${browserMilestone.id}` && requestMethod === 'PATCH') {
+      if (browserMilestoneSaveFailure && browserMilestoneSaveAttempts++ === 0) {
+        return json({ error: 'Browser test milestone save failure' }, 503);
+      }
       let requestBody: Record<string, unknown> = {};
       try {
         requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
