@@ -388,7 +388,12 @@ const cases = [
     actions: ['button[data-testid="button-open-procurement"]'],
     requiredSelectors: ['[data-testid="row-supplier-order-8202"]'],
     requiredTexts: ["Delivery schedule", "DEL-8202", "DELIVERY EVIDENCE", "Record delivery"],
-    procurementFailureRecovery: { text: "DEL-8202" },
+    procurementFailureRecovery: {
+      errorTestId: "supplier-orders-error",
+      errorText: "Supplier order queue unavailable",
+      healthyText: "DELIVERY EVIDENCE",
+      text: "DEL-8202",
+    },
     shell: true,
     skipVisual: true,
   },
@@ -411,7 +416,12 @@ const cases = [
     actions: ['button[data-testid="button-open-procurement"]'],
     requiredSelectors: ['[data-testid="row-supplier-order-8202"]'],
     requiredTexts: ["Receiving dispositions", "DEL-8202", "RECEIVING CLOSEOUT", "Save receiving"],
-    procurementFailureRecovery: { text: "DEL-8202" },
+    procurementFailureRecovery: {
+      errorTestId: "supplier-orders-error",
+      errorText: "Supplier order queue unavailable",
+      healthyText: "RECEIVING CLOSEOUT",
+      text: "DEL-8202",
+    },
     shell: true,
     skipVisual: true,
   },
@@ -807,7 +817,18 @@ async function stabilize(client) {
       "html { scroll-behavior: auto !important; }",
     ].join("\\n");
     document.head.appendChild(style);
-    return document.fonts?.ready ?? true;
+    const fontReady = document.fonts
+      ? Promise.all([
+        document.fonts.load("400 16px Inter"),
+        document.fonts.load("500 16px Inter"),
+        document.fonts.load("700 16px Inter"),
+        document.fonts.load("400 10px DM Mono"),
+        document.fonts.ready,
+      ])
+      : Promise.resolve();
+    return fontReady.then(() => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    }));
   })()`);
   await new Promise((resolve) => setTimeout(resolve, 100));
 }
@@ -1908,7 +1929,7 @@ async function inspectProcurementFailureRecovery(client, routeCase, viewport) {
     }))()`,
   );
 
-    if (editorCase.failureRecovery.retry === false) return;
+  if (recovery.retry === false) return;
 
   const retried = await evaluate(client, `(() => {
     const button = document.querySelector('[data-testid="${recovery.errorTestId}"] button');
@@ -2149,6 +2170,7 @@ async function visit(routeCase, viewport) {
     await stabilize(client);
     await waitForRenderedPage(client, routeCase);
     const result = await inspect(client, routeCase, viewport);
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await new Promise((resolve) => setTimeout(resolve, 50));
     if (browserErrors.length) {
       throw new Error(`${routeCase.name} (${viewport.name}): unexpected browser errors: ${[...new Set(browserErrors)].join(" | ")}`);

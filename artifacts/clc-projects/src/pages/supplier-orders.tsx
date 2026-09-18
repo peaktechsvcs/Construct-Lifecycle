@@ -114,7 +114,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Section({ eyebrow, title, action, children }: { eyebrow: string; title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+    <section className="min-w-0 rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="mono text-[9px] font-bold uppercase tracking-[.15em] text-primary">{eyebrow}</p>
