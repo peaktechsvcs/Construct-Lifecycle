@@ -127,6 +127,14 @@ function Section({ eyebrow, title, action, children }: { eyebrow: string; title:
   );
 }
 
+function SupplierDataError({ testId, title, text, onRetry }: { testId: string; title: string; text: string; onRetry: () => void }) {
+  return (
+    <div data-testid={testId}>
+      <ErrorPanel title={title} text={text} onRetry={onRetry} />
+    </div>
+  );
+}
+
 function money(value: number) {
   return currency.format(value);
 }
@@ -554,7 +562,6 @@ export function SupplierOrders() {
   }
 
   const selectedProduct = products.data?.[0];
-  const pageError = products.isError || vendors.isError || quotes.isError || orders.isError;
   const staleQueueOrder = routeMode !== 'procurement'
     && routeOrderParam !== null
     && !orders.isLoading
@@ -589,8 +596,6 @@ export function SupplierOrders() {
         ))}
       </nav>
 
-      {pageError && <div data-testid="supplier-workspace-error"><ErrorPanel title="Supplier workspace unavailable" text="The latest supplier data could not be loaded. Try again after checking the active workspace." onRetry={refresh} /></div>}
-
       {tab === 'overview' && (
         <>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -601,13 +606,12 @@ export function SupplierOrders() {
           </section>
           <div className="grid gap-6 xl:grid-cols-[1.15fr_.85fr]">
             <Section eyebrow="Order book" title="Latest supplier orders" action={<Button variant="ghost" onClick={() => navigateTab('orders')}>View all <ArrowRight size={15} /></Button>}>
-              {orders.isLoading ? <LoadingPanel lines={4} /> : orders.data?.length ? <OrderTable orders={orders.data.slice(0, 5)} selectedOrderId={selectedOrderId} onSelect={selectOrder} /> : <EmptyState icon={Truck} title="No supplier orders yet" text="Accept a supplier quote to create the first purchase order." />}
+              {orders.isError ? <SupplierDataError testId="supplier-orders-error" title="Supplier order queue unavailable" text="The order queue could not be loaded. Other procurement sections remain available." onRetry={() => { void orders.refetch(); }} /> : orders.isLoading ? <LoadingPanel lines={4} /> : orders.data?.length ? <OrderTable orders={orders.data.slice(0, 5)} selectedOrderId={selectedOrderId} onSelect={selectOrder} /> : <EmptyState icon={Truck} title="No supplier orders yet" text="Accept a supplier quote to create the first purchase order." />}
             </Section>
             <Section eyebrow="Supply readiness" title="Catalog signals">
               <div className="space-y-3">
-                <Signal label="Products in catalog" value={products.data?.length ?? 0} detail="Materials and units ready to quote" />
-                <Signal label="Active vendors" value={vendors.data?.filter((vendor) => vendor.status === 'active').length ?? 0} detail="Supplier relationships in this environment" />
-                <Signal label="Backordered units" value={(products.data ?? []).reduce((sum, product) => sum + product.backorderedQuantity, 0)} detail="Catalog availability needs attention" />
+                 {products.isError ? <SupplierDataError testId="supplier-products-error" title="Product catalog unavailable" text="Products and materials could not be loaded. Retry to restore catalog signals." onRetry={() => { void products.refetch(); }} /> : <><Signal label="Products in catalog" value={products.data?.length ?? 0} detail="Materials and units ready to quote" /><Signal label="Backordered units" value={(products.data ?? []).reduce((sum, product) => sum + product.backorderedQuantity, 0)} detail="Catalog availability needs attention" /></>}
+                 {vendors.isError ? <SupplierDataError testId="supplier-vendors-error" title="Vendor directory unavailable" text="Supplier relationships could not be loaded. Retry to restore vendor signals." onRetry={() => { void vendors.refetch(); }} /> : <Signal label="Active vendors" value={vendors.data?.filter((vendor) => vendor.status === 'active').length ?? 0} detail="Supplier relationships in this environment" />}
               </div>
             </Section>
           </div>
@@ -634,7 +638,7 @@ export function SupplierOrders() {
               <Field label="List price"><Input required type="number" min="0" step="0.01" value={productForm.listPrice} onChange={(event) => setProductForm({ ...productForm, listPrice: event.target.value })} className={inputClass} /></Field>
               <div className="flex gap-2 sm:col-span-2"><Button type="submit">Save product</Button><Button type="button" variant="ghost" onClick={() => setShowProductForm(false)}>Cancel</Button></div>
             </form>}
-            {products.isLoading ? <LoadingPanel lines={5} /> : products.data?.length ? <ProductTable products={products.data} /> : <EmptyState icon={Package} title="No products yet" text="Add materials with unit cost, sell price, lead time, and availability." />}
+            {products.isError ? <SupplierDataError testId="supplier-products-error" title="Product catalog unavailable" text="Products and materials could not be loaded. Retry to review or add catalog items." onRetry={() => { void products.refetch(); }} /> : products.isLoading ? <LoadingPanel lines={5} /> : products.data?.length ? <ProductTable products={products.data} /> : <EmptyState icon={Package} title="No products yet" text="Add materials with unit cost, sell price, lead time, and availability." />}
           </Section>
           <Section eyebrow="Vendor directory" title="Supplier vendors" action={<Button onClick={() => setShowVendorForm((value) => !value)}><Plus size={15} /> Add vendor</Button>}>
             {showVendorForm && <form onSubmit={saveVendor} className="mb-4 grid gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
@@ -642,10 +646,12 @@ export function SupplierOrders() {
               <Field label="Typical lead time (days)"><Input type="number" min="0" value={vendorForm.leadTimeDays} onChange={(event) => setVendorForm({ ...vendorForm, leadTimeDays: event.target.value })} className={inputClass} /></Field>
               <div className="flex gap-2"><Button type="submit">Save vendor</Button><Button type="button" variant="ghost" onClick={() => setShowVendorForm(false)}>Cancel</Button></div>
             </form>}
-            {vendors.data?.length ? <div className="space-y-2">{vendors.data.map((vendor) => <div key={vendor.id} className="flex items-center justify-between rounded-lg border border-border p-3"><div><p className="text-sm font-bold">{vendor.name}</p><p className="mono mt-1 text-[9px] uppercase tracking-[.08em] text-muted-foreground">{vendor.leadTimeDays} day lead time</p></div><Badge tone={statusTone(vendor.status)}>{vendor.status}</Badge></div>)}</div> : <EmptyState icon={Warehouse} title="No vendors yet" text="Add the supplier relationships that will support quoting and purchasing." />}
+            {vendors.isError ? <SupplierDataError testId="supplier-vendors-error" title="Vendor directory unavailable" text="Supplier relationships could not be loaded. Retry to review or add vendors." onRetry={() => { void vendors.refetch(); }} /> : vendors.isLoading ? <LoadingPanel lines={4} /> : vendors.data?.length ? <div className="space-y-2">{vendors.data.map((vendor) => <div key={vendor.id} className="flex items-center justify-between rounded-lg border border-border p-3"><div><p className="text-sm font-bold">{vendor.name}</p><p className="mono mt-1 text-[9px] uppercase tracking-[.08em] text-muted-foreground">{vendor.leadTimeDays} day lead time</p></div><Badge tone={statusTone(vendor.status)}>{vendor.status}</Badge></div>)}</div> : <EmptyState icon={Warehouse} title="No vendors yet" text="Add the supplier relationships that will support quoting and purchasing." />}
           </Section>
            <Section eyebrow="Account controls" title="Customer terms">
-             <form onSubmit={saveTerms} className="grid gap-3">
+              {customers.isError && <SupplierDataError testId="supplier-customers-error" title="Business customer list unavailable" text="Customers could not be loaded, so customer terms cannot be selected." onRetry={() => { void customers.refetch(); }} />}
+              {terms.isError && <SupplierDataError testId="supplier-terms-error" title="Customer terms unavailable" text="Supplier terms could not be loaded. Retry to review or save account controls." onRetry={() => { void terms.refetch(); }} />}
+              {!customers.isError && !terms.isError && <form onSubmit={saveTerms} className="grid gap-3">
                <Field label="Customer"><select required value={termsForm.customerId} onChange={(event) => {
                  const customerId = event.target.value;
                  const existing = terms.data?.find((term) => term.businessCustomerId === Number(customerId));
@@ -667,7 +673,7 @@ export function SupplierOrders() {
                <label className="flex items-start gap-2 rounded-lg border border-border/70 p-3 text-xs"><input type="checkbox" checked={termsForm.waiverRequired} onChange={(event) => setTermsForm({ ...termsForm, waiverRequired: event.target.checked })} className="mt-0.5" /><span><span className="block font-semibold text-foreground">Require waiver before payment or closeout</span><span className="mt-1 block text-muted-foreground">Invoices remain blocked until the waiver is received or approved.</span></span></label>
                <Button type="submit" disabled={!termsForm.customerId || createTerms.isPending}>{createTerms.isPending ? 'Saving…' : 'Save customer terms'}</Button>
                {createTerms.isError && <p role="alert" className="text-xs text-destructive">Customer terms could not be saved.</p>}
-             </form>
+              </form>}
            </Section>
         </div>
       )}
@@ -676,6 +682,7 @@ export function SupplierOrders() {
         <div className="grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
              <Section eyebrow="Supplier pricing" title="Quotes and proposals" action={<Button data-testid="button-new-supplier-quote-tab" onClick={() => setShowQuoteForm((value) => !value)}><Plus size={15} /> New quote</Button>}>
              {showQuoteForm && <form onSubmit={saveQuote} className="mb-4 grid gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 sm:grid-cols-2">
+                {customers.isError && <div className="sm:col-span-2"><SupplierDataError testId="supplier-customers-error" title="Business customer list unavailable" text="Customers could not be loaded, so a quote cannot be assigned." onRetry={() => { void customers.refetch(); }} /></div>}
                <Field label="Customer"><select required data-testid="select-supplier-quote-customer" value={quoteForm.customerId} onChange={(event) => setQuoteForm({ ...quoteForm, customerId: event.target.value })} className={inputClass}><option value="">Choose customer</option>{customers.data?.map((customer) => <option key={customer.id} value={customer.id}>{customer.companyName}</option>)}</select></Field>
                <Field label="Description"><Input required data-testid="input-supplier-quote-description" value={quoteForm.description} onChange={(event) => setQuoteForm({ ...quoteForm, description: event.target.value })} placeholder={selectedProduct?.name || 'Material scope'} className={inputClass} /></Field>
                <Field label="Quantity"><Input required data-testid="input-supplier-quote-quantity" type="number" min="0.001" step="0.001" value={quoteForm.quantity} onChange={(event) => setQuoteForm({ ...quoteForm, quantity: event.target.value })} className={inputClass} /></Field>
@@ -685,10 +692,10 @@ export function SupplierOrders() {
                 {createQuote.isError && <p role="alert" className="text-xs text-destructive sm:col-span-2">This supplier quote could not be created. Check the customer, description, quantity, and pricing, then try again.</p>}
                 <div className="flex gap-2 sm:col-span-2"><Button type="submit" data-testid="button-create-supplier-quote" disabled={createQuote.isPending}>{createQuote.isPending ? 'Creating…' : 'Create quote'}</Button><Button type="button" variant="ghost" onClick={() => { setShowQuoteForm(false); resetQuoteForm(); }}>Cancel</Button></div>
             </form>}
-            {quotes.isLoading ? <LoadingPanel lines={5} /> : quotes.data?.length ? <QuoteTable quotes={quotes.data} selectedQuoteId={selectedQuoteId} onSelect={selectQuote} /> : <EmptyState icon={Receipt} title="No supplier quotes yet" text="Create a quote from catalog pricing, then convert accepted work into an order." />}
+            {quotes.isError ? <SupplierDataError testId="supplier-quotes-error" title="Supplier quote list unavailable" text="Quotes could not be loaded. Retry to review pricing and conversion status." onRetry={() => { void quotes.refetch(); }} /> : quotes.isLoading ? <LoadingPanel lines={5} /> : quotes.data?.length ? <QuoteTable quotes={quotes.data} selectedQuoteId={selectedQuoteId} onSelect={selectQuote} /> : <EmptyState icon={Receipt} title="No supplier quotes yet" text="Create a quote from catalog pricing, then convert accepted work into an order." />}
           </Section>
           <Section eyebrow="Conversion" title="Quote detail">
-             {unavailableQuoteLink ? <div data-testid="supplier-quote-unavailable"><EmptyState icon={Receipt} title="Quote unavailable" text="This quote link is invalid or no longer available. Choose a quote from the list instead." /></div> : !selectedQuoteId ? <EmptyState icon={Receipt} title="Choose a quote" text="Select a quote to review margin and convert accepted supplier pricing into an order." /> : selectedQuote.isLoading ? <LoadingPanel lines={4} /> : selectedQuote.data ? <div className="space-y-4">
+             {unavailableQuoteLink ? <div data-testid="supplier-quote-unavailable"><EmptyState icon={Receipt} title="Quote unavailable" text="This quote link is invalid or no longer available. Choose a quote from the list instead." /></div> : !selectedQuoteId ? <EmptyState icon={Receipt} title="Choose a quote" text="Select a quote to review margin and convert accepted supplier pricing into an order." /> : selectedQuote.isError ? <SupplierDataError testId="supplier-quote-detail-error" title="Supplier quote detail unavailable" text="The selected quote could not be loaded. Retry to review its lines and totals." onRetry={() => { void selectedQuote.refetch(); }} /> : selectedQuote.isLoading ? <LoadingPanel lines={4} /> : selectedQuote.data ? <div className="space-y-4">
               <div className="flex items-start justify-between gap-3"><div><p className="mono text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{selectedQuote.data.quoteNumber}</p><h3 className="mt-1 text-base font-bold">{selectedQuote.data.customerName}</h3></div><Badge tone={statusTone(selectedQuote.data.status)}>{labelStatus(selectedQuote.data.status)}</Badge></div>
               <div className="grid grid-cols-3 gap-2"><Metric label="Sell" value={money(selectedQuote.data.totalSell)} /><Metric label="Cost" value={money(selectedQuote.data.totalCost)} /><Metric label="Margin" value={money(selectedQuote.data.grossMargin)} /></div>
                {editingQuoteId === selectedQuote.data.id ? (
@@ -733,10 +740,10 @@ export function SupplierOrders() {
             eyebrow={routeMode === 'deliveries' ? 'Appointments and tracking' : routeMode === 'receiving' ? 'Delivered quantities and exceptions' : 'Purchasing and fulfillment'}
             title={routeMode === 'deliveries' ? 'Delivery schedule' : routeMode === 'receiving' ? 'Receiving dispositions' : 'Supplier orders'}
           >
-            {orders.isLoading ? <LoadingPanel lines={5} /> : visibleOrders.length ? <OrderTable orders={visibleOrders} selectedOrderId={selectedOrderId} onSelect={selectOrder} /> : <EmptyState icon={routeMode === 'receiving' ? Warehouse : Truck} title={routeMode === 'receiving' ? 'No receiving work yet' : routeMode === 'deliveries' ? 'No deliveries scheduled' : 'No orders yet'} text={routeMode === 'receiving' ? 'Delivered, partial, and exception quantities will appear here for disposition.' : routeMode === 'deliveries' ? 'Create a delivery from a purchase order to begin scheduling and tracking fulfillment.' : 'Accepted supplier quotes appear here as purchase orders.'} />}
+            {orders.isError ? <SupplierDataError testId="supplier-orders-error" title="Supplier order queue unavailable" text="The order queue could not be loaded. Retry to review purchasing and fulfillment." onRetry={() => { void orders.refetch(); }} /> : orders.isLoading ? <LoadingPanel lines={5} /> : visibleOrders.length ? <OrderTable orders={visibleOrders} selectedOrderId={selectedOrderId} onSelect={selectOrder} /> : <EmptyState icon={routeMode === 'receiving' ? Warehouse : Truck} title={routeMode === 'receiving' ? 'No receiving work yet' : routeMode === 'deliveries' ? 'No deliveries scheduled' : 'No orders yet'} text={routeMode === 'receiving' ? 'Delivered, partial, and exception quantities will appear here for disposition.' : routeMode === 'deliveries' ? 'Create a delivery from a purchase order to begin scheduling and tracking fulfillment.' : 'Accepted supplier quotes appear here as purchase orders.'} />}
           </Section>
           <Section eyebrow="Fulfillment control" title="Order detail">
-             {staleQueueOrder ? <div data-testid="supplier-order-unavailable"><EmptyState icon={ClipboardList} title="Order unavailable in this queue" text="This order link is stale or the order is no longer in this queue. Choose an order from the list to continue." /></div> : !selectedOrderId ? <EmptyState icon={ClipboardList} title="Choose an order" text="Review promised dates, margin, delivery appointments, receiving, invoices, and audit events." /> : selectedOrder.isLoading ? <LoadingPanel lines={5} /> : selectedOrder.data ? <div className="space-y-5">
+             {staleQueueOrder ? <div data-testid="supplier-order-unavailable"><EmptyState icon={ClipboardList} title="Order unavailable in this queue" text="This order link is stale or the order is no longer in this queue. Choose an order from the list to continue." /></div> : !selectedOrderId ? <EmptyState icon={ClipboardList} title="Choose an order" text="Review promised dates, margin, delivery appointments, receiving, invoices, and audit events." /> : selectedOrder.isError ? <SupplierDataError testId="supplier-order-detail-error" title="Supplier order detail unavailable" text="The selected order could not be loaded. Retry to review fulfillment and receiving details." onRetry={() => { void selectedOrder.refetch(); }} /> : selectedOrder.isLoading ? <LoadingPanel lines={5} /> : selectedOrder.data ? <div className="space-y-5">
               <div className="flex items-start justify-between gap-3"><div><p className="mono text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground">{selectedOrder.data.orderNumber}</p><h3 className="mt-1 text-base font-bold">{selectedOrder.data.customerName}</h3><p className="mt-1 text-xs text-muted-foreground">{selectedOrder.data.jobsiteInstructions || 'No jobsite instructions shared yet.'}</p></div><Badge tone={statusTone(selectedOrder.data.orderStatus)}>{labelStatus(selectedOrder.data.orderStatus)}</Badge></div>
               <div className="grid grid-cols-3 gap-2"><Metric label="Sell" value={money(selectedOrder.data.totalSell)} /><Metric label="Cost" value={money(selectedOrder.data.totalCost)} /><Metric label="Margin" value={money(selectedOrder.data.grossMargin)} /></div>
               <div className="space-y-2">{selectedOrder.data.lines.map((line) => <div key={line.id} className="rounded-lg border border-border p-3"><div className="flex justify-between gap-2 text-sm"><span className="font-semibold">{line.description}</span><span>{line.receivedQuantity}/{line.quantity} received</span></div><div className="mt-2 flex flex-wrap gap-1.5"><Badge tone={line.backorderedQuantity > 0 ? 'orange' : 'green'}>{line.backorderedQuantity > 0 ? `${line.backorderedQuantity} backordered` : 'fully purchased'}</Badge>{line.approvedSubstitution && <Badge tone="teal">substitution approved</Badge>}</div></div>)}</div>

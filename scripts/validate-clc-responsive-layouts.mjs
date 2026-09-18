@@ -178,7 +178,7 @@ const cases = [
     ],
     requiredSelectors: ['button[data-testid="button-supplier-tab-orders"]'],
     requiredTexts: ["Latest supplier orders", "PO-8202", "Browser Test Customer"],
-    procurementFailureRecovery: { text: "PO-8202" },
+    procurementFailureRecovery: { errorTestId: "supplier-orders-error", errorText: "Supplier order queue unavailable", healthyText: "Products in catalog", text: "PO-8202" },
     shell: true,
     skipVisual: true,
   },
@@ -193,7 +193,7 @@ const cases = [
     ],
     requiredSelectors: ['button[data-testid="button-supplier-tab-orders"]'],
     requiredTexts: ["Products and materials", "Browser Test Concrete", "Supplier vendors"],
-    procurementFailureRecovery: { tab: "catalog", text: "Browser Test Concrete" },
+    procurementFailureRecovery: { tab: "catalog", errorTestId: "supplier-products-error", errorText: "Product catalog unavailable", healthyText: "Active vendors", text: "Browser Test Concrete" },
     shell: true,
     skipVisual: true,
   },
@@ -208,7 +208,7 @@ const cases = [
     ],
     requiredSelectors: ['button[data-testid="button-supplier-tab-orders"]'],
     requiredTexts: ["Products and materials", "Browser Test Concrete", "Browser Test Supplier"],
-    procurementFailureRecovery: { tab: "catalog", text: "Browser Test Supplier" },
+    procurementFailureRecovery: { tab: "catalog", errorTestId: "supplier-vendors-error", errorText: "Vendor directory unavailable", healthyText: "Products in catalog", text: "Browser Test Supplier" },
     shell: true,
     skipVisual: true,
   },
@@ -223,7 +223,7 @@ const cases = [
     ],
     requiredSelectors: ['button[data-testid="button-supplier-tab-orders"]'],
     requiredTexts: ["Quotes and proposals", "SQ-8101", "Browser Test Customer"],
-    procurementFailureRecovery: { tab: "quotes", text: "SQ-8101" },
+    procurementFailureRecovery: { tab: "quotes", initialTab: "quotes", errorTestId: "supplier-quotes-error", errorText: "Supplier quote list unavailable", healthyText: "Quote detail", text: "SQ-8101" },
     shell: true,
     skipVisual: true,
   },
@@ -1660,19 +1660,29 @@ async function inspectProcurementFailureRecovery(client, routeCase, viewport) {
   if (!routeCase.procurementFailureRecovery) return;
   const recovery = routeCase.procurementFailureRecovery;
 
+  if (recovery.initialTab) {
+    const selectedTab = await evaluate(client, `(() => {
+      const button = document.querySelector('[data-testid="button-supplier-tab-${recovery.initialTab}"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    if (!selectedTab) throw new Error(`${routeCase.name} (${viewport.name}): failed to open ${recovery.initialTab} for targeted error recovery`);
+  }
+
   await waitFor(
     client,
     `${routeCase.name} error state`,
     `(() => ({
-      ready: document.querySelector('[data-testid="supplier-workspace-error"]') !== null
-        && document.body.innerText.includes("Supplier workspace unavailable")
-        && [...document.querySelectorAll("button")].some((button) => button.textContent?.trim() === "Retry"),
+      ready: document.querySelector('[data-testid="${recovery.errorTestId}"]') !== null
+        && document.body.innerText.includes(${JSON.stringify(recovery.errorText)})
+        && document.body.innerText.includes(${JSON.stringify(recovery.healthyText)})
+        && [...document.querySelectorAll('[data-testid="${recovery.errorTestId}"] button')].some((button) => button.textContent?.trim() === "Retry"),
     }))()`,
   );
 
   const retried = await evaluate(client, `(() => {
-    const button = [...document.querySelectorAll("button")]
-      .find((candidate) => candidate.textContent?.trim() === "Retry");
+    const button = document.querySelector('[data-testid="${recovery.errorTestId}"] button');
     if (!(button instanceof HTMLElement)) return false;
     button.click();
     return true;
@@ -1683,7 +1693,7 @@ async function inspectProcurementFailureRecovery(client, routeCase, viewport) {
     client,
     `${routeCase.name} cleared error`,
     `(() => ({
-      ready: document.querySelector('[data-testid="supplier-workspace-error"]') === null
+      ready: document.querySelector('[data-testid="${recovery.errorTestId}"]') === null
     }))()`,
   );
 
